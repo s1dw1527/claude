@@ -578,13 +578,20 @@ section("secrets", function(ctx)
 	T.act(cc, "shareAch", "firstBusiness")
 	H.task.wait(0.3)
 	local post
-	for _, e in ipairs(T.remotesSince(m3, "Buzz")) do post = e.args[1] end
+	for _, e in ipairs(T.remotesSince(m3, "Buzz")) do
+		if e.args[1].author == "Cara" then post = e.args[1] end
+	end
 	H.check(post and post.author == "Cara" and post.achievement == true, "sharing posts it to CityBuzz under Cara's name")
+	local function caraPosts(mark)
+		local n = 0
+		for _, e in ipairs(T.remotesSince(mark, "Buzz")) do if e.args[1].author == "Cara" then n += 1 end end
+		return n
+	end
 	local m4 = #H.remoteLog
 	T.act(cc, "shareAch", "firstBusiness")
-	H.check(#T.remotesSince(m4, "Buzz") == 0, "each achievement can only be shared once")
+	H.check(caraPosts(m4) == 0, "each achievement can only be shared once")
 	T.act(cc, "shareAch", "billion")
-	H.check(#T.remotesSince(m4, "Buzz") == 0, "you can't share an achievement you don't have")
+	H.check(caraPosts(m4) == 0, "you can't share an achievement you don't have")
 	-- likes: real players' likes make a post trend (+25% customers)
 	local rateBefore = F.customerRate(dcc, H.now())
 	T.act(cc, "like", post.id)
