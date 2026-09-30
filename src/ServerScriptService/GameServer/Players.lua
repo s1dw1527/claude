@@ -464,6 +464,7 @@ function F.startGame(plr, slot, starterIdx)
 	end
 	F.refreshKiosks(plr)
 	F.refreshTower(plr, true)
+	F.refreshWorkers(plr)
 	for _, id in ipairs(d.savedLots or {}) do
 		local lot = LOTS[id]
 		if lot and not lot.owner then
@@ -560,6 +561,7 @@ function F.unload(plr, backToMenu)
 		plot.tower = nil
 	end
 	F.setIce(plot, false)
+	F.clearWorkers(plot)
 	plot.owner = nil
 	F.setPlotSign(plot, "Empty Plot", "")
 	data[plr] = nil
@@ -935,6 +937,7 @@ task.spawn(function()
 					if pr.state == "ignored" and now >= pr.untilT then
 						d.problems[key] = nil
 						F.problemVisual(plr, key, false)
+						F.refreshWorkers(plr)
 					end
 				end
 				if now >= d.nextProblem then

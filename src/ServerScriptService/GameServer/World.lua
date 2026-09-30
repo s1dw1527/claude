@@ -303,7 +303,9 @@ do
 		local col = PLOT_COLORS[i]
 		local folder = Instance.new("Folder")
 		folder.Name = "Plot" .. i
+		folder:SetAttribute("Workers", "")
 		folder.Parent = Workspace
+		tag(folder, "EmpirePlot")
 		local function at(xl, y, zl) return V3(c.X + xl, y, c.Z + zl * fz) end
 		P(folder, V3(90, 3, 90), CF(c + V3(0, -0.5, 0)), RGB(96, 170, 96), MAT.Grass, {CanCollide = true, Name = "Base"})
 		P(folder, V3(90.6, 2.4, 90.6), CF(c + V3(0, -0.7, 0)), col, MAT.SmoothPlastic)

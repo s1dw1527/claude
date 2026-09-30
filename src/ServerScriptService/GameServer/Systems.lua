@@ -296,6 +296,7 @@ function F.buyUpgrade(plr, d, key)
 	local oldStage, newStage = stageOf(lvl, ch), stageOf(lvl + 1, ch)
 	F.refreshBuilding(plr, key, true)
 	d.seen.stages[key .. newStage] = true
+	if newStage ~= oldStage then F.refreshWorkers(plr) end
 	if newStage > oldStage and oldStage > 0 then
 		F.buzz(b.icon, plr.Name .. "'s " .. b.tiers[oldStage] .. " transformed into a " .. b.tiers[newStage] .. "!", b.color)
 	end
@@ -319,6 +320,7 @@ function F.openChain(plr, d, key)
 	local b = BIZ[key]
 	F.refreshBuilding(plr, key, true)
 	d.seen.stages[key .. stageOf(d.levels[key], c)] = true
+	F.refreshWorkers(plr)
 	if c == #CHAINS then
 		R.Splash:FireAllClients("🌟 NEW LANDMARK 🌟", plr.Name .. " built the " .. b.tiers[6] .. "!", RGB(255, 215, 80))
 		F.buzz("🌟", plr.Name .. " built a LANDMARK: " .. b.tiers[6] .. "!", RGB(255, 215, 80))
@@ -382,6 +384,7 @@ function F.makeProblem(plr, d, now)
 	local repair = math.max(100, math.floor((per[key] or 0) * 30 * discount))
 	d.problems[key] = {type = ti, repair = repair, replace = repair * 4, state = "new"}
 	F.problemVisual(plr, key, true)
+	F.refreshWorkers(plr)
 	notify(plr, "⚠️ PROBLEM at your " .. BIZ[key].name .. ": " .. PROBLEMS[ti].text)
 end
 function F.resolveProblem(plr, d, key, choice, now)
@@ -396,6 +399,7 @@ function F.resolveProblem(plr, d, key, choice, now)
 		d.cash -= cost
 		d.problems[key] = nil
 		F.problemVisual(plr, key, false)
+		F.refreshWorkers(plr)
 		if choice == "replace" then
 			d.immune[key] = now + 300
 			F.addRep(plr, 5)
@@ -769,6 +773,7 @@ function F.rebirth(plr)
 	d.delivery = nil
 	for _, b in ipairs(BUSINESSES) do F.refreshBuilding(plr, b.key, false) end
 	F.refreshTower(plr, true)
+	F.refreshWorkers(plr)
 	burst(d.plot.center + V3(0, 20, 0), RGB(255, 120, 255), 250)
 	C.shockwave(d.plot.center + V3(0, 2, 0), RGB(255, 120, 255), 90)
 	local perkText = ""

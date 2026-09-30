@@ -543,6 +543,61 @@ function F.refreshTower(plr, force)
 	m.Parent = plot.folder
 end
 
+-- ===== STAFF ON SITE =====
+-- The server publishes each plot's hired staff as a small JSON roster on the plot folder.
+-- Every client draws the workers from it (see EmpireClient > Workers), so the server never moves NPCs.
+local HttpService = game:GetService("HttpService")
+local BEHIND_COUNTER = {lemonade = true, icecream = true, bakery = true}
+-- plaza spots for the company-wide staff: {x, z, wander half-width, wander half-depth} in plot coordinates
+local SPECIAL_SPOTS = {manager = {26, 22, 7, 5}, marketer = {0, 40, 10, 1.5}, engineer = {-26, 22, 7, 4}}
+function F.refreshWorkers(plr)
+	local d = data[plr]
+	if not d then return end
+	local plot = d.plot
+	local yaw = plot.fz == 1 and 0 or math.pi
+	local fixKey
+	for _, b in ipairs(BUSINESSES) do
+		if not fixKey and d.problems[b.key] and (d.levels[b.key] or 0) > 0 then fixKey = b.key end
+	end
+	local list = {}
+	for _, slot in ipairs(C.STAFF_ORDER) do
+		local s = d.staff[slot]
+		local role = C.STAFF_ROLES[slot]
+		if s and role then
+			local e = {id = slot, name = s.name, role = role.role, stars = C.staffStars(s)}
+			local b = BIZ[slot]
+			if b then
+				local lvl = d.levels[slot] or 0
+				if lvl > 0 then
+					local stage = stageOf(lvl, d.chains[slot] or 0)
+					local spot
+					if stage == 1 then
+						spot = BEHIND_COUNTER[slot] and CF(0, 0.3, -2.6) or CF(0, 0.3, 4.6)
+					else
+						spot = CF(0, 0.3, 6.9)
+					end
+					local p = (F.slotCF(plot, slot) * spot).Position
+					e.x, e.y, e.z, e.yaw = p.X, p.Y, p.Z, yaw
+					e.ex, e.ez = stage == 1 and 1.8 or 3.4, stage == 1 and 0.2 or 0.7
+					table.insert(list, e)
+				end
+			else
+				local sp = SPECIAL_SPOTS[slot]
+				local p = plot.at(sp[1], 1.15, sp[2])
+				e.x, e.y, e.z, e.yaw, e.ex, e.ez = p.X, p.Y, p.Z, yaw, sp[3], sp[4]
+				if slot == "engineer" and fixKey then
+					local fp = (F.slotCF(plot, fixKey) * CF(2.5, 0.3, 8.2)).Position
+					e.fx, e.fy, e.fz = fp.X, fp.Y, fp.Z
+				end
+				table.insert(list, e)
+			end
+		end
+	end
+	local json = #list > 0 and HttpService:JSONEncode(list) or ""
+	if plot.folder:GetAttribute("Workers") ~= json then plot.folder:SetAttribute("Workers", json) end
+end
+function F.clearWorkers(plot) plot.folder:SetAttribute("Workers", "") end
+
 function F.setIce(plot, on)
 	if on and not plot.ice then
 		local ice = P(plot.folder, V3(88, 24, 50), CF(plot.at(0, 13, -16)), RGB(170, 225, 255), MAT.Ice, {Transparency = 0.55, Name = "Ice"})

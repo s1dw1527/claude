@@ -1,4 +1,28 @@
 {
-  "/ServerScriptService/GameServer": ["Config", "Util", "World", "Buildings", "Housing", "Rentals", "Cars", "Race", "Activities", "Social", "Systems", "Players"],
-  "/StarterPlayer/StarterPlayerScripts/EmpireClient": ["UI", "Audio", "HUD", "WorldFX", "Menus", "Phone", "Driving", "MiniGames", "MainMenu"]
+  "/ServerScriptService/GameServer": [
+    "Config",
+    "Util",
+    "World",
+    "Buildings",
+    "Housing",
+    "Rentals",
+    "Cars",
+    "Race",
+    "Activities",
+    "Social",
+    "Systems",
+    "Players"
+  ],
+  "/StarterPlayer/StarterPlayerScripts/EmpireClient": [
+    "UI",
+    "Audio",
+    "HUD",
+    "WorldFX",
+    "Workers",
+    "Menus",
+    "Phone",
+    "Driving",
+    "MiniGames",
+    "MainMenu"
+  ]
 }
