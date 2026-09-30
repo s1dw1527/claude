@@ -440,4 +440,80 @@ do
 		end
 	end)
 end
+
+-- ===== MEGA EVENTS: giant announcement across the whole screen, then a compact progress bar =====
+do
+	local big = new("Frame", {AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.36), Size = UDim2.new(0.86, 0, 0, 190), BackgroundTransparency = 1, Visible = false, ZIndex = 70}, gui)
+	local bigScale = new("UIScale", {}, big)
+	local bigIcon = label({Size = UDim2.new(1, 0, 0, 70), TextScaled = true, Font = Enum.Font.GothamBlack, ZIndex = 71}, big)
+	local bigTitle = label({Position = UDim2.fromOffset(0, 68), Size = UDim2.new(1, 0, 0, 74), TextScaled = true, Font = Enum.Font.GothamBlack, ZIndex = 71}, big)
+	new("UIStroke", {Thickness = 5, Color = Color3.new(0, 0, 0), Transparency = 0.1}, bigTitle)
+	local bigSub = label({Position = UDim2.fromOffset(0, 142), Size = UDim2.new(1, 0, 0, 40), TextScaled = true, ZIndex = 71}, big)
+	new("UIStroke", {Thickness = 2, Color = Color3.new(0, 0, 0), Transparency = 0.2}, bigSub)
+	local flash = new("Frame", {Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 69}, gui)
+	local bar = panel({AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 214), Size = UDim2.fromOffset(540, 44), Visible = false, ZIndex = 30}, gui)
+	stroke(bar, GOLD, 2, 0)
+	local barTitle = label({Position = UDim2.fromOffset(12, 2), Size = UDim2.new(1, -110, 0, 22), TextSize = 15, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 31}, bar)
+	local barText = label({Position = UDim2.fromOffset(12, 22), Size = UDim2.new(1, -110, 0, 18), TextSize = 12, TextColor3 = GOLD, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 31}, bar)
+	local barTime = label({Position = UDim2.new(1, -100, 0, 0), Size = UDim2.fromOffset(90, 44), TextSize = 22, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Right, ZIndex = 31}, bar)
+	local current, endsAt, bigId = nil, 0, 0
+	local function showBar(e)
+		current = e.key
+		bar.Visible = true
+		bar.BackgroundColor3 = (e.color or GOLD):Lerp(Color3.new(0, 0, 0), 0.6)
+		barTitle.Text = (e.icon or "") .. " " .. (e.title or "")
+		barText.Text = e.text or e.sub or ""
+		if e.left then endsAt = os.clock() + e.left end
+	end
+	C.megaActive = function() return current ~= nil end
+	R.Mega.OnClientEvent:Connect(function(e)
+		if type(e) ~= "table" then return end
+		if e.kind == "start" then
+			bigId += 1
+			local mine = bigId
+			bigIcon.Text = e.icon or ""
+			bigTitle.Text = e.title or ""
+			bigTitle.TextColor3 = e.color or GOLD
+			bigSub.Text = (e.sub or "") .. "   📸 V = photo mode"
+			big.Visible = true
+			bigScale.Scale = 0.3
+			tween(bigScale, 0.7, {Scale = 1}, Enum.EasingStyle.Back)
+			flash.BackgroundColor3 = e.color or GOLD
+			flash.BackgroundTransparency = 0.4
+			tween(flash, 0.8, {BackgroundTransparency = 1})
+			play(SND.event)
+			U.confetti(90)
+			showBar({key = e.key, icon = e.icon, title = e.title, text = e.text or e.sub, color = e.color, left = e.dur})
+			task.delay(6, function()
+				if bigId ~= mine then return end
+				tween(bigScale, 0.35, {Scale = 0.2}, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+				task.delay(0.35, function() if bigId == mine then big.Visible = false end end)
+			end)
+		elseif e.kind == "progress" then
+			if current == e.key then
+				barText.Text = e.text or ""
+				if e.left then endsAt = os.clock() + e.left end
+				tween(bar, 0.08, {Size = UDim2.fromOffset(556, 46)})
+				task.delay(0.08, function() tween(bar, 0.15, {Size = UDim2.fromOffset(540, 44)}) end)
+			end
+		elseif e.kind == "end" then
+			current = nil
+			bar.Visible = false
+			big.Visible = false
+			U.splash(e.title or "", e.sub or "", e.color)
+		end
+	end)
+	-- joined mid-event (or missed the start): rebuild the bar from the state packet
+	C.onState(function(s)
+		local m = s.mega
+		if m and current ~= m.key then showBar({key = m.key, icon = m.icon, title = m.title, text = m.text or m.sub, color = m.color, left = m.left}) end
+		if not m and current then
+			current = nil
+			bar.Visible = false
+		end
+	end)
+	RunService.RenderStepped:Connect(function()
+		if bar.Visible then barTime.Text = clock(endsAt - os.clock()) end
+	end)
+end
 end

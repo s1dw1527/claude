@@ -377,4 +377,73 @@ RunService.RenderStepped:Connect(function(dt)
 	end
 	wxPart.CFrame = CF(camPos + V3(0, 28, 0))
 end)
+
+-- ===== MEGA EVENT MOVERS (the tornado) + CITY ERA LOOK =====
+do
+	local Lighting = game:GetService("Lighting")
+	local movers = {}
+	local function addMover(m)
+		local parts = {}
+		local from = m:GetAttribute("From")
+		if not from then return end
+		for _, p in ipairs(m:GetDescendants()) do
+			if p:IsA("BasePart") then table.insert(parts, {p = p, rel = p.Position - from}) end
+		end
+		movers[m] = parts
+	end
+	for _, m in ipairs(CollectionService:GetTagged("MegaMover")) do addMover(m) end
+	CollectionService:GetInstanceAddedSignal("MegaMover"):Connect(addMover)
+	-- era tint (a client-only effect so it never fights the server's event lighting) + flying cars from Era 4
+	local grade = Instance.new("ColorCorrectionEffect")
+	grade.Name = "EraGrade"
+	grade.Parent = Lighting
+	local ERA_TINT = {Color3.new(1, 1, 1), Color3.fromRGB(255, 250, 240), Color3.fromRGB(240, 245, 255), Color3.fromRGB(225, 245, 255), Color3.fromRGB(245, 225, 255)}
+	local flyers = {}
+	local FLY_LOOPS = {
+		loop({V3(-300, 60, -300), V3(300, 60, -300), V3(300, 60, 300), V3(-300, 60, 300)}),
+		loop({V3(-200, 78, 200), V3(200, 78, 200), V3(200, 78, -200), V3(-200, 78, -200)}),
+		loop({V3(-500, 70, 0), V3(500, 70, 0), V3(500, 70, 30), V3(-500, 70, 30)}),
+	}
+	local function applyEra()
+		local era = Workspace:GetAttribute("Era") or 1
+		grade.TintColor = ERA_TINT[math.clamp(era, 1, #ERA_TINT)]
+		grade.Saturation = era >= 5 and 0.15 or 0
+		if era >= 4 and #flyers == 0 then
+			for i = 1, 9 do
+				local parts = makeTrafficCar()
+				for _, e in ipairs(parts) do
+					if e[1].Material == Enum.Material.SmoothPlastic then e[1].Material = Enum.Material.Neon end
+				end
+				local l = FLY_LOOPS[(i - 1) % #FLY_LOOPS + 1]
+				table.insert(flyers, {parts = parts, l = l, d = math.random() * l.total, speed = 40 + math.random() * 20})
+			end
+		end
+		for _, f in ipairs(flyers) do setVisible(f.parts, era >= 4 and C.settings.crowd ~= "off") end
+	end
+	Workspace:GetAttributeChangedSignal("Era"):Connect(applyEra)
+	applyEra()
+	RunService.RenderStepped:Connect(function(dt)
+		local st = Workspace:GetServerTimeNow()
+		for m, parts in pairs(movers) do
+			if not m.Parent then
+				movers[m] = nil
+			else
+				local from, to = m:GetAttribute("From"), m:GetAttribute("To")
+				local a = math.clamp((st - (m:GetAttribute("T0") or st)) / math.max(1, m:GetAttribute("Dur") or 1), 0, 1)
+				local pos = from:Lerp(to, a)
+				for _, e in ipairs(parts) do
+					e.p.CFrame = CF(pos + e.rel) * (e.p.CFrame - e.p.Position)
+				end
+			end
+		end
+		if #flyers > 0 and (Workspace:GetAttribute("Era") or 1) >= 4 then
+			for _, f in ipairs(flyers) do
+				f.d += f.speed * dt
+				local pos, dir = loopAt(f.l, f.d)
+				local cf = CFrame.lookAt(pos, pos + dir) * CF(0, math.sin(f.d * 0.05) * 3, 0)
+				for _, e in ipairs(f.parts) do e[1].CFrame = cf * e[2] end
+			end
+		end
+	end)
+end
 end

@@ -323,6 +323,168 @@ section("property", function(ctx)
 	T.assertClean("property section")
 end)
 
+-- ===== 13 + 14. mega events and city eras =====
+local function prompts(folder)
+	local out = {}
+	for _, d in ipairs(folder:GetDescendants()) do
+		if d.ClassName == "ProximityPrompt" then table.insert(out, d) end
+	end
+	return out
+end
+local function trigger(prompt, plr) H.signalOf(prompt, "Triggered"):Fire(plr) H.task.wait(0.05) end
+local function megaFolder() return H.workspace:FindFirstChild("MegaEvent") end
+section("mega", function(ctx)
+	H.section("13. Server-wide mega events")
+	local a, da, b, db = ctx.a, ctx.da, ctx.b, ctx.db
+	local F, C, G = T.F, T.C, T.C.G
+	release(da)
+	release(db)
+	da.cash, db.cash = 50000, 50000
+	for _, bk in ipairs({"lemonade", "icecream"}) do T.act(a, "buy", bk) T.act(b, "buy", bk) end
+	local mark = #H.remoteLog
+	-- UFO: zap every probe -> city saved, everyone gets a timed buff
+	local ev = F.startMega("ufo")
+	H.task.wait(0.3)
+	local starts = T.remotesSince(mark, "Mega")
+	H.check(#starts > 0 and starts[#starts].args[1].kind == "start" and starts[#starts].dir == "s2all", "every player gets the giant announcement")
+	local gui = H.clientC.gui
+	local shown = false
+	for _, d in ipairs(gui:GetDescendants()) do
+		if d.ClassName == "TextLabel" and d.Text == "UFO INVASION!" and d.Parent.Visible then shown = true end
+	end
+	H.check(shown, "the client shows the UFO INVASION! banner")
+	local pr = prompts(megaFolder())
+	H.check(#pr == 8, "8 alien probes landed around the city (" .. #pr .. ")")
+	local c0 = da.cash
+	for i, p in ipairs(pr) do trigger(p, i % 2 == 0 and b or a) end
+	H.check(da.cash > c0, "zapping probes pays out")
+	H.task.wait(0.5)
+	H.check(C.MEGA_STATE.active == nil and megaFolder() == nil, "zapping all 8 ends the invasion early and cleans up")
+	H.check((da.megaBuffUntil or 0) > H.now() and da.megaBuffMult == 1.1, "city saved: everyone gets +10% income")
+	local gm1 = F.globalMult(da, H.now())
+	da.megaBuffUntil = H.now() - 1
+	H.check(F.globalMult(da, H.now()) < gm1, "...and the buff expires on its own")
+	-- UFO failure: time runs out -> a small, capped abduction
+	F.startMega("ufo")
+	H.task.wait(1)
+	local cashBefore = da.cash
+	local incomeCap = F.incomePerSec(da) * 30
+	H.task.wait(92)
+	H.check(C.MEGA_STATE.active == nil, "the invasion ends when time runs out")
+	H.check(cashBefore - da.cash <= math.max(cashBefore * 0.031, incomeCap + 1) + F.incomePerSec(da) * 100, "the abduction is small and capped")
+	-- small events wait for mega events
+	F.startMega("festival")
+	H.task.wait(0.2)
+	F.startEvent(H.now())
+	H.check(G.event == nil, "small city events pause during a mega event")
+	H.check(G.megaCustomers == 1.5, "festival: +50% customers")
+	local tokens = C.MEGA_STATE.active.pickups
+	H.check(#tokens == 10, "festival: 10 tokens hidden around the city")
+	local root = a.Character.HumanoidRootPart
+	local cf0 = root.CFrame
+	root.CFrame = CFrame.new(tokens[1].pos + Vector3.new(0, 3, 0))
+	H.task.wait(0.6)
+	H.check(#C.MEGA_STATE.active.pickups == 9, "walking onto a token collects it")
+	root.CFrame = cf0
+	F.endMega()
+	H.check(G.megaCustomers == nil and G.megaActive == false, "festival bonus is removed when it ends")
+	-- tornado: moves, drops cash, knocks out a business on plots it passes
+	F.startMega("tornado")
+	H.task.wait(8)
+	local tev = C.MEGA_STATE.active
+	H.check(#tev.pickups > 0, "the tornado drops cash as it moves (" .. #tev.pickups .. " bundles)")
+	local mover = megaFolder():FindFirstChild("Tornado")
+	H.check(mover and mover:GetAttribute("From") and H.tagCount("MegaMover") >= 1, "the funnel is tagged for clients to animate")
+	F.endMega()
+	-- investor: best empire among the pitchers wins
+	da.levels.icecream = 5
+	F.startMega("investor")
+	H.task.wait(0.3)
+	local ip = prompts(megaFolder())
+	H.check(#ip == 1, "the billionaire takes pitches")
+	trigger(ip[1], a)
+	trigger(ip[1], b)
+	trigger(ip[1], a)
+	local before2 = da.cash
+	F.endMega()
+	H.check(da.cash - before2 >= 20000, "the bigger empire (Alice) wins the jackpot")
+	-- robbery: robbers appear at businesses; stopping one pays the hero
+	F.startMega("robbery")
+	H.task.wait(3)
+	local rp = prompts(megaFolder())
+	H.check(#rp >= 1, "a robber shows up at a business")
+	local heroCash = db.cash
+	trigger(rp[1], b)
+	H.check(db.cash > heroCash, "stopping a robber pays the hero")
+	H.task.wait(24)
+	F.endMega()
+	-- heatwave / blizzard / tourists / concert set and clear their bonuses
+	F.startMega("heatwave")
+	H.task.wait(0.2)
+	H.check(G.megaBiz and G.megaBiz.lemonade == 3 and H.workspace:GetAttribute("Weather") == "heat", "heatwave: lemonade x3 and hot weather")
+	F.endMega()
+	H.check(G.megaBiz == nil, "heatwave bonus cleared")
+	F.startMega("blizzard")
+	H.task.wait(0.2)
+	H.check(#prompts(megaFolder()) == 10 and G.megaBiz.coffee == 3, "blizzard: coffee x3 and 10 snowmen to smash")
+	F.endMega()
+	F.startMega("tourists")
+	H.task.wait(0.2)
+	H.check(G.megaCustomers == 3 and G.megaSatisfaction == 12, "tourist explosion: 3x customers, better reviews")
+	F.endMega()
+	H.check(G.megaCustomers == nil and G.megaSatisfaction == nil, "tourist bonus cleared")
+	F.startMega("concert")
+	root.CFrame = CFrame.new(230, 3, 110)
+	H.task.wait(1)
+	H.check((da.megaBuffUntil or 0) > H.now() and da.megaBuffMult == 1.15, "standing at the Downtown stage makes you a fan (+15% income)")
+	root.CFrame = cf0
+	F.endMega()
+	-- automatic scheduling
+	C.MEGA_STATE.nextAt = H.now() + 1
+	H.task.wait(2)
+	H.check(C.MEGA_STATE.active ~= nil, "mega events start on their own")
+	F.endMega()
+	T.assertClean("mega section")
+
+	H.section("14. City Eras")
+	H.check(H.workspace:GetAttribute("Era") == 1 and H.workspace:GetAttribute("EraName") == "Small Town", "the city starts as Era 1: Small Town")
+	local eraFolder = H.workspace:FindFirstChild("City"):FindFirstChild("EraDecor")
+	local parts1 = #eraFolder:GetDescendants()
+	da.cash = 1e9
+	for _ = 1, 5 do T.act(a, "contribute", "p50") end
+	H.task.wait(0.5)
+	H.check(G.spire.era == 2 and H.workspace:GetAttribute("EraName") == "Growing City", "finishing the Spire moves the server to Era 2: Growing City")
+	local eraFolder2 = H.workspace:FindFirstChild("City"):FindFirstChild("EraDecor")
+	H.check(#eraFolder2:GetDescendants() > parts1 + 20, "Era 2 visibly changes the city (cranes + towers)")
+	H.check(da.eraContrib == 2, "Alice is credited for helping reach Era 2")
+	local aliens = false
+	for _ = 1, 40 do
+		local e2 = F.startMega()
+		if e2.def.key == "aliens" then aliens = true end
+		F.endMega()
+		if aliens then break end
+	end
+	H.check(aliens, "Era 2 unlocks the Alien Invasion mega event")
+	F.buildEraDecor(4)
+	H.task.wait(0.5)
+	local grade = H.service("Lighting"):FindFirstChild("EraGrade")
+	H.check(grade and grade.TintColor ~= Color3.new(1, 1, 1), "clients tint the city for the new era")
+	local flyers = 0
+	for _, p in ipairs(H.workspace:FindFirstChild("ClientCity"):GetChildren()) do
+		if p.Position.Y > 50 then flyers += 1 end
+	end
+	H.check(flyers > 20, "Era 4 fills the sky with flying cars (" .. flyers .. " parts up high)")
+	F.buildEraDecor(5)
+	H.check(#H.workspace:FindFirstChild("City"):FindFirstChild("EraDecor"):GetDescendants() > #eraFolder2:GetDescendants(), "Era 5 (Cyber City) adds neon streets and light beams")
+	da.eraContrib = 5
+	T.act(a, "skin", "cyber")
+	H.check(da.skin == "cyber", "helping reach Cyber City unlocks the Cyber Neon skin")
+	T.act(b, "skin", "cyber")
+	H.check(db.skin ~= "cyber", "players who didn't help can't equip it")
+	F.buildEraDecor(G.spire.era)
+	T.assertClean("era section")
+end)
+
 -- ===== main =====
 H.main(function()
 	T.startServer()

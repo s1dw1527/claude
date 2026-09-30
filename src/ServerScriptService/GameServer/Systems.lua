@@ -76,6 +76,7 @@ function F.bizMult(d, key)
 		if boost then m *= boost end
 	end
 	if F.homeHood(d) == "ocean" and (key == "lemonade" or key == "icecream") then m *= 1.25 end
+	if G.megaBiz and G.megaBiz[key] then m *= G.megaBiz[key] end
 	if d.problems[key] then m *= 0.5 end
 	return m
 end
@@ -88,6 +89,7 @@ function F.globalMult(d, now)
 	if (d.relaxedUntil or 0) > now then m *= 1 + C.FERRIS.buff end
 	local mgr = d.staff.manager
 	if mgr then m *= 1 + 0.02 * staffStars(mgr) end
+	if (d.megaBuffUntil or 0) > now then m *= d.megaBuffMult or 1 end
 	for id in pairs(d.lots) do
 		local all = DISTRICT[LOTS[id].dkey].boost.all
 		if all then m *= all end
@@ -180,6 +182,7 @@ function F.satisfaction(d, key)
 	local n = 0
 	for _ in pairs(d.problems) do n += 1 end
 	if d.problems[key] then s -= 30 end
+	s += G.megaSatisfaction or 0
 	s -= n * 4
 	s += stageOf(d.levels[key] or 0, d.chains[key] or 0) * 2
 	return math.clamp(s, 5, 100)
@@ -194,6 +197,7 @@ function F.customerRate(d, now)
 	local mk = d.staff.marketer
 	if mk then r *= 1 + 0.06 * staffStars(mk) end
 	if G.event and G.event.customers then r *= G.event.customers end
+	if G.megaCustomers then r *= G.megaCustomers end
 	if G.event and G.event.concert and F.countLots(d, "beach") > 0 then r *= 3 end
 	r *= F.followerMult(d)
 	if F.homeHood(d) == "suburbs" then r *= 1.1 end
@@ -523,6 +527,11 @@ end
 
 -- ===== CITY EVENTS =====
 function F.startEvent(now)
+	-- small events wait while a mega event is running
+	if G.megaActive then
+		G.nextEvent = now + 20
+		return
+	end
 	-- only one city event at a time: end the current one (and every bonus it gave) first
 	if G.event then F.endEvent() end
 	local pool = {}
@@ -698,7 +707,7 @@ end
 function F.spireGoal()
 	local s = G.spire
 	if s.stage < #SPIRE_STAGES then return SPIRE_STAGES[s.stage + 1].name, SPIRE_STAGES[s.stage + 1].cost end
-	return "🌆 Era " .. (s.era + 1) .. " Upgrade", 40000000 * 3 ^ (s.era - 2)
+	return "🌆 Era " .. (s.era + 1) .. ": " .. C.eraName(s.era + 1), 40000000 * 3 ^ (s.era - 2)
 end
 function F.contribute(plr, amount)
 	local d = data[plr]
@@ -718,20 +727,31 @@ function F.contribute(plr, amount)
 	notify(plr, "🏗️ You contributed $" .. fmt(amount) .. " to the Empire Spire!")
 	if s.progress < goal then return end
 	s.progress = 0
+	local function enterEra()
+		s.era += 1
+		local info = C.ERAS[math.min(s.era, #C.ERAS)]
+		local unlocks = (s.era <= #C.ERAS and #info.unlocks > 0) and table.concat(info.unlocks, " • ") or "an even bigger income bonus"
+		R.Splash:FireAllClients(info.icon .. " ERA " .. s.era .. ": " .. string.upper(C.eraName(s.era)) .. " " .. info.icon, "All income +" .. (20 * (s.era - 1)) .. "%  •  NEW: " .. unlocks, RGB(120, 220, 255))
+		F.buzz(info.icon, "THE EMPIRE SPIRE IS COMPLETE! The city entered Era " .. s.era .. ": " .. C.eraName(s.era) .. "!", RGB(120, 220, 255))
+		-- everyone who helped build this era keeps credit for it forever (Legacy Museum, Cyber skin)
+		for p, dd in pairs(data) do
+			if (s.top[p.Name] or 0) > 0 then
+				dd.eraContrib = math.max(dd.eraContrib or 1, s.era)
+				if F.achieve then F.achieve(p, "era" .. math.min(s.era, 5)) end
+			end
+		end
+		if F.buildEraDecor then F.buildEraDecor(s.era) end
+	end
 	if s.stage < #SPIRE_STAGES then
 		s.stage += 1
 		if s.stage == #SPIRE_STAGES then
-			s.era += 1
-			R.Splash:FireAllClients("🌆 THE CITY HAS REACHED A NEW ERA 🌆", "Era " .. s.era .. ": all income +" .. (20 * (s.era - 1)) .. "%, new events & secret businesses!", RGB(120, 220, 255))
-			F.buzz("🌆", "THE EMPIRE SPIRE IS COMPLETE! The city entered Era " .. s.era .. "!", RGB(120, 220, 255))
+			enterEra()
 		else
 			R.Splash:FireAllClients("🏗️ SPIRE STAGE COMPLETE", name .. " is built! Next: " .. SPIRE_STAGES[s.stage + 1].name, RGB(255, 200, 60))
 			F.buzz("🏗️", "Empire Spire progress: " .. name .. " complete!", RGB(255, 200, 60))
 		end
 	else
-		s.era += 1
-		R.Splash:FireAllClients("🌆 THE CITY HAS REACHED ERA " .. s.era .. " 🌆", "All income +" .. (20 * (s.era - 1)) .. "%!", RGB(120, 220, 255))
-		F.buzz("🌆", "The city entered Era " .. s.era .. "!", RGB(120, 220, 255))
+		enterEra()
 	end
 	burst(V3(0, 40, 0), RGB(255, 215, 80), 200)
 	F.buildSpire(s.stage, s.era)

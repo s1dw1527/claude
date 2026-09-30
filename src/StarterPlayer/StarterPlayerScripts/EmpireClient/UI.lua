@@ -9,7 +9,7 @@ local RGB = Color3.fromRGB
 C.plr = plr
 
 C.R = {}
-for _, n in ipairs({"State", "Announce", "Splash", "Customer", "Buzz", "BuzzUpdate", "Msg", "WarResults", "Menu", "Action", "Race"}) do
+for _, n in ipairs({"State", "Announce", "Splash", "Customer", "Buzz", "BuzzUpdate", "Msg", "WarResults", "Menu", "Action", "Race", "Mega"}) do
 	C.R[n] = ReplicatedStorage:WaitForChild(n)
 end
 C.GetCatalog = ReplicatedStorage:WaitForChild("GetCatalog")

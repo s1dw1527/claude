@@ -223,6 +223,7 @@ C.SKINS = {
 	{key = "classic", name = "Classic", trophies = 0}, {key = "gold", name = "Champion Gold", trophies = 1, color = RGB(255, 200, 50)},
 	{key = "neon", name = "Neon Night", trophies = 3, color = RGB(60, 255, 220)}, {key = "diamond", name = "Diamond", trophies = 6, color = RGB(170, 230, 255)},
 	{key = "royal", name = "Royal Purple", trophies = 10, color = RGB(170, 80, 255)},
+	{key = "cyber", name = "Cyber Neon", trophies = 0, era = 5, color = RGB(255, 60, 220)},   -- for everyone who helped reach Cyber City
 }
 C.ADS = {
 	{key = "small", name = "Small campaign", cost = 2000, customers = 1.5, income = 1, dur = 60},
@@ -232,6 +233,34 @@ C.ADS = {
 C.SPIRE_STAGES = {
 	{name = "🏗️ Foundation", cost = 50000}, {name = "🏢 Lower Floors", cost = 300000}, {name = "🏙️ Tower", cost = 1500000},
 	{name = "🌟 Crown", cost = 6000000}, {name = "🚀 City Beacon", cost = 20000000},
+}
+
+-- ===== CITY ERAS: finishing the Empire Spire moves the whole server into the next era =====
+C.ERAS = {
+	{name = "Small Town",   icon = "🏘️", unlocks = {}},
+	{name = "Growing City", icon = "🏙️", unlocks = {"Tourist Wave events", "👽 Alien Invasion mega event", "🚀 Space Diner secret", "cranes & new towers"}},
+	{name = "Mega City",    icon = "🌆", unlocks = {"🤖 Robot Factory secret", "a giant skyline", "more mega events"}},
+	{name = "Future City",  icon = "🛸", unlocks = {"🚀 Space Center secret", "flying cars", "floating holo-rings"}},
+	{name = "Cyber City",   icon = "🌃", unlocks = {"🌃 Cyber skin for everyone who helped", "neon streets & holograms"}},
+}
+function C.eraName(era)
+	local e = C.ERAS[math.min(era, #C.ERAS)]
+	return era > #C.ERAS and (e.name .. " " .. (era - #C.ERAS + 1)) or e.name
+end
+
+-- ===== MEGA EVENTS: big server-wide moments every few minutes =====
+C.MEGA = {first = 240, gapMin = 420, gapMax = 600}   -- seconds: first one after 4 min, then every 7-10 min
+C.MEGA_EVENTS = {
+	{key = "ufo",       icon = "🛸", title = "UFO INVASION!",        sub = "Zap the alien probes before the UFO abducts your cash!", dur = 90,  color = RGB(120, 255, 140)},
+	{key = "aliens",    icon = "👽", title = "ALIEN INVASION!",      sub = "Three motherships! Zap every probe to save the city!", dur = 120, color = RGB(170, 90, 255), era = 2},
+	{key = "tornado",   icon = "🌪️", title = "TORNADO WARNING!",     sub = "A tornado is tearing through the city. Grab the flying cash!", dur = 70, color = RGB(170, 180, 200)},
+	{key = "investor",  icon = "💰", title = "A BILLIONAIRE IS HERE!", sub = "Pitch your empire at the Spire plaza. The best empire wins the deal!", dur = 75, color = RGB(255, 205, 60)},
+	{key = "festival",  icon = "🎉", title = "CITY FESTIVAL!",       sub = "+50% customers for everyone. Find the festival tokens!", dur = 90,  color = RGB(255, 110, 200)},
+	{key = "tourists",  icon = "🧳", title = "TOURIST EXPLOSION!",   sub = "3x customers and happier reviews for 60 seconds!", dur = 60, color = RGB(90, 220, 170)},
+	{key = "robbery",   icon = "🦹", title = "ROBBERY WAVE!",        sub = "Robbers are hitting businesses. Stop them before they escape!", dur = 75, color = RGB(255, 80, 80)},
+	{key = "heatwave",  icon = "🔥", title = "MEGA HEATWAVE!",       sub = "Lemonade & Ice Cream x3! Grab the ice pops around the city!", dur = 70, color = RGB(255, 150, 60)},
+	{key = "blizzard",  icon = "❄️", title = "BLIZZARD!",            sub = "Coffee x3! Smash the snowmen for prizes!", dur = 70, color = RGB(170, 220, 255)},
+	{key = "concert",   icon = "🎤", title = "DOWNTOWN CONCERT!",    sub = "Head to the Downtown stage: fans get +15% income and reputation!", dur = 90, color = RGB(255, 90, 220)},
 }
 
 -- ===== REBIRTH =====

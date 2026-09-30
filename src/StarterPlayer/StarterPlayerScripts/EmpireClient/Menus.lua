@@ -375,7 +375,7 @@ do
 				e = {btn = b}
 				skinCards[i] = e
 			end
-			e.btn.Text = sk.name .. "\n" .. (sk.equipped and "✔ EQUIPPED" or (sk.unlocked and "Equip" or ("🔒 🏆x" .. sk.need)))
+			e.btn.Text = sk.name .. "\n" .. (sk.equipped and "✔ EQUIPPED" or (sk.unlocked and "Equip" or (sk.era and ("🔒 help reach Era " .. sk.era) or ("🔒 🏆x" .. sk.need))))
 			e.btn.BackgroundColor3 = sk.unlocked and sk.color or GRAY
 		end
 	end
@@ -423,7 +423,7 @@ do
 	end
 	m.update = function(s)
 		local sp2 = s.spire
-		spT.Text = "🏙️ EMPIRE SPIRE  •  ERA " .. sp2.era .. "  •  " .. sp2.name
+		spT.Text = "🏙️ ERA " .. sp2.era .. " " .. (sp2.eraName or "") .. "  •  next: " .. sp2.name
 		spFill.Size = UDim2.fromScale(math.clamp(sp2.progress / sp2.goal, 0, 1), 1)
 		spP.Text = "$" .. fmt(sp2.progress) .. " / $" .. fmt(sp2.goal) .. "     Top builder: " .. sp2.top
 		ctrl.Text = "🗺️ Business Land — you control " .. s.lotsMine .. " lots (" .. math.floor(s.cityPct + 0.5) .. "% of the city)"

@@ -29,7 +29,7 @@ if CFG.SAVE_ENABLED then
 end
 local SAVE_KEYS = {"cash", "levels", "chains", "staff", "combos", "rep", "ep", "trophies", "skin", "cars", "seen", "served", "deliveries",
 	"marketing", "revSum", "revN", "contributed", "rebirths", "followers", "home", "raceBest", "tut", "earned", "rentEarned",
-	"tutPaid", "richClaimed"}
+	"tutPaid", "richClaimed", "eraContrib"}
 local function metaKey(plr) return "u" .. plr.UserId .. "_meta" end
 local function slotKey(plr, slot) return "u" .. plr.UserId .. "_s" .. slot end
 local DEFAULT_SETTINGS = {music = true, musicVol = 5, sfx = true, crowd = "high", weather = true, units = "MPH", spawnAt = "business"}
@@ -191,7 +191,8 @@ local function archiveData(plr, d)
 	end
 	local skins = {}
 	for _, s in ipairs(SKINS) do
-		table.insert(skins, {key = s.key, name = s.name, need = s.trophies, unlocked = d.trophies >= s.trophies, equipped = d.skin == s.key, color = s.color or d.plot.color})
+		local unlocked = d.trophies >= s.trophies and (not s.era or (d.eraContrib or 1) >= s.era)
+		table.insert(skins, {key = s.key, name = s.name, need = s.trophies, era = s.era, unlocked = unlocked, equipped = d.skin == s.key, color = s.color or d.plot.color})
 	end
 	return {
 		rows = {
@@ -353,7 +354,8 @@ function F.sendState(plr, now)
 		trending = d.trendUntil > now,
 		biz = biz, standings = standings, market = market, portfolio = portfolio, staff = staff,
 		problems = problems, delivery = dl, archive = archiveData(plr, d), districts = districts,
-		spire = {era = G.spire.era, name = sName, progress = G.spire.progress, goal = sGoal, top = topName},
+		spire = {era = G.spire.era, eraName = C.eraName(G.spire.era), name = sName, progress = G.spire.progress, goal = sGoal, top = topName},
+		mega = C.megaState and C.megaState() or nil,
 		reviews = d.reviews, passes = d.passes, cars = d.cars, rebirthsOwned = d.rebirths,
 		activeCar = car and car.key or false,
 		maxLevel = CFG.MAX_LEVEL, unlocks = unlocks, followers = d.followers,
@@ -761,7 +763,7 @@ R.Action.OnServerEvent:Connect(function(plr, action, a, b, c)
 	elseif action == "skin" then
 		if str(a, 20) then
 			for _, sk in ipairs(SKINS) do
-				if sk.key == a and d.trophies >= sk.trophies then
+				if sk.key == a and d.trophies >= sk.trophies and (not sk.era or (d.eraContrib or 1) >= sk.era) then
 					d.skin = a
 					F.refreshAll(plr)
 					notify(plr, "🎨 Equipped skin: " .. sk.name)
@@ -970,7 +972,7 @@ task.spawn(function()
 			if not ok then warn("[CornerEmpire] tick error for " .. plr.Name .. ": " .. tostring(err)) end
 		end
 		local sName, sGoal = F.spireGoal()
-		F.setSpireBoard("Era " .. G.spire.era .. " • " .. sName, "$" .. fmt(G.spire.progress) .. " / $" .. fmt(sGoal))
+		F.setSpireBoard("Era " .. G.spire.era .. " " .. C.eraName(G.spire.era) .. " • " .. sName, "$" .. fmt(G.spire.progress) .. " / $" .. fmt(sGoal))
 	end
 end)
 -- day / night
