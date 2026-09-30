@@ -123,6 +123,9 @@ C.ACHIEVEMENTS = {
 	relic = {icon = "🏺", title = "Relic Hunter", post = "Found a hidden relic somewhere in the city... not telling where 🏺"},
 	mystery = {icon = "❓", title = "Mystery Lot", post = "I bought a Mystery Lot. You won't BELIEVE what was inside ❓"},
 	houseStar = {icon = "⭐", title = "Home of the Week", post = "My house won Home of the Week! ⭐🏠"},
+	showcaseStar = {icon = "🏆", title = "Empire of the Week", post = "My empire won the Weekly Empire Showcase! 🏆"},
+	weeklyChamp = {icon = "🥇", title = "Weekly Champion", post = "I topped a weekly leaderboard! 🥇"},
+	legendary = {icon = "🌠", title = "Legendary Find", post = "I found something LEGENDARY in a Mystery Lot 🌠"},
 }
 for _, b in ipairs(C.BUSINESSES) do
 	C.ACHIEVEMENTS["biz_" .. b.key] = {icon = b.icon, title = "New: " .. b.name, post = "Just opened a brand new " .. b.tiers[1] .. "! " .. b.icon, quiet = b.key == "lemonade"}
@@ -312,6 +315,31 @@ C.MEGA_EVENTS = {
 	{key = "heatwave",  icon = "🔥", title = "MEGA HEATWAVE!",       sub = "Lemonade & Ice Cream x3! Grab the ice pops around the city!", dur = 70, color = RGB(255, 150, 60)},
 	{key = "blizzard",  icon = "❄️", title = "BLIZZARD!",            sub = "Coffee x3! Smash the snowmen for prizes!", dur = 70, color = RGB(170, 220, 255)},
 	{key = "concert",   icon = "🎤", title = "DOWNTOWN CONCERT!",    sub = "Head to the Downtown stage: fans get +15% income and reputation!", dur = 90, color = RGB(255, 90, 220)},
+}
+
+-- ===== WEEKLY COMPETITIONS (reset every Monday 00:00 UTC; rewards are trophies + cosmetics only) =====
+C.WEEKLY = {
+	{key = "richest",   name = "💰 Richest"},
+	{key = "rep",       name = "⭐ Highest Reputation"},
+	{key = "lap",       name = "🏁 Fastest Lap", ascending = true, unit = "time"},
+	{key = "rebirths",  name = "♻️ Most Rebirths"},
+	{key = "property",  name = "🏢 Most Valuable Property"},
+	{key = "business",  name = "🔥 Most Popular Business"},
+	{key = "followers", name = "📱 Most CityBuzz Followers"},
+	{key = "house",     name = "🏠 Best House"},
+}
+C.WEEKLY_REWARD = {3, 2, 1}   -- trophies for 1st/2nd/3rd in each board (the featured board of the week pays double)
+
+-- ===== MYSTERY LOTS: a lot appears now and then; nobody knows what's inside until someone buys it =====
+C.MYSTERY = {first = 360, gapMin = 720, gapMax = 1200, life = 300, priceSeconds = 150, minPrice = 5000, tier = 2}
+C.MYSTERY_FINDS = {
+	{key = "arcade",   name = "Secret Arcade",           icon = "🕹️", weight = 30, rarity = "Common",    perk = {all = 1.02},       perkText = "+2% ALL income"},
+	{key = "bank",     name = "Bank Vault",              icon = "🏦", weight = 24, rarity = "Common",    cashSeconds = 300,        perkText = "a vault full of cash"},
+	{key = "lab",      name = "Research Lab",            icon = "🔬", weight = 18, rarity = "Uncommon",  perk = {all = 1.04},       perkText = "+4% ALL income"},
+	{key = "stadium",  name = "Stadium",                 icon = "🏟️", weight = 12, rarity = "Uncommon",  perk = {customers = 1.08}, perkText = "+8% customers"},
+	{key = "studio",   name = "Movie Studio Backlot",    icon = "🎬", weight = 8,  rarity = "Rare",      followers = 300, trophies = 1, perkText = "+300 followers and a trophy"},
+	{key = "robots",   name = "Robot Factory Warehouse", icon = "🤖", weight = 6,  rarity = "Rare",      perk = {problems = 0.85},  perkText = "15% fewer problems"},
+	{key = "space",    name = "Space Center Hangar",     icon = "🚀", weight = 2,  rarity = "LEGENDARY", perk = {all = 1.1},        perkText = "+10% ALL income"},
 }
 
 -- ===== REBIRTH =====

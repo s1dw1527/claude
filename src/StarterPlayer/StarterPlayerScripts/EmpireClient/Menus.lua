@@ -743,4 +743,122 @@ do
 		act("menuExit")
 	end)
 end
+
+-- ===== WEEKLY: leaderboards, Empire Showcase, House Tours =====
+do
+	local m = modal("weekly", "🏆  WEEKLY", 660, 580)
+	local tabs = new("Frame", {Size = UDim2.new(1, -8, 0, 40), BackgroundTransparency = 1, LayoutOrder = 0}, m.body)
+	local box = autoFrame(m.body, 1)
+	vlist(box, 6)
+	local tab, info, lastFetch = "boards", nil, 0
+	local function fmtValue(cat, v)
+		if cat.unit == "time" then return string.format("%.2fs", v / 1000) end
+		return fmt(v)
+	end
+	local function render()
+		clear(box)
+		local s = C.S
+		if tab == "boards" then
+			if not info then
+				label({Size = UDim2.new(1, -8, 0, 30), Text = "Loading this week's boards...", TextSize = 13, TextColor3 = SUB}, box)
+				return
+			end
+			local days = math.floor(info.endsIn / 86400)
+			local hours = math.floor((info.endsIn % 86400) / 3600)
+			label({Size = UDim2.new(1, -8, 0, 34), TextWrapped = true, TextSize = 12, TextColor3 = SUB, LayoutOrder = 0,
+				Text = "Boards reset in " .. days .. "d " .. hours .. "h. Top 3 in each board win trophies next week (⭐ featured board pays double). Rewards are trophies & skins only."}, box)
+			for i, cat in ipairs(info.categories) do
+				local featured = cat.key == info.featured
+				local c = card(box, 34 + math.max(1, math.min(5, #cat.list)) * 20, i, featured and RGB(70, 55, 20) or CARD)
+				label({Position = UDim2.fromOffset(10, 4), Size = UDim2.new(1, -20, 0, 24), Text = (featured and "⭐ FEATURED • " or "") .. cat.name, TextSize = 15, Font = Enum.Font.GothamBlack,
+					TextXAlignment = Enum.TextXAlignment.Left, TextColor3 = featured and GOLD or WHITE}, c)
+				if #cat.list == 0 then
+					label({Position = UDim2.fromOffset(14, 30), Size = UDim2.new(1, -28, 0, 18), Text = "No entries yet — be the first!", TextSize = 12, TextColor3 = SUB, TextXAlignment = Enum.TextXAlignment.Left}, c)
+				end
+				for r = 1, math.min(5, #cat.list) do
+					local e = cat.list[r]
+					label({Position = UDim2.fromOffset(14, 30 + (r - 1) * 20), Size = UDim2.new(1, -28, 0, 18), TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left,
+						TextColor3 = e.userId == info.myId and GREEN or WHITE, Text = ({"🥇", "🥈", "🥉", "4.", "5."})[r] .. "  " .. e.name .. "   " .. fmtValue(cat, e.value)}, c)
+				end
+			end
+		elseif tab == "showcase" then
+			local top = card(box, 64, 0, RGB(60, 45, 20))
+			label({Position = UDim2.fromOffset(12, 4), Size = UDim2.new(1, -190, 1, -8), TextWrapped = true, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left,
+				Text = "Show off your empire! Submit it (or use 📸 Photo Mode), then get other players to ❤️ it. The most-liked empire of the week wins 3 trophies."}, top)
+			local sub = button({Position = UDim2.new(1, -170, 0.5, 0), AnchorPoint = Vector2.new(0, 0.5), Size = UDim2.fromOffset(160, 44), TextSize = 13, BackgroundColor3 = GOLD,
+				Text = (info and info.submitted) and "🔄 Update my entry" or "🏆 Submit my empire"}, top)
+			sub.MouseButton1Click:Connect(function() play(SND.click) act("showcaseSubmit") lastFetch = 0 end)
+			local list = info and info.showcase or {}
+			if #list == 0 then label({Size = UDim2.new(1, -8, 0, 30), Text = "No empires in the showcase yet this week.", TextSize = 13, TextColor3 = SUB, LayoutOrder = 1}, box) end
+			for i, e in ipairs(list) do
+				local c = card(box, 64, i)
+				local inf = e.info or {}
+				label({Position = UDim2.fromOffset(10, 4), Size = UDim2.new(1, -140, 0, 22), TextSize = 15, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left,
+					Text = (({"🥇", "🥈", "🥉"})[i] or (i .. ".")) .. " " .. e.name .. "   ❤️ " .. fmt(e.likes)}, c)
+				label({Position = UDim2.fromOffset(10, 26), Size = UDim2.new(1, -140, 0, 34), TextSize = 11, TextWrapped = true, TextColor3 = SUB, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top,
+					Text = "$" .. fmt(inf.income or 0) .. "/s • " .. (inf.businesses or 0) .. " businesses • " .. (inf.landmarks or 0) .. " landmarks • ♻️" .. (inf.rebirths or 0) .. " • " .. (inf.home or "") .. " • " .. (inf.tier or "")}, c)
+				if e.userId ~= (info and info.myId) then
+					local lk = button({Position = UDim2.new(1, -120, 0.5, 0), AnchorPoint = Vector2.new(0, 0.5), Size = UDim2.fromOffset(110, 40), Text = "❤️ Like", TextSize = 14, BackgroundColor3 = RGB(230, 70, 120)}, c)
+					lk.MouseButton1Click:Connect(function() play(SND.click) act("showcaseLike", e.userId) lastFetch = 0 end)
+				end
+			end
+		else
+			label({Size = UDim2.new(1, -8, 0, 34), TextWrapped = true, TextSize = 12, TextColor3 = SUB, LayoutOrder = 0,
+				Text = "Visit other players' homes in this server, then ❤️ like, ⭐ rate and 📌 favorite them. The best-rated house of the week wins Home of the Week."}, box)
+			local tours = s and s.tours or {}
+			local any = false
+			for i, h in ipairs(tours) do
+				if h.userId ~= plr.UserId then
+					any = true
+					local c = card(box, 56, i)
+					label({Position = UDim2.fromOffset(10, 4), Size = UDim2.new(1, -140, 0, 22), TextSize = 15, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left,
+						Text = h.icon .. " " .. h.name .. "'s house"}, c)
+					label({Position = UDim2.fromOffset(10, 28), Size = UDim2.new(1, -140, 0, 20), TextSize = 12, TextColor3 = SUB, TextXAlignment = Enum.TextXAlignment.Left,
+						Text = h.hood .. " • level " .. h.level .. " • ⭐ " .. string.format("%.1f", h.rating) .. " (" .. h.ratings .. ") • ❤️ " .. h.likes}, c)
+					local v = button({Position = UDim2.new(1, -120, 0.5, 0), AnchorPoint = Vector2.new(0, 0.5), Size = UDim2.fromOffset(110, 40), Text = "📍 Visit", TextSize = 14, BackgroundColor3 = BLUE}, c)
+					v.MouseButton1Click:Connect(function() play(SND.click) act("tourVisit", h.userId) m.frame.Visible = false end)
+				end
+			end
+			if not any then label({Size = UDim2.new(1, -8, 0, 30), Text = "Nobody else in this server has built a house yet.", TextSize = 13, TextColor3 = SUB, LayoutOrder = 1}, box) end
+			local favs = info and info.favorites or {}
+			if #favs > 0 then
+				header(box, "📌 Your favorite houses", 50)
+				for i, f in ipairs(favs) do
+					label({Size = UDim2.new(1, -8, 0, 20), TextSize = 12, LayoutOrder = 50 + i, TextXAlignment = Enum.TextXAlignment.Left,
+						Text = "  " .. f.name .. (f.here and "  • in this server" or "  • not in this server")}, box)
+				end
+			end
+		end
+	end
+	for i, t in ipairs({{"boards", "🏆 Leaderboards"}, {"showcase", "🏛️ Empire Showcase"}, {"tours", "🏠 House Tours"}}) do
+		local b = button({Position = UDim2.new((i - 1) / 3, 3, 0, 0), Size = UDim2.new(1 / 3, -6, 1, 0), Text = t[2], TextSize = 13, BackgroundColor3 = GRAY}, tabs)
+		b.MouseButton1Click:Connect(function()
+			play(SND.click)
+			tab = t[1]
+			render()
+		end)
+	end
+	local busy = false
+	m.update = function()
+		if busy then return end
+		if os.clock() - lastFetch > 15 then
+			busy = true
+			lastFetch = os.clock()
+			task.spawn(function()
+				local ok, res = pcall(function() return C.GetCatalog:InvokeServer("weekly") end)
+				if ok and type(res) == "table" then info = res end
+				busy = false
+				render()
+			end)
+		elseif tab == "tours" then
+			-- tours come from the live state; redraw only when the list changes
+			local key = ""
+			for _, h in ipairs(C.S and C.S.tours or {}) do key ..= h.userId .. ":" .. h.likes .. ":" .. h.ratings .. ";" end
+			if key ~= m.toursKey then
+				m.toursKey = key
+				render()
+			end
+		end
+	end
+end
 end

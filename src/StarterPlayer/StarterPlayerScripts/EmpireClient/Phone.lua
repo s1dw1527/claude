@@ -95,7 +95,8 @@ do
 		{"🏠", "Home", "modal", "home", RGB(110, 180, 110)}, {"🚗", "Garage", "modal", "garage", RGB(60, 130, 230), "cars"}, {"👥", "Staff", "modal", "staff", RGB(70, 170, 120), "staff"},
 		{"🏢", "Properties", "modal", "properties", RGB(120, 150, 240), "properties"}, {"📈", "Stocks", "modal", "market", RGB(60, 160, 90), "market"}, {"📣", "Marketing", "modal", "marketing", RGB(235, 130, 40), "ads"},
 		{"🎡", "Fun & Race", "modal", "fun", RGB(255, 110, 190), "funpark"}, {"♻️", "Rebirth", "modal", "rebirth", RGB(200, 80, 220)}, {"🏙️", "City", "modal", "city", RGB(60, 150, 200)},
-		{"📖", "Archive", "modal", "archive", RGB(140, 90, 230)}, {"🛒", "Store", "modal", "passes", RGB(235, 170, 30)}, {"⚙️", "Settings", "modal", "settings", RGB(100, 104, 124)},
+		{"📖", "Archive", "modal", "archive", RGB(140, 90, 230)}, {"🛒", "Store", "modal", "passes", RGB(235, 170, 30)}, {"🏆", "Weekly", "modal", "weekly", RGB(230, 150, 40)},
+		{"⚙️", "Settings", "modal", "settings", RGB(100, 104, 124)},
 	}
 	local icons = {}
 	for i, a in ipairs(APPS) do
@@ -316,6 +317,7 @@ do
 		{"🏁 Race Track", "race"}, {"🎡 Fun Park", "funpark"}, {"🏢 Rental Row", "rental"}, {"🏙️ Downtown", "downtown"},
 		{"🏭 Industrial Zone", "industrial"}, {"🏖️ Beach District", "beach"}, {"💎 Luxury Hills", "luxury"},
 		{"🏚️ Old Town", "oldtown"}, {"🏡 Maple Suburbs", "suburbs"}, {"🌊 Oceanfront", "ocean"}, {"⛰️ Hillside", "hills"}, {"💎 Millionaire Row", "rich"},
+		{"🏛️ Legacy Museum", "museum"}, {"❓ Mystery Lot", "mystery"},
 	}
 	for i, p in ipairs(PLACES) do
 		local b = button({Size = UDim2.new(1, -8, 0, 36), Text = p[1], TextSize = 14, BackgroundColor3 = i <= 2 and RGB(60, 150, 90) or RGB(50, 90, 160), LayoutOrder = i, ZIndex = 23}, list)

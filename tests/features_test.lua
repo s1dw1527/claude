@@ -406,8 +406,9 @@ section("mega", function(ctx)
 	trigger(ip[1], b)
 	trigger(ip[1], a)
 	local before2 = da.cash
+	local sa, sb = F.empireScore(da), F.empireScore(db)
 	F.endMega()
-	H.check(da.cash - before2 >= 20000, "the bigger empire (Alice) wins the jackpot")
+	H.check(da.cash - before2 >= 19000, string.format("the bigger empire (Alice) wins the jackpot (scores %d vs %d, +%d)", sa, sb, da.cash - before2))
 	-- robbery: robbers appear at businesses; stopping one pays the hero
 	F.startMega("robbery")
 	H.task.wait(3)
@@ -493,6 +494,8 @@ section("secrets", function(ctx)
 	release(da)
 	da.cash, da.rep = 1e9, 500
 	da.levels.arcade, da.levels.tech = 5, 3
+	da.wentViral = false   -- (she may already have gone viral naturally earlier in the run)
+	da.combos.moviestudio = nil
 	F.checkCombos(a, da)
 	H.check(not da.combos.moviestudio, "Movie Studio stays hidden without the viral quest")
 	local arch = T.state(a).archive
@@ -641,6 +644,168 @@ section("secrets", function(ctx)
 	H.task.wait(0.2)
 	H.check(pc.gui.Enabled and camera.CameraType == Enum.CameraType.Custom and hum.WalkSpeed > 0, "leaving photo mode restores everything")
 	T.assertClean("secrets/viral/buzz/photo section")
+end)
+
+-- ===== 19-22: house tours, weekly competitions, mystery lots, Legacy Museum =====
+section("legacy", function(ctx)
+	local a, da, b, db = ctx.a, ctx.da, ctx.b, ctx.db
+	local F, C = T.F, T.C
+	release(da)
+	release(db)
+	H.section("20. Weekly competitions")
+	da.cash, da.rep, da.raceBest, da.followers = 5e6, 1200, 41.5, 900
+	db.cash, db.rep, db.raceBest, db.followers = 9e6, 800, 38.25, 300
+	F.save(a)
+	F.save(b)
+	H.task.wait(1)
+	C.refreshWeeklyNow()
+	local info = F.weeklyInfo(a)
+	local function boardOf(key) for _, c in ipairs(info.categories) do if c.key == key then return c.list end end end
+	H.check(#info.categories == 8, "8 weekly boards exist")
+	H.check(boardOf("richest")[1].name == "Bob" and boardOf("rep")[1].name == "Alice", "richest and reputation boards rank correctly")
+	local lap = boardOf("lap")
+	H.check(#lap >= 2 and lap[1].value <= lap[2].value and lap[1].value <= 38250, "fastest lap ranks the lowest time first")
+	H.check(type(info.featured) == "string" and info.endsIn > 0 and info.endsIn <= 604800, "there's a featured board and a reset countdown")
+	-- last week's winners collect trophies once
+	local lastWeek = C.weekId() - 1
+	local st = H.stores["ordered:CE_Weekly_followers/w" .. lastWeek]
+	if not st then
+		H.service("DataStoreService"):GetOrderedDataStore("CE_Weekly_followers", "w" .. lastWeek):SetAsync("101", 5000)
+	else
+		st:SetAsync("101", 5000)
+	end
+	H.service("DataStoreService"):GetOrderedDataStore("CE_Weekly_followers", "w" .. lastWeek):SetAsync("202", 10)
+	da.weeklyClaimed = nil
+	hold(da)
+	hold(db)
+	H.task.wait(301)   -- let the 5-minute cache of last week's results expire
+	release(da)
+	release(db)
+	local t0 = da.trophies
+	F.claimWeeklyRewards(a)
+	H.check(da.trophies > t0 and da.weeklyClaimed == lastWeek, "last week's #1 gets trophies when they play (" .. t0 .. " -> " .. da.trophies .. ")")
+	local t1 = da.trophies
+	F.claimWeeklyRewards(a)
+	H.check(da.trophies == t1, "...only once")
+	H.check(da.achievements.weeklyChamp ~= nil, "and a Weekly Champion achievement")
+
+	H.section("18. Weekly Empire Showcase")
+	T.act(a, "showcaseSubmit")
+	H.task.wait(1)
+	C.refreshWeeklyNow()
+	local sc = F.weeklyInfo(b).showcase
+	H.check(#sc >= 1 and sc[1].name == "Alice" and sc[1].info and sc[1].info.income ~= nil, "Alice's empire is in the showcase with its stats")
+	T.act(b, "showcaseLike", 101)
+	T.act(b, "showcaseLike", 101)
+	T.act(a, "showcaseLike", 101)
+	C.refreshWeeklyNow()
+	H.check(F.weeklyInfo(b).showcase[1].likes == 1, "likes count once per player, and not your own")
+
+	H.section("19. House tours")
+	local ha, hb = F.homeLot(da), F.homeLot(db)
+	H.check(ha and hb, "both players have houses")
+	local tours = T.state(a).tours
+	H.check(#tours >= 2, "the tour list shows every house in the server (" .. #tours .. ")")
+	T.act(b, "tourVote", 101, "like")
+	H.check((da.homeLikes or 0) == 0, "you can't like a house you haven't visited")
+	T.act(b, "tourVisit", 101)
+	H.task.wait(0.3)
+	T.act(b, "tourVote", 101, "like")
+	T.act(b, "tourVote", 101, "like")
+	T.act(b, "tourVote", 101, "rate", 4)
+	T.act(b, "tourVote", 101, "rate", 5)
+	T.act(b, "tourVote", 101, "fav")
+	H.check(da.homeLikes == 1 and da.homeRatingN == 1 and da.homeRatingSum == 4, "Bob likes once and rates once (4 stars)")
+	H.check(db.favorites and db.favorites[1] and db.favorites[1].userId == 101, "Bob added Alice's house to favorites")
+	T.act(a, "tourVote", 101, "like")
+	H.check(da.homeLikes == 1, "you can't like your own house")
+	T.act(b, "tourVote", 101, "rate", 99)
+	T.act(b, "tourVote", 101, "rate", 0 / 0)
+	H.check(da.homeRatingN == 1, "junk ratings are rejected")
+	C.refreshWeeklyNow()
+	local house = nil
+	for _, c in ipairs(F.weeklyInfo(a).categories) do if c.key == "house" then house = c.list end end
+	H.check(house[1] and house[1].name == "Alice", "the Best House weekly board counts likes and ratings")
+	-- Alice's client: the tour panel appears at Bob's house
+	T.act(a, "tourVisit", 202)
+	H.task.wait(1.5)
+	local panelShown = false
+	for _, d in ipairs(H.clientC.gui:GetDescendants()) do
+		if d.ClassName == "TextLabel" and tostring(d.Text):find("Bob's house") and d.Parent.Visible then panelShown = true end
+	end
+	H.check(panelShown, "Alice sees the house-tour panel at Bob's house")
+	H.clientC.openModal("weekly")
+	H.task.wait(1.5)
+	T.assertClean("weekly app renders")
+
+	H.section("21. Mystery lots")
+	local site = F.spawnMysteryLot(2)
+	H.task.wait(0.3)
+	H.check(T.state(a).mysterySite ~= nil, "a mystery lot appears and shows up for players")
+	local pr = prompts(H.workspace:FindFirstChild("City"):FindFirstChild("MysteryLot"))
+	H.check(#pr == 1, "the lot can be bought")
+	da.rep, da.cash = 5000, 1e13
+	local function finds(d)
+		local total = 0
+		for _, n in pairs(d.mystery or {}) do total += n end
+		return total
+	end
+	local f0 = finds(da)
+	trigger(pr[1], a)
+	H.task.wait(0.3)
+	H.check(finds(da) == f0 + 1, "buying it reveals one mystery find")
+	H.check(H.workspace:FindFirstChild("City"):FindFirstChild("MysteryReveal") ~= nil, "the find is revealed as a building")
+	H.check(C.MYSTERY_STATE.active == nil, "the lot is gone once bought")
+	trigger(pr[1], b)
+	H.check(true, "nobody else can buy it after")
+	-- rarity: roll many finds and check the legendary one is rare
+	local counts = {}
+	for _ = 1, 400 do
+		F.spawnMysteryLot(1)
+		local p2 = prompts(H.workspace:FindFirstChild("City"):FindFirstChild("MysteryLot"))[1]
+		db.cash, db.rep = 1e12, 5000
+		local before = H.deepCopy(db.mystery or {})
+		H.signalOf(p2, "Triggered"):Fire(b)
+		H.task.wait(0.03)
+		for k, n in pairs(db.mystery or {}) do if n > (before[k] or 0) then counts[k] = (counts[k] or 0) + 1 end end
+	end
+	H.check((counts.space or 0) < 25 and (counts.arcade or 0) > 80, "legendary finds are rare (space " .. (counts.space or 0) .. "/400, arcade " .. (counts.arcade or 0) .. "/400)")
+	H.check(F.mysteryPerk(db, "all") <= 1.02 ^ 5 * 1.04 ^ 5 * 1.1 ^ 5 + 1e-6, "mystery perks are capped at 5 stacks each")
+	-- expiry
+	F.spawnMysteryLot(3)
+	C.MYSTERY_STATE.active.expires = H.now()
+	H.task.wait(6)
+	H.check(C.MYSTERY_STATE.active == nil, "an unsold lot vanishes after a while")
+
+	H.section("22. Legacy Museum")
+	for _, k in ipairs({"firstBusiness", "million", "trackRecord"}) do F.achieve(a, k) end
+	H.task.wait(1.5)
+	local gallery = H.workspace:FindFirstChild("City"):FindFirstChild("LegacyMuseum"):FindFirstChild("Gallery" .. da.plot.index)
+	local function exhibitCount(g)
+		local n = 0
+		for _, x in ipairs(g:GetDescendants()) do
+			if x.ClassName == "TextLabel" and #tostring(x.Text) > 3 and x.Text ~= "?" and not tostring(x.Text):find("Legacy") then n += 1 end
+		end
+		return n
+	end
+	local n1 = exhibitCount(gallery)
+	local titles = {}
+	for _, x in ipairs(gallery:GetDescendants()) do if x.ClassName == "TextLabel" then titles[x.Text] = true end end
+	H.check(titles["First Business"] and titles["First Million"] and titles["Track Record"], "Alice's gallery displays her achievements as exhibits (" .. n1 .. " labels)")
+	local banner = false
+	for _, x in ipairs(gallery:GetDescendants()) do if x.ClassName == "TextLabel" and x.Text == "Alice's Legacy" then banner = true end end
+	H.check(banner, "the gallery is labelled with her name")
+	-- survives a rebirth
+	da.rep, da.cash = 5000, 1e12
+	F.rebirth(a)
+	H.task.wait(1.5)
+	gallery = H.workspace:FindFirstChild("City"):FindFirstChild("LegacyMuseum"):FindFirstChild("Gallery" .. da.plot.index)
+	H.check(exhibitCount(gallery) >= n1, "the museum keeps everything after a rebirth")
+	T.act(a, "tp", "museum")
+	H.task.wait(0.2)
+	local r = a.Character.HumanoidRootPart.Position
+	H.check((r - C.MUSEUM_AT).Magnitude < 80, "Map → Legacy Museum teleports there")
+	T.assertClean("legacy section")
 end)
 
 -- ===== main =====

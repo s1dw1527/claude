@@ -578,4 +578,40 @@ do
 		if typeof(e.pos) == "Vector3" and U.flashes then U.flashes(e.pos) end
 	end)
 end
+
+-- ===== HOUSE TOUR PANEL (shows up when you're at another player's house) =====
+do
+	local tp = panel({AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -122), Size = UDim2.fromOffset(460, 92), BackgroundColor3 = RGB(35, 55, 45), Visible = false, ZIndex = 35}, gui)
+	stroke(tp, GREEN, 2, 0)
+	local title = label({Position = UDim2.fromOffset(12, 4), Size = UDim2.new(1, -24, 0, 22), TextSize = 15, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 36}, tp)
+	local row = new("Frame", {Position = UDim2.fromOffset(8, 42), Size = UDim2.new(1, -16, 0, 42), BackgroundTransparency = 1, ZIndex = 36}, tp)
+	new("UIListLayout", {FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 6)}, row)
+	local target
+	local function vb(text, w, color, fn)
+		local b = button({Size = UDim2.fromOffset(w, 40), Text = text, TextSize = 13, BackgroundColor3 = color, ZIndex = 37}, row)
+		b.MouseButton1Click:Connect(function()
+			if target then
+				play(SND.click)
+				fn(target)
+			end
+		end)
+	end
+	vb("❤️ Like", 80, RGB(230, 70, 120), function(id) act("tourVote", id, "like") end)
+	for n = 1, 5 do vb("⭐" .. n, 44, RGB(200, 150, 30), function(id) act("tourVote", id, "rate", n) end) end
+	vb("📌 Favorite", 110, BLUE, function(id) act("tourVote", id, "fav") end)
+	C.onState(function(s)
+		local root = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
+		local near
+		if root then
+			for _, h in ipairs(s.tours or {}) do
+				if h.userId ~= plr.UserId and typeof(h.pos) == "Vector3" and (Vector3.new(root.Position.X, 0, root.Position.Z) - Vector3.new(h.pos.X, 0, h.pos.Z)).Magnitude < 45 then near = h end
+			end
+		end
+		tp.Visible = near ~= nil and not C.photoActive
+		target = near and near.userId
+		if near then
+			title.Text = "🏠 " .. near.name .. "'s house  •  " .. near.hood .. "  •  ⭐ " .. string.format("%.1f", near.rating) .. " (" .. near.ratings .. ")  •  ❤️ " .. near.likes
+		end
+	end)
+end
 end

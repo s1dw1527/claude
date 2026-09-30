@@ -96,6 +96,7 @@ function F.globalMult(d, now)
 	end
 	m *= 1 + 0.2 * (G.spire.era - 1)
 	m *= F.comboPerk(d, "all")
+	if F.mysteryPerk then m *= F.mysteryPerk(d, "all") end
 	m *= F.homeMult(d)
 	m *= F.rebirthMult(d)
 	return m
@@ -216,6 +217,7 @@ function F.customerRate(d, now)
 	if G.event and G.event.customers then r *= G.event.customers end
 	if G.megaCustomers then r *= G.megaCustomers end
 	r *= F.comboPerk(d, "customers")
+	if F.mysteryPerk then r *= F.mysteryPerk(d, "customers") end
 	if (d.viralUntil or 0) > now then r *= 3 end
 	if (d.postBuffUntil or 0) > now then r *= d.postBuffMult or 1 end
 	if G.event and G.event.concert and F.countLots(d, "beach") > 0 then r *= 3 end
@@ -282,6 +284,7 @@ function F.serveCustomer(plr, d, key, t, review)
 	if lvl <= 0 then return end
 	d.served += 1
 	d.war.customers += 1
+	if F.countServed then F.countServed(d) end
 	if d.frozenUntil <= now then
 		local sale = BIZ[key].income * lvl * 4 * F.bizMult(d, key) * F.globalMult(d, now) * (t.tip or 1)
 		d.cash += sale
@@ -474,7 +477,7 @@ function F.problemChance(d)
 	local eng = d.staff.engineer
 	local c = 0.6 * (eng and (1 - 0.05 * staffStars(eng)) or 1)
 	if F.homeHood(d) == "oldtown" then c *= 0.7 end
-	return c * F.comboPerk(d, "problems")
+	return c * F.comboPerk(d, "problems") * (F.mysteryPerk and F.mysteryPerk(d, "problems") or 1)
 end
 
 -- ===== STOCK MARKET =====

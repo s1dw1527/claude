@@ -16,6 +16,7 @@ local MINIGAMES, FERRIS, FIREWORKS, RACE = C.MINIGAMES, C.FERRIS, C.FIREWORKS, C
 local fmt, notify, stageOf, staffStars = C.fmt, C.notify, C.stageOf, C.staffStars
 local LOTS, DESTS, ADS_BY = C.LOTS, C.DESTS, C.ADS_BY
 if C.DESTS_EXTRA then table.insert(DESTS, C.DESTS_EXTRA) end
+if C.DESTS_MUSEUM then table.insert(DESTS, C.DESTS_MUSEUM) end
 Players.CharacterAutoLoads = false
 local session = {}
 
@@ -29,7 +30,8 @@ if CFG.SAVE_ENABLED then
 end
 local SAVE_KEYS = {"cash", "levels", "chains", "staff", "combos", "rep", "ep", "trophies", "skin", "cars", "seen", "served", "deliveries",
 	"marketing", "revSum", "revN", "contributed", "rebirths", "followers", "home", "raceBest", "tut", "earned", "rentEarned",
-	"tutPaid", "richClaimed", "eraContrib", "achievements", "shared", "found", "wentViral", "viralCount"}
+	"tutPaid", "richClaimed", "eraContrib", "achievements", "shared", "found", "wentViral", "viralCount",
+	"mystery", "weekServed", "weeklyClaimed", "showcaseWeek", "votes", "favorites", "homeLikes", "homeRatingSum", "homeRatingN"}
 local function metaKey(plr) return "u" .. plr.UserId .. "_meta" end
 local function slotKey(plr, slot) return "u" .. plr.UserId .. "_s" .. slot end
 local DEFAULT_SETTINGS = {music = true, musicVol = 5, sfx = true, crowd = "high", weather = true, units = "MPH", spawnAt = "business"}
@@ -93,6 +95,7 @@ function F.save(plr)
 	local d = data[plr]
 	local s = session[plr]
 	if not store or not d or not s or d.noSave then return end
+	if F.publishWeekly then pcall(F.publishWeekly, plr, d) end
 	local payload = {lots = {}, props = serializeProps(d)}
 	for _, k in ipairs(SAVE_KEYS) do payload[k] = d[k] end
 	payload.cash = math.floor(d.cash)
@@ -377,7 +380,8 @@ function F.sendState(plr, now)
 		homeInfo = homeState(d), props = propsState(plr, d),
 		rebirth = {count = d.rebirths, cost = F.rebirthCost(d), mult = math.floor((F.rebirthMult(d) - 1) * 100 + 0.5), perks = perks, unlocked = unlocks.rebirth},
 		tut = tut, raceBest = d.raceBest,
-		showcase = F.showcasePoints(d),
+		showcase = F.showcasePoints(d), tours = F.toursList(), mysterySite = C.mysterySite and C.mysterySite() or nil,
+		mysteryPrice = C.mysterySite and C.mysterySite() and F.mysteryPrice(d) or nil,
 		shareable = C.shareableList(d), viralLeft = math.max(0, math.ceil((d.viralUntil or 0) - now)),
 		postBuffLeft = math.max(0, math.ceil((d.postBuffUntil or 0) - now)), postBuffMult = d.postBuffMult,
 		fees = {hoop = F.funFee(d, MINIGAMES.hoop.fee), rush = F.funFee(d, MINIGAMES.rush.fee), memory = F.funFee(d, MINIGAMES.memory.fee),
@@ -517,6 +521,10 @@ function F.startGame(plr, slot, starterIdx)
 	end
 	-- rentals
 	F.claimRentals(plr, d)
+	-- legacy museum gallery, weekly rewards from last week, old votes cleaned up
+	if C.pruneVotes then C.pruneVotes(d) end
+	F.refreshMuseum(plr)
+	if F.claimWeeklyRewards then task.spawn(F.claimWeeklyRewards, plr) end
 	-- leaderstats
 	local ls = plr:FindFirstChild("leaderstats")
 	if not ls then
@@ -590,6 +598,7 @@ function F.unload(plr, backToMenu)
 	end
 	F.setIce(plot, false)
 	F.clearWorkers(plot)
+	if F.closeGallery then F.closeGallery(plot) end
 	plot.owner = nil
 	F.setPlotSign(plot, "Empty Plot", "")
 	data[plr] = nil
@@ -622,6 +631,15 @@ local TP = {
 local function teleport(plr, d, key)
 	local cf = TP[key]
 	if key == "business" then cf = d.plot.spawn.CFrame + V3(0, 4, 0) end
+	if key == "museum" and C.MUSEUM_AT then cf = CFrame.lookAt(C.MUSEUM_AT + V3(0, 4, 60), C.MUSEUM_AT + V3(0, 4, 0)) end
+	if key == "mystery" then
+		local site = C.mysterySite and C.mysterySite()
+		if not site then
+			notify(plr, "❓ There's no Mystery Lot right now. Keep an eye on CityBuzz!")
+			return
+		end
+		cf = CFrame.lookAt(site + V3(0, 4, 20), site + V3(0, 4, 0))
+	end
 	if key == "home" then
 		cf = F.homeSpawn(d)
 		if not cf then
@@ -846,6 +864,18 @@ R.Action.OnServerEvent:Connect(function(plr, action, a, b, c)
 		F.cancelRace(plr, "Race cancelled.")
 	elseif action == "shareAch" then
 		if str(a, 30) then F.shareAchievement(plr, a) end
+	elseif action == "showcaseSubmit" then
+		F.showcaseSubmit(plr)
+	elseif action == "showcaseLike" then
+		local id = int(a, 1)
+		if id then F.showcaseLike(plr, id) end
+	elseif action == "tourVisit" then
+		local id = int(a, 1)
+		if id then F.tourVisit(plr, id) end
+	elseif action == "tourVote" then
+		local id = int(a, 1)
+		if id and (b == "like" or b == "fav") then F.tourVote(plr, id, b)
+		elseif id and b == "rate" and int(c, 1, 5) then F.tourVote(plr, id, "rate", c) end
 	elseif C.ACTIONS[action] then
 		C.ACTIONS[action](plr, d, a, b, c, now)
 	end
@@ -859,6 +889,7 @@ do
 	GetCatalog.OnServerInvoke = function(plr, what)
 		if not allow(plr, 3) then return nil end
 		if what == "feed" then return F.feedList() end
+		if what == "weekly" then return F.weeklyInfo(plr) end
 		if what == "inbox" then
 			local d = data[plr]
 			return d and F.inboxList(d) or {}
