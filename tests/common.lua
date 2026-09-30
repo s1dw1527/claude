@@ -63,9 +63,33 @@ function T.newGame(plr, slot, starter)
 	H.task.wait(1)
 	return T.data(plr)
 end
+-- the latest state as the client sees it: heavy sections are only sent when they change, so those are
+-- taken from the newest packet that had them (exactly what EmpireClient does)
+local HEAVY = {"archive", "homeInfo", "props", "districts", "market", "staff", "reviews", "tours", "shareable", "standings", "passes", "cars", "showcase", "biz", "warLeaders",
+	"rebirth", "unlocks", "fees", "spire"}
 function T.state(plr)
-	local e = T.lastRemote("State", plr)
-	return e and e.args[1]
+	local latest
+	local out = {}
+	local need = {}
+	for _, k in ipairs(HEAVY) do need[k] = true end
+	for i = #H.remoteLog, 1, -1 do
+		local e = H.remoteLog[i]
+		if e.name == "State" and e.player == plr then
+			local st = e.args[1]
+			if not latest then
+				latest = st
+				for k, v in pairs(st) do out[k] = v end
+			end
+			for k in pairs(need) do
+				if st[k] ~= nil then
+					if out[k] == nil then out[k] = st[k] end
+					need[k] = nil
+				end
+			end
+			if next(need) == nil then break end
+		end
+	end
+	return latest and out or nil
 end
 function T.errorsAndWarnings()
 	local bad = {}

@@ -331,6 +331,7 @@ TYPE[C3mt] = "Color3"
 local C3methods = {}
 C3mt.__index = C3methods
 C3mt.__eq = function(a, b) return a.R == b.R and a.G == b.G and a.B == b.B end
+C3mt.__tostring = function(c) return string.format("%g, %g, %g", c.R, c.G, c.B) end   -- like Roblox
 local function C3(r, g, b) return setmetatable({R = r or 0, G = g or 0, B = b or 0}, C3mt) end
 function C3methods.Lerp(a, b, t) return C3(a.R + (b.R - a.R) * t, a.G + (b.G - a.G) * t, a.B + (b.B - a.B) * t) end
 function C3methods.ToHSV(c)
@@ -875,18 +876,18 @@ function Inst.TweenSizeAndPosition(o, s, p) o.Size = s o.Position = p return tru
 function Inst.FireServer(r, ...)
 	if not H.clientPlayer then error("FireServer called outside a client", 2) end
 	H.remoteLog[#H.remoteLog + 1] = {dir = "c2s", name = r.Name, args = table.pack(...)}
-	signalOf(r, "OnServerEvent"):Fire(H.clientPlayer, ...)
+	signalOf(r, "OnServerEvent"):Fire(H.clientPlayer, H.copyArgs(...))
 end
 function Inst.FireClient(r, plr, ...)
 	if type(plr) ~= "table" or not rawget(plr, "__instance") or plr.ClassName ~= "Player" then error("FireClient: argument 1 must be a Player", 2) end
 	H.remoteLog[#H.remoteLog + 1] = {dir = "s2c", name = r.Name, player = plr, args = table.pack(...)}
 	H.checkRemoteArgs(r.Name, ...)
-	if H.clientPlayer == plr then signalOf(r, "OnClientEvent"):Fire(...) end
+	if H.clientPlayer == plr then signalOf(r, "OnClientEvent"):Fire(H.copyArgs(...)) end
 end
 function Inst.FireAllClients(r, ...)
 	H.remoteLog[#H.remoteLog + 1] = {dir = "s2all", name = r.Name, args = table.pack(...)}
 	H.checkRemoteArgs(r.Name, ...)
-	if H.clientPlayer then signalOf(r, "OnClientEvent"):Fire(...) end
+	if H.clientPlayer then signalOf(r, "OnClientEvent"):Fire(H.copyArgs(...)) end
 end
 function Inst.InvokeServer(r, ...)
 	local f = rawget(r, "_p").OnServerInvoke
@@ -1013,6 +1014,19 @@ local function deepCopy(v)
 end
 H.deepCopy = deepCopy
 
+-- remote arguments are copied like Roblox serializes them: plain tables are copied, datatypes/instances kept
+local function remoteCopy(v, depth)
+	if type(v) ~= "table" or getmetatable(v) ~= nil or rawget(v, "__instance") or (depth or 0) > 20 then return v end
+	local o = {}
+	for k, x in pairs(v) do o[remoteCopy(k, (depth or 0) + 1)] = remoteCopy(x, (depth or 0) + 1) end
+	return o
+end
+local function copyArgs(...)
+	local a = table.pack(...)
+	for i = 1, a.n do a[i] = remoteCopy(a[i]) end
+	return table.unpack(a, 1, a.n)
+end
+H.copyArgs = copyArgs
 -- remote arguments: tables sent to clients must be serializable too (no mixed tables, no functions)
 function H.checkRemoteArgs(name, ...)
 	local args = table.pack(...)

@@ -326,6 +326,28 @@ function F.spawnCar(plr, key, at)
 	end
 	return entry
 end
+-- parked cars whose owner wandered far away for 3 minutes go back to the garage (no abandoned cars piling up)
+task.spawn(function()
+	while true do
+		task.wait(10)
+		for plr, c in pairs(activeCars) do
+			if not c.model.Parent or not plr.Parent then
+				activeCars[plr] = nil
+				if c.model.Parent then c.model:Destroy() end
+			elseif c.seat.Occupant then
+				c.idle = 0
+			else
+				local hrp = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
+				local far = not hrp or (hrp.Position - c.root.Position).Magnitude > 350
+				c.idle = far and (c.idle or 0) + 10 or 0
+				if c.idle >= 180 then
+					F.despawnCar(plr)
+					notify(plr, "🅿️ Your parked car was sent back to the garage. Spawn it again from the Garage app.")
+				end
+			end
+		end
+	end
+end)
 function F.buyOrDrive(plr, key)
 	local d = data[plr]
 	local spec = CAR[key]

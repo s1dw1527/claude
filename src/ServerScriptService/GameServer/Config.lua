@@ -14,7 +14,7 @@ C.CFG = {
 	SABOTAGE_COST = 1000, SABOTAGE_TIME = 10, SABOTAGE_COOLDOWN = 45,
 	DAY_SPEED = 0.01,
 	SAVE_ENABLED = true,
-	DATASTORE = "CornerEmpire_v5",
+	DATASTORE = "CornerEmpire_v5",   -- keep this name: it's where everyone's existing saves live
 	RICH_START_BONUS = 5000,
 	MAX_CUSTOMERS_PER_SEC = 3,
 	CRASH_DISCOUNT = 0.7,

@@ -717,6 +717,14 @@ do
 		if U.collapse_biz then U.collapse_biz(true) end
 		if U.collapse_board then U.collapse_board(true) end
 	end)
+	if game:GetService("RunService"):IsStudio() then
+		-- 🧪 Studio-only helpers for playtesting (the server ignores these in a live game)
+		local tools = {{"🧪 +$1M", "cash"}, {"🧪 Next reputation tier", "rep"}, {"🧪 Start a mega event", "mega"}, {"🧪 Spawn a Mystery Lot", "mystery"},
+			{"🧪 Finish a Spire stage", "spire"}, {"🧪 Go viral now", "viral"}, {"🧪 Save now", "save"}}
+		for i, t in ipairs(tools) do
+			row(100 + i, t[1], function() return "Run" end, function() act("debug", t[2]) end)
+		end
+	end
 	C.U.refreshSettings = function()
 		for _, r in ipairs(rows) do r.b.Text = r.get() end
 	end

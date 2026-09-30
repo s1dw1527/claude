@@ -262,6 +262,25 @@ local function propsState(plr, d)
 	return {list = list, free = free, unlocked = F.unlocked(d, "properties"), earned = d.rentEarned or 0}
 end
 
+-- Big, slow-changing parts of the state are only sent when they change (the client keeps the last copy).
+-- Keep this list in sync with HEAVY in EmpireClient.
+local HEAVY = {"archive", "homeInfo", "props", "districts", "market", "staff", "reviews", "tours", "shareable", "standings", "passes", "cars", "showcase", "biz", "warLeaders",
+	"rebirth", "unlocks", "fees", "spire"}
+local function sig(v)
+	local t = type(v)
+	if t == "table" then
+		local keys = {}
+		for k in pairs(v) do table.insert(keys, k) end
+		table.sort(keys, function(x, y) return tostring(x) < tostring(y) end)
+		local parts = table.create(#keys)
+		for i, k in ipairs(keys) do parts[i] = tostring(k) .. "=" .. sig(v[k]) end
+		return "{" .. table.concat(parts, ",") .. "}"
+	elseif t == "number" then
+		return string.format("%.6g", v)
+	end
+	return tostring(v)
+end
+
 -- where photo mode's cinematic shots point: your plot, your home, and your biggest business
 function F.showcasePoints(d)
 	local best, bestLvl = nil, 0
@@ -354,7 +373,7 @@ function F.sendState(plr, now)
 	end
 	local lotsMine = F.countLots(d)
 	local car = F.activeCar(plr)
-	R.State:FireClient(plr, {
+	local st = {
 		cash = d.cash, income = inc, passMult = F.passMult(d), gm = gm,
 		frozen = math.max(0, math.ceil(d.frozenUntil - now)),
 		sabCd = math.max(0, math.ceil(d.sabCooldown - now)), sabCost = CFG.SABOTAGE_COST, sabTime = CFG.SABOTAGE_TIME,
@@ -387,7 +406,20 @@ function F.sendState(plr, now)
 		fees = {hoop = F.funFee(d, MINIGAMES.hoop.fee), rush = F.funFee(d, MINIGAMES.rush.fee), memory = F.funFee(d, MINIGAMES.memory.fee),
 			ferris = F.funFee(d, FERRIS.fee), fireworks = F.funFee(d, FIREWORKS.fee), race = F.raceFee(d)},
 		slot = session[plr] and session[plr].slot,
-	})
+	}
+	-- only send the heavy sections that changed since the last packet
+	local sess = session[plr]
+	if sess then
+		sess.sent = sess.sent or {}
+		for _, k in ipairs(HEAVY) do
+			local v = st[k]
+			if v ~= nil then
+				local g = sig(v)
+				if sess.sent[k] == g then st[k] = nil else sess.sent[k] = g end
+			end
+		end
+	end
+	R.State:FireClient(plr, st)
 end
 
 function F.refreshAll(plr)
@@ -540,6 +572,7 @@ function F.startGame(plr, slot, starterIdx)
 	end
 	F.pushMsg(plr, {icon = "👋", from = "Corner Empire", text = isNew and "Welcome! Follow the tutorial card at the bottom of your screen to get started." or "Welcome back! Your empire missed you."})
 	R.Menu:FireClient(plr, "play")
+	s.sent = {}   -- the next state packet after "play" is a full one
 	if d.noSave then
 		local warnText = "⚠️ Couldn't load your save. This session won't be saved — rejoin to try again."
 		notify(plr, warnText)
@@ -862,6 +895,33 @@ R.Action.OnServerEvent:Connect(function(plr, action, a, b, c)
 		end
 	elseif action == "raceCancel" then
 		F.cancelRace(plr, "Race cancelled.")
+	elseif action == "debug" then
+		-- Studio-only test tools: never available in a live server
+		if not RunService:IsStudio() or not str(a, 20) then return end
+		if a == "cash" then
+			d.cash += 1e6
+		elseif a == "rep" then
+			local t = F.tierIndex(d.rep)
+			local nxt = REP_TIERS[t + 1]
+			F.addRep(plr, nxt and (nxt.rep - d.rep) or 1000)
+		elseif a == "mega" then
+			F.startMega(str(b, 20))
+		elseif a == "mystery" then
+			F.spawnMysteryLot()
+		elseif a == "spire" then
+			local _, goal = F.spireGoal()
+			d.cash += goal
+			F.contribute(plr, goal)
+		elseif a == "viral" then
+			local best, lvl = nil, 0
+			for _, bz in ipairs(BUSINESSES) do
+				if (d.levels[bz.key] or 0) > lvl then best, lvl = bz.key, d.levels[bz.key] end
+			end
+			if best then F.goViral(plr, d, best, "Studio test: this place is AMAZING") end
+		elseif a == "save" then
+			F.save(plr)
+			notify(plr, "💾 Saved.")
+		end
 	elseif action == "shareAch" then
 		if str(a, 30) then F.shareAchievement(plr, a) end
 	elseif action == "showcaseSubmit" then
@@ -954,6 +1014,8 @@ for _, p in ipairs(Players:GetPlayers()) do task.spawn(onPlayerAdded, p) end
 -- the client asks for the menu again if it loaded late
 R.Menu.OnServerEvent:Connect(function(plr, what)
 	if what == "ready" and session[plr] and not data[plr] and allow(plr, 5) then sendMenu(plr) end
+	-- the client is missing part of its state: send everything next time
+	if what == "resync" and session[plr] and allow(plr, 5) then session[plr].sent = {} end
 end)
 
 -- build the world's for-sale signs, then trees last (after everything reserved its space)
