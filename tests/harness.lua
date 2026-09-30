@@ -62,6 +62,7 @@ function task.desynchronize() end
 H.task = task
 
 -- run the scheduler until `main` finishes
+H.lastHB = 0
 function H.main(fn)
 	local mainCo
 	mainCo = coroutine.create(function()
@@ -82,10 +83,11 @@ function H.main(fn)
 		end
 		local item = table.remove(queue, bi)
 		if item.t > now then
-			-- fire heartbeat-style signals for every 0.1s of simulated time that passes
+			-- fire heartbeat-style signals every 0.1s of simulated time, however busy the queue is
 			local hb = H.heartbeatSignals
-			while hb and now + 0.1 <= item.t do
-				now += 0.1
+			while hb and H.lastHB + 0.1 <= item.t do
+				H.lastHB += 0.1
+				now = math.max(now, H.lastHB)
 				for _, sig in ipairs(hb) do sig:Fire(0.1) end
 			end
 			now = item.t

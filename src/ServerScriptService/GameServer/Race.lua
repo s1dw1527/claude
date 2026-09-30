@@ -77,6 +77,34 @@ do
 	surfaceText(banner, Enum.NormalId.Front, "🏁 CORNER EMPIRE RACEWAY 🏁", WHITE)
 	for k = 0, 4 do ball(f, V3(1.2, 1.2, 1.2), cf * CF(-4 + k * 2, 12.3, 0.8), RGB(255, 40, 40), MAT.Neon) end
 end
+-- DRIFT ZONE: the twisty back section. Sliding through it during a time trial earns a bonus (scored on the server).
+local DRIFT_FROM, DRIFT_TO = 5 * SUB + 1, 8 * SUB + SUB
+local driftPts = {}
+for i = DRIFT_FROM, DRIFT_TO do
+	local a, b = S[i], S[i % N + 1]
+	table.insert(driftPts, a)
+	local cf = CF((a + b) / 2, b)
+	local len = (b - a).Magnitude
+	for _, sx in ipairs({-1, 1}) do
+		P(f, V3(0.6, 0.12, len + 0.4), cf * CF(sx * (WIDTH / 2 - 2.2), 0.36, 0), (i % 2 == 0) and RGB(255, 140, 30) or RGB(255, 230, 120), MAT.Neon)
+	end
+end
+for _, i in ipairs({DRIFT_FROM, DRIFT_TO}) do
+	local a, b = S[i], S[i % N + 1]
+	local cf = CF(a, b)
+	for _, sx in ipairs({-1, 1}) do P(f, V3(1, 12, 1), cf * CF(sx * (WIDTH / 2 + 3.5), 6, 0), RGB(40, 40, 50), MAT.Metal, SOLID) end
+	local ban = P(f, V3(WIDTH + 8, 3, 0.6), cf * CF(0, 12.5, 0), RGB(255, 120, 30), MAT.SmoothPlastic)
+	surfaceText(ban, Enum.NormalId.Back, "💨 DRIFT ZONE 💨", WHITE)
+	surfaceText(ban, Enum.NormalId.Front, "💨 DRIFT ZONE 💨", WHITE)
+end
+local function inDriftZone(flat)
+	for _, p in ipairs(driftPts) do
+		if (flat - p).Magnitude < WIDTH then return true end
+	end
+	return false
+end
+RACE.driftBonusMax = 0.3   -- a perfect drift run adds up to +30% to the lap prize
+
 -- checkpoint arches
 local CPS = {}
 local step = math.floor(N / 10)
@@ -173,10 +201,21 @@ task.spawn(function()
 						st.t0 = now
 						st.cp = 1
 						st.lastPos, st.lastT = S[startIdx], now
+						st.drift = 0
 						R.Race:FireClient(plr, {state = "running", cp = 1, total = #CPS, next = CPS[1]})
 					end
 				elseif st.state == "running" then
 					local t = now - st.t0
+					-- drift scoring: the server measures the car's own sideways slide (no client numbers involved)
+					local vel = car.root.AssemblyLinearVelocity
+					local lv = car.root.CFrame.LookVector
+					local look = V3(lv.X, 0, lv.Z)
+					if vel.Magnitude > 22 and look.Magnitude > 0.1 and inDriftZone(flat) then
+						look = look.Unit
+						local side = math.abs(vel:Dot(V3(-look.Z, 0, look.X)))
+						local fwd = math.abs(vel:Dot(look))
+						if side > 5 and side / math.max(8, fwd) > 0.22 then st.drift = math.min(100, st.drift + 0.1 * vel.Magnitude * 0.15) end
+					end
 					if t > RACE.maxTime then
 						F.cancelRace(plr, "Too slow — lap timed out.")
 					elseif (flat - CPS[st.cp]).Magnitude < WIDTH * 0.75 then
@@ -196,6 +235,8 @@ task.spawn(function()
 								R.Race:FireClient(plr, {state = "cancel", why = "Lap invalid."})
 							else
 								local prize = math.floor(st.fee * math.clamp(1.6 * RACE.par / t, 0.3, 3))
+								local driftBonus = math.floor(prize * RACE.driftBonusMax * math.clamp((st.drift or 0) / 100, 0, 1))
+								prize += driftBonus
 								d.cash += prize
 								d.earned += prize
 								local pb = not d.raceBest or t < d.raceBest
@@ -208,13 +249,13 @@ task.spawn(function()
 								F.addRep(plr, 3)
 								burst(pos + V3(0, 6, 0), RGB(255, 220, 80), 120)
 								shockwave(pos, RGB(255, 220, 80), 30)
-								R.Race:FireClient(plr, {state = "finished", time = t, prize = prize, best = d.raceBest, pb = pb, record = record, par = RACE.par})
+								R.Race:FireClient(plr, {state = "finished", time = t, prize = prize, best = d.raceBest, pb = pb, record = record, par = RACE.par, drift = math.floor(st.drift or 0), driftBonus = driftBonus})
 								if record then F.buzz("🏁", plr.Name .. " set a new track record: " .. string.format("%.2fs", t) .. "!", RGB(255, 220, 80)) end
 								F.pushMsg(plr, {icon = "🏁", from = "Raceway", text = string.format("Lap time %.2fs — you won $%s!%s", t, fmt(prize), pb and " New personal best!" or "")})
 								F.tutorialEvent(plr, "race")
 							end
 						else
-							R.Race:FireClient(plr, {state = "running", cp = st.cp, total = #CPS, next = CPS[st.cp]})
+							R.Race:FireClient(plr, {state = "running", cp = st.cp, total = #CPS, next = CPS[st.cp], drift = math.floor(st.drift or 0)})
 						end
 					end
 				end

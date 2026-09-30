@@ -234,18 +234,19 @@ C.PASSES = {
 }
 
 -- ===== CARS (realistic part-built bodies) =====
+-- grip = how quickly sideways sliding stops (higher = more planted), drift = how easily the tail kicks out (1 = normal)
 -- L/W = size, H = body height, clear = ground clearance, wheel = wheel size, roof = cabin height, cab = cabin length, cabZ = cabin offset (+ = rear)
 C.CARS = {
-	{key = "moped",  name = "Moped",           price = 800,    speed = 45,  turn = 2.8, color = RGB(90, 220, 140),  style = "moped",  L = 6,  W = 2.2, H = 1.2, clear = 1.2, wheel = 2},
-	{key = "hatch",  name = "City Hatch",      price = 2500,   speed = 52,  turn = 2.3, color = RGB(70, 140, 235),  style = "hatch",  L = 13, W = 6.2, H = 2.4, clear = 1.0, wheel = 2.7, roof = 3.0, cab = 6.5, cabZ = 1.2},
-	{key = "sedan",  name = "Sedan LX",        price = 15000,  speed = 60,  turn = 2.1, color = RGB(236, 236, 240), style = "sedan",  L = 15.5, W = 6.6, H = 2.3, clear = 1.0, wheel = 2.8, roof = 3.0, cab = 7, cabZ = 0.4},
-	{key = "van",    name = "Delivery Van",    price = 20000,  speed = 52,  turn = 1.9, color = RGB(245, 245, 245), style = "van",    L = 17, W = 7,   H = 2.5, clear = 1.2, wheel = 3.0, roof = 4.3, cab = 12, cabZ = 2.2, delivery = true},
-	{key = "suv",    name = "Trail SUV",       price = 45000,  speed = 58,  turn = 2.0, color = RGB(60, 90, 70),    style = "suv",    L = 15.5, W = 7, H = 2.8, clear = 1.7, wheel = 3.4, roof = 3.1, cab = 9, cabZ = 1.4},
-	{key = "truck",  name = "Monster Truck",   price = 60000,  speed = 56,  turn = 1.8, color = RGB(220, 60, 60),   style = "pickup", L = 16, W = 7.6, H = 2.8, clear = 3.4, wheel = 5.4, roof = 3.0, cab = 5.5, cabZ = -1.5},
-	{key = "coupe",  name = "Sports Coupe",    price = 120000, speed = 82,  turn = 2.4, color = RGB(255, 130, 30),  style = "coupe",  L = 15, W = 6.8, H = 2.0, clear = 0.8, wheel = 2.7, roof = 2.6, cab = 5.6, cabZ = 1.4},
-	{key = "hyper",  name = "Hyper Car",       price = 400000, speed = 104, turn = 2.6, color = RGB(150, 60, 255),  style = "hyper",  L = 16, W = 7.2, H = 1.8, clear = 0.7, wheel = 2.7, roof = 2.4, cab = 5, cabZ = -0.4, glow = RGB(170, 90, 255)},
-	{key = "golden", name = "Golden Supercar", pass = "goldcar", speed = 116, turn = 2.7, color = RGB(255, 200, 50), style = "hyper", L = 16, W = 7.2, H = 1.8, clear = 0.7, wheel = 2.7, roof = 2.4, cab = 5, cabZ = -0.4, gold = true, glow = RGB(255, 210, 80)},
-	{key = "legend", name = "Legend Hypercar", rebirths = 100, speed = 132, turn = 2.8, color = RGB(20, 20, 26), style = "hyper", L = 16.5, W = 7.4, H = 1.8, clear = 0.7, wheel = 2.8, roof = 2.4, cab = 5, cabZ = -0.4, glow = RGB(255, 200, 60)},
+	{key = "moped",  name = "Moped",           price = 800,    speed = 45,  turn = 2.8, grip = 7.5, drift = 0.55,  color = RGB(90, 220, 140),  style = "moped",  L = 6,  W = 2.2, H = 1.2, clear = 1.2, wheel = 2},
+	{key = "hatch",  name = "City Hatch",      price = 2500,   speed = 52,  turn = 2.3, grip = 6, drift = 1.0,  color = RGB(70, 140, 235),  style = "hatch",  L = 13, W = 6.2, H = 2.4, clear = 1.0, wheel = 2.7, roof = 3.0, cab = 6.5, cabZ = 1.2},
+	{key = "sedan",  name = "Sedan LX",        price = 15000,  speed = 60,  turn = 2.1, grip = 6.5, drift = 0.85,  color = RGB(236, 236, 240), style = "sedan",  L = 15.5, W = 6.6, H = 2.3, clear = 1.0, wheel = 2.8, roof = 3.0, cab = 7, cabZ = 0.4},
+	{key = "van",    name = "Delivery Van",    price = 20000,  speed = 52,  turn = 1.9, grip = 5, drift = 0.75,  color = RGB(245, 245, 245), style = "van",    L = 17, W = 7,   H = 2.5, clear = 1.2, wheel = 3.0, roof = 4.3, cab = 12, cabZ = 2.2, delivery = true},
+	{key = "suv",    name = "Trail SUV",       price = 45000,  speed = 58,  turn = 2.0, grip = 5.5, drift = 0.8,  color = RGB(60, 90, 70),    style = "suv",    L = 15.5, W = 7, H = 2.8, clear = 1.7, wheel = 3.4, roof = 3.1, cab = 9, cabZ = 1.4},
+	{key = "truck",  name = "Monster Truck",   price = 60000,  speed = 56,  turn = 1.8, grip = 4.5, drift = 0.95,  color = RGB(220, 60, 60),   style = "pickup", L = 16, W = 7.6, H = 2.8, clear = 3.4, wheel = 5.4, roof = 3.0, cab = 5.5, cabZ = -1.5},
+	{key = "coupe",  name = "Sports Coupe",    price = 120000, speed = 82,  turn = 2.4, grip = 6, drift = 1.35,  color = RGB(255, 130, 30),  style = "coupe",  L = 15, W = 6.8, H = 2.0, clear = 0.8, wheel = 2.7, roof = 2.6, cab = 5.6, cabZ = 1.4},
+	{key = "hyper",  name = "Hyper Car",       price = 400000, speed = 104, turn = 2.6, grip = 7, drift = 1.2,  color = RGB(150, 60, 255),  style = "hyper",  L = 16, W = 7.2, H = 1.8, clear = 0.7, wheel = 2.7, roof = 2.4, cab = 5, cabZ = -0.4, glow = RGB(170, 90, 255)},
+	{key = "golden", name = "Golden Supercar", pass = "goldcar", speed = 116, turn = 2.7, grip = 7, drift = 1.25,  color = RGB(255, 200, 50), style = "hyper", L = 16, W = 7.2, H = 1.8, clear = 0.7, wheel = 2.7, roof = 2.4, cab = 5, cabZ = -0.4, gold = true, glow = RGB(255, 210, 80)},
+	{key = "legend", name = "Legend Hypercar", rebirths = 100, speed = 132, turn = 2.8, grip = 7.5, drift = 1.3,  color = RGB(20, 20, 26), style = "hyper", L = 16.5, W = 7.4, H = 1.8, clear = 0.7, wheel = 2.8, roof = 2.4, cab = 5, cabZ = -0.4, glow = RGB(255, 200, 60)},
 }
 C.CAR = {}
 for _, c in ipairs(C.CARS) do C.CAR[c.key] = c end

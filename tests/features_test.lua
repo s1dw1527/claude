@@ -100,6 +100,120 @@ section("staff", function(ctx)
 	T.assertClean("staff section")
 end)
 
+-- ===== 9 + 10. drifting and nitro controls =====
+section("drift", function(ctx)
+	H.section("9/10. Drifting and Nitro on every control type")
+	local a, da = ctx.a, ctx.da
+	local cc = H.clientC
+	da.cash, da.rep = 1e7, 500
+	T.act(a, "car", "spawn", "coupe")
+	H.task.wait(1)
+	local car = T.F.activeCar(a)
+	H.check(car and car.seat.Occupant ~= nil and not car.root.Anchored, "Alice is driving an unanchored coupe")
+	H.check(car.seat:GetAttribute("Grip") == 6 and car.seat:GetAttribute("Drift") == 1.35, "the coupe carries its own handling (grip 6, drift 1.35)")
+	local gui = H.clientC.gui
+	local function find(textPart)
+		for _, d in ipairs(gui:GetDescendants()) do
+			if d.ClassName == "TextButton" and tostring(d.Text):find(textPart, 1, true) then return d end
+		end
+	end
+	local nitroBtn, driftBtn = find("NITRO"), find("DRIFT")
+	H.task.wait(0.3)
+	H.check(driftBtn and driftBtn.Parent.Visible, "the DRIFT button shows while driving")
+	H.check(nitroBtn and not nitroBtn.Visible, "the NITRO button is hidden without the Nitro pass")
+	-- straight line, then a normal turn vs a drift turn
+	local seat, root = car.seat, car.root
+	local function lateral()
+		local v = root.AssemblyLinearVelocity
+		local lv = root.CFrame.LookVector
+		local look = Vector3.new(lv.X, 0, lv.Z).Unit
+		return math.abs(v:Dot(Vector3.new(-look.Z, 0, look.X)))
+	end
+	seat.ThrottleFloat = 1
+	H.task.wait(3)
+	local fwdSpeed = root.AssemblyLinearVelocity.Magnitude
+	H.check(fwdSpeed > 40, string.format("throttle accelerates the car (%.0f studs/s)", fwdSpeed))
+	seat.SteerFloat = 1
+	H.task.wait(1)
+	local latGrip = lateral()
+	H.keysDown[Enum.KeyCode.Q] = true
+	-- the fake engine has no physics, so move the car along its own velocity while it drifts
+	for _ = 1, 10 do
+		local v = root.AssemblyLinearVelocity
+		root.CFrame = root.CFrame + Vector3.new(v.X, 0, v.Z) * 0.1
+		H.task.wait(0.1)
+	end
+	local latDrift = lateral()
+	local label = ""
+	for _, d in ipairs(gui:GetDescendants()) do
+		if d.ClassName == "TextLabel" and tostring(d.Text):find("DRIFT") then label = d.Text end
+	end
+	H.check(latDrift > latGrip * 3 and latDrift > 8, string.format("holding Q makes the tail slide (sideways %.1f vs %.1f with grip)", latDrift, latGrip))
+	local fwdNow = math.abs(root.AssemblyLinearVelocity:Dot(Vector3.new(root.CFrame.LookVector.X, 0, root.CFrame.LookVector.Z).Unit))
+	H.check(latDrift <= fwdNow * 0.9, string.format("the slide angle is capped (sideways %.0f vs forward %.0f)", latDrift, fwdNow))
+	H.check(label:find("DRIFT") ~= nil, "the drift combo meter counts up (" .. label .. ")")
+	H.keysDown[Enum.KeyCode.Q] = false
+	seat.SteerFloat = 0
+	H.task.wait(1.5)
+	H.check(lateral() < 3, "letting go of drift regains grip")
+	-- skid marks appear on the ground while sliding
+	local fx = H.workspace:FindFirstChild("CarFX")
+	H.check(fx and #fx:GetChildren() > 0, "skid marks were drawn (" .. (fx and #fx:GetChildren() or 0) .. " segments)")
+	-- touch/mouse drift button works the same as the key
+	driftBtn.InputBegan:Fire({UserInputType = Enum.UserInputType.Touch})
+	seat.SteerFloat = -1
+	H.task.wait(1)
+	H.check(lateral() > 8, "holding the on-screen DRIFT button drifts too")
+	driftBtn.InputEnded:Fire({UserInputType = Enum.UserInputType.Touch})
+	seat.SteerFloat = 0
+	-- nitro: pass owners get the button and every input boosts
+	T.act(a, "pass", "nitro")
+	H.task.wait(0.3)
+	H.check(nitroBtn.Visible, "the NITRO button appears once Alice owns Nitro")
+	local base = root.AssemblyLinearVelocity.Magnitude
+	nitroBtn.InputBegan:Fire({UserInputType = Enum.UserInputType.MouseButton1})
+	H.task.wait(2)
+	local boosted = root.AssemblyLinearVelocity.Magnitude
+	nitroBtn.InputEnded:Fire({UserInputType = Enum.UserInputType.MouseButton1})
+	H.check(boosted > base * 1.2, string.format("clicking/tapping NITRO boosts (%.0f -> %.0f)", base, boosted))
+	H.task.wait(3)
+	H.keysDown[Enum.KeyCode.ButtonB] = true
+	H.task.wait(1.5)
+	local padBoost = root.AssemblyLinearVelocity.Magnitude
+	H.keysDown[Enum.KeyCode.ButtonB] = false
+	H.check(padBoost > 85, string.format("controller Ⓑ boosts too (%.0f)", padBoost))
+	seat.ThrottleFloat = 0
+	-- race drift zone: the server scores the car's own slide
+	H.task.wait(2)
+	local T0 = da.cash
+	local function drive(to, speed, slide)
+		local from = root.Position
+		local dist = (to - from).Magnitude
+		local steps = math.max(1, math.ceil(dist / speed / 0.1))
+		for i = 1, steps do
+			root.CFrame = CFrame.new(from:Lerp(to, i / steps) + Vector3.new(0, 2, 0))
+			root.AssemblyLinearVelocity = slide and Vector3.new(45, 0, -45) or Vector3.new(0, 0, -60)
+			H.task.wait(0.1)
+		end
+	end
+	T.F.startRace(a)
+	local armed = T.lastRemote("Race", a).args[1]
+	drive(armed.start, 500)
+	H.task.wait(0.3)
+	local fin
+	for _ = 1, 20 do
+		local ev = T.lastRemote("Race", a).args[1]
+		if ev.state ~= "running" then fin = ev break end
+		drive(ev.next, 70, true)
+		H.task.wait(0.2)
+	end
+	fin = fin or T.lastRemote("Race", a).args[1]
+	H.check(fin.state == "finished" and (fin.driftBonus or 0) > 0, "sliding through the Drift Zone earns a server-scored bonus ($" .. tostring(fin.driftBonus) .. ", " .. tostring(fin.drift) .. " pts)")
+	T.act(a, "car", "despawn")
+	H.task.wait(0.5)
+	T.assertClean("drift section")
+end)
+
 -- ===== main =====
 H.main(function()
 	T.startServer()

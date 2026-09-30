@@ -40,7 +40,7 @@ local nitroFill = new("Frame", {Size = UDim2.fromScale(1, 1), BackgroundColor3 =
 corner(nitroFill, 3)
 local nitroL = label({AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 0, -26), Size = UDim2.fromOffset(240, 18), TextSize = 13, TextStrokeTransparency = 0.4, Text = ""}, gauge)
 local shown = 0
-local function setGauge(v, boosting, hasNitro, nitro)
+local function setGauge(v, boosting, hasNitro, nitro, nitroHint)
 	shown += (v - shown) * 0.25
 	local display = C.settings.units == "KMH" and shown * 1.6 or shown
 	needleHolder.Rotation = -135 + math.clamp(display / GAUGE_MAX, 0, 1.03) * 270
@@ -49,19 +49,82 @@ local function setGauge(v, boosting, hasNitro, nitro)
 	nitroBg.Visible = hasNitro
 	nitroFill.Size = UDim2.fromScale(nitro, 1)
 	nitroFill.BackgroundColor3 = boosting and RGB(255, 140, 40) or RGB(80, 200, 255)
-	nitroL.Text = boosting and "🔥 NITRO!" or (hasNitro and "Hold SHIFT for nitro" or "")
+	nitroL.Text = boosting and "🔥 NITRO!" or (hasNitro and (nitroHint or "Hold SHIFT for nitro") or "")
 	needle.BackgroundColor3 = boosting and RGB(255, 180, 40) or RGB(255, 70, 60)
 end
+
+-- ===== DRIVE BUTTONS (touch + mouse) and input helpers =====
+-- Nitro: SHIFT, gamepad B / R1, or the 🔥 button. Drift: Q or CTRL, gamepad X / L1, or the 💨 button.
+local held = {nitro = false, drift = false}
+local ctl = new("Frame", {AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -376, 1, -16), Size = UDim2.fromOffset(104, 222), BackgroundTransparency = 1, Visible = false}, gui)
+local function holdButton(text, y, color)
+	local b = new("TextButton", {AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, y), Size = UDim2.fromOffset(100, 100), Text = text, TextSize = 20,
+		Font = Enum.Font.GothamBlack, TextColor3 = WHITE, BackgroundColor3 = color, BackgroundTransparency = 0.15, AutoButtonColor = false, BorderSizePixel = 0}, ctl)
+	new("UICorner", {CornerRadius = UDim.new(0.5, 0)}, b)
+	stroke(b, WHITE, 3, 0.35)
+	return b
+end
+local nitroBtn = holdButton("🔥\nNITRO", 0, RGB(235, 110, 30))
+local driftBtn = holdButton("💨\nDRIFT", -114, RGB(70, 120, 220))
+local function bindHold(btn, key)
+	btn.InputBegan:Connect(function(input)
+		local t = input.UserInputType
+		if t == Enum.UserInputType.Touch or t == Enum.UserInputType.MouseButton1 then
+			held[key] = true
+			btn.BackgroundTransparency = 0
+		end
+	end)
+	btn.InputEnded:Connect(function(input)
+		local t = input.UserInputType
+		if t == Enum.UserInputType.Touch or t == Enum.UserInputType.MouseButton1 then
+			held[key] = false
+			btn.BackgroundTransparency = 0.15
+		end
+	end)
+end
+bindHold(nitroBtn, "nitro")
+bindHold(driftBtn, "drift")
+local PAD = Enum.UserInputType.Gamepad1
+local function down(key) return UserInputService:IsKeyDown(key) end
+local function pad(key)
+	local ok, v = pcall(function() return UserInputService:IsGamepadButtonDown(PAD, key) end)
+	return ok and v
+end
+local function wantNitro()
+	return held.nitro or down(Enum.KeyCode.LeftShift) or down(Enum.KeyCode.RightShift) or pad(Enum.KeyCode.ButtonB) or pad(Enum.KeyCode.ButtonR1)
+end
+local function wantDrift()
+	return held.drift or down(Enum.KeyCode.Q) or down(Enum.KeyCode.LeftControl) or pad(Enum.KeyCode.ButtonX) or pad(Enum.KeyCode.ButtonL1)
+end
+local function inputHints()
+	local t = UserInputService:GetLastInputType()
+	if t == Enum.UserInputType.Touch then return "Hold 🔥 for nitro", "Hold 💨 to drift" end
+	if t.Name:find("Gamepad") then return "Hold Ⓑ for nitro", "Hold Ⓧ to drift" end
+	return "Hold SHIFT for nitro", "Hold Q / CTRL to drift"
+end
+local driftL = label({AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, -48), Size = UDim2.fromOffset(260, 22), TextSize = 18, Font = Enum.Font.GothamBlack,
+	TextColor3 = RGB(255, 200, 80), TextStrokeTransparency = 0.2, Text = ""}, gauge)
+local hintL = label({AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 1, 4), Size = UDim2.fromOffset(240, 14), TextSize = 11, TextColor3 = SUB, TextStrokeTransparency = 0.5, Text = ""}, gauge)
 
 -- ===== CAR CONTROLLER =====
 local driving = false
 local speed = 0
 local nitro = 1
+local drift = {on = false, combo = 0, calm = 0, boostT = 0}
 local params = RaycastParams.new()
 params.FilterType = Enum.RaycastFilterType.Exclude
 local function moveToward(v, target, step)
 	if v < target then return math.min(v + step, target) end
 	return math.max(v - step, target)
+end
+local function endDrift(showScore)
+	if drift.combo > 30 and showScore then
+		-- a clean drift earns a small, short speed boost (never more than +10% for ~1s)
+		drift.boostT = math.min(1.1, drift.combo / 500)
+		driftL.Text = "🔥 DRIFT " .. fmt(drift.combo)
+		task.delay(1.4, function() if not drift.on then driftL.Text = "" end end)
+	end
+	drift.on, drift.combo, drift.calm = false, 0, 0
 end
 RunService.Heartbeat:Connect(function(dt)
 	dt = math.min(dt, 0.05)
@@ -72,36 +135,48 @@ RunService.Heartbeat:Connect(function(dt)
 		if driving then
 			driving = false
 			gauge.Visible = false
+			ctl.Visible = false
+			held.nitro, held.drift = false, false
 			speed = 0
+			endDrift(false)
+			driftL.Text = ""
 		end
 		return
 	end
 	local car = seat.Parent
 	local root = car and car.PrimaryPart
 	if not root then return end
+	local hasNitro = seat:GetAttribute("Nitro") == true
 	if not driving then
 		driving = true
 		gauge.Visible = true
+		ctl.Visible = true
 		speed = root.CFrame.LookVector:Dot(root.AssemblyLinearVelocity)
 	end
-	local hasNitro = seat:GetAttribute("Nitro") == true
+	nitroBtn.Visible = hasNitro
+	local nitroHint, driftHint = inputHints()
+	hintL.Text = driftHint
 	if root.Anchored then
-		setGauge(0, false, hasNitro, nitro)
+		setGauge(0, false, hasNitro, nitro, nitroHint)
 		return
 	end
 	local maxS = seat:GetAttribute("MaxSpeed") or 60
 	local turn = seat:GetAttribute("Turn") or 2
 	local hover = seat:GetAttribute("Hover") or 1
 	local half = seat:GetAttribute("Half") or 1.5
+	local grip = seat:GetAttribute("Grip") or 6
+	local driftK = seat:GetAttribute("Drift") or 1
 	local throttle = seat.ThrottleFloat
 	local steer = seat.SteerFloat
-	local boosting = hasNitro and throttle > 0 and nitro > 0 and (UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) or UserInputService:IsKeyDown(Enum.KeyCode.RightShift))
+	local boosting = hasNitro and throttle > 0 and nitro > 0 and wantNitro()
+	local drifting = wantDrift() and speed > 22
 	if boosting then
 		nitro = math.max(0, nitro - dt * 0.3)
 	else
-		nitro = math.min(1, nitro + dt * 0.1)
+		nitro = math.min(1, nitro + dt * (drifting and 0.16 or 0.1))
 	end
-	local top = maxS * (boosting and 1.4 or 1)
+	drift.boostT = math.max(0, drift.boostT - dt)
+	local top = maxS * (boosting and 1.4 or 1) * (drift.boostT > 0 and 1.1 or 1)
 	local target = throttle > 0 and top or (throttle < 0 and -maxS * 0.45 or 0)
 	local rate
 	if throttle == 0 then
@@ -130,17 +205,141 @@ RunService.Heartbeat:Connect(function(dt)
 	else
 		vy = math.max(vel.Y - 196 * dt, -150)
 	end
-	local lat = vel:Dot(right) * math.clamp(1 - dt * (boosting and 3 or 6), 0, 1)
+	-- sideways grip: normally the car stays planted; drifting lets the tail slide out
+	local latDamp = grip
+	if drifting then
+		latDamp = grip * 0.14 / driftK
+		speed *= 1 - dt * 0.2                       -- drifting always costs a little speed
+	elseif boosting then
+		latDamp = grip * 0.5
+	end
+	local lat = vel:Dot(right) * math.clamp(1 - dt * latDamp, 0, 1)
+	local yawK = 1
+	if drifting then
+		lat += -steer * math.abs(speed) * 0.9 * driftK * dt   -- kick the rear out, away from the turn
+		-- cap the slide angle (~35-45 degrees depending on the car) so a drift never turns into a spin
+		local maxLat = math.abs(speed) * 0.7 * math.sqrt(driftK)
+		lat = math.clamp(lat, -maxLat, maxLat)
+		yawK = 1.3 + 0.25 * driftK
+	end
 	root.AssemblyLinearVelocity = look * speed + right * lat + V3(0, vy, 0)
-	local grip = math.clamp(math.abs(speed) / 16, 0, 1)
-	root.AssemblyAngularVelocity = V3(0, -steer * turn * grip * (speed >= 0 and 1 or -1), 0)
+	local gripF = math.clamp(math.abs(speed) / 16, 0, 1)
+	root.AssemblyAngularVelocity = V3(0, -steer * turn * gripF * yawK * (speed >= 0 and 1 or -1), 0)
 	local ao = root:FindFirstChild("Upright")
 	if ao then
 		local _, yaw = cf:ToOrientation()
 		ao.CFrame = CFrame.Angles(0, yaw, 0)
 	end
-	setGauge(math.abs(speed), boosting, hasNitro, nitro)
+	-- drift combo meter (just for fun: the only drift money comes from the race track's Drift Zone, scored by the server)
+	local angle = math.deg(math.atan2(math.abs(lat), math.max(1, math.abs(speed))))
+	if drifting and angle > 8 then
+		drift.on = true
+		drift.calm = 0
+		drift.combo += dt * math.abs(speed) * angle / 12
+		driftL.Text = "💨 DRIFT " .. fmt(drift.combo)
+	elseif drift.on then
+		drift.calm += dt
+		if drift.calm > 0.45 then endDrift(true) end
+	end
+	setGauge(math.abs(speed), boosting, hasNitro, nitro, nitroHint)
 end)
+
+-- ===== SKID MARKS + TIRE SMOKE (every car in the city, drawn locally) =====
+do
+	local TweenService = game:GetService("TweenService")
+	local FX = Instance.new("Folder")
+	FX.Name = "CarFX"
+	FX.Parent = Workspace
+	local POOL = 160
+	local skids, nextSkid = {}, 1
+	local function skidPart()
+		local p = skids[nextSkid]
+		if not p then
+			p = Instance.new("Part")
+			p.Anchored = true
+			p.CanCollide = false
+			p.CanQuery = false
+			p.CanTouch = false
+			p.CastShadow = false
+			p.Material = Enum.Material.SmoothPlastic
+			p.Color = RGB(25, 25, 28)
+			p.Parent = FX
+			skids[nextSkid] = p
+		end
+		nextSkid = nextSkid % POOL + 1
+		return p
+	end
+	local tracked = {}  -- car model -> {emitters, lastL, lastR}
+	local function fxFor(m, root)
+		local e = tracked[m]
+		if e then return e end
+		e = {emitters = {}}
+		for _, sx in ipairs({-1, 1}) do
+			local att = Instance.new("Attachment")
+			att.Position = V3(sx * root.Size.X * 0.42, -root.Size.Y / 2, root.Size.Z * 0.38)
+			att.Parent = root
+			local pe = Instance.new("ParticleEmitter")
+			pe.Texture = "rbxasset://textures/particles/smoke_main.dds"
+			pe.Rate = 28
+			pe.Lifetime = NumberRange.new(0.8, 1.4)
+			pe.Speed = NumberRange.new(1, 3)
+			pe.SpreadAngle = Vector2.new(35, 35)
+			pe.Size = NumberSequence.new({NumberSequenceKeypoint.new(0, 1.2), NumberSequenceKeypoint.new(1, 5)})
+			pe.Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 0.45), NumberSequenceKeypoint.new(1, 1)})
+			pe.Color = ColorSequence.new(RGB(235, 235, 240))
+			pe.Enabled = false
+			pe.Parent = att
+			table.insert(e.emitters, {att = att, pe = pe, side = sx})
+		end
+		tracked[m] = e
+		return e
+	end
+	local fadeInfo = TweenInfo.new(5, Enum.EasingStyle.Linear)
+	local acc = 0
+	RunService.Heartbeat:Connect(function(dt)
+		acc += dt
+		if acc < 1 / 30 then return end
+		local step = acc
+		acc = 0
+		local folder = Workspace:FindFirstChild("Cars")
+		if not folder then return end
+		for m, e in pairs(tracked) do
+			if not m.Parent then tracked[m] = nil end
+		end
+		for _, m in ipairs(folder:GetChildren()) do
+			local root = m.PrimaryPart
+			local seat = m:FindFirstChild("DriveSeat")
+			if root and seat and not root.Anchored then
+				local vel = root.AssemblyLinearVelocity
+				local lv = root.CFrame.LookVector
+				local look = V3(lv.X, 0, lv.Z)
+				if look.Magnitude > 0.05 then
+					look = look.Unit
+					local right = V3(-look.Z, 0, look.X)
+					local fwd, side = vel:Dot(look), vel:Dot(right)
+					local slipping = vel.Magnitude > 18 and math.abs(side) > 5 and math.abs(side) / math.max(8, math.abs(fwd)) > 0.2
+					local e = fxFor(m, root)
+					local groundY = root.Position.Y - (seat:GetAttribute("Hover") or 1) - (seat:GetAttribute("Half") or 1.5) + 0.07
+					for _, w in ipairs(e.emitters) do
+						w.pe.Enabled = slipping
+						local wp = root.CFrame:PointToWorldSpace(w.att.Position)
+						local pos = V3(wp.X, groundY, wp.Z)
+						local last = w.last
+						if slipping and last and (pos - last).Magnitude > 0.8 and (pos - last).Magnitude < 12 then
+							local p = skidPart()
+							local len = (pos - last).Magnitude
+							p.Size = V3(0.55, 0.05, len + 0.2)
+							p.CFrame = CFrame.lookAt((pos + last) / 2, pos)
+							p.Transparency = 0.25
+							TweenService:Create(p, fadeInfo, {Transparency = 1}):Play()
+						end
+						if slipping then w.last = pos else w.last = nil end
+					end
+				end
+			end
+		end
+	end)
+end
 
 -- ===== RACE HUD =====
 do
@@ -171,14 +370,14 @@ do
 			end
 			rp.Visible = true
 			title.Text = "🏁 GO GO GO!"
-			cpL.Text = "Checkpoint " .. math.min(e.cp, e.total) .. "/" .. e.total
+			cpL.Text = "Checkpoint " .. math.min(e.cp, e.total) .. "/" .. e.total .. ((e.drift or 0) > 0 and ("  •  💨 " .. e.drift) or "")
 			U.setBeamTarget("race", e.next)
 		elseif e.state == "finished" then
 			running = false
 			timer.Text = string.format("%.2f", e.time)
 			cpL.Text = e.record and "🏆 TRACK RECORD!" or (e.pb and "⭐ New personal best!" or "Finished!")
 			U.setBeamTarget("race", nil)
-			U.splash("🏁 " .. string.format("%.2fs", e.time), "Prize: $" .. fmt(e.prize) .. "   •   Par " .. e.par .. "s" .. (e.pb and "   •   NEW PERSONAL BEST!" or ""), e.record and GOLD or GREEN)
+			U.splash("🏁 " .. string.format("%.2fs", e.time), "Prize: $" .. fmt(e.prize) .. "   •   Par " .. e.par .. "s" .. ((e.driftBonus or 0) > 0 and ("   •   💨 Drift bonus $" .. fmt(e.driftBonus)) or "") .. (e.pb and "   •   NEW PERSONAL BEST!" or ""), e.record and GOLD or GREEN)
 			task.delay(6, function() if not running then rp.Visible = false end end)
 		elseif e.state == "cancel" then
 			running = false

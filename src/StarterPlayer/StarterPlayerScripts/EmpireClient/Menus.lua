@@ -85,7 +85,7 @@ do
 	local park = button({Position = UDim2.new(0.5, 5, 0, 0), Size = UDim2.new(0.5, -5, 1, 0), Text = "🅿 Put Car Away", TextSize = 15, BackgroundColor3 = GRAY}, topRow)
 	tp.MouseButton1Click:Connect(function() play(SND.click) act("tp", "dealer") m.frame.Visible = false end)
 	park.MouseButton1Click:Connect(function() play(SND.click) act("car", "despawn") end)
-	label({Size = UDim2.new(1, -8, 0, 20), TextSize = 12, TextColor3 = SUB, LayoutOrder = 1, Text = "Drive: WASD / arrows • Hold SHIFT for nitro (pass) • SPACE to hop out"}, m.body)
+	label({Size = UDim2.new(1, -8, 0, 34), TextSize = 12, TextColor3 = SUB, LayoutOrder = 1, Text = "Drive: WASD / arrows • Q or CTRL to drift • SHIFT for nitro (pass) • SPACE to hop out • Controller: Ⓧ drift, Ⓑ nitro • Phone: on-screen buttons", TextWrapped = true}, m.body)
 	local rows = {}
 	for i, c in ipairs(catalog.cars) do
 		local row = card(m.body, 62, i + 1)
