@@ -168,8 +168,10 @@ RunService.Heartbeat:Connect(function(dt)
 	local driftK = seat:GetAttribute("Drift") or 1
 	local throttle = seat.ThrottleFloat
 	local steer = seat.SteerFloat
-	local boosting = hasNitro and throttle > 0 and nitro > 0 and wantNitro()
-	local drifting = wantDrift() and speed > 22
+	local photo = C.photoActive == true     -- photo mode: the car coasts to a stop and ignores the keys
+	if photo then throttle, steer = 0, 0 end
+	local boosting = not photo and hasNitro and throttle > 0 and nitro > 0 and wantNitro()
+	local drifting = not photo and wantDrift() and speed > 22
 	if boosting then
 		nitro = math.max(0, nitro - dt * 0.3)
 	else

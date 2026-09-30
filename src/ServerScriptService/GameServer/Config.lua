@@ -75,7 +75,58 @@ C.COMBOS = {
 	{key = "indbakery",   name = "Industrial Bakery",   icon = "🥖",   needs = {"bakery", "factory"},    lvl = 5, mult = 1.5, color = RGB(180, 140, 100), secret = true},
 	{key = "aicafe",      name = "AI Café",             icon = "☕🤖", needs = {"coffee", "tech"},       lvl = 5, mult = 1.5, color = RGB(80, 230, 255), secret = true, marketing = true, hint = "needs a Major ad campaign"},
 	{key = "spacediner",  name = "Space Diner",         icon = "🚀🍕", needs = {"pizza", "tech", "factory"}, lvl = 5, mult = 1.75, color = RGB(255, 120, 60), secret = true, era = 2, hint = "unlocks in Era 2"},
+	-- RARE SECRETS: their own buildings on your plot and an empire-wide perk. The UI only ever shows the riddle.
+	{key = "moviestudio", name = "Movie Studio",       icon = "🎬", needs = {"arcade", "tech"}, levels = {arcade = 5, tech = 3}, viral = true, mult = 1.5, color = RGB(255, 80, 80),
+		secret = true, rare = true, riddle = "'The cameras only come for a viral star...'", perk = {customers = 1.25}, perkText = "+25% customers"},
+	{key = "robotfactory", name = "Robot Factory",     icon = "🤖", needs = {"factory", "tech"}, levels = {factory = 7, tech = 7}, era = 3, mult = 1.75, color = RGB(120, 200, 255),
+		secret = true, rare = true, riddle = "'Machines dream of a much bigger city...'", perk = {problems = 0.6}, perkText = "40% fewer problems"},
+	{key = "bank",        name = "Billionaire Bank",   icon = "🏦", needs = {}, earned = 1e8, rebirths = 10, mult = 1, color = RGB(255, 205, 60),
+		secret = true, rare = true, riddle = "'Only the richest, reborn again and again...'", perk = {all = 1.1}, perkText = "+10% ALL income"},
+	{key = "spacecenter", name = "Space Center",       icon = "🚀", needs = {"tech", "factory"}, levels = {tech = 10, factory = 5}, era = 4, found = "launchpad", mult = 2, color = RGB(200, 200, 255),
+		secret = true, rare = true, riddle = "'Someone left a launch pad out past the far hills...'", perk = {all = 1.15}, perkText = "+15% ALL income"},
 }
+
+-- hidden places to find by exploring (walk close). Some unlock secrets, relics go in your Legacy Museum.
+C.SECRET_SPOTS = {
+	{key = "launchpad", name = "Abandoned Launch Pad", icon = "🚀", pos = Vector3.new(600, 0, -520), radius = 18, cash = 5000, rep = 10,
+		text = "You found an abandoned launch pad... someone with a big enough tech empire could build something here."},
+	{key = "goldenlemon", name = "Golden Lemon", icon = "🍋", pos = Vector3.new(0, 1.6, 476), radius = 7, cash = 2500, rep = 5, relic = true,
+		text = "A GOLDEN LEMON at the very end of the pier! It's going in your museum."},
+	{key = "diamondbean", name = "Diamond Coffee Bean", icon = "💎", pos = Vector3.new(180, 0.4, 191), radius = 6, cash = 2500, rep = 5, relic = true,
+		text = "A diamond coffee bean was hiding behind the park fountain!"},
+	{key = "blueprint", name = "Ancient Blueprint", icon = "📜", pos = Vector3.new(-300, 18.4, -160), radius = 7, cash = 4000, rep = 8, relic = true,
+		text = "An ancient empire blueprint, tucked in a corner of Hillside. Priceless."},
+}
+
+-- ===== ACHIEVEMENTS (shareable on CityBuzz, shown in the Legacy Museum) =====
+C.ACHIEVEMENTS = {
+	firstBusiness = {icon = "🏪", title = "First Business", post = "I just opened my very first business! 🍋"},
+	firstLandmark = {icon = "🌟", title = "First Landmark", post = "I built my first golden LANDMARK! 🌟"},
+	million = {icon = "💰", title = "First Million", post = "My empire has earned its first $1,000,000! 💰"},
+	billion = {icon = "💎", title = "First Billion", post = "ONE. BILLION. DOLLARS. 💎💎💎"},
+	raceWin = {icon = "🏁", title = "Race Champion", post = "I beat par at the Corner Empire Raceway! 🏁"},
+	trackRecord = {icon = "🏆", title = "Track Record", post = "I just set a new TRACK RECORD! 🏆🏎️"},
+	rebirth1 = {icon = "♻️", title = "Reborn", post = "Rebirth #1 done. Starting over, but stronger! ♻️"},
+	rebirth10 = {icon = "💼", title = "10 Rebirths", post = "10 rebirths! Tycoon status unlocked 💼"},
+	rebirth50 = {icon = "🎩", title = "50 Rebirths", post = "50 rebirths. I am the Mogul now 🎩"},
+	rebirth100 = {icon = "👑", title = "100 Rebirths", post = "100 REBIRTHS. LEGEND STATUS. 👑"},
+	mansion = {icon = "🏰", title = "Millionaire Mansion", post = "Just built my mansion on Millionaire Row 🏰"},
+	dreamHome = {icon = "🏡", title = "Dream Home", post = "My Dream Home is finally complete! 🏡✨"},
+	viral = {icon = "🔥", title = "Went Viral", post = "An influencer made my business go VIRAL! 🔥📱"},
+	iconicBuilding = {icon = "🏢", title = "Iconic Building", post = "My apartment building just hit ICONIC status 🏢🌟"},
+	era2 = {icon = "🏙️", title = "Growing City", post = "I helped build the Empire Spire into Era 2! 🏙️"},
+	era3 = {icon = "🌆", title = "Mega City", post = "Era 3: MEGA CITY. I helped build it 🌆"},
+	era4 = {icon = "🛸", title = "Future City", post = "Flying cars! I helped bring the city into the future 🛸"},
+	era5 = {icon = "🌃", title = "Cyber City", post = "CYBER CITY unlocked. Neon everywhere 🌃"},
+	secret = {icon = "🤫", title = "Secret Discovery", post = "I discovered a SECRET business 🤫"},
+	rare = {icon = "🗝️", title = "Rare Secret", post = "I unlocked a RARE secret business. Good luck finding it 🗝️"},
+	relic = {icon = "🏺", title = "Relic Hunter", post = "Found a hidden relic somewhere in the city... not telling where 🏺"},
+	mystery = {icon = "❓", title = "Mystery Lot", post = "I bought a Mystery Lot. You won't BELIEVE what was inside ❓"},
+	houseStar = {icon = "⭐", title = "Home of the Week", post = "My house won Home of the Week! ⭐🏠"},
+}
+for _, b in ipairs(C.BUSINESSES) do
+	C.ACHIEVEMENTS["biz_" .. b.key] = {icon = b.icon, title = "New: " .. b.name, post = "Just opened a brand new " .. b.tiers[1] .. "! " .. b.icon, quiet = b.key == "lemonade"}
+end
 
 -- ===== BUSINESS LAND (districts) =====
 C.DISTRICTS = {

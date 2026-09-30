@@ -307,5 +307,9 @@ function F.buildHomeLevel(plr)
 	burst(lot.pos + V3(0, 10, 0), HOOD[lot.hood].color, 120)
 	shockwave(lot.pos + V3(0, 0.6, 0), HOOD[lot.hood].color, 30)
 	C.R.Splash:FireClient(plr, "🏠 " .. HOME_LEVELS[d.home.level] .. "!", "Your home in " .. HOOD[lot.hood].name .. " got an upgrade. Home income bonus: +" .. math.floor((F.homeMult(d) - 1) * 100 + 0.5) .. "%", HOOD[lot.hood].color)
+	if F.achieve then
+		if lot.hood == "rich" then F.achieve(plr, "mansion") end
+		if d.home.level >= #HOME_LEVELS then F.achieve(plr, "dreamHome") end
+	end
 end
 end

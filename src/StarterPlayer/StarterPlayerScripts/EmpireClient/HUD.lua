@@ -53,6 +53,8 @@ do
 		if s.adName then table.insert(m, "📣 " .. clock(s.adLeft)) end
 		if s.relaxedLeft > 0 then table.insert(m, "🎡 " .. clock(s.relaxedLeft)) end
 		if s.trending then table.insert(m, "📱 TRENDING") end
+		if (s.viralLeft or 0) > 0 then table.insert(m, "🔥 VIRAL " .. clock(s.viralLeft)) end
+		if (s.postBuffLeft or 0) > 0 then table.insert(m, string.format("📈 post x%.2f %s", s.postBuffMult or 1, clock(s.postBuffLeft))) end
 		multL.Text = table.concat(m, "   ")
 		tierL.Text = "⭐ " .. s.tierName
 		if s.nextRep then
@@ -514,6 +516,66 @@ do
 	end)
 	RunService.RenderStepped:Connect(function()
 		if bar.Visible then barTime.Text = clock(endsAt - os.clock()) end
+	end)
+end
+
+-- ===== ACHIEVEMENT CARD (with a Share-to-CityBuzz button) =====
+do
+	local card = panel({AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 12, 1, -120), Size = UDim2.fromOffset(340, 70), BackgroundColor3 = RGB(60, 45, 15), Visible = false, ZIndex = 45}, gui)
+	stroke(card, GOLD, 2, 0)
+	local ic = label({Position = UDim2.fromOffset(8, 0), Size = UDim2.fromOffset(54, 70), TextSize = 36, ZIndex = 46}, card)
+	local t1 = label({Position = UDim2.fromOffset(66, 8), Size = UDim2.new(1, -170, 0, 18), TextSize = 12, TextColor3 = GOLD, TextXAlignment = Enum.TextXAlignment.Left, Text = "🏆 ACHIEVEMENT UNLOCKED", ZIndex = 46}, card)
+	local t2 = label({Position = UDim2.fromOffset(66, 28), Size = UDim2.new(1, -170, 0, 30), TextSize = 17, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left, TextWrapped = true, ZIndex = 46}, card)
+	local share = button({Position = UDim2.new(1, -98, 0.5, 0), AnchorPoint = Vector2.new(0, 0.5), Size = UDim2.fromOffset(88, 44), Text = "📱 Share", TextSize = 14, BackgroundColor3 = RGB(230, 70, 150), ZIndex = 46}, card)
+	local queue, showing, key = {}, false, nil
+	local function nextCard()
+		local a = table.remove(queue, 1)
+		if not a then
+			showing = false
+			card.Visible = false
+			return
+		end
+		showing = true
+		key = a.key
+		ic.Text = a.icon or "🏆"
+		t2.Text = a.title or ""
+		share.Visible = true
+		card.Visible = true
+		card.Position = UDim2.new(0, -360, 1, -120)
+		tween(card, 0.4, {Position = UDim2.new(0, 12, 1, -120)}, Enum.EasingStyle.Back)
+		play(SND.buy)
+		task.delay(7, function()
+			if key == a.key then nextCard() end
+		end)
+	end
+	share.MouseButton1Click:Connect(function()
+		if not key then return end
+		play(SND.click)
+		act("shareAch", key)
+		share.Visible = false
+	end)
+	R.Menu.OnClientEvent:Connect(function(kind, a)
+		if kind == "achievement" and type(a) == "table" then
+			table.insert(queue, a)
+			if not showing then nextCard() end
+		end
+	end)
+end
+
+-- ===== YOU WENT VIRAL! =====
+do
+	R.Mega.OnClientEvent:Connect(function(e)
+		if type(e) ~= "table" or e.kind ~= "viral" then return end
+		local mine = e.userId == plr.UserId
+		if mine then
+			U.splash("🔥 YOU WENT VIRAL! 🔥", "An influencer posted your " .. (e.biz or "business") .. ": \"" .. (e.quote or "") .. "\"  •  3x customers, 2x reputation, +" .. fmt(e.fans or 0) .. " followers!", RGB(255, 110, 200))
+			U.confetti(140)
+			if C.offerReplay then C.offerReplay(e.pos) end
+		else
+			U.toast("🔥 " .. (e.player or "Someone") .. "'s " .. (e.biz or "business") .. " just WENT VIRAL!")
+		end
+		-- camera flashes at the business, for everyone who's nearby
+		if typeof(e.pos) == "Vector3" and U.flashes then U.flashes(e.pos) end
 	end)
 end
 end

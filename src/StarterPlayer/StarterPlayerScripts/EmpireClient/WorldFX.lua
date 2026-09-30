@@ -378,6 +378,22 @@ RunService.RenderStepped:Connect(function(dt)
 	wxPart.CFrame = CF(camPos + V3(0, 28, 0))
 end)
 
+-- camera flashes (influencers filming a business that just went viral)
+function U.flashes(pos)
+	if (camera.CFrame.Position - pos).Magnitude > 400 then return end
+	for i = 1, 14 do
+		task.delay(i * 0.22, function()
+			local p = fxPart(V3(0.8, 0.8, 0.8), WHITE, Enum.Material.Neon)
+			p.Shape = Enum.PartType.Ball
+			p.CFrame = CF(pos + V3(math.random(-6, 6), math.random(2, 7), math.random(-6, 6)))
+			local l = Instance.new("PointLight")
+			l.Brightness, l.Range = 6, 16
+			l.Parent = p
+			task.delay(0.12, function() p:Destroy() end)
+		end)
+	end
+end
+
 -- ===== MEGA EVENT MOVERS (the tornado) + CITY ERA LOOK =====
 do
 	local Lighting = game:GetService("Lighting")

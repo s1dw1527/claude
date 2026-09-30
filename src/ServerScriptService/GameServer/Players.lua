@@ -29,7 +29,7 @@ if CFG.SAVE_ENABLED then
 end
 local SAVE_KEYS = {"cash", "levels", "chains", "staff", "combos", "rep", "ep", "trophies", "skin", "cars", "seen", "served", "deliveries",
 	"marketing", "revSum", "revN", "contributed", "rebirths", "followers", "home", "raceBest", "tut", "earned", "rentEarned",
-	"tutPaid", "richClaimed", "eraContrib"}
+	"tutPaid", "richClaimed", "eraContrib", "achievements", "shared", "found", "wentViral", "viralCount"}
 local function metaKey(plr) return "u" .. plr.UserId .. "_meta" end
 local function slotKey(plr, slot) return "u" .. plr.UserId .. "_s" .. slot end
 local DEFAULT_SETTINGS = {music = true, musicVol = 5, sfx = true, crowd = "high", weather = true, units = "MPH", spawnAt = "business"}
@@ -174,6 +174,11 @@ local function archiveData(plr, d)
 		local got = d.combos[c.key] == true
 		if got then found += 1 end
 		local recipe
+		if c.rare then
+			-- rare secrets never reveal their requirements: only a riddle until you unlock them
+			table.insert(combos, {icon = got and c.icon or "🗝️", name = got and c.name or "Rare Secret", recipe = got and (c.perkText or "") or c.riddle, found = got, color = c.color})
+			continue
+		end
 		if got then
 			local names = {}
 			for _, n in ipairs(c.needs) do table.insert(names, BIZ[n].name) end
@@ -254,6 +259,16 @@ local function propsState(plr, d)
 	return {list = list, free = free, unlocked = F.unlocked(d, "properties"), earned = d.rentEarned or 0}
 end
 
+-- where photo mode's cinematic shots point: your plot, your home, and your biggest business
+function F.showcasePoints(d)
+	local best, bestLvl = nil, 0
+	for _, b in ipairs(BUSINESSES) do
+		local lvl = d.levels[b.key] or 0
+		if lvl > bestLvl then best, bestLvl = b.key, lvl end
+	end
+	local hl = F.homeLot(d)
+	return {plot = d.plot.center + V3(0, 1, 0), home = hl and hl.pos or nil, best = best and (F.slotCF(d.plot, best) * CF(0, 4, 0)).Position or nil}
+end
 function F.sendState(plr, now)
 	local d = data[plr]
 	if not d then return end
@@ -362,6 +377,9 @@ function F.sendState(plr, now)
 		homeInfo = homeState(d), props = propsState(plr, d),
 		rebirth = {count = d.rebirths, cost = F.rebirthCost(d), mult = math.floor((F.rebirthMult(d) - 1) * 100 + 0.5), perks = perks, unlocked = unlocks.rebirth},
 		tut = tut, raceBest = d.raceBest,
+		showcase = F.showcasePoints(d),
+		shareable = C.shareableList(d), viralLeft = math.max(0, math.ceil((d.viralUntil or 0) - now)),
+		postBuffLeft = math.max(0, math.ceil((d.postBuffUntil or 0) - now)), postBuffMult = d.postBuffMult,
 		fees = {hoop = F.funFee(d, MINIGAMES.hoop.fee), rush = F.funFee(d, MINIGAMES.rush.fee), memory = F.funFee(d, MINIGAMES.memory.fee),
 			ferris = F.funFee(d, FERRIS.fee), fireworks = F.funFee(d, FIREWORKS.fee), race = F.raceFee(d)},
 		slot = session[plr] and session[plr].slot,
@@ -826,6 +844,8 @@ R.Action.OnServerEvent:Connect(function(plr, action, a, b, c)
 		end
 	elseif action == "raceCancel" then
 		F.cancelRace(plr, "Race cancelled.")
+	elseif action == "shareAch" then
+		if str(a, 30) then F.shareAchievement(plr, a) end
 	elseif C.ACTIONS[action] then
 		C.ACTIONS[action](plr, d, a, b, c, now)
 	end
@@ -958,6 +978,7 @@ task.spawn(function()
 					for _ in pairs(d.problems) do active += 1 end
 					if active < 2 and math.random() < F.problemChance(d) then F.makeProblem(plr, d, now) end
 				end
+				if tick % 5 == 0 then F.checkMilestones(plr, d) end
 				F.deliveryTick(plr, d, now)
 				F.rentalTick(plr, d, now)
 				F.tutorialTick(plr, d)

@@ -95,6 +95,7 @@ function F.globalMult(d, now)
 		if all then m *= all end
 	end
 	m *= 1 + 0.2 * (G.spire.era - 1)
+	m *= F.comboPerk(d, "all")
 	m *= F.homeMult(d)
 	m *= F.rebirthMult(d)
 	return m
@@ -135,6 +136,7 @@ function F.addRep(plr, amount)
 	local d = data[plr]
 	if not d then return end
 	if amount > 0 and F.homeHood(d) == "hills" then amount *= 1.15 end
+	if amount > 0 and (d.viralUntil or 0) > os.clock() then amount *= 2 end
 	local old = F.tierIndex(d.rep)
 	d.rep = math.max(0, d.rep + amount)
 	d.war.rep += amount
@@ -158,20 +160,35 @@ function F.checkCombos(plr, d)
 		if not d.combos[c.key] then
 			local ok = true
 			for _, n in ipairs(c.needs) do
-				if (d.levels[n] or 0) < c.lvl then ok = false end
+				local need = (c.levels and c.levels[n]) or c.lvl
+				if (d.levels[n] or 0) < need then ok = false end
 			end
 			if c.marketing and not d.marketing then ok = false end
 			if c.era and G.spire.era < c.era then ok = false end
+			if c.rebirths and d.rebirths < c.rebirths then ok = false end
+			if c.earned and (d.earned or 0) < c.earned then ok = false end
+			if c.found and not (d.found and d.found[c.found]) then ok = false end
+			if c.viral and not d.wentViral then ok = false end
 			if ok then
 				d.combos[c.key] = true
-				R.Splash:FireClient(plr, "✨ NEW DISCOVERY ✨", c.icon .. " " .. c.name .. (c.secret and " (SECRET!)" or "") .. " — its businesses earn +" .. math.floor((c.mult - 1) * 100 + 0.5) .. "%", c.color)
-				F.buzz(c.icon, plr.Name .. " discovered the " .. c.name .. "!" .. (c.secret and " 🤫 A secret business!" or ""), c.color)
-				F.addRep(plr, c.secret and 50 or 25)
+				local what = c.perkText or ("its businesses earn +" .. math.floor((c.mult - 1) * 100 + 0.5) .. "%")
+				R.Splash:FireClient(plr, c.rare and "🗝️ RARE SECRET UNLOCKED 🗝️" or "✨ NEW DISCOVERY ✨", c.icon .. " " .. c.name .. (c.secret and " (SECRET!)" or "") .. " — " .. what, c.color)
+				F.buzz(c.icon, plr.Name .. (c.rare and " unlocked an ultra-rare " or " discovered the ") .. c.name .. "!" .. (c.secret and " 🤫 A secret business!" or ""), c.color)
+				F.addRep(plr, c.rare and 150 or (c.secret and 50 or 25))
 				F.refreshKiosks(plr)
-				burst(d.plot.center + V3(0, 10, 0), c.color, 120)
+				burst(d.plot.center + V3(0, 10, 0), c.color, c.rare and 250 or 120)
+				if F.achieve then F.achieve(plr, c.rare and "rare" or (c.secret and "secret" or nil)) end
 			end
 		end
 	end
+end
+-- empire-wide perks from rare secret businesses
+function F.comboPerk(d, kind)
+	local m = 1
+	for _, c in ipairs(COMBOS) do
+		if c.perk and c.perk[kind] and d.combos[c.key] then m *= c.perk[kind] end
+	end
+	return m
 end
 
 -- ===== CUSTOMERS =====
@@ -198,6 +215,9 @@ function F.customerRate(d, now)
 	if mk then r *= 1 + 0.06 * staffStars(mk) end
 	if G.event and G.event.customers then r *= G.event.customers end
 	if G.megaCustomers then r *= G.megaCustomers end
+	r *= F.comboPerk(d, "customers")
+	if (d.viralUntil or 0) > now then r *= 3 end
+	if (d.postBuffUntil or 0) > now then r *= d.postBuffMult or 1 end
 	if G.event and G.event.concert and F.countLots(d, "beach") > 0 then r *= 3 end
 	r *= F.followerMult(d)
 	if F.homeHood(d) == "suburbs" then r *= 1.1 end
@@ -276,11 +296,38 @@ function F.serveCustomer(plr, d, key, t, review)
 		d.revN += 1
 		table.insert(d.reviews, 1, {stars = review.stars, text = review.text, biz = BIZ[key].tiers[math.max(1, stageOf(lvl, d.chains[key] or 0))]})
 		if #d.reviews > 8 then table.remove(d.reviews) end
-		if t.trendy and review.stars >= 5 and d.trendUntil < now then
+		if t.trendy and review.stars >= 4 and d.trendUntil < now then
 			d.trendUntil = now + 30
-			F.buzz("🤳", "Influencer: \"" .. review.text .. "\" — " .. plr.Name .. "'s " .. BIZ[key].name .. " has gone VIRAL!", RGB(255, 110, 200))
+			-- sometimes the influencer's post blows up: YOU WENT VIRAL
+			local chance = 0.22 + math.min(0.15, (d.followers or 0) / 20000)
+			if review.stars >= 5 then chance += 0.1 end
+			if now >= (d.viralCooldown or 0) and math.random() < chance then
+				F.goViral(plr, d, key, review.text)
+			else
+				F.buzz("🤳", "Influencer: \"" .. review.text .. "\" — " .. plr.Name .. "'s " .. BIZ[key].name .. " is trending!", RGB(255, 110, 200))
+			end
 		end
 	end
+end
+
+-- the big viral moment: 60s of 3x customers, double reputation, a follower surge and a server-wide shout-out
+function F.goViral(plr, d, key, quote)
+	local now = os.clock()
+	d.viralUntil = now + 60
+	d.viralCooldown = now + 300
+	d.viralCount = (d.viralCount or 0) + 1
+	d.wentViral = true
+	local fans = math.floor(math.clamp(50 + d.rep / 4 + (d.followers or 0) * 0.08, 50, 5000))
+	d.followers += fans
+	F.addRep(plr, 15)
+	local b = BIZ[key]
+	local door = (F.slotCF(d.plot, key) * CF(0, 0, 9)).Position
+	R.Mega:FireAllClients({kind = "viral", player = plr.Name, userId = plr.UserId, biz = b.name, icon = b.icon, quote = quote, fans = fans, pos = door, color = RGB(255, 110, 200)})
+	F.buzz("🔥", plr.Name .. "'s " .. b.name .. " WENT VIRAL! \"" .. quote .. "\" (+" .. fmt(fans) .. " followers)", RGB(255, 110, 200))
+	burst(door + V3(0, 6, 0), RGB(255, 110, 200), 200)
+	C.shockwave(door + V3(0, 1, 0), RGB(255, 110, 200), 40)
+	if F.achieve then F.achieve(plr, "viral") end
+	F.checkCombos(plr, d)
 end
 
 -- ===== BUSINESS UPGRADES + CHAINS =====
@@ -308,6 +355,10 @@ function F.buyUpgrade(plr, d, key)
 		notify(plr, "⭐ " .. b.tiers[newStage] .. " is MAX level!" .. (F.unlocked(d, "chains") and " Open new locations to build a chain." or ""))
 		F.refreshTower(plr)
 	end
+	if lvl == 0 and F.achieve then
+		F.achieve(plr, "firstBusiness")
+		F.achieve(plr, "biz_" .. key)
+	end
 	F.checkCombos(plr, d)
 end
 function F.openChain(plr, d, key)
@@ -329,6 +380,7 @@ function F.openChain(plr, d, key)
 		R.Splash:FireAllClients("🌟 NEW LANDMARK 🌟", plr.Name .. " built the " .. b.tiers[6] .. "!", RGB(255, 215, 80))
 		F.buzz("🌟", plr.Name .. " built a LANDMARK: " .. b.tiers[6] .. "!", RGB(255, 215, 80))
 		F.addRep(plr, 100)
+		if F.achieve then F.achieve(plr, "firstLandmark") end
 	else
 		notify(plr, "📍 Opened Location #" .. (c + 1) .. ": " .. CHAINS[c].name .. " " .. b.name .. "!")
 		F.buzz("📍", plr.Name .. " opened a " .. CHAINS[c].name .. " " .. b.name .. " location!", b.color)
@@ -422,7 +474,7 @@ function F.problemChance(d)
 	local eng = d.staff.engineer
 	local c = 0.6 * (eng and (1 - 0.05 * staffStars(eng)) or 1)
 	if F.homeHood(d) == "oldtown" then c *= 0.7 end
-	return c
+	return c * F.comboPerk(d, "problems")
 end
 
 -- ===== STOCK MARKET =====
@@ -804,6 +856,12 @@ function F.rebirth(plr)
 	F.buzz("♻️", plr.Name .. " was reborn! (Rebirth #" .. n .. ")", RGB(255, 120, 255))
 	if perkText ~= "" then F.pushMsg(plr, {icon = "🎁", from = "Rebirth", text = perkText}) end
 	F.applyCharacter(plr, plr.Character)
+	if F.achieve then
+		for _, at in ipairs({1, 10, 50, 100}) do
+			if n >= at then F.achieve(plr, "rebirth" .. at) end
+		end
+	end
+	F.checkCombos(plr, d)
 end
 
 -- ===== TUTORIAL =====

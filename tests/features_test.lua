@@ -485,6 +485,157 @@ section("mega", function(ctx)
 	T.assertClean("era section")
 end)
 
+-- ===== 15, 16, 17 + 18: secrets, viral, CityBuzz achievements, photo mode =====
+section("secrets", function(ctx)
+	H.section("15. Secret businesses")
+	local a, da, b, db = ctx.a, ctx.da, ctx.b, ctx.db
+	local F, C, G = T.F, T.C, T.C.G
+	release(da)
+	da.cash, da.rep = 1e9, 500
+	da.levels.arcade, da.levels.tech = 5, 3
+	F.checkCombos(a, da)
+	H.check(not da.combos.moviestudio, "Movie Studio stays hidden without the viral quest")
+	local arch = T.state(a).archive
+	local rf
+	for _, c in ipairs(arch.combos) do if c.name == "Rare Secret" and c.recipe:find("Machines") then rf = c end end
+	H.check(rf ~= nil and not rf.recipe:find("Factory") and not rf.recipe:find("7"), "the archive shows only a riddle for rare secrets, never the recipe")
+	-- viral moment (16) completes the Movie Studio quest
+	local mark = #H.remoteLog
+	local fol0, rep0 = da.followers, da.rep
+	local rate0 = F.customerRate(da, H.now())
+	F.goViral(a, da, "arcade", "This arcade is INSANE")
+	H.task.wait(0.3)
+	H.check(da.combos.moviestudio == true, "going viral unlocks the Movie Studio (hidden quest)")
+	local kiosk = da.plot.kiosks.moviestudio
+	H.check(kiosk and #kiosk:GetChildren() > 5, "the Movie Studio appears as its own building on the plot")
+	-- robot factory needs era 3
+	da.levels.factory, da.levels.tech = 7, 7
+	F.checkCombos(a, da)
+	H.check(not da.combos.robotfactory, "Robot Factory needs the city to reach Era 3")
+	local era0 = G.spire.era
+	G.spire.era = 3
+	F.checkCombos(a, da)
+	H.check(da.combos.robotfactory == true, "...and unlocks in Era 3")
+	local pc0 = F.problemChance(da)
+	-- bank: $100M earned + 10 rebirths
+	local gm0 = F.globalMult(da, H.now())
+	da.earned, da.rebirths = 2e8, 10
+	F.checkCombos(a, da)
+	H.check(da.combos.bank == true, "Billionaire Bank unlocks at $100M earned + 10 rebirths")
+	H.check(F.globalMult(da, H.now()) > gm0 * 1.09, "the Bank's perk raises ALL income")
+	-- space center: era 4 + the hidden launch pad
+	da.levels.tech, da.levels.factory = 10, 5
+	G.spire.era = 4
+	F.checkCombos(a, da)
+	H.check(not da.combos.spacecenter, "Space Center needs the hidden launch pad to be found")
+	local root = a.Character.HumanoidRootPart
+	local cf0 = root.CFrame
+	root.CFrame = CFrame.new(600, 3, -520)
+	H.task.wait(1.5)
+	H.check(da.found and da.found.launchpad and da.combos.spacecenter == true, "exploring to the launch pad unlocks the Space Center")
+	root.CFrame = CFrame.new(0, 3, 476)
+	H.task.wait(1.5)
+	H.check(da.found.goldenlemon == true and da.achievements.relic ~= nil, "the Golden Lemon relic is found at the end of the pier")
+	root.CFrame = cf0
+	G.spire.era = era0
+
+	H.section("16. Viral influencer moments")
+	local vmsg
+	for _, e in ipairs(T.remotesSince(mark, "Mega")) do if e.args[1].kind == "viral" then vmsg = e end end
+	H.check(vmsg and vmsg.dir == "s2all", "a viral moment is announced to the whole server")
+	H.check(da.followers > fol0 and da.rep > rep0, "followers and reputation jump")
+	H.check(F.customerRate(da, H.now()) >= math.min(3, rate0 * 2.9), "customers triple during the viral minute")
+	local shown = false
+	for _, d in ipairs(H.clientC.gui:GetDescendants()) do
+		if d.ClassName == "TextButton" and tostring(d.Text):find("Replay cam") and d.Visible then shown = true end
+	end
+	H.check(shown, "the player gets a Replay cam button to record the moment")
+	-- the influencer path through a real customer visit
+	local gmath = H.G.math
+	local rnd = gmath.random
+	da.viralCooldown = 0
+	da.viralUntil = 0
+	gmath.random = function(x, y) if x == nil then return 0 end return rnd(x, y) end
+	local influencer
+	for _, t in ipairs(C.NPC_TYPES) do if t.trendy then influencer = t end end
+	da.trendUntil = 0
+	F.serveCustomer(a, da, "arcade", influencer, {stars = 5, text = "Best arcade in the city!"})
+	gmath.random = rnd
+	H.check((da.viralUntil or 0) > H.now(), "a 5-star influencer review can make you go viral")
+
+	H.section("17. CityBuzz achievements")
+	local cc = T.join("Cara", 303)
+	local dcc = T.newGame(cc, 1, 1)
+	dcc.cash = 1e6
+	local m2 = #H.remoteLog
+	T.act(cc, "buy", "icecream")
+	H.task.wait(0.3)
+	H.check(dcc.achievements and dcc.achievements.firstBusiness, "opening a first business unlocks an achievement")
+	local ach
+	for _, e in ipairs(T.remotesSince(m2, "Menu", cc)) do if e.args[1] == "achievement" then ach = e end end
+	H.check(ach ~= nil, "the player gets an achievement card")
+	local m3 = #H.remoteLog
+	T.act(cc, "shareAch", "firstBusiness")
+	H.task.wait(0.3)
+	local post
+	for _, e in ipairs(T.remotesSince(m3, "Buzz")) do post = e.args[1] end
+	H.check(post and post.author == "Cara" and post.achievement == true, "sharing posts it to CityBuzz under Cara's name")
+	local m4 = #H.remoteLog
+	T.act(cc, "shareAch", "firstBusiness")
+	H.check(#T.remotesSince(m4, "Buzz") == 0, "each achievement can only be shared once")
+	T.act(cc, "shareAch", "billion")
+	H.check(#T.remotesSince(m4, "Buzz") == 0, "you can't share an achievement you don't have")
+	-- likes: real players' likes make a post trend (+25% customers)
+	local rateBefore = F.customerRate(dcc, H.now())
+	T.act(cc, "like", post.id)
+	T.act(a, "like", post.id)
+	T.act(b, "like", post.id)
+	H.task.wait(21)
+	H.check((dcc.postBuffUntil or 0) > H.now() and (dcc.postBuffMult or 1) >= 1.25, "a well-liked post trends and boosts customers")
+	local likes = post.likes
+	for _, p in ipairs(C.FEED) do if p.id == post.id then likes = p.likes end end
+	H.check(likes >= 2, "likes are counted (" .. likes .. ")")
+	dcc.earned = 2e6
+	H.task.wait(6)
+	H.check(dcc.achievements.million ~= nil, "earning $1M unlocks First Million")
+	H.check(#T.state(cc).shareable >= 1, "unshared achievements are listed for sharing")
+
+	H.section("18. Photo mode")
+	local pc = H.clientC
+	local camera = H.workspace.CurrentCamera
+	pc.setPhoto(true)
+	H.task.wait(0.3)
+	H.check(pc.photoActive and not pc.gui.Enabled and camera.CameraType == Enum.CameraType.Scriptable, "photo mode hides the UI and takes over the camera")
+	local hum = a.Character:FindFirstChildOfClass("Humanoid")
+	H.check(hum.WalkSpeed == 0, "your character holds still for the shot")
+	local c1 = camera.CFrame.Position
+	H.keysDown[Enum.KeyCode.W] = true
+	H.task.wait(1)
+	H.keysDown[Enum.KeyCode.W] = false
+	H.check((camera.CFrame.Position - c1).Magnitude > 10, "WASD flies the free camera")
+	local photoGui = a.PlayerGui:FindFirstChild("PhotoMode")
+	local function press(text)
+		for _, d in ipairs(photoGui:GetDescendants()) do
+			if d.ClassName == "TextButton" and tostring(d.Text):find(text, 1, true) then
+				H.signalOf(d, "MouseButton1Click"):Fire()
+				return true
+			end
+		end
+	end
+	H.check(press("Business"), "there is a business showcase shot")
+	H.task.wait(0.5)
+	local best = T.state(a).showcase.best
+	H.check(best and (camera.CFrame.Position - best).Magnitude < 60, "the camera orbits your best business")
+	press("Home")
+	H.task.wait(0.5)
+	press("Showcase my empire")
+	H.task.wait(0.5)
+	pc.setPhoto(false)
+	H.task.wait(0.2)
+	H.check(pc.gui.Enabled and camera.CameraType == Enum.CameraType.Custom and hum.WalkSpeed > 0, "leaving photo mode restores everything")
+	T.assertClean("secrets/viral/buzz/photo section")
+end)
+
 -- ===== main =====
 H.main(function()
 	T.startServer()

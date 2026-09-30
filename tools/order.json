@@ -12,6 +12,7 @@
     "Social",
     "Systems",
     "Mega",
+    "Legacy",
     "Players"
   ],
   "/StarterPlayer/StarterPlayerScripts/EmpireClient": [
@@ -24,6 +25,7 @@
     "Phone",
     "Driving",
     "MiniGames",
+    "PhotoMode",
     "MainMenu"
   ]
 }

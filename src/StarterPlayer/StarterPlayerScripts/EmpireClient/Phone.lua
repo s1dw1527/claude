@@ -142,7 +142,7 @@ end
 do
 	local v = makeView("buzz")
 	topBar(v, "📱 CityBuzz", RGB(200, 50, 130))
-	local prof = new("Frame", {Position = UDim2.fromOffset(6, 44), Size = UDim2.new(1, -12, 0, 120), BackgroundColor3 = CARD, BorderSizePixel = 0, ZIndex = 22}, v)
+	local prof = new("Frame", {Position = UDim2.fromOffset(6, 44), Size = UDim2.new(1, -12, 0, 156), BackgroundColor3 = CARD, BorderSizePixel = 0, ZIndex = 22}, v)
 	corner(prof, 12)
 	local pName = label({Position = UDim2.fromOffset(10, 4), Size = UDim2.new(1, -20, 0, 20), TextSize = 14, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 23, Text = "@" .. plr.Name}, prof)
 	local pStats = label({Position = UDim2.fromOffset(10, 22), Size = UDim2.new(1, -20, 0, 16), TextSize = 11, TextColor3 = SUB, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 23}, prof)
@@ -166,7 +166,28 @@ do
 		local b = button({Size = UDim2.fromOffset(78, 28), Text = PRESETS[i], TextSize = 10, BackgroundColor3 = RGB(90, 60, 140), ZIndex = 24}, pr)
 		b.MouseButton1Click:Connect(function() play(SND.click) act("post", i) end)
 	end
-	local feed = scroller(v, 170)
+	-- achievements waiting to be shared
+	local shareRow = new("ScrollingFrame", {Position = UDim2.fromOffset(8, 118), Size = UDim2.new(1, -16, 0, 32), BackgroundTransparency = 1, BorderSizePixel = 0, ScrollBarThickness = 2,
+		AutomaticCanvasSize = Enum.AutomaticSize.X, CanvasSize = UDim2.new(), ScrollingDirection = Enum.ScrollingDirection.X, ZIndex = 23}, prof)
+	new("UIListLayout", {FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 4)}, shareRow)
+	local shareKey = ""
+	C.onState(function(s)
+		local list = s.shareable or {}
+		local keys = {}
+		for _, a in ipairs(list) do table.insert(keys, a.key) end
+		local k = table.concat(keys, ",")
+		if k == shareKey then return end
+		shareKey = k
+		clear(shareRow)
+		if #list == 0 then
+			label({Size = UDim2.fromOffset(250, 28), Text = "🏆 Unlock achievements to share them here", TextSize = 10, TextColor3 = SUB, ZIndex = 24}, shareRow)
+		end
+		for _, a in ipairs(list) do
+			local b = button({Size = UDim2.fromOffset(120, 28), Text = "🏆 " .. a.icon .. " " .. a.title, TextSize = 10, TextWrapped = true, BackgroundColor3 = RGB(190, 140, 30), ZIndex = 24}, shareRow)
+			b.MouseButton1Click:Connect(function() play(SND.click) act("shareAch", a.key) end)
+		end
+	end)
+	local feed = scroller(v, 206)
 	local posts = {}
 	local liked = {}
 	local ok, list = pcall(function() return C.GetCatalog:InvokeServer("feed") end)
@@ -180,7 +201,7 @@ do
 			local c = new("Frame", {Size = UDim2.new(1, -6, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundColor3 = CARD, BorderSizePixel = 0, LayoutOrder = i, ZIndex = 22}, feed)
 			corner(c, 10)
 			new("UIPadding", {PaddingTop = UDim.new(0, 6), PaddingBottom = UDim.new(0, 30), PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8)}, c)
-			local author = p.author == "CityBuzz" and "📰 CityBuzz News" or ("👤 @" .. p.author)
+			local author = p.author == "CityBuzz" and "📰 CityBuzz News" or ((p.achievement and "🏆 @" or "👤 @") .. p.author)
 			label({Size = UDim2.new(1, 0, 0, 16), Text = author, TextSize = 11, TextColor3 = SUB, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 23}, c)
 			local body = label({Position = UDim2.fromOffset(0, 18), Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, Text = p.icon .. " " .. p.text, TextSize = 13,
 				TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, TextColor3 = p.color, ZIndex = 23}, c)

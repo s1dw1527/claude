@@ -253,6 +253,10 @@ task.spawn(function()
 								if record then F.buzz("🏁", plr.Name .. " set a new track record: " .. string.format("%.2fs", t) .. "!", RGB(255, 220, 80)) end
 								F.pushMsg(plr, {icon = "🏁", from = "Raceway", text = string.format("Lap time %.2fs — you won $%s!%s", t, fmt(prize), pb and " New personal best!" or "")})
 								F.tutorialEvent(plr, "race")
+								if F.achieve then
+									if t < RACE.par then F.achieve(plr, "raceWin") end
+									if record then F.achieve(plr, "trackRecord") end
+								end
 							end
 						else
 							R.Race:FireClient(plr, {state = "running", cp = st.cp, total = #CPS, next = CPS[st.cp], drift = math.floor(st.drift or 0)})

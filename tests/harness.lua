@@ -1487,7 +1487,7 @@ G.debug = debug
 G.bit32 = bit32
 G.buffer = buffer
 G.vector = vector
-G.math, G.string, G.table, G.coroutine = math, string, table, coroutine
+G.math, G.string, G.table, G.coroutine = table.clone(math), string, table, coroutine  -- math is a writable copy so tests can pin math.random
 G.pairs, G.ipairs, G.next, G.select, G.type, G.tostring, G.tonumber = pairs, ipairs, next, select, type, tostring, tonumber
 G.pcall, G.xpcall, G.error, G.assert, G.setmetatable, G.getmetatable, G.rawget, G.rawset, G.rawequal, G.rawlen, G.unpack =
 	pcall, xpcall, error, assert, setmetatable, getmetatable, rawget, rawset, rawequal, rawlen, table.unpack

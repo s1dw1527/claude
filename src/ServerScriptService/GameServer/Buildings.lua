@@ -461,17 +461,83 @@ function F.problemVisual(plr, key, on)
 	billboard(a, UDim2.fromOffset(60, 60), V3(0, top * 0.4 + 6, 0), {{text = "⚠️"}}, 140)
 end
 
--- combo kiosks (front row)
+-- rare secret businesses get their own little landmark in the plaza (second row)
+local RARE_LOOKS = {}
+function RARE_LOOKS.moviestudio(m, pos, c)
+	P(m, V3(7, 5, 6), CF(pos + V3(0, 2.8, 0)), RGB(60, 60, 70), MAT.SmoothPlastic, SOLID)
+	local sign = P(m, V3(7.4, 1.4, 0.3), CF(pos + V3(0, 6, 3.1)), RGB(20, 20, 26))
+	surfaceText(sign, Enum.NormalId.Back, "🎬 STUDIO", RGB(255, 90, 90))
+	surfaceText(sign, Enum.NormalId.Front, "🎬 STUDIO", RGB(255, 90, 90))
+	for _, sx in ipairs({-2, 2}) do
+		local reel = C.xcyl(m, 0.4, 2.2, CF(pos + V3(sx, 7.6, 0)), DARK, MAT.Metal)
+		spin(reel, 1)
+	end
+	local lamp = ball(m, V3(1.4, 1.4, 1.4), CF(pos + V3(3, 6.4, 3)), RGB(255, 250, 220), MAT.Neon)
+	local sl = Instance.new("SpotLight")
+	sl.Range, sl.Angle, sl.Brightness, sl.Face = 60, 30, 4, Enum.NormalId.Top
+	sl.Parent = lamp
+	return 9
+end
+function RARE_LOOKS.robotfactory(m, pos, c)
+	P(m, V3(7, 5, 6), CF(pos + V3(0, 2.8, 0)), RGB(150, 160, 175), MAT.DiamondPlate, SOLID)
+	P(m, V3(0.8, 5, 0.8), CF(pos + V3(2, 7.5, 0)), RGB(255, 170, 40), MAT.Metal)
+	P(m, V3(4, 0.8, 0.8), CF(pos + V3(0.4, 10, 0)), RGB(255, 170, 40), MAT.Metal)
+	local head = P(m, V3(2, 1.6, 1.6), CF(pos + V3(0, 7, 3.2)), RGB(200, 210, 225), MAT.Metal)
+	for _, sx in ipairs({-0.45, 0.45}) do P(m, V3(0.4, 0.4, 0.1), CF(pos + V3(sx, 7.1, 4.02)), RGB(90, 220, 255), MAT.Neon) end
+	sparkle(head, RGB(120, 200, 255), 4)
+	return 11
+end
+function RARE_LOOKS.bank(m, pos, c)
+	P(m, V3(8, 0.6, 6.5), CF(pos + V3(0, 0.6, 0)), RGB(235, 235, 230), MAT.Marble, SOLID)
+	for _, sx in ipairs({-3, -1, 1, 3}) do cyl(m, 4.6, 0.8, CF(pos + V3(sx, 3.2, 2.6)), RGB(245, 245, 240), MAT.Marble) end
+	P(m, V3(7, 4.6, 4), CF(pos + V3(0, 3.2, -0.8)), RGB(225, 220, 205), MAT.Marble, SOLID)
+	C.wedge(m, V3(8.4, 2, 6.5), CF(pos + V3(0, 6.5, 0)) * CFrame.Angles(0, math.pi, 0), RGB(255, 205, 60), MAT.Foil)
+	local vault = C.xcyl(m, 0.3, 2.6, CF(pos + V3(0, 3, 1.25)) * CFrame.Angles(0, math.rad(90), 0), RGB(180, 185, 195), MAT.Metal)
+	sparkle(vault, RGB(255, 220, 120), 6)
+	return 8
+end
+function RARE_LOOKS.spacecenter(m, pos, c)
+	P(m, V3(7, 0.6, 7), CF(pos + V3(0, 0.6, 0)), RGB(130, 130, 140), MAT.Concrete, SOLID)
+	cyl(m, 9, 2.4, CF(pos + V3(0, 5.4, 0)), WHITE, MAT.Metal)
+	ball(m, V3(2.4, 3.4, 2.4), CF(pos + V3(0, 10.4, 0)), RGB(220, 60, 50), MAT.Metal)
+	for k = 0, 2 do
+		local a = k / 3 * math.pi * 2
+		P(m, V3(0.3, 2.6, 1.6), CF(pos + V3(math.cos(a) * 1.5, 2.2, math.sin(a) * 1.5)) * CFrame.Angles(0, -a, 0), RGB(220, 60, 50), MAT.Metal)
+	end
+	local flame = ball(m, V3(1.4, 1.4, 1.4), CF(pos + V3(0, 1.2, 0)), RGB(255, 150, 40), MAT.Neon)
+	sparkle(flame, RGB(255, 180, 60), 12)
+	P(m, V3(0.8, 12, 0.8), CF(pos + V3(-2.8, 6.6, -2.8)), RGB(170, 90, 60), MAT.CorrodedMetal)
+	return 12
+end
+
+-- combo kiosks (front row) + rare secret landmarks (second row)
 function F.refreshKiosks(plr)
 	local d = data[plr]
 	if not d then return end
 	local plot = d.plot
 	for _, k in pairs(plot.kiosks) do k:Destroy() end
 	plot.kiosks = {}
-	for i, c in ipairs(COMBOS) do
-		local pos = plot.at(-36 + (i - 1) * 8.2, 1, 14)
+	local row1, row2 = 0, 0
+	for _, c in ipairs(COMBOS) do
 		local m = Instance.new("Model")
 		m.Name = "Combo_" .. c.key
+		if c.rare then
+			row2 += 1
+			local pos = plot.at(-18 + (row2 - 1) * 12, 1, 22)
+			if d.combos[c.key] then
+				local top = RARE_LOOKS[c.key] and RARE_LOOKS[c.key](m, pos, c) or 6
+				local anchor = ghost(m, CF(pos + V3(0, top, 0)))
+				billboard(anchor, UDim2.fromOffset(170, 60), V3(0, 2.5, 0), {{text = c.icon .. " " .. c.name, h = 0.55, color = c.color}, {text = c.perkText or "", h = 0.45, font = Enum.Font.GothamBold}}, 160)
+			else
+				local q = P(m, V3(1, 1, 1), CF(pos + V3(0, 2, 0)), WHITE, MAT.SmoothPlastic, {Transparency = 1})
+				billboard(q, UDim2.fromOffset(40, 40), V3(0, 0, 0), {{text = "🗝️", color = RGB(200, 200, 210)}}, 40)
+			end
+			m.Parent = plot.folder
+			plot.kiosks[c.key] = m
+			continue
+		end
+		row1 += 1
+		local pos = plot.at(-36 + (row1 - 1) * 8.2, 1, 14)
 		if d.combos[c.key] then
 			P(m, V3(5.2, 0.3, 5.2), CF(pos + V3(0, 0.15, 0)), RGB(60, 60, 70), MAT.SmoothPlastic, SOLID)
 			P(m, V3(4.4, 3.4, 4.4), CF(pos + V3(0, 2, 0)), RGB(250, 248, 240), MAT.SmoothPlastic, SOLID)
@@ -549,7 +615,7 @@ end
 local HttpService = game:GetService("HttpService")
 local BEHIND_COUNTER = {lemonade = true, icecream = true, bakery = true}
 -- plaza spots for the company-wide staff: {x, z, wander half-width, wander half-depth} in plot coordinates
-local SPECIAL_SPOTS = {manager = {26, 22, 7, 5}, marketer = {0, 40, 10, 1.5}, engineer = {-26, 22, 7, 4}}
+local SPECIAL_SPOTS = {manager = {31, 27, 5, 4}, marketer = {0, 40, 10, 1.5}, engineer = {-31, 27, 5, 4}}
 function F.refreshWorkers(plr)
 	local d = data[plr]
 	if not d then return end
