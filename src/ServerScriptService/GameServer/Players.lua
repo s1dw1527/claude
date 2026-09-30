@@ -85,7 +85,7 @@ local function serializeProps(d)
 	for _, b in ipairs(d.props) do
 		local units = {}
 		for i, t in ipairs(b.units) do units[i] = t or false end
-		table.insert(out, {lot = b.lot, type = b.type, units = units, condition = b.condition, applicants = b.applicants})
+		table.insert(out, {lot = b.lot, type = b.type, units = units, condition = b.condition, applicants = b.applicants, level = b.level, invested = b.invested})
 	end
 	return out
 end
@@ -127,9 +127,11 @@ local function loadSlot(plr, d, slot)
 	if type(saved.props) == "table" then
 		for _, b in ipairs(saved.props) do
 			if RENTAL[b.type] then
+				local level = C.rentalLevelOf(b)
 				local units = {}
-				for i = 1, RENTAL[b.type].units do units[i] = (type(b.units) == "table" and b.units[i]) or false end
-				table.insert(d.props, {lot = b.lot or 0, type = b.type, units = units, condition = b.condition or 100, applicants = b.applicants or {}, events = {}})
+				for i = 1, F.rentalUnits(b.type, level) do units[i] = (type(b.units) == "table" and b.units[i]) or false end
+				table.insert(d.props, {lot = b.lot or 0, type = b.type, units = units, condition = b.condition or 100, applicants = b.applicants or {}, events = {},
+					level = level, invested = tonumber(b.invested) or RENTAL[b.type].cost})
 			end
 		end
 	end
@@ -226,17 +228,23 @@ local function propsState(plr, d)
 	for bi, b in ipairs(d.props) do
 		local T = RENTAL[b.type]
 		local units = {}
-		for ui = 1, T.units do
+		for ui = 1, #b.units do
 			local t = b.units[ui]
+			local mood = t and (tonumber(t.mood) or 70) or 0
 			units[ui] = {unit = C.unitName(ui), tenant = t and {name = t.name, emoji = t.emoji, job = t.job, trait = TENANT.traits[t.trait].icon .. " " .. TENANT.traits[t.trait].name,
-				credit = t.credit, strikes = t.strikes or 0} or false}
+				credit = t.credit, strikes = t.strikes or 0, mood = math.floor(mood), moodIcon = C.moodEmoji(mood), owes = t.owes} or false}
 		end
 		local apps = {}
 		for ai, a in ipairs(b.applicants) do
 			apps[ai] = {name = a.name, emoji = a.emoji, job = a.job, trait = TENANT.traits[a.trait].icon .. " " .. TENANT.traits[a.trait].name, credit = a.credit}
 		end
+		local lvl = C.rentalLevelOf(b)
+		local nxt = C.RENTAL_LEVELS[lvl + 1]
 		table.insert(list, {bi = bi, name = T.name, lot = b.lot, condition = math.floor(b.condition), units = units, applicants = apps,
-			rent = F.rentPerUnit(b.type), renovate = math.floor(T.cost * 0.08), sell = math.floor(T.cost * 0.5), offsite = b.lot == 0})
+			rent = F.rentalRent(b), renovate = F.rentalRenovateCost(b), sell = F.rentalSellPrice(b), offsite = b.lot == 0,
+			level = lvl, maxLevel = #C.RENTAL_LEVELS, levelName = C.RENTAL_LEVELS[lvl].name, value = F.rentalValue(b), upkeep = F.rentalUpkeep(b),
+			upgradeCost = F.rentalUpgradeCost(b), nextName = nxt and nxt.name or nil,
+			nextUnits = nxt and F.rentalUnits(b.type, lvl + 1) or nil, nextRent = nxt and math.floor(F.rentPerUnit(b.type) * nxt.rent) or nil})
 	end
 	local free = {}
 	for _, l in ipairs(C.RENT_LOTS) do
@@ -782,10 +790,12 @@ R.Action.OnServerEvent:Connect(function(plr, action, a, b, c)
 			elseif action == "tenantReject" then F.tenantReject(plr, bi, i)
 			else F.evict(plr, bi, i) end
 		end
-	elseif action == "renovate" or action == "propSell" then
+	elseif action == "renovate" or action == "propSell" or action == "propUpgrade" then
 		local bi = int(a, 1, #d.props)
 		if bi then
-			if action == "renovate" then F.renovate(plr, bi) else F.sellProp(plr, bi) end
+			if action == "renovate" then F.renovate(plr, bi)
+			elseif action == "propUpgrade" then F.upgradeRental(plr, bi)
+			else F.sellProp(plr, bi) end
 		end
 	elseif action == "minigame" then
 		if str(a, 20) and finite(b) then F.finishMinigame(plr, a, b) end

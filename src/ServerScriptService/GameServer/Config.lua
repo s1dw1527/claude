@@ -117,14 +117,37 @@ C.RENTALS = {
 }
 C.RENTAL = {}
 for _, r in ipairs(C.RENTALS) do C.RENTAL[r.key] = r end
+-- building upgrades: floors = extra floors (2 units each), rent = rent multiplier, cost = price as a share of the building's base cost
+C.RENTAL_LEVELS = {
+	{name = "Standard",  floors = 0, rent = 1.00, cost = 0},
+	{name = "Renovated", floors = 1, rent = 1.05, cost = 0.6},
+	{name = "Modern",    floors = 1, rent = 1.25, cost = 1.0},
+	{name = "Premium",   floors = 2, rent = 1.30, cost = 1.6},
+	{name = "Iconic",    floors = 2, rent = 1.50, cost = 2.4},
+}
+C.RENTAL_UPKEEP = 0.0012   -- upkeep every rent cycle, as a share of everything invested in the building
 C.TENANT = {
 	first = {"Gary", "Brenda", "Kevin", "Linda", "Dwayne", "Karen", "Chad", "Doris", "Todd", "Marge", "Steve", "Pam", "Bob", "Tina", "Hank", "Wanda", "Rick", "Sheila", "Dale", "Gloria", "Earl", "Bev", "Lenny", "Rhonda"},
 	last = {"Pickles", "McBiscuit", "Wiggins", "Bumblefoot", "Noodleman", "Fluffernut", "Crumb", "Wobble", "Snorkel", "Puddleby", "Grumbles", "Tater"},
 	jobs = {"Professional Juggler", "Part-time Wizard", "Accountant", "Dog Groomer", "Aspiring Rapper", "Night Security Guard", "Yoga Teacher", "Food Critic", "Magician", "Mime", "Dentist", "Crypto Guy", "Llama Farmer", "Opera Singer"},
+	-- bad = extra chance of drama, temper = how hard warnings/fines hit their mood, loyal = how hard it is to make them leave
 	traits = {
-		{name = "Party Animal", icon = "🎉", bad = 0.25}, {name = "Pet Lover", icon = "🐾", bad = 0.15}, {name = "DIY Enthusiast", icon = "🔨", bad = 0.15},
-		{name = "Mysterious", icon = "🕵️", bad = 0.1}, {name = "Home Chef", icon = "👨‍🍳", bad = 0.05}, {name = "Musician", icon = "🎸", bad = 0.2},
-		{name = "Neat Freak", icon = "🧼", bad = -0.15}, {name = "Quiet Bookworm", icon = "📚", bad = -0.2},
+		{name = "Party Animal", icon = "🎉", bad = 0.25, temper = 1.3, loyal = 0.8,
+			warn = "says the party is 'basically over'. The bass disagrees.", fine = "paid the fine in crumpled party tickets.", angry = "is throwing a 'goodbye forever' party. It's loud."},
+		{name = "Pet Lover", icon = "🐾", bad = 0.15, temper = 0.9, loyal = 1.1,
+			warn = "apologized on behalf of the llama.", fine = "paid, but the parrot is now yelling your name.", angry = "packed up 6 cats, 2 goats and one very judgmental parrot."},
+		{name = "DIY Enthusiast", icon = "🔨", bad = 0.15, temper = 1.0, loyal = 1.0, fixes = true,
+			warn = "promised to stop drilling after midnight. Mostly. They also fixed a squeaky door.", fine = "paid and built you a 'complaints box'. It's nailed shut.", angry = "took the shelves they built. And the doorknobs."},
+		{name = "Mysterious", icon = "🕵️", bad = 0.1, temper = 0.6, loyal = 1.2, mystery = true,
+			warn = "nodded slowly and closed the door. Nobody knows what that means.", fine = "slid an envelope under your door. Exact change. And a feather.", angry = "vanished overnight. The unit smells faintly of cinnamon."},
+		{name = "Home Chef", icon = "👨‍🍳", bad = 0.05, temper = 0.8, loyal = 1.2, cookies = true,
+			warn = "left apology cookies at your office. 🍪", fine = "paid and is 'cooking about it'. The whole hallway smells amazing.", angry = "moved out and took the good recipes with them."},
+		{name = "Musician", icon = "🎸", bad = 0.2, temper = 1.1, loyal = 0.9,
+			warn = "wrote a sad song about it. It's honestly pretty good.", fine = "paid entirely in quarters from their guitar case.", angry = "released a diss track about you. It has 40 streams."},
+		{name = "Neat Freak", icon = "🧼", bad = -0.15, temper = 1.4, loyal = 1.0,
+			warn = "is deeply offended and alphabetized their complaints about YOU.", fine = "paid, then sanitized the pen you used to write the fine.", angry = "left a 12-page cleanliness review of the building."},
+		{name = "Quiet Bookworm", icon = "📚", bad = -0.2, temper = 1.2, loyal = 1.3,
+			warn = "whispered 'sorry' and went back to chapter 14.", fine = "paid and is now reading a book called 'Tenant Rights'.", angry = "left a strongly worded bookmark behind."},
 	},
 	acts = {"tried to adopt", "set up a drum kit for", "started a secret bakery with", "threw a surprise birthday party for", "tried to train",
 		"built a trampoline park for", "hosted a karaoke tournament with", "filled the hallway with", "opened an illegal petting zoo featuring", "held a wrestling match against"},

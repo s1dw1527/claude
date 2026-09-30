@@ -523,7 +523,7 @@ do
 		if u.tenant then
 			local t = u.tenant
 			label({Position = UDim2.fromOffset(8, 0), Size = UDim2.new(1, -110, 1, 0), TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left, TextWrapped = true,
-				Text = u.unit .. "  " .. t.emoji .. " " .. t.name .. " • " .. t.job .. " • " .. t.trait .. " • credit " .. string.rep("★", t.credit) .. (t.strikes > 0 and ("  ⚠️" .. t.strikes .. "/3") or "")}, c)
+				Text = u.unit .. "  " .. t.emoji .. " " .. t.name .. " " .. (t.moodIcon or "") .. " • " .. t.job .. " • " .. t.trait .. " • credit " .. string.rep("★", t.credit) .. (t.strikes > 0 and ("  ⚠️" .. t.strikes .. "/3") or "") .. (t.owes and ("  owes $" .. fmt(t.owes)) or "")}, c)
 			local ev = button({Position = UDim2.new(1, -96, 0.5, 0), AnchorPoint = Vector2.new(0, 0.5), Size = UDim2.fromOffset(88, 30), Text = "🚪 Evict", TextSize = 12, BackgroundColor3 = RED}, c)
 			ev.MouseButton1Click:Connect(function() play(SND.click) act("evict", bi, ui) end)
 		else
@@ -532,8 +532,12 @@ do
 	end
 	m.update = function(s)
 		local P = s.props
-		local key = game:GetService("HttpService"):JSONEncode(P) .. tostring(s.cash >= 0)
-		summary.Text = "Buy apartment buildings, pick tenants and collect rent every 30s. Tenants with low credit are cheaper... and a lot more chaotic. Total rent earned: $" .. fmt(P.earned)
+		-- rebuild only when the buildings change or a button becomes (un)affordable
+		local afford = {}
+		for _, b in ipairs(P.list) do table.insert(afford, s.cash >= (b.upgradeCost or math.huge) and "1" or "0") end
+		for _, r in ipairs(catalog.rentals) do table.insert(afford, s.cash >= r.cost and "1" or "0") end
+		local key = game:GetService("HttpService"):JSONEncode(P) .. table.concat(afford)
+		summary.Text = "Buy apartment buildings, upgrade them, pick tenants and collect rent every 30s. Happy tenants (😀) pay on time; grumpy ones (😠) cause drama and may leave. Total rent earned: $" .. fmt(P.earned)
 		if key == lastKey then return end
 		lastKey = key
 		clear(listBox)
@@ -552,12 +556,15 @@ do
 				if u.tenant then occ += 1 end
 			end
 			label({Size = UDim2.new(1, -16, 0, 22), LayoutOrder = 0, TextSize = 16, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left,
-				Text = "🏢 " .. b.name .. (b.offsite and " (offsite)" or "") .. "   •   " .. occ .. "/" .. #b.units .. " rented"}, box)
+				Text = "🏢 " .. b.name .. " " .. string.rep("★", b.level or 1) .. (b.offsite and " (offsite)" or "") .. "   •   " .. occ .. "/" .. #b.units .. " rented"}, box)
 			label({Size = UDim2.new(1, -16, 0, 16), LayoutOrder = 1, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left, TextColor3 = b.condition < 50 and RED or GOLD,
-				Text = "Condition " .. b.condition .. "%  •  Rent $" .. fmt(b.rent) .. " per unit / 30s"}, box)
+				Text = (b.levelName or "") .. "  •  Condition " .. b.condition .. "%  •  Rent $" .. fmt(b.rent) .. "/unit  •  Upkeep $" .. fmt(b.upkeep or 0) .. " / 30s  •  Value $" .. fmt(b.value or 0)}, box)
 			local btnRow = new("Frame", {Size = UDim2.new(1, -16, 0, 32), BackgroundTransparency = 1, LayoutOrder = 2}, box)
-			local rn = button({Size = UDim2.new(0.5, -4, 1, 0), Text = "🛠️ Renovate $" .. fmt(b.renovate), TextSize = 12, BackgroundColor3 = BLUE}, btnRow)
-			local sl = button({Position = UDim2.new(0.5, 4, 0, 0), Size = UDim2.new(0.5, -4, 1, 0), Text = "💼 Sell for $" .. fmt(b.sell), TextSize = 12, BackgroundColor3 = GRAY}, btnRow)
+			local up = button({Size = UDim2.new(0.4, -4, 1, 0), TextSize = 11, TextWrapped = true, BackgroundColor3 = b.upgradeCost and (s.cash >= b.upgradeCost and GREEN or GRAY) or GOLD,
+				Text = b.upgradeCost and ("⬆️ " .. b.nextName .. " $" .. fmt(b.upgradeCost) .. "  (" .. b.nextUnits .. " units, $" .. fmt(b.nextRent) .. " rent)") or "🌟 Fully upgraded"}, btnRow)
+			local rn = button({Position = UDim2.new(0.4, 4, 0, 0), Size = UDim2.new(0.3, -4, 1, 0), Text = "🛠️ Renovate $" .. fmt(b.renovate), TextSize = 11, BackgroundColor3 = BLUE}, btnRow)
+			local sl = button({Position = UDim2.new(0.7, 4, 0, 0), Size = UDim2.new(0.3, -4, 1, 0), Text = "💼 Sell $" .. fmt(b.sell), TextSize = 11, BackgroundColor3 = GRAY}, btnRow)
+			up.MouseButton1Click:Connect(function() play(SND.click) if b.upgradeCost then act("propUpgrade", b.bi) end end)
 			rn.MouseButton1Click:Connect(function() play(SND.click) act("renovate", b.bi) end)
 			sl.MouseButton1Click:Connect(function() play(SND.click) act("propSell", b.bi) end)
 			for ui, u in ipairs(b.units) do tenantRow(box, 2 + ui, u, b.bi, ui) end

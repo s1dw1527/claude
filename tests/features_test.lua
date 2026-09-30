@@ -214,6 +214,115 @@ section("drift", function(ctx)
 	T.assertClean("drift section")
 end)
 
+-- ===== 11 + 12. property upgrades and tenant consequences =====
+section("property", function(ctx)
+	H.section("11/12. Property upgrades and tenant consequences")
+	local a, da = ctx.a, ctx.da
+	local F, C = T.F, T.C
+	da.cash, da.rep = 1e8, 500
+	T.act(a, "propBuy", 1, "walkup")
+	H.task.wait(0.3)
+	local b = da.props[1]
+	H.check(b and b.level == 1 and #b.units == 4, "a new Walk-Up is level 1 with 4 units")
+	local cost1 = F.rentalUpgradeCost(b)
+	local rent1, upkeep1, value1 = F.rentalRent(b), F.rentalUpkeep(b), F.rentalValue(b)
+	local lotParts1 = #C.RENT_LOTS[1].folder:GetDescendants()
+	T.act(a, "propUpgrade", 1)
+	H.task.wait(0.3)
+	H.check(b.level == 2 and #b.units == 6, "upgrading adds a floor: level 2, 6 units")
+	H.check(#C.RENT_LOTS[1].folder:GetDescendants() > lotParts1, "the building is rebuilt bigger (" .. lotParts1 .. " -> " .. #C.RENT_LOTS[1].folder:GetDescendants() .. " parts)")
+	local cost2 = F.rentalUpgradeCost(b)
+	H.check(cost2 > cost1, "each upgrade costs more ($" .. cost1 .. " then $" .. cost2 .. ")")
+	for _ = 1, 3 do T.act(a, "propUpgrade", 1) end
+	H.task.wait(0.3)
+	H.check(b.level == 5 and #b.units == 8, "fully upgraded Iconic Walk-Up has 8 units")
+	H.check(F.rentalRent(b) > rent1 * 1.4, "rent per unit went up (" .. rent1 .. " -> " .. F.rentalRent(b) .. ")")
+	H.check(F.rentalValue(b) > value1 * 5 and F.rentalUpkeep(b) > upkeep1 * 5, "value and upkeep grew with the investment")
+	local c0 = da.cash
+	T.act(a, "propUpgrade", 1)
+	H.check(da.cash == c0, "no upgrade past the top level")
+	H.check(F.rentalSellPrice(b) == math.floor(F.rentalValue(b) * 0.5), "selling pays half of everything invested")
+	-- save + reload keeps level, units and tenant mood
+	T.act(a, "tenantAccept", 1, 1)
+	local t = b.units[1]
+	H.check(t and type(t.mood) == "number", "tenants have a mood")
+	t.mood = 33
+	F.save(a)
+	H.task.wait(0.5)
+	local saved = rawget(H.stores["CornerEmpire_v5/global"], "_data")["u101_s1"]
+	H.check(saved.props[1].level == 5 and #saved.props[1].units == 8 and saved.props[1].units[1].mood == 33, "level, units and mood are saved")
+	-- old saves (no level) still load as level 1
+	local old = H.deepCopy(saved)
+	old.props[1].level, old.props[1].invested = nil, nil
+	rawget(H.stores["CornerEmpire_v5/global"], "_data")["u101_s3"] = old
+	-- tenant choices: warn / fine / evict have different effects
+	local function place(credit, trait, strikes, mood)
+		for i = 1, #b.units do b.units[i] = false end
+		local ten = F.newApplicant()
+		ten.credit, ten.trait, ten.strikes, ten.mood = credit, trait, strikes or 0, mood or 70
+		b.units[1] = ten
+		return ten
+	end
+	local function choose(ten, choice)
+		local msg = {ref = {b = 1, u = 1, name = ten.name}}
+		return F.tenantChoice(a, msg, choice)
+	end
+	local chef = place(5, 5)
+	local rep0 = da.rep
+	local r1 = choose(chef, 1)
+	H.check(chef.strikes == 1 and chef.mood < 70 and da.rep > rep0, "Warn: a Home Chef takes a strike, a small mood hit, and sends cookies (+rep): " .. r1)
+	local nerd = place(5, 8, 0, 70)
+	local cashA = da.cash
+	local r2 = choose(nerd, 2)
+	H.check(nerd.strikes == 1 and nerd.mood <= 70 - 20 and (da.cash > cashA or b.units[1] == false), "Fine: strike + big mood hit + money: " .. r2)
+	local broke = place(1, 1, 0, 70)
+	local owes = 0
+	for _ = 1, 30 do
+		broke.strikes, broke.mood = 0, 70
+		choose(broke, 2)
+		if broke.owes then owes += 1 end
+		b.units[1] = broke
+		broke.owes = nil
+	end
+	H.check(owes > 3, "Fine: broke tenants (credit 1) often can't pay right away (" .. owes .. "/30 times)")
+	local clean = place(4, 3, 0, 70)
+	local neighbor = F.newApplicant()
+	neighbor.mood = 70
+	b.units[2] = neighbor
+	local repB, cashB = da.rep, da.cash
+	local r3 = choose(clean, 3)
+	H.check(b.units[1] == false and da.rep < repB and da.cash < cashB and neighbor.mood < 70, "Evict (clean record): legal fee, -rep, nervous neighbors: " .. r3)
+	local bad = place(2, 1, 2, 40)
+	b.units[2] = neighbor
+	local nm = neighbor.mood
+	local r4 = choose(bad, 3)
+	H.check(neighbor.mood > nm, "Evict (2 strikes): the neighbors are happier: " .. r4)
+	local three = place(3, 2, 2, 60)
+	local r5 = choose(three, 1)
+	H.check(b.units[1] == false, "Warn: strike 3 means they leave: " .. r5)
+	-- miserable tenants move out on their own at rent time
+	local sad = place(3, 2, 0, 5)
+	H.task.wait(35)
+	H.check(b.units[1] == false, "a tenant at mood 5 moves out on their own")
+	-- load the old-format save
+	T.act(a, "menuExit")
+	H.task.wait(1)
+	T.act(a, "menuPlay", 3)
+	H.task.wait(2)
+	local d3 = T.data(a)
+	H.check(d3 and d3.props[1] and d3.props[1].level == 1 and #d3.props[1].units == 4, "an old save without levels loads as a level 1 building")
+	T.act(a, "menuExit")
+	H.task.wait(1)
+	T.act(a, "menuPlay", 1)
+	H.task.wait(2)
+	ctx.da = T.data(a)
+	H.check(ctx.da.props[1].level == 5 and #ctx.da.props[1].units == 8, "the upgraded save reloads with its upgrades")
+	-- the Properties app renders all of this without errors
+	H.clientC.openModal("properties")
+	H.task.wait(1.2)
+	T.assertClean("property section")
+end)
+
 -- ===== main =====
 H.main(function()
 	T.startServer()
