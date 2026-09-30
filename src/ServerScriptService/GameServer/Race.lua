@@ -41,7 +41,11 @@ for i = 1, N do
 	C.reserve(a.X - 24, a.Z - 24, a.X + 24, a.Z + 24)
 end
 RACE.par = math.floor(trackLen / 44)
-RACE.minTime = trackLen / 160
+-- the fastest any car can legally go: best car, max rebirth speed bonus (+30%), nitro (x1.4), plus a 15% margin
+local topSpeed = 0
+for _, c in ipairs(C.CARS) do topSpeed = math.max(topSpeed, c.speed) end
+RACE.maxSpeed = topSpeed * 1.3 * 1.4 * 1.15
+RACE.minTime = trackLen / RACE.maxSpeed
 for i = 1, N do
 	local a, b = S[i], S[i % N + 1]
 	local mid = (a + b) / 2
@@ -168,6 +172,7 @@ task.spawn(function()
 						st.state = "running"
 						st.t0 = now
 						st.cp = 1
+						st.lastPos, st.lastT = S[startIdx], now
 						R.Race:FireClient(plr, {state = "running", cp = 1, total = #CPS, next = CPS[1]})
 					end
 				elseif st.state == "running" then
@@ -175,6 +180,15 @@ task.spawn(function()
 					if t > RACE.maxTime then
 						F.cancelRace(plr, "Too slow — lap timed out.")
 					elseif (flat - CPS[st.cp]).Magnitude < WIDTH * 0.75 then
+						-- server-side sanity check: nobody covers the gap between checkpoints faster than the fastest car can
+						local gap = (CPS[st.cp] - st.lastPos).Magnitude
+						local dt = math.max(0.05, now - st.lastT)
+						if gap / dt > RACE.maxSpeed then
+							racing[plr] = nil
+							R.Race:FireClient(plr, {state = "cancel", why = "Lap invalid."})
+							continue
+						end
+						st.lastPos, st.lastT = CPS[st.cp], now
 						st.cp += 1
 						if st.cp > #CPS then
 							racing[plr] = nil

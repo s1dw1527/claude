@@ -171,11 +171,14 @@ end
 function F.finishMinigame(plr, token, score)
 	local d = data[plr]
 	local p = pending[plr]
-	if not (d and p and p.token == token and type(score) == "number") then return end
+	if not (d and p and p.token == token and C.finite(score)) then return end
 	pending[plr] = nil
 	local g = MINIGAMES[p.key]
-	if os.clock() - p.t0 < g.minTime then return end
+	local elapsed = os.clock() - p.t0
+	if elapsed < g.minTime or elapsed > g.maxTime then return end
+	-- clamp to what's possible in the time actually played
 	score = math.clamp(math.floor(score), 0, g.maxScore)
+	score = math.min(score, math.floor(elapsed / g.perPoint))
 	local mult
 	if p.key == "hoop" then
 		mult = score * 0.25
@@ -185,6 +188,21 @@ function F.finishMinigame(plr, token, score)
 		mult = score
 	end
 	local prize = math.floor(p.fee * mult)
+	-- winnings cap: profit from mini-games is limited per 10 minutes, so even a perfect (or faked) score can't farm money
+	local t = os.clock()
+	local w = d.funProfit
+	if not w or t - w.t0 > 600 then
+		w = {t0 = t, profit = 0}
+		d.funProfit = w
+	end
+	local cap = math.max(2000, F.incomePerSec(d) * C.MINIGAME_PROFIT_CAP)
+	local profit = prize - p.fee
+	if profit > 0 and w.profit + profit > cap then
+		profit = math.max(0, cap - w.profit)
+		prize = p.fee + profit
+		notify(plr, "🎟️ Prize capped — the booths only pay out so much every 10 minutes. Come back soon!")
+	end
+	if profit > 0 then w.profit += profit end
 	d.cash += prize
 	d.earned += prize
 	F.addRep(plr, 1)

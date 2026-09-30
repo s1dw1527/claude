@@ -425,12 +425,23 @@ for _, p in ipairs(PASSES) do PASS_BY_KEY[p.key] = p end
 function F.loadPasses(plr, d)
 	for _, p in ipairs(PASSES) do
 		if p.id == 0 then
-			d.passes[p.key] = d.passes[p.key] or RunService:IsStudio()
+			-- not on sale yet. In Studio, "buy" it from the Store app to test it (see F.promptPass).
+			d.passes[p.key] = d.passes[p.key] or false
 		else
 			local ok, owns = pcall(function() return MarketplaceService:UserOwnsGamePassAsync(plr.UserId, p.id) end)
 			if ok and owns then d.passes[p.key] = true end
 		end
 	end
+end
+-- turn a pass on for this session and apply its effects right away
+function F.grantPass(plr, key)
+	local d = data[plr]
+	if not d or not PASS_BY_KEY[key] then return end
+	d.passes[key] = true
+	if key == "richstart" then F.claimRichStart(plr, d) end
+	local car = F.activeCar(plr)
+	if key == "nitro" and car then car.seat:SetAttribute("Nitro", true) end
+	F.applyCharacter(plr, plr.Character)
 end
 function F.promptPass(plr, key)
 	local p = PASS_BY_KEY[key]
@@ -438,7 +449,7 @@ function F.promptPass(plr, key)
 	if p.id == 0 then
 		local d = data[plr]
 		if d and RunService:IsStudio() then
-			d.passes[key] = true
+			F.grantPass(plr, key)
 			notify(plr, "🧪 Studio test: " .. p.name .. " granted (set a real pass ID to sell it).")
 		else
 			notify(plr, "This pass isn't set up yet.")
@@ -453,7 +464,7 @@ MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(plr, passId, 
 	if not d then return end
 	for _, p in ipairs(PASSES) do
 		if p.id == passId then
-			d.passes[p.key] = true
+			F.grantPass(plr, p.key)
 			R.Splash:FireClient(plr, p.icon .. " " .. p.name, "Thanks for your support!", RGB(255, 205, 60))
 		end
 	end

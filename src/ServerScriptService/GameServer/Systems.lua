@@ -52,6 +52,15 @@ function F.rebirthMult(d)
 	if d.rebirths >= 100 then m *= 2 end
 	return m
 end
+-- Rich Start pass: a one-time starting bonus per save (d.richClaimed is saved with the slot)
+function F.claimRichStart(plr, d)
+	if d.passes.richstart and not d.richClaimed then
+		d.richClaimed = true
+		d.cash += CFG.RICH_START_BONUS
+		d.earned += CFG.RICH_START_BONUS
+		notify(plr, "🎁 Rich Start: +$" .. fmt(CFG.RICH_START_BONUS) .. " to kick off your empire!")
+	end
+end
 function F.bizMult(d, key)
 	local m = 1
 	local ev = G.event
@@ -429,11 +438,14 @@ function F.crashStocks()
 end
 function F.tradeStock(plr, d, ownerId, action, qty)
 	if not F.unlocked(d, "market") then return end
+	if not C.int(ownerId, 1) then return end
 	local owner = Players:GetPlayerByUserId(ownerId)
 	local od = owner and data[owner]
 	if not od then return end
 	local price = od.company.price
-	qty = math.floor(tonumber(qty) or 0)
+	-- prices and balances are server-side only; qty must be a sane whole number
+	qty = C.int(qty, 0, CFG.MAX_SHARES_PER_ORDER)
+	if not qty or not C.finite(price) then return end
 	if action == "buy" then
 		if qty < 1 then return end
 		local cost = price * qty
@@ -452,8 +464,9 @@ function F.tradeStock(plr, d, ownerId, action, qty)
 		if qty <= 0 or qty > have then qty = have end
 		if qty <= 0 then return end
 		d.shares[ownerId] = have - qty
-		d.cash += price * qty
-		notify(plr, "💵 Sold " .. qty .. " shares for $" .. fmt(price * qty))
+		local payout = price * qty * (1 - CFG.STOCK_SELL_FEE)
+		d.cash += payout
+		notify(plr, "💵 Sold " .. qty .. " shares for $" .. fmt(payout) .. " (after the " .. math.floor(CFG.STOCK_SELL_FEE * 100 + 0.5) .. "% trading fee)")
 	end
 end
 
@@ -506,12 +519,14 @@ end
 
 -- ===== CITY EVENTS =====
 function F.startEvent(now)
+	-- only one city event at a time: end the current one (and every bonus it gave) first
+	if G.event then F.endEvent() end
 	local pool = {}
 	for _, e in ipairs(EVENTS) do
 		if not e.era or G.spire.era >= e.era then table.insert(pool, e) end
 	end
 	local ev = pool[math.random(#pool)]
-	G.nextEvent = now + CFG.EVENT_INTERVAL
+	G.nextEvent = now + math.max(CFG.EVENT_INTERVAL, (ev.dur or 0) + 10)
 	local text = ev.text
 	if ev.viral then
 		local owned = {}
@@ -773,9 +788,13 @@ function F.tutorialEvent(plr, ev)
 	if ev == "phone" and d.tut == 4 then F.advanceTutorial(plr, d) end
 end
 function F.advanceTutorial(plr, d)
-	local reward = 250 * d.tut
-	d.cash += reward
-	notify(plr, "🎓 Tutorial step complete! +$" .. fmt(reward))
+	-- each step pays once per save, ever: restarting the tutorial re-walks the steps without paying again
+	if d.tut > (d.tutPaid or 0) then
+		local reward = 250 * d.tut
+		d.cash += reward
+		d.tutPaid = d.tut
+		notify(plr, "🎓 Tutorial step complete! +$" .. fmt(reward))
+	end
 	d.tut += 1
 	if d.tut > #TUTORIAL then
 		d.tut = 0

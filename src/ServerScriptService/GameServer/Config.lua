@@ -19,6 +19,11 @@ C.CFG = {
 	MAX_CUSTOMERS_PER_SEC = 3,
 	CRASH_DISCOUNT = 0.7,
 	RENT_INTERVAL = 30,
+	STOCK_SELL_FEE = 0.10,       -- 10% fee on every share sale, so buy/sell loops can't create money
+	MAX_SHARES_PER_ORDER = 100000,
+	ACTION_RATE = 12,            -- button presses per second each player may send (burst below)
+	ACTION_BURST = 30,
+	LOAD_RETRIES = 3,            -- DataStore read attempts before a save is treated as unavailable
 }
 
 -- ===== REPUTATION TIERS + what each one unlocks =====
@@ -224,7 +229,7 @@ C.PASSES = {
 	{key = "goldcar",   id = 0, price = 399, icon = "🏎️", name = "Golden Supercar", desc = "Unlock the golden supercar."},
 	{key = "nitro",     id = 0, price = 79,  icon = "🔥", name = "Nitro Boost",     desc = "Hold SHIFT for nitro in any car, and run faster."},
 	{key = "shield",    id = 0, price = 49,  icon = "🛡️", name = "Freeze Shield",   desc = "Rivals can't freeze your income."},
-	{key = "richstart", id = 0, price = 59,  icon = "🎁", name = "Rich Start",      desc = "+$5,000 on join and after every Corner War."},
+	{key = "richstart", id = 0, price = 59,  icon = "🎁", name = "Rich Start",      desc = "+$5,000 when you start a save (once per save) and after every Corner War."},
 	{key = "vip",       id = 0, price = 149, icon = "👑", name = "VIP",             desc = "+25% income and a gold VIP tag."},
 }
 
@@ -246,11 +251,14 @@ C.CAR = {}
 for _, c in ipairs(C.CARS) do C.CAR[c.key] = c end
 
 -- ===== FUN PARK + RACE =====
+-- scores come from the player's screen, so the server only accepts what's physically possible:
+-- minTime = the shortest real game, perPoint = seconds of play each point needs, maxTime = token expiry
 C.MINIGAMES = {
-	hoop   = {name = "Hoop Shot",     icon = "🏀", fee = 15, minTime = 5,  maxScore = 10},
-	rush   = {name = "Lemonade Rush", icon = "🍋", fee = 20, minTime = 27, maxScore = 30},
-	memory = {name = "Memory Match",  icon = "🧠", fee = 15, minTime = 4,  maxScore = 3},
+	hoop   = {name = "Hoop Shot",     icon = "🏀", fee = 15, minTime = 6,  maxTime = 90,  maxScore = 10, perPoint = 0.6},
+	rush   = {name = "Lemonade Rush", icon = "🍋", fee = 20, minTime = 29, maxTime = 90,  maxScore = 30, perPoint = 0.9},
+	memory = {name = "Memory Match",  icon = "🧠", fee = 15, minTime = 6,  maxTime = 120, maxScore = 3,  perPoint = 2},
 }
+C.MINIGAME_PROFIT_CAP = 900   -- max mini-game profit per 10 minutes, in seconds of your income
 C.FERRIS = {fee = 10, buff = 0.1, buffTime = 180}
 C.FIREWORKS = {fee = 30, cooldown = 60}
 C.RACE = {fee = 20, par = 42, maxTime = 300}

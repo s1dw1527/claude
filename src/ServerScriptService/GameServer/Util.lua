@@ -8,6 +8,20 @@ local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local V3, CF, RGB, MAT = Vector3.new, CFrame.new, Color3.fromRGB, Enum.Material
 
+-- ===== input validation (anything that came from a client goes through these) =====
+function C.finite(v) return type(v) == "number" and v == v and v ~= math.huge and v ~= -math.huge end
+-- a whole number in [lo, hi], or nil
+function C.int(v, lo, hi)
+	if not C.finite(v) or v ~= math.floor(v) then return nil end
+	if (lo and v < lo) or (hi and v > hi) then return nil end
+	return v
+end
+-- a string no longer than maxLen, or nil
+function C.str(v, maxLen)
+	if type(v) == "string" and #v <= (maxLen or 40) then return v end
+	return nil
+end
+
 function C.fmt(n)
 	n = math.floor((n or 0) + 0.5)
 	if n >= 1e12 then return string.format("%.2fT", n / 1e12) end

@@ -28,23 +28,50 @@ if CFG.SAVE_ENABLED then
 	if ok then store = s end
 end
 local SAVE_KEYS = {"cash", "levels", "chains", "staff", "combos", "rep", "ep", "trophies", "skin", "cars", "seen", "served", "deliveries",
-	"marketing", "revSum", "revN", "contributed", "rebirths", "followers", "home", "raceBest", "tut", "earned", "rentEarned"}
+	"marketing", "revSum", "revN", "contributed", "rebirths", "followers", "home", "raceBest", "tut", "earned", "rentEarned",
+	"tutPaid", "richClaimed"}
 local function metaKey(plr) return "u" .. plr.UserId .. "_meta" end
 local function slotKey(plr, slot) return "u" .. plr.UserId .. "_s" .. slot end
 local DEFAULT_SETTINGS = {music = true, musicVol = 5, sfx = true, crowd = "high", weather = true, units = "MPH", spawnAt = "business"}
+-- every setting has a validator, so a client can't store junk (NaN, huge numbers, unknown words) in the save
+local function oneOf(...)
+	local ok = {}
+	for _, v in ipairs({...}) do ok[v] = true end
+	return function(v) return ok[v] == true end
+end
+local function isBool(v) return type(v) == "boolean" end
+local SETTING_OK = {
+	music = isBool, sfx = isBool, weather = isBool,
+	musicVol = function(v) return C.int(v, 1, 10) ~= nil end,
+	crowd = oneOf("high", "low", "off"), units = oneOf("MPH", "KMH"), spawnAt = oneOf("business", "home"),
+}
+local function applySettings(target, incoming)
+	if type(incoming) ~= "table" then return end
+	for k, v in pairs(incoming) do
+		local ok = SETTING_OK[k]
+		if ok and ok(v) then target[k] = v end
+	end
+end
+
+-- DataStore reads are retried a few times; `nil, true` means the read really failed
+local function readKey(key)
+	for attempt = 1, CFG.LOAD_RETRIES do
+		local ok, v = pcall(function() return store:GetAsync(key) end)
+		if ok then return v, false end
+		warn("[CornerEmpire] load attempt " .. attempt .. " failed for " .. key .. ": " .. tostring(v))
+		if attempt < CFG.LOAD_RETRIES then task.wait(attempt * 1.5) end
+	end
+	return nil, true
+end
 
 local function loadMeta(plr)
 	local meta = {slots = {}, settings = table.clone(DEFAULT_SETTINGS)}
 	if not store then return meta, false end
-	local ok, saved = pcall(function() return store:GetAsync(metaKey(plr)) end)
-	if not ok then return meta, true end
+	local saved, failed = readKey(metaKey(plr))
+	if failed then return meta, true end
 	if type(saved) == "table" then
 		meta.slots = type(saved.slots) == "table" and saved.slots or {}
-		if type(saved.settings) == "table" then
-			for k, v in pairs(saved.settings) do
-				if DEFAULT_SETTINGS[k] ~= nil and type(v) == type(DEFAULT_SETTINGS[k]) then meta.settings[k] = v end
-			end
-		end
+		applySettings(meta.settings, saved.settings)
 	end
 	return meta, false
 end
@@ -78,14 +105,20 @@ function F.save(plr)
 end
 local function loadSlot(plr, d, slot)
 	if not store then return end
-	local ok, saved = pcall(function() return store:GetAsync(slotKey(plr, slot)) end)
-	if not ok then
+	local saved, failed = readKey(slotKey(plr, slot))
+	if failed then
+		-- never overwrite a save we couldn't read: this whole session stays unsaved
 		d.noSave = true
 		return
 	end
 	if type(saved) ~= "table" then return end
 	for _, k in ipairs(SAVE_KEYS) do
 		if saved[k] ~= nil then d[k] = saved[k] end
+	end
+	-- saves from before tutorial rewards were tracked: treat the steps already walked as paid
+	if saved.tutPaid == nil then
+		local tut = tonumber(saved.tut) or 1
+		d.tutPaid = (tut == 0) and #TUTORIAL or math.max(0, tut - 1)
 	end
 	d.seen.stages = d.seen.stages or {}
 	d.seen.events = d.seen.events or {}
@@ -410,13 +443,16 @@ function F.startGame(plr, slot, starterIdx)
 	local d = newData(plot)
 	local isNew = starterIdx ~= nil
 	if not isNew then loadSlot(plr, d, slot) end
-	if not Players:FindFirstChild(plr.Name) then
+	-- if the save list itself couldn't load we can't know what's in this slot, so don't save over it
+	if s.metaFail then d.noSave = true end
+	if not plr.Parent then
 		plot.owner = nil
 		return
 	end
 	data[plr] = d
 	s.busy = false
 	F.loadPasses(plr, d)
+	F.claimRichStart(plr, d)
 	-- business + land
 	F.setPlotSign(plot, plr.Name .. "'s Empire", REP_TIERS[F.tierIndex(d.rep)].name)
 	for _, b in ipairs(BUSINESSES) do
@@ -467,6 +503,14 @@ function F.startGame(plr, slot, starterIdx)
 	end
 	F.pushMsg(plr, {icon = "👋", from = "Corner Empire", text = isNew and "Welcome! Follow the tutorial card at the bottom of your screen to get started." or "Welcome back! Your empire missed you."})
 	R.Menu:FireClient(plr, "play")
+	if d.noSave then
+		local warnText = "⚠️ Couldn't load your save. This session won't be saved — rejoin to try again."
+		notify(plr, warnText)
+		F.pushMsg(plr, {icon = "⚠️", from = "Save System", text = warnText .. " Your real save is safe and untouched."})
+		task.delay(1.5, function()
+			if data[plr] == d then R.Splash:FireClient(plr, "⚠️ SAVE NOT LOADED", warnText, RGB(255, 170, 60)) end
+		end)
+	end
 	plr:LoadCharacter()
 	F.buzz("👋", plr.Name .. " opened their corner! Welcome to the city.", plot.color)
 end
@@ -475,10 +519,11 @@ local function settleStocks(plr, d)
 	for p, od in pairs(data) do
 		if p ~= plr then
 			local mine = d.shares[p.UserId]
-			if mine and mine > 0 then d.cash += mine * od.company.price end
+			local keep = 1 - CFG.STOCK_SELL_FEE
+			if mine and mine > 0 then d.cash += mine * od.company.price * keep end
 			local theirs = od.shares[plr.UserId]
 			if theirs and theirs > 0 then
-				local pay = theirs * d.company.price
+				local pay = theirs * d.company.price * keep
 				od.cash += pay
 				od.shares[plr.UserId] = nil
 				notify(p, "📈 " .. plr.Name .. " left — your " .. theirs .. " shares were sold for $" .. fmt(pay))
@@ -561,44 +606,83 @@ local function teleport(plr, d, key)
 	end
 end
 
+-- =====================================================================
+-- INPUT VALIDATION + RATE LIMIT: nothing a client sends is trusted
+-- =====================================================================
+local int, str, finite = C.int, C.str, C.finite
+-- true if a value (or anything inside a table) is NaN or infinite
+local function poisoned(v, depth)
+	if type(v) == "number" then return not finite(v) end
+	if type(v) == "table" and (depth or 0) < 3 then
+		for k, x in pairs(v) do
+			if poisoned(k, (depth or 0) + 1) or poisoned(x, (depth or 0) + 1) then return true end
+		end
+	end
+	return false
+end
+local buckets = {}
+local function allow(plr, cost)
+	local t = os.clock()
+	local bk = buckets[plr]
+	if not bk then
+		bk = {tokens = CFG.ACTION_BURST, t = t}
+		buckets[plr] = bk
+	end
+	bk.tokens = math.min(CFG.ACTION_BURST, bk.tokens + (t - bk.t) * CFG.ACTION_RATE)
+	bk.t = t
+	if bk.tokens < (cost or 1) then return false end
+	bk.tokens -= (cost or 1)
+	return true
+end
+C.allowAction = allow
+local CONTRIB = {k1 = true, k10 = true, p10 = true, p50 = true}
+local PROBLEM_CHOICE = {repair = true, replace = true, ignore = true}
+local TUT_ACTIONS = {phone = true, skip = true, restart = true}
+C.ACTIONS = {}  -- other modules can add validated actions: C.ACTIONS[name] = function(plr, d, a, b, c, now) end
+
 R.Action.OnServerEvent:Connect(function(plr, action, a, b, c)
-	if type(action) ~= "string" then return end
+	if type(action) ~= "string" or #action > 24 then return end
 	local s = session[plr]
 	if not s then return end
+	if poisoned(a) or poisoned(b) or poisoned(c) then return end
+	if not allow(plr) then return end
 	-- menu actions (no save loaded yet)
 	if action == "menuPlay" then
-		F.startGame(plr, a, nil)
+		local slot = int(a, 1, CFG.SAVE_SLOTS)
+		if slot then F.startGame(plr, slot, nil) end
 		return
 	elseif action == "menuNew" then
-		if type(b) ~= "number" then b = 1 end
-		s.meta.slots["s" .. tostring(a)] = nil
-		F.startGame(plr, a, math.clamp(math.floor(b), 1, #STARTER_HOMES))
+		local slot = int(a, 1, CFG.SAVE_SLOTS)
+		if not slot or data[plr] or s.busy then return end
+		local starter = int(b, 1, #STARTER_HOMES) or 1
+		s.meta.slots["s" .. slot] = nil
+		F.startGame(plr, slot, starter)
 		return
-	elseif action == "menuDelete" and type(a) == "number" then
-		if data[plr] then return end
-		s.meta.slots["s" .. a] = nil
-		if store then pcall(function() store:RemoveAsync(slotKey(plr, a)) end) end
+	elseif action == "menuDelete" then
+		local slot = int(a, 1, CFG.SAVE_SLOTS)
+		if not slot or data[plr] or s.metaFail then return end
+		s.meta.slots["s" .. slot] = nil
+		if store then pcall(function() store:RemoveAsync(slotKey(plr, slot)) end) end
 		saveMeta(plr)
 		sendMenu(plr)
 		return
 	elseif action == "menuExit" then
 		F.unload(plr, true)
 		return
-	elseif action == "settings" and type(a) == "table" then
-		for k, v in pairs(a) do
-			if DEFAULT_SETTINGS[k] ~= nil and type(v) == type(DEFAULT_SETTINGS[k]) then s.meta.settings[k] = v end
-		end
+	elseif action == "settings" then
+		applySettings(s.meta.settings, a)
 		return
 	end
 	local d = data[plr]
 	if not d then return end
 	local now = os.clock()
-	if action == "buy" and BIZ[a] then
-		F.buyUpgrade(plr, d, a)
-	elseif action == "chain" and BIZ[a] then
-		F.openChain(plr, d, a)
-	elseif action == "sabotage" and type(a) == "number" then
-		F.sabotage(plr, d, a, now)
+	if action == "buy" then
+		if BIZ[a] then F.buyUpgrade(plr, d, a) end
+	elseif action == "chain" then
+		if BIZ[a] then F.openChain(plr, d, a) end
+	elseif action == "sabotage" then
+		local target = int(a, 1)
+		if target and target ~= plr.UserId then F.sabotage(plr, d, target, now) end
 	elseif action == "candidates" and STAFF_ROLES[a] then
 		if not F.unlocked(d, "staff") then
 			notify(plr, "🔒 Staff unlocks at " .. REP_TIERS[FEATURES.staff].name)
@@ -609,8 +693,9 @@ R.Action.OnServerEvent:Connect(function(plr, action, a, b, c)
 			return
 		end
 		R.Menu:FireClient(plr, "candidates", a, F.candidates(d, a), F.hireCost(a))
-	elseif action == "hire" and STAFF_ROLES[a] and type(b) == "number" then
-		local cand = d.cands[a] and d.cands[a][b]
+	elseif action == "hire" and STAFF_ROLES[a] then
+		local pick = int(b, 1, 3)
+		local cand = pick and d.cands[a] and d.cands[a][pick]
 		if not cand or not F.unlocked(d, "staff") then return end
 		local cost = F.hireCost(a)
 		if d.cash < cost then
@@ -623,6 +708,7 @@ R.Action.OnServerEvent:Connect(function(plr, action, a, b, c)
 		d.seen.roles[a] = true
 		notify(plr, "👋 Hired " .. cand.name .. " as your " .. STAFF_ROLES[a].role .. "!")
 		R.Menu:FireClient(plr, "closeCandidates")
+		if F.refreshWorkers then F.refreshWorkers(plr) end
 	elseif action == "train" and STAFF_ROLES[a] and d.staff[a] then
 		local st = d.staff[a]
 		if st.exp >= 5 then return end
@@ -634,71 +720,87 @@ R.Action.OnServerEvent:Connect(function(plr, action, a, b, c)
 		d.cash -= cost
 		st.exp += 1
 		notify(plr, "📚 " .. st.name .. " leveled up! Experience " .. st.exp .. "★")
+		if F.refreshWorkers then F.refreshWorkers(plr) end
 	elseif action == "fire" and STAFF_ROLES[a] and d.staff[a] then
 		notify(plr, "👋 " .. d.staff[a].name .. " left the company.")
 		d.staff[a] = nil
-	elseif action == "problem" and BIZ[a] and type(b) == "string" then
-		F.resolveProblem(plr, d, a, b, now)
-	elseif action == "ad" and type(a) == "string" then
-		F.runAd(plr, d, a, now)
-	elseif action == "stock" and type(a) == "number" and type(b) == "string" then
-		F.tradeStock(plr, d, a, b, c)
+		if F.refreshWorkers then F.refreshWorkers(plr) end
+	elseif action == "problem" then
+		if BIZ[a] and PROBLEM_CHOICE[b] then F.resolveProblem(plr, d, a, b, now) end
+	elseif action == "ad" then
+		if str(a, 20) then F.runAd(plr, d, a, now) end
+	elseif action == "stock" then
+		local owner = int(a, 1)
+		local qty = int(c, 0, CFG.MAX_SHARES_PER_ORDER)
+		if owner and qty and (b == "buy" or b == "sell") then F.tradeStock(plr, d, owner, b, qty) end
 	elseif action == "delivery" then
 		if d.delivery and d.delivery.state == "offer" then
 			if a == "accept" then
 				d.delivery.state = "active"
 				d.delivery.expires = now + 180
 				notify(plr, "🚚 Delivery accepted! Follow the green beam. A Delivery Van pays 1.5x.")
-			else
+			elseif a == "decline" then
 				d.delivery = nil
 			end
 		end
-	elseif action == "contribute" and type(a) == "string" then
-		local amt = ({k1 = 1000, k10 = 10000, p10 = d.cash * 0.1, p50 = d.cash * 0.5})[a]
-		if amt then F.contribute(plr, amt) end
-	elseif action == "skin" and type(a) == "string" then
-		for _, sk in ipairs(SKINS) do
-			if sk.key == a and d.trophies >= sk.trophies then
-				d.skin = a
-				F.refreshAll(plr)
-				notify(plr, "🎨 Equipped skin: " .. sk.name)
+	elseif action == "contribute" then
+		if CONTRIB[a] then
+			local amt = ({k1 = 1000, k10 = 10000, p10 = d.cash * 0.1, p50 = d.cash * 0.5})[a]
+			F.contribute(plr, amt)
+		end
+	elseif action == "skin" then
+		if str(a, 20) then
+			for _, sk in ipairs(SKINS) do
+				if sk.key == a and d.trophies >= sk.trophies then
+					d.skin = a
+					F.refreshAll(plr)
+					notify(plr, "🎨 Equipped skin: " .. sk.name)
+				end
 			end
 		end
-	elseif action == "pass" and type(a) == "string" then
-		F.promptPass(plr, a)
+	elseif action == "pass" then
+		if str(a, 20) then F.promptPass(plr, a) end
 	elseif action == "car" then
-		if a == "spawn" and type(b) == "string" and CAR[b] then
+		if a == "spawn" and str(b, 20) and CAR[b] then
 			F.buyOrDrive(plr, b)
 		elseif a == "despawn" then
 			F.despawnCar(plr)
 		end
-	elseif action == "tp" and type(a) == "string" then
-		teleport(plr, d, a)
+	elseif action == "tp" then
+		if str(a, 20) then teleport(plr, d, a) end
 	elseif action == "homeBuild" then
 		F.buildHomeLevel(plr)
-	elseif action == "propBuy" and type(a) == "number" and type(b) == "string" then
-		F.propBuy(plr, a, b)
-	elseif action == "tenantAccept" and type(a) == "number" and type(b) == "number" then
-		F.tenantAccept(plr, a, b)
-	elseif action == "tenantReject" and type(a) == "number" and type(b) == "number" then
-		F.tenantReject(plr, a, b)
-	elseif action == "evict" and type(a) == "number" and type(b) == "number" then
-		F.evict(plr, a, b)
-	elseif action == "renovate" and type(a) == "number" then
-		F.renovate(plr, a)
-	elseif action == "propSell" and type(a) == "number" then
-		F.sellProp(plr, a)
-	elseif action == "minigame" and type(a) == "string" then
-		F.finishMinigame(plr, a, b)
-	elseif action == "like" and type(a) == "number" then
-		F.like(plr, a)
+	elseif action == "propBuy" then
+		local lot = int(a, 1, #C.RENT_LOTS)
+		if lot and str(b, 20) then F.propBuy(plr, lot, b) end
+	elseif action == "tenantAccept" or action == "tenantReject" or action == "evict" then
+		local bi, i = int(a, 1, #d.props), int(b, 1, 64)
+		if bi and i then
+			if action == "tenantAccept" then F.tenantAccept(plr, bi, i)
+			elseif action == "tenantReject" then F.tenantReject(plr, bi, i)
+			else F.evict(plr, bi, i) end
+		end
+	elseif action == "renovate" or action == "propSell" then
+		local bi = int(a, 1, #d.props)
+		if bi then
+			if action == "renovate" then F.renovate(plr, bi) else F.sellProp(plr, bi) end
+		end
+	elseif action == "minigame" then
+		if str(a, 20) and finite(b) then F.finishMinigame(plr, a, b) end
+	elseif action == "like" then
+		local id = int(a, 1)
+		if id then F.like(plr, id) end
 	elseif action == "post" then
-		F.playerPost(plr, a, b)
+		local preset = int(a, 1, 50)
+		if preset then F.playerPost(plr, preset, nil)
+		elseif str(b, 200) then F.playerPost(plr, nil, b) end
 	elseif action == "msgChoice" then
-		F.msgChoice(plr, a, b)
+		local id, choice = int(a, 1), int(b, 1, 3)
+		if id and choice then F.msgChoice(plr, id, choice) end
 	elseif action == "rebirth" then
 		F.rebirth(plr)
 	elseif action == "tut" then
+		if not TUT_ACTIONS[a] then return end
 		if a == "phone" then
 			F.tutorialEvent(plr, "phone")
 		elseif a == "skip" then
@@ -706,9 +808,12 @@ R.Action.OnServerEvent:Connect(function(plr, action, a, b, c)
 			notify(plr, "Tutorial skipped. You can always ask around the city! 😉")
 		elseif a == "restart" then
 			d.tut = 1
+			notify(plr, "🎓 Tutorial restarted. (Rewards are only paid once per save.)")
 		end
 	elseif action == "raceCancel" then
 		F.cancelRace(plr, "Race cancelled.")
+	elseif C.ACTIONS[action] then
+		C.ACTIONS[action](plr, d, a, b, c, now)
 	end
 end)
 
@@ -718,6 +823,7 @@ do
 	GetCatalog.Name = "GetCatalog"
 	GetCatalog.Parent = ReplicatedStorage
 	GetCatalog.OnServerInvoke = function(plr, what)
+		if not allow(plr, 3) then return nil end
 		if what == "feed" then return F.feedList() end
 		if what == "inbox" then
 			local d = data[plr]
@@ -775,13 +881,14 @@ local function onPlayerRemoving(plr)
 	F.unload(plr, false)
 	if session[plr] then saveMeta(plr) end
 	session[plr] = nil
+	buckets[plr] = nil
 end
 Players.PlayerAdded:Connect(onPlayerAdded)
 Players.PlayerRemoving:Connect(onPlayerRemoving)
 for _, p in ipairs(Players:GetPlayers()) do task.spawn(onPlayerAdded, p) end
 -- the client asks for the menu again if it loaded late
 R.Menu.OnServerEvent:Connect(function(plr, what)
-	if what == "ready" and session[plr] and not data[plr] then sendMenu(plr) end
+	if what == "ready" and session[plr] and not data[plr] and allow(plr, 5) then sendMenu(plr) end
 end)
 
 -- build the world's for-sale signs, then trees last (after everything reserved its space)
