@@ -24,7 +24,11 @@ P(FOLDER, V3(230, 2, 150), CF(455, -0.85, 0), RGB(190, 190, 196), MAT.Concrete, 
 
 local function unitName(i) return math.ceil(i / 2) .. (i % 2 == 1 and "A" or "B") end
 C.unitName = unitName
-function F.rentPerUnit(typeKey) return math.floor(RENTAL[typeKey].cost * 0.006) end
+-- a full building pays back its price in RENTAL.payback seconds of rent (bigger buildings take longer)
+function F.rentPerUnit(typeKey)
+	local r = RENTAL[typeKey]
+	return math.floor(r.cost * C.CFG.RENT_INTERVAL / ((r.payback or 5000 / r.units) * r.units))
+end
 
 -- ===== upgrade levels: more floors (units), better rent, higher value and upkeep =====
 local function levelOf(b) return math.clamp(math.floor(tonumber(b.level) or 1), 1, #LEVELS) end

@@ -416,18 +416,34 @@ end
 
 -- ===== TUTORIAL CARD =====
 do
-	local tc = panel({AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -16), Size = UDim2.fromOffset(540, 96), BackgroundColor3 = RGB(30, 70, 140), Visible = false}, gui)
+	local tc = panel({AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -16), Size = UDim2.fromOffset(540, 124), BackgroundColor3 = RGB(30, 70, 140), Visible = false}, gui)
 	gradient(tc, RGB(70, 130, 230), RGB(30, 60, 140))
 	stroke(tc, RGB(150, 200, 255), 2, 0)
+	-- small screens: keep the card inside the screen and clear of the corner buttons
+	local cam = game:GetService("Workspace").CurrentCamera
+	local function fit()
+		local w = cam and cam.ViewportSize.X or 1000
+		tc.Size = UDim2.fromOffset(math.min(540, w - 220), 124)
+	end
+	fit()
+	if cam then cam:GetPropertyChangedSignal("ViewportSize"):Connect(fit) end
 	local title = label({Position = UDim2.fromOffset(14, 6), Size = UDim2.new(1, -120, 0, 22), TextSize = 16, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left}, tc)
-	local body = label({Position = UDim2.fromOffset(14, 30), Size = UDim2.new(1, -28, 0, 56), TextSize = 15, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top}, tc)
+	local body = label({Position = UDim2.fromOffset(14, 30), Size = UDim2.new(1, -28, 0, 40), TextSize = 15, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top}, tc)
+	-- live progress for the current step, worked out by the server ("Level 2 / 3", "84 studs to your home"...)
+	local prog = label({Position = UDim2.fromOffset(14, 74), Size = UDim2.new(1, -28, 0, 42), TextSize = 13, TextWrapped = true, TextColor3 = RGB(255, 236, 150),
+		Font = Enum.Font.GothamBold, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top}, tc)
 	local skip = button({Position = UDim2.new(1, -96, 0, 6), Size = UDim2.fromOffset(84, 24), Text = "Skip tutorial", TextSize = 11, BackgroundColor3 = GRAY}, tc)
 	skip.MouseButton1Click:Connect(function()
 		play(SND.click)
 		act("tut", "skip")
 		tc.Visible = false
 	end)
-	local lastStep
+	-- step 4 gets its own big button, so it works with touch, controller selection and mouse alike
+	local open = button({AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -10, 1, -8), Size = UDim2.fromOffset(150, 34), Text = "📱 Open Phone", TextSize = 15, BackgroundColor3 = GREEN, Visible = false}, tc)
+	open.MouseButton1Click:Connect(function()
+		if C.togglePhone then C.togglePhone(true) end
+	end)
+	local lastStep, lastSent = nil, 0
 	C.onState(function(s)
 		local t = s.tut
 		tc.Visible = t ~= nil
@@ -435,9 +451,18 @@ do
 		if not t then return end
 		title.Text = "🎓 TUTORIAL  •  Step " .. t.step .. " of " .. t.total
 		body.Text = t.text
+		prog.Text = t.progress or ""
+		open.Visible = t.phone == true
+		prog.Size = UDim2.new(1, open.Visible and -178 or -28, 0, 42)
+		-- the phone may already be open when step 4 starts: say so again (the server ignores repeats)
+		if t.phone and C.phoneOpen and C.phoneOpen() and os.clock() - lastSent > 2 then
+			lastSent = os.clock()
+			if C.reportPhone then C.reportPhone() end
+		end
 		if lastStep ~= t.step then
+			if lastStep and t.step > lastStep then play(SND.buy) end
 			lastStep = t.step
-			tc.Position = UDim2.new(0.5, 0, 1, 120)
+			tc.Position = UDim2.new(0.5, 0, 1, 140)
 			tween(tc, 0.5, {Position = UDim2.new(0.5, 0, 1, -16)}, Enum.EasingStyle.Back)
 		end
 	end)

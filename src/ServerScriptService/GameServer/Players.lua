@@ -369,14 +369,16 @@ function F.sendState(plr, now)
 	for _, p in ipairs(REBIRTH.perks) do table.insert(perks, {at = p.at, name = p.name, icon = p.icon, desc = p.desc, got = d.rebirths >= p.at}) end
 	local tut
 	if d.tut and d.tut > 0 and TUTORIAL[d.tut] then
-		tut = {step = d.tut, total = #TUTORIAL, text = TUTORIAL[d.tut].text, target = F.tutorialTarget(d)}
+		local _, progress = F.tutorialStatus(plr, d)
+		tut = {step = d.tut, total = #TUTORIAL, text = TUTORIAL[d.tut].text, target = F.tutorialTarget(d), progress = progress, phone = d.tut == 4}
 	end
 	local lotsMine = F.countLots(d)
 	local car = F.activeCar(plr)
 	local st = {
 		cash = d.cash, income = inc, passMult = F.passMult(d), gm = gm,
 		frozen = math.max(0, math.ceil(d.frozenUntil - now)),
-		sabCd = math.max(0, math.ceil(d.sabCooldown - now)), sabCost = CFG.SABOTAGE_COST, sabTime = CFG.SABOTAGE_TIME,
+		sabCd = math.max(0, math.ceil(d.sabCooldown - now)), sabCost = F.sabotageCost(d), sabTime = CFG.SABOTAGE_TIME,
+		adCosts = {F.adCost(d, "small"), F.adCost(d, "major"), F.adCost(d, "citywide")},
 		rep = d.rep, tier = tier, tierName = REP_TIERS[tier].name, prevRep = REP_TIERS[tier].rep,
 		nextRep = REP_TIERS[tier + 1] and REP_TIERS[tier + 1].rep or nil, nextName = REP_TIERS[tier + 1] and REP_TIERS[tier + 1].name or nil,
 		nextUnlocks = REP_TIERS[tier + 1] and REP_TIERS[tier + 1].unlocks or nil,
@@ -885,12 +887,13 @@ R.Action.OnServerEvent:Connect(function(plr, action, a, b, c)
 	elseif action == "tut" then
 		if not TUT_ACTIONS[a] then return end
 		if a == "phone" then
-			F.tutorialEvent(plr, "phone")
+			F.tutorialEvent(plr, "phone", b ~= false)
 		elseif a == "skip" then
 			d.tut = 0
 			notify(plr, "Tutorial skipped. You can always ask around the city! 😉")
 		elseif a == "restart" then
 			d.tut = 1
+			d.tutStepAt = os.clock()
 			notify(plr, "🎓 Tutorial restarted. (Rewards are only paid once per save.)")
 		end
 	elseif action == "raceCancel" then

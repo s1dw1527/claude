@@ -293,15 +293,18 @@ do
 		local b = button({Position = UDim2.new((i - 1) / 3, 4, 0, 0), Size = UDim2.new(1 / 3, -8, 1, 0), TextSize = 13, TextWrapped = true, BackgroundColor3 = RGB(235, 130, 40),
 			Text = "📣 " .. a.name .. "\n$" .. fmt(a.cost) .. "\n" .. a.customers .. "x customers • " .. a.dur .. "s"}, adRow)
 		b.MouseButton1Click:Connect(function() play(SND.click) act("ad", a.key) end)
-		adBtns[i] = {btn = b, cost = a.cost}
+		adBtns[i] = {btn = b, cost = a.cost, ad = a}
 	end
 	local adStatus = label({Size = UDim2.new(1, -8, 0, 20), TextSize = 13, TextColor3 = GOLD, LayoutOrder = 2}, m.body)
 	header(m.body, "⭐ Reviews of your businesses", 5)
 	local revs = autoFrame(m.body, 6)
 	vlist(revs, 6)
 	m.update = function(s)
-		for _, a in ipairs(adBtns) do
-			a.btn.BackgroundColor3 = (not s.adName and s.cash >= a.cost) and RGB(235, 130, 40) or GRAY
+		for i, a in ipairs(adBtns) do
+			-- ads cost their price or a few minutes of your income, whichever is more (the server sends today's price)
+			local cost = s.adCosts and s.adCosts[i] or a.cost
+			a.btn.Text = "📣 " .. a.ad.name .. "\n$" .. fmt(cost) .. "\n" .. a.ad.customers .. "x customers • " .. a.ad.dur .. "s"
+			a.btn.BackgroundColor3 = (not s.adName and s.cash >= cost) and RGB(235, 130, 40) or GRAY
 		end
 		adStatus.Text = s.adName and ("📣 " .. s.adName .. " running — " .. clock(s.adLeft) .. " left") or "No campaign running. Ads bring more customers (a Major campaign may unlock a secret...)"
 		clear(revs)

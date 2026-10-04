@@ -371,7 +371,10 @@ section("mega", function(ctx)
 	local incomeCap = F.incomePerSec(da) * 30
 	H.task.wait(92)
 	H.check(C.MEGA_STATE.active == nil, "the invasion ends when time runs out")
-	H.check(cashBefore - da.cash <= math.max(cashBefore * 0.031, incomeCap + 1) + F.incomePerSec(da) * 100, "the abduction is small and capped")
+	-- (rental upkeep keeps ticking during the 92 seconds too)
+	local upkeep = 0
+	for _, b in ipairs(da.props) do upkeep += F.rentalUpkeep(b) * 4 end
+	H.check(cashBefore - da.cash <= math.max(cashBefore * 0.031, incomeCap + 1) + F.incomePerSec(da) * 100 + upkeep, string.format("the abduction is small and capped (lost $%d of $%d, income $%d/s)", cashBefore - da.cash, cashBefore, F.incomePerSec(da)))
 	-- small events wait for mega events
 	F.startMega("festival")
 	H.task.wait(0.2)
@@ -408,7 +411,7 @@ section("mega", function(ctx)
 	local before2 = da.cash
 	local sa, sb = F.empireScore(da), F.empireScore(db)
 	F.endMega()
-	H.check(da.cash - before2 >= 19000, string.format("the bigger empire (Alice) wins the jackpot (scores %d vs %d, +%d)", sa, sb, da.cash - before2))
+	H.check(da.cash - before2 >= 20000 * C.ECONOMY.eventFloorScale - 1, string.format("the bigger empire (Alice) wins the jackpot (scores %d vs %d, +%d)", sa, sb, da.cash - before2))
 	-- robbery: robbers appear at businesses; stopping one pays the hero
 	F.startMega("robbery")
 	H.task.wait(3)
@@ -547,7 +550,7 @@ section("secrets", function(ctx)
 	for _, e in ipairs(T.remotesSince(mark, "Mega")) do if e.args[1].kind == "viral" then vmsg = e end end
 	H.check(vmsg and vmsg.dir == "s2all", "a viral moment is announced to the whole server")
 	H.check(da.followers > fol0 and da.rep > rep0, "followers and reputation jump")
-	H.check(F.customerRate(da, H.now()) >= math.min(3, rate0 * 2.9), "customers triple during the viral minute")
+	H.check(F.customerRate(da, H.now()) >= math.min(C.CFG.MAX_CUSTOMERS_PER_SEC, rate0 * 2.9), "customers triple during the viral minute (up to the cap)")
 	local shown = false
 	for _, d in ipairs(H.clientC.gui:GetDescendants()) do
 		if d.ClassName == "TextButton" and tostring(d.Text):find("Replay cam") and d.Visible then shown = true end

@@ -40,7 +40,7 @@ local function rootOf(plr)
 	return ch and ch:FindFirstChild("HumanoidRootPart")
 end
 -- rewards scale with each player's own income, with a floor so new players still get something
-local function reward(d, seconds, floor) return math.floor(math.max(floor, F.incomePerSec(d) * seconds)) end
+local function reward(d, seconds, floor) return math.floor(math.max(floor * C.ECONOMY.eventFloorScale, F.incomePerSec(d) * seconds)) end
 local function pay(plr, amount, rep, why)
 	local d = data[plr]
 	if not d or amount <= 0 then return end

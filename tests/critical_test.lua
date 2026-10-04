@@ -134,7 +134,7 @@ H.main(function()
 	H.section("3b. Race laps are validated on the server")
 	local rr = T.join("Racer", 606)
 	local drr = T.newGame(rr, 1, 1)
-	drr.rep, drr.cash = 500, 1e6
+	drr.rep, drr.cash = 500, 1e7
 	T.act(rr, "car", "spawn", "coupe")
 	H.task.wait(1)
 	local car = F.activeCar(rr)

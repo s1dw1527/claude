@@ -1,0 +1,34 @@
+  ...    30 min  earned $6.28B  income $7.38M/s  rep 6118  businesses 8  levels 80
+  ...    60 min  earned $21.45B  income $4.54M/s  rep 10873  businesses 8  levels 80
+  ...    91 min  earned $35.96B  income $4.54M/s  rep 15908  businesses 8  levels 80
+
+== casual player, no passes, 2 simulated hours ==
+     0.3m  First business upgrade (Lemonade Lv 2)                income then: $13/s
+     0.3m  Second business (Ice Cream Cart)                      income then: $13/s
+     0.6m  Lifetime earned $1K                                   income then: $57/s
+     1.2m  Lifetime earned $10K                                  income then: $141/s
+     3.0m  Lifetime earned $100K                                 income then: $111/s
+     3.0m  Reputation: LOCAL FAVORITE                            income then: $117/s
+     3.1m  First employee                                        income then: $165/s
+     3.1m  Tutorial complete                                     income then: $165/s
+     3.3m  4 businesses                                          income then: $844/s
+     4.6m  First luxury purchase (Sports Coupe, $120.0K)         income then: $3498/s
+     4.7m  Lifetime earned $1M                                   income then: $3498/s
+     4.9m  Reputation: HOTSPOT                                   income then: $3664/s
+     6.4m  First rental property                                 income then: $22.0K/s
+     7.6m  Lifetime earned $10M                                  income then: $21.9K/s
+    10.0m  Reputation: CITY ICON                                 income then: $48.4K/s
+    11.6m  Lifetime earned $100M                                 income then: $861.8K/s
+    17.7m  Reputation: EMPIRE                                    income then: $755.6K/s
+    17.7m  All 8 businesses open                                 income then: $797.4K/s
+    18.6m  Lifetime earned $1B                                   income then: $3.63M/s
+    38.6m  Lifetime earned $10B                                  income then: $3.67M/s
+    49.3m  Reputation: LEGENDARY DISTRICT                        income then: $3.79M/s
+
+  where the money came from (of $50.71B earned):
+    passive income    76.0%
+    customers         24.0%
+    rent               0.1%
+    tutorial           0.0%
+
+MILESTONES_JSON {"allBiz":{"label":"All 8 businesses open","t":17.7},"earned$100K":{"label":"Lifetime earned $100K","t":2.9},"earned$100M":{"label":"Lifetime earned $100M","t":11.6},"earned$10B":{"label":"Lifetime earned $10B","t":38.6},"earned$10K":{"label":"Lifetime earned $10K","t":1.1},"earned$10M":{"label":"Lifetime earned $10M","t":7.6},"earned$1B":{"label":"Lifetime earned $1B","t":18.6},"earned$1K":{"label":"Lifetime earned $1K","t":0.6},"earned$1M":{"label":"Lifetime earned $1M","t":4.6},"firstProp":{"label":"First rental property","t":6.3},"firstStaff":{"label":"First employee","t":3},"firstUpgrade":{"label":"First business upgrade (Lemonade Lv 2)","t":0.2},"fourBiz":{"label":"4 businesses","t":3.3},"luxuryCar":{"label":"First luxury purchase (Sports Coupe, $120.0K)","t":4.5},"secondBiz":{"label":"Second business (Ice Cream Cart)","t":0.2},"tier2":{"label":"Reputation: LOCAL FAVORITE","t":3},"tier3":{"label":"Reputation: HOTSPOT","t":4.9},"tier4":{"label":"Reputation: CITY ICON","t":9.9},"tier5":{"label":"Reputation: EMPIRE","t":17.6},"tier6":{"label":"Reputation: LEGENDARY DISTRICT","t":49.2},"tutorial":{"label":"Tutorial complete","t":3}}

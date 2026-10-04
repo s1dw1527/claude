@@ -52,10 +52,12 @@ local function findSpots(plr, d, root)
 			local dx, dz = root.Position.X - s.pos.X, root.Position.Z - s.pos.Z
 			if dx * dx + dz * dz < s.radius * s.radius and math.abs(root.Position.Y - s.pos.Y) < 16 then
 				d.found[s.key] = true
-				d.cash += s.cash
-				d.earned += s.cash
+				-- a lucky find: a few minutes of income (at least a tenth of the old flat prize), never a skip
+				local cash = math.max(math.floor(s.cash / 10), math.floor(F.incomePerSec(d) * C.ECONOMY.secretSeconds))
+				d.cash += cash
+				d.earned += cash
 				F.addRep(plr, s.rep)
-				R.Splash:FireClient(plr, s.icon .. " SECRET FOUND: " .. string.upper(s.name), s.text .. "  (+$" .. fmt(s.cash) .. ")", RGB(255, 225, 120))
+				R.Splash:FireClient(plr, s.icon .. " SECRET FOUND: " .. string.upper(s.name), s.text .. "  (+$" .. fmt(cash) .. ")", RGB(255, 225, 120))
 				burst(s.pos + V3(0, 4, 0), RGB(255, 225, 120), 120)
 				if s.relic and F.achieve then F.achieve(plr, "relic") end
 				F.checkCombos(plr, d)
@@ -321,7 +323,7 @@ local function buyLot(plr)
 	d.mystery[f.key] = (d.mystery[f.key] or 0) + 1
 	local extra = ""
 	if f.cashSeconds then
-		local cash = math.max(price * 2, math.floor(F.incomePerSec(d) * f.cashSeconds))
+		local cash = math.max(math.floor(price * 1.3), math.floor(F.incomePerSec(d) * f.cashSeconds))
 		d.cash += cash
 		d.earned += cash
 		extra = "  +$" .. fmt(cash)

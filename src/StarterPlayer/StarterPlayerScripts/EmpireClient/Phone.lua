@@ -62,26 +62,49 @@ function C.phoneView(name)
 	end
 	if views[name] and views[name].refresh then views[name].refresh() end
 end
+-- the phone is 600px tall: shrink it on short screens (phones in landscape) so it always fits
+local function fitScale()
+	local cam = game:GetService("Workspace").CurrentCamera
+	local h = cam and cam.ViewportSize.Y or 800
+	return math.clamp((h - 130) / 600, 0.5, 1)
+end
 function C.togglePhone(force)
 	local open = force
 	if open == nil then open = not phone.Visible end
 	if open then
 		C.closeModals()
 		phone.Visible = true
-		sc.Scale = 0.7
-		tween(sc, 0.25, {Scale = 1}, Enum.EasingStyle.Back)
+		local fit = fitScale()
+		sc.Scale = 0.7 * fit
+		tween(sc, 0.25, {Scale = fit}, Enum.EasingStyle.Back)
 		C.phoneView("home")
-		act("tut", "phone")
 	else
 		phone.Visible = false
 	end
 	play(SND.click)
 end
+-- tell the server whenever the phone opens or closes, however it happened (button, P, controller, an app
+-- closing it, photo mode). The tutorial's "open your phone" step checks this, so it can't be missed.
+local function reportPhone()
+	if C.S and C.S.tut then act("tut", "phone", phone.Visible) end
+end
+phone:GetPropertyChangedSignal("Visible"):Connect(reportPhone)
+C.reportPhone = reportPhone
+C.phoneOpen = function() return phone.Visible end
 pbtn.MouseButton1Click:Connect(function() C.togglePhone() end)
 UserInputService.InputBegan:Connect(function(input, processed)
-	if processed then return end
-	if input.KeyCode == Enum.KeyCode.P and C.gui.Enabled then C.togglePhone() end
+	if processed or not C.gui.Enabled then return end
+	-- keyboard: P   •   controller: Y
+	if input.KeyCode == Enum.KeyCode.P or input.KeyCode == Enum.KeyCode.ButtonY then C.togglePhone() end
 end)
+-- touch screens: Roblox's jump button sits in the bottom-right corner, right on top of the phone button.
+-- Lift the phone, settings and camera buttons above it so a tap opens the phone instead of jumping.
+if UserInputService.TouchEnabled then
+	pbtn.Position = UDim2.new(1, -16, 1, -170)
+	gear.Position = UDim2.new(1, -98, 1, -170)
+	phone.Position = UDim2.new(1, -16, 1, -16)
+	C.touchLift = 154
+end
 
 -- ===== HOME SCREEN =====
 do

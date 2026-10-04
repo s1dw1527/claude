@@ -142,7 +142,7 @@ end
 
 -- ===== logic =====
 local pending, cool = {}, {}
-function F.funFee(d, mult) return math.max(100, math.floor(F.incomePerSec(d) * mult)) end
+function F.funFee(d, mult) return math.max(C.ECONOMY.funFeeFloor, math.floor(F.incomePerSec(d) * mult)) end
 local function check(plr)
 	local d = data[plr]
 	if not d then return nil end
@@ -195,7 +195,7 @@ function F.finishMinigame(plr, token, score)
 		w = {t0 = t, profit = 0}
 		d.funProfit = w
 	end
-	local cap = math.max(2000, F.incomePerSec(d) * C.MINIGAME_PROFIT_CAP)
+	local cap = math.max(C.ECONOMY.minigameCapFloor, F.incomePerSec(d) * C.MINIGAME_PROFIT_CAP)
 	local profit = prize - p.fee
 	if profit > 0 and w.profit + profit > cap then
 		profit = math.max(0, cap - w.profit)

@@ -5,26 +5,75 @@ local RGB = Color3.fromRGB
 C.CFG = {
 	MAX_PLAYERS = 4,
 	SAVE_SLOTS = 3,
-	START_CASH = 100,
-	BASE_INCOME = 1,
 	MAX_LEVEL = 10,
 	EVENT_INTERVAL = 60,
 	WAR_INTERVAL = 600,          -- Corner War every 10 min (1200 = 20 min)
 	WAR_BUFF_TIME = 300,
-	SABOTAGE_COST = 1000, SABOTAGE_TIME = 10, SABOTAGE_COOLDOWN = 45,
+	SABOTAGE_TIME = 10, SABOTAGE_COOLDOWN = 45,
 	DAY_SPEED = 0.01,
 	SAVE_ENABLED = true,
 	DATASTORE = "CornerEmpire_v5",   -- keep this name: it's where everyone's existing saves live
 	RICH_START_BONUS = 5000,
-	MAX_CUSTOMERS_PER_SEC = 3,
-	CRASH_DISCOUNT = 0.7,
 	RENT_INTERVAL = 30,
 	STOCK_SELL_FEE = 0.10,       -- 10% fee on every share sale, so buy/sell loops can't create money
 	MAX_SHARES_PER_ORDER = 100000,
 	ACTION_RATE = 12,            -- button presses per second each player may send (burst below)
 	ACTION_BURST = 30,
 	LOAD_RETRIES = 3,            -- DataStore read attempts before a save is treated as unavailable
+	TUTORIAL_DEBUG = true,       -- Studio only: print why a tutorial step hasn't advanced yet (Output window)
 }
+
+-- ===== ECONOMY SETTINGS (v7) =====
+-- Every balance knob in one place. Prices and incomes of individual businesses, homes, cars, land and
+-- rentals live in their own tables below; this section holds the rules that connect them.
+-- tests/economy_sim.lua plays the real game with these numbers and prints how long each milestone takes.
+C.ECONOMY = {
+	startCash = 100,            -- a new save starts with this much
+	tutorialReward = 250,       -- each tutorial step pays this x the step number, once per save ($7,000 in total)
+	baseIncome = 1,             -- the empty corner earns $1/s, so nobody is ever completely stuck
+	-- businesses
+	upgradeGrowth = 1.6,        -- every level costs 60% more than the one before (income grows linearly)
+	crashDiscount = 0.7,        -- upgrades cost 30% less during a Market Crash
+	chainIncome = 10,           -- each extra location adds this many levels' worth of income
+	chainCost = {3, 8, 20},     -- location 2/3/4 cost = the business's Lv 10 upgrade price x this
+	staffPerStar = 0.03,        -- a worker adds +3% to their business per star (was 4%)
+	managerPerStar = 0.015,     -- a manager adds +1.5% to everything per star (was 2%)
+	-- customers (each one pays a few seconds of that business's income)
+	customerSale = 1.5,         -- seconds of income per customer (was 4)
+	customerBase = 0.12, customerPerLevel = 0.03, maxCustomers = 2.5,   -- customers per second
+	reviewRep = 0.25,           -- reputation from a good review (x1 for 4 stars, x2 for 5). The tier thresholds are
+	                            -- unchanged so existing saves keep their tier; reputation is just earned more slowly
+	-- empire-wide multipliers
+	repTierBonus = 0.04,        -- +4% income per reputation tier above the first (was 5%)
+	eraBonus = 0.1,             -- +10% income per City Era (was 20%)
+	vipBonus = 0.25,            -- VIP adds +25% on top of the money pass (added, not multiplied)
+	districtBoostOnce = true,   -- a district's boost counts once, however many of its lots you own (was per lot)
+	-- costs that keep a running empire honest
+	repairSeconds = 30, repairFloor = 25,      -- fixing a problem costs 30s of that business's income (min $25)
+	sabotageCost = 1000, sabotageSeconds = 20, -- freezing a rival costs $1,000 or 20s of your income, whichever is more
+	adSeconds = {60, 120, 240},                -- ads cost their listed price or this many seconds of income, whichever is more
+	-- rewards outside the businesses (all scale with your income, so they stay meaningful but never skip ahead)
+	deliverySeconds = 40, deliveryFloor = 60,  -- a delivery pays ~40s of income (more for far drops)
+	minigameCapSeconds = 150, minigameCapFloor = 300,  -- Fun Park profit per 10 minutes (was 900s of income, min $2,000)
+	funFeeFloor = 20,                          -- smallest Fun Park entry fee (was $100)
+	eventFloorScale = 0.15,                    -- mega event rewards: the minimum payout is 15% of the old flat amounts
+	investorSeconds = 90, investorFloor = 150, -- Angel Investor gift to the smallest empire (was 120s, min $2,500)
+	warSeconds = 60, warMinPlayers = 2,        -- Corner War prizes: 60s of income per win, only with 2+ empires playing
+	richStartWarSeconds = 30, richStartWarMax = 5000, -- Rich Start's war bonus: 30s of income, up to $5,000 (was a flat $5,000)
+	secretSeconds = 180,                       -- hidden spots pay 180s of income (min = a tenth of their old flat amount)
+	stockPositionSeconds = 1200,               -- you can hold at most 20 minutes of YOUR income in any one company's shares
+	-- the Empire Spire (City Eras)
+	spireStages = {25000, 150000, 750000, 3000000, 10000000},
+	eraGoalBase = 60000000, eraGoalGrowth = 4, -- every era after that: $60M, $240M, $960M...
+	-- rebirth
+	rebirthBase = 250000000, rebirthStep = 0.5,   -- rebirth needs $250M cash (+50% per rebirth)
+	rebirthTycoonCash = 250000,                    -- the 10-rebirth Tycoon perk's starting cash (was $25K)
+}
+local E = C.ECONOMY
+
+-- older names for some economy values (kept so every script reads the same number)
+C.CFG.START_CASH, C.CFG.BASE_INCOME, C.CFG.CRASH_DISCOUNT = E.startCash, E.baseIncome, E.crashDiscount
+C.CFG.MAX_CUSTOMERS_PER_SEC, C.CFG.SABOTAGE_COST = E.maxCustomers, E.sabotageCost
 
 -- ===== REPUTATION TIERS + what each one unlocks =====
 C.REP_TIERS = {
@@ -41,21 +90,21 @@ C.FEATURE_NAMES = {staff = "Staff", cars = "Cars", deliveries = "Deliveries", fu
 
 -- ===== BUSINESSES =====
 C.BUSINESSES = {
-	{key = "lemonade", name = "Lemonade",  cost = 25,     income = 2,    unlock = 1, icon = "🍋", color = RGB(255, 214, 60),  wall = RGB(255, 246, 214), roof = RGB(255, 190, 40),  thing = "lemonade",
+	{key = "lemonade", name = "Lemonade",  cost = 40,     income = 1.5,    unlock = 1, icon = "🍋", color = RGB(255, 214, 60),  wall = RGB(255, 246, 214), roof = RGB(255, 190, 40),  thing = "lemonade",
 		tiers = {"Lemonade Stand", "Lemonade Shop", "Lemonade Café", "Lemonade Factory", "Lemonade Corporation", "🍋 LEMON EMPIRE HQ"}},
-	{key = "icecream", name = "Ice Cream", cost = 120,    income = 6,    unlock = 1, icon = "🍦", color = RGB(255, 150, 200), wall = RGB(255, 232, 242), roof = RGB(120, 220, 200), thing = "ice cream",
+	{key = "icecream", name = "Ice Cream", cost = 600,    income = 6,    unlock = 1, icon = "🍦", color = RGB(255, 150, 200), wall = RGB(255, 232, 242), roof = RGB(120, 220, 200), thing = "ice cream",
 		tiers = {"Ice Cream Cart", "Ice Cream Parlor", "Gelato House", "Creamery", "Ice Cream Tower", "🍦 FROZEN EMPIRE HQ"}},
-	{key = "bakery",   name = "Bakery",    cost = 500,    income = 18,   unlock = 2, icon = "🥐", color = RGB(235, 150, 80),  wall = RGB(176, 92, 62),   roof = RGB(90, 60, 50),    thing = "croissants",
+	{key = "bakery",   name = "Bakery",    cost = 7500,    income = 25,   unlock = 2, icon = "🥐", color = RGB(235, 150, 80),  wall = RGB(176, 92, 62),   roof = RGB(90, 60, 50),    thing = "croissants",
 		tiers = {"Bread Stall", "Bakery", "Patisserie", "Grand Bakery", "Bakery Corporation", "🥐 CROISSANT CASTLE"}},
-	{key = "coffee",   name = "Coffee",    cost = 2000,   income = 60,   unlock = 2, icon = "☕", color = RGB(150, 100, 70),  wall = RGB(60, 70, 64),    roof = RGB(40, 44, 42),    thing = "coffee",
+	{key = "coffee",   name = "Coffee",    cost = 150000,   income = 90,   unlock = 2, icon = "☕", color = RGB(150, 100, 70),  wall = RGB(60, 70, 64),    roof = RGB(40, 44, 42),    thing = "coffee",
 		tiers = {"Coffee Cart", "Coffee Shop", "Coffee House", "Roastery", "Coffee Corporation", "☕ BEAN EMPIRE HQ"}},
-	{key = "pizza",    name = "Pizza",     cost = 7000,   income = 180,  unlock = 3, icon = "🍕", color = RGB(230, 70, 50),   wall = RGB(245, 230, 205), roof = RGB(40, 130, 70),   thing = "pizza",
+	{key = "pizza",    name = "Pizza",     cost = 2000000,   income = 330,  unlock = 3, icon = "🍕", color = RGB(230, 70, 50),   wall = RGB(245, 230, 205), roof = RGB(40, 130, 70),   thing = "pizza",
 		tiers = {"Pizza Window", "Pizza Place", "Pizzeria", "Pizza Palace", "Pizza Corporation", "🍕 PIZZA DOME"}},
-	{key = "arcade",   name = "Arcade",    cost = 25000,  income = 550,  unlock = 3, icon = "🕹️", color = RGB(150, 80, 255),  wall = RGB(38, 28, 66),    roof = RGB(255, 60, 180),  thing = "games",
+	{key = "arcade",   name = "Arcade",    cost = 20000000,  income = 1100,  unlock = 3, icon = "🕹️", color = RGB(150, 80, 255),  wall = RGB(38, 28, 66),    roof = RGB(255, 60, 180),  thing = "games",
 		tiers = {"Game Corner", "Arcade", "Mega Arcade", "Game Center", "eSports Arena", "🕹️ GAMING CITADEL"}},
-	{key = "tech",     name = "Tech",      cost = 90000,  income = 1700, unlock = 4, icon = "💻", color = RGB(70, 150, 255),  wall = RGB(225, 232, 244), roof = RGB(40, 42, 52),    thing = "app",
+	{key = "tech",     name = "Tech",      cost = 150000000,  income = 4200, unlock = 4, icon = "💻", color = RGB(70, 150, 255),  wall = RGB(225, 232, 244), roof = RGB(40, 42, 52),    thing = "app",
 		tiers = {"Garage Startup", "Tech Startup", "Tech Company", "Tech Campus", "Tech Giant", "💻 SILICON SPIRE"}},
-	{key = "factory",  name = "Factory",   cost = 350000, income = 5500, unlock = 5, icon = "🏭", color = RGB(170, 175, 190), wall = RGB(150, 84, 64),   roof = RGB(90, 94, 102),   thing = "products",
+	{key = "factory",  name = "Factory",   cost = 600000000, income = 14000, unlock = 5, icon = "🏭", color = RGB(170, 175, 190), wall = RGB(150, 84, 64),   roof = RGB(90, 94, 102),   thing = "products",
 		tiers = {"Workshop", "Factory", "Big Factory", "Industrial Plant", "Mega Factory", "🏭 INDUSTRIAL TITAN"}},
 }
 C.BIZ = {}
@@ -63,7 +112,7 @@ for i, b in ipairs(C.BUSINESSES) do
 	b.index = i
 	C.BIZ[b.key] = b
 end
-C.CHAINS = {{name = "Downtown", mult = 40}, {name = "Airport", mult = 120}, {name = "Luxury", mult = 350}}
+C.CHAINS = {{name = "Downtown", mult = E.chainCost[1]}, {name = "Airport", mult = E.chainCost[2]}, {name = "Luxury", mult = E.chainCost[3]}}   -- x the Lv 10 price
 
 C.COMBOS = {
 	{key = "cafebakery",  name = "Café Bakery",         icon = "☕🥐", needs = {"bakery", "coffee"},     lvl = 3, mult = 1.25, color = RGB(200, 140, 90)},
@@ -133,25 +182,25 @@ end
 
 -- ===== BUSINESS LAND (districts) =====
 C.DISTRICTS = {
-	{key = "downtown",   name = "Downtown",        icon = "🏙️", tier = 2, cost = 20000,   income = 80,    color = RGB(80, 140, 235), boost = {coffee = 1.15, tech = 1.15}, boostText = "Coffee & Tech +15%"},
-	{key = "industrial", name = "Industrial Zone", icon = "🏭", tier = 3, cost = 150000,  income = 500,   color = RGB(235, 165, 50), boost = {factory = 1.25, bakery = 1.1}, boostText = "Factory +25%, Bakery +10%"},
-	{key = "beach",      name = "Beach District",  icon = "🏖️", tier = 4, cost = 800000,  income = 2500,  color = RGB(80, 210, 220), boost = {lemonade = 1.5, icecream = 1.5}, boostText = "Lemonade & Ice Cream +50%"},
-	{key = "luxury",     name = "Luxury Hills",    icon = "💎", tier = 5, cost = 4000000, income = 12000, color = RGB(190, 110, 255), boost = {all = 1.1}, boostText = "ALL income +10%"},
+	{key = "downtown",   name = "Downtown",        icon = "🏙️", tier = 2, cost = 100000,   income = 60,    color = RGB(80, 140, 235), boost = {coffee = 1.15, tech = 1.15}, boostText = "Coffee & Tech +15%"},
+	{key = "industrial", name = "Industrial Zone", icon = "🏭", tier = 3, cost = 2500000,  income = 1000,   color = RGB(235, 165, 50), boost = {factory = 1.25, bakery = 1.1}, boostText = "Factory +25%, Bakery +10%"},
+	{key = "beach",      name = "Beach District",  icon = "🏖️", tier = 4, cost = 40000000,  income = 10000,  color = RGB(80, 210, 220), boost = {lemonade = 1.5, icecream = 1.5}, boostText = "Lemonade & Ice Cream +50%"},
+	{key = "luxury",     name = "Luxury Hills",    icon = "💎", tier = 5, cost = 600000000, income = 100000, color = RGB(190, 110, 255), boost = {all = 1.1}, boostText = "ALL income +10%"},
 }
 C.DISTRICT = {}
 for _, d in ipairs(C.DISTRICTS) do C.DISTRICT[d.key] = d end
 
 -- ===== HOMES: 5 neighborhoods, from poor to rich =====
 C.HOODS = {
-	{key = "oldtown", name = "Old Town",        icon = "🏚️", tier = 1, price = 1500,    build = 400,    mult = 1,   style = "cottage",
+	{key = "oldtown", name = "Old Town",        icon = "🏚️", tier = 1, price = 1500,    build = 500,    mult = 1,   style = "cottage",
 		perk = "Street Smart: 30% fewer business problems", color = RGB(170, 120, 90)},
-	{key = "suburbs", name = "Maple Suburbs",   icon = "🏡", tier = 1, price = 8000,    build = 2500,   mult = 1.5, style = "bungalow",
+	{key = "suburbs", name = "Maple Suburbs",   icon = "🏡", tier = 1, price = 20000,    build = 6000,   mult = 1.5, style = "bungalow",
 		perk = "Family Friendly: +10% customers", color = RGB(110, 180, 110)},
-	{key = "ocean",   name = "Oceanfront",      icon = "🌊", tier = 4, price = 150000,  build = 20000,  mult = 2.5, style = "beach",
+	{key = "ocean",   name = "Oceanfront",      icon = "🌊", tier = 4, price = 2500000,  build = 400000,  mult = 2.5, style = "beach",
 		perk = "Beach Vibes: Lemonade & Ice Cream +25%", color = RGB(80, 200, 230)},
-	{key = "hills",   name = "Hillside",        icon = "⛰️", tier = 5, price = 400000,  build = 60000,  mult = 3,   style = "modern",
+	{key = "hills",   name = "Hillside",        icon = "⛰️", tier = 5, price = 25000000,  build = 4000000,  mult = 3,   style = "modern",
 		perk = "Great View: +15% reputation gains", color = RGB(120, 160, 90)},
-	{key = "rich",    name = "Millionaire Row", icon = "💎", tier = 6, price = 2500000, build = 300000, mult = 4,   style = "mansion",
+	{key = "rich",    name = "Millionaire Row", icon = "💎", tier = 6, price = 250000000, build = 40000000, mult = 4,   style = "mansion",
 		perk = "Old Money: +15% ALL income", color = RGB(230, 190, 90)},
 }
 C.HOOD = {}
@@ -165,10 +214,11 @@ C.STARTER_HOMES = {
 
 -- ===== PROPERTY MANAGEMENT =====
 C.RENTALS = {
-	{key = "walkup",  name = "Walk-Up",           units = 4,  floors = 2, cost = 30000,   color = RGB(170, 90, 70)},
-	{key = "complex", name = "Apartment Complex", units = 8,  floors = 4, cost = 200000,  color = RGB(225, 210, 180)},
-	{key = "tower",   name = "Luxury Tower",      units = 12, floors = 6, cost = 1500000, color = RGB(80, 110, 150)},
+	{key = "walkup",  name = "Walk-Up",           units = 4,  floors = 2, cost = 300000, payback = 1800,   color = RGB(170, 90, 70)},
+	{key = "complex", name = "Apartment Complex", units = 8,  floors = 4, cost = 3000000, payback = 2700,  color = RGB(225, 210, 180)},
+	{key = "tower",   name = "Luxury Tower",      units = 12, floors = 6, cost = 40000000, payback = 4000, color = RGB(80, 110, 150)},
 }
+-- payback = seconds of full-occupancy rent to earn back the building's price (v6 was 1250s / 625s / 417s)
 C.RENTAL = {}
 for _, r in ipairs(C.RENTALS) do C.RENTAL[r.key] = r end
 -- building upgrades: floors = extra floors (2 units each), rent = rent multiplier, cost = price as a share of the building's base cost
@@ -222,9 +272,9 @@ C.STAFF_ROLES = {
 	bakery = {role = "Chef", icon = "👨‍🍳"}, coffee = {role = "Barista", icon = "☕"},
 	pizza = {role = "Pizza Chef", icon = "🍕"}, arcade = {role = "Game Host", icon = "🕹️"},
 	tech = {role = "Developer", icon = "🧑‍💻"}, factory = {role = "Warehouse Worker", icon = "📦"},
-	manager = {role = "Manager", icon = "💰", cost = 40000, desc = "+2% ALL income per star"},
-	marketer = {role = "Marketer", icon = "📣", cost = 12000, desc = "+6% customers per star"},
-	engineer = {role = "Engineer", icon = "🔧", cost = 6000, desc = "Fewer problems, cheaper repairs"},
+	manager = {role = "Manager", icon = "💰", cost = 500000, desc = "+1.5% ALL income per star"},
+	marketer = {role = "Marketer", icon = "📣", cost = 120000, desc = "+6% customers per star"},
+	engineer = {role = "Engineer", icon = "🔧", cost = 30000, desc = "Fewer problems, cheaper repairs"},
 }
 C.STAFF_ORDER = {"lemonade", "icecream", "bakery", "coffee", "pizza", "arcade", "tech", "factory", "manager", "marketer", "engineer"}
 C.NAMES = {"Alex", "Sam", "Jordan", "Riley", "Casey", "Morgan", "Taylor", "Jamie", "Avery", "Quinn", "Maya", "Leo", "Zoe", "Omar", "Priya", "Kai", "Nina", "Luca", "Ivy", "Theo", "Rosa", "Ben", "Aria", "Milo"}
@@ -280,13 +330,13 @@ C.SKINS = {
 	{key = "cyber", name = "Cyber Neon", trophies = 0, era = 5, color = RGB(255, 60, 220)},   -- for everyone who helped reach Cyber City
 }
 C.ADS = {
-	{key = "small", name = "Small campaign", cost = 2000, customers = 1.5, income = 1, dur = 60},
-	{key = "major", name = "Major campaign", cost = 10000, customers = 2.5, income = 1.1, dur = 90, marketing = true},
-	{key = "citywide", name = "Citywide campaign", cost = 100000, customers = 4, income = 1.3, dur = 120, marketing = true},
+	{key = "small", name = "Small campaign", cost = 5000, customers = 1.5, income = 1, dur = 60},
+	{key = "major", name = "Major campaign", cost = 60000, customers = 2.5, income = 1.1, dur = 90, marketing = true},
+	{key = "citywide", name = "Citywide campaign", cost = 2000000, customers = 4, income = 1.3, dur = 120, marketing = true},
 }
 C.SPIRE_STAGES = {
-	{name = "🏗️ Foundation", cost = 50000}, {name = "🏢 Lower Floors", cost = 300000}, {name = "🏙️ Tower", cost = 1500000},
-	{name = "🌟 Crown", cost = 6000000}, {name = "🚀 City Beacon", cost = 20000000},
+	{name = "🏗️ Foundation", cost = E.spireStages[1]}, {name = "🏢 Lower Floors", cost = E.spireStages[2]}, {name = "🏙️ Tower", cost = E.spireStages[3]},
+	{name = "🌟 Crown", cost = E.spireStages[4]}, {name = "🚀 City Beacon", cost = E.spireStages[5]},
 }
 
 -- ===== CITY ERAS: finishing the Empire Spire moves the whole server into the next era =====
@@ -334,7 +384,7 @@ C.WEEKLY_REWARD = {3, 2, 1}   -- trophies for 1st/2nd/3rd in each board (the fea
 C.MYSTERY = {first = 360, gapMin = 720, gapMax = 1200, life = 300, priceSeconds = 150, minPrice = 5000, tier = 2}
 C.MYSTERY_FINDS = {
 	{key = "arcade",   name = "Secret Arcade",           icon = "🕹️", weight = 30, rarity = "Common",    perk = {all = 1.02},       perkText = "+2% ALL income"},
-	{key = "bank",     name = "Bank Vault",              icon = "🏦", weight = 24, rarity = "Common",    cashSeconds = 300,        perkText = "a vault full of cash"},
+	{key = "bank",     name = "Bank Vault",              icon = "🏦", weight = 24, rarity = "Common",    cashSeconds = 240,        perkText = "a vault full of cash"},
 	{key = "lab",      name = "Research Lab",            icon = "🔬", weight = 18, rarity = "Uncommon",  perk = {all = 1.04},       perkText = "+4% ALL income"},
 	{key = "stadium",  name = "Stadium",                 icon = "🏟️", weight = 12, rarity = "Uncommon",  perk = {customers = 1.08}, perkText = "+8% customers"},
 	{key = "studio",   name = "Movie Studio Backlot",    icon = "🎬", weight = 8,  rarity = "Rare",      followers = 300, trophies = 1, perkText = "+300 followers and a trophy"},
@@ -344,10 +394,10 @@ C.MYSTERY_FINDS = {
 
 -- ===== REBIRTH =====
 C.REBIRTH = {
-	base = 1000000, step = 0.6,        -- cost = base * (1 + step * rebirths)
+	base = E.rebirthBase, step = E.rebirthStep,   -- cost = base * (1 + step * rebirths)
 	incomePer = 0.1,                    -- +10% income per rebirth (permanent)
 	perks = {
-		{at = 10,  name = "Tycoon", icon = "💼", desc = "Start every rebirth with $25K and keep your staff"},
+		{at = 10,  name = "Tycoon", icon = "💼", desc = "Start every rebirth with $250K and keep your staff"},
 		{at = 50,  name = "Mogul",  icon = "🎩", desc = "Businesses restart at Level 3, problems fix themselves, 1.5x customers"},
 		{at = 100, name = "Legend", icon = "👑", desc = "x2 ALL income, the Legend Hypercar and a golden aura"},
 	},
@@ -360,8 +410,8 @@ C.PASSES = {
 	{key = "goldcar",   id = 0, price = 399, icon = "🏎️", name = "Golden Supercar", desc = "Unlock the golden supercar."},
 	{key = "nitro",     id = 0, price = 79,  icon = "🔥", name = "Nitro Boost",     desc = "Hold SHIFT for nitro in any car, and run faster."},
 	{key = "shield",    id = 0, price = 49,  icon = "🛡️", name = "Freeze Shield",   desc = "Rivals can't freeze your income."},
-	{key = "richstart", id = 0, price = 59,  icon = "🎁", name = "Rich Start",      desc = "+$5,000 when you start a save (once per save) and after every Corner War."},
-	{key = "vip",       id = 0, price = 149, icon = "👑", name = "VIP",             desc = "+25% income and a gold VIP tag."},
+	{key = "richstart", id = 0, price = 59,  icon = "🎁", name = "Rich Start",      desc = "+$5,000 when you start a save (once per save), plus a bonus after every Corner War (30s of income, up to $5,000)."},
+	{key = "vip",       id = 0, price = 149, icon = "👑", name = "VIP",             desc = "+25% income (added on top of any money pass) and a gold VIP tag."},
 }
 
 -- ===== CARS (realistic part-built bodies) =====
@@ -369,13 +419,13 @@ C.PASSES = {
 -- L/W = size, H = body height, clear = ground clearance, wheel = wheel size, roof = cabin height, cab = cabin length, cabZ = cabin offset (+ = rear)
 C.CARS = {
 	{key = "moped",  name = "Moped",           price = 800,    speed = 45,  turn = 2.8, grip = 7.5, drift = 0.55,  color = RGB(90, 220, 140),  style = "moped",  L = 6,  W = 2.2, H = 1.2, clear = 1.2, wheel = 2},
-	{key = "hatch",  name = "City Hatch",      price = 2500,   speed = 52,  turn = 2.3, grip = 6, drift = 1.0,  color = RGB(70, 140, 235),  style = "hatch",  L = 13, W = 6.2, H = 2.4, clear = 1.0, wheel = 2.7, roof = 3.0, cab = 6.5, cabZ = 1.2},
-	{key = "sedan",  name = "Sedan LX",        price = 15000,  speed = 60,  turn = 2.1, grip = 6.5, drift = 0.85,  color = RGB(236, 236, 240), style = "sedan",  L = 15.5, W = 6.6, H = 2.3, clear = 1.0, wheel = 2.8, roof = 3.0, cab = 7, cabZ = 0.4},
-	{key = "van",    name = "Delivery Van",    price = 20000,  speed = 52,  turn = 1.9, grip = 5, drift = 0.75,  color = RGB(245, 245, 245), style = "van",    L = 17, W = 7,   H = 2.5, clear = 1.2, wheel = 3.0, roof = 4.3, cab = 12, cabZ = 2.2, delivery = true},
-	{key = "suv",    name = "Trail SUV",       price = 45000,  speed = 58,  turn = 2.0, grip = 5.5, drift = 0.8,  color = RGB(60, 90, 70),    style = "suv",    L = 15.5, W = 7, H = 2.8, clear = 1.7, wheel = 3.4, roof = 3.1, cab = 9, cabZ = 1.4},
-	{key = "truck",  name = "Monster Truck",   price = 60000,  speed = 56,  turn = 1.8, grip = 4.5, drift = 0.95,  color = RGB(220, 60, 60),   style = "pickup", L = 16, W = 7.6, H = 2.8, clear = 3.4, wheel = 5.4, roof = 3.0, cab = 5.5, cabZ = -1.5},
-	{key = "coupe",  name = "Sports Coupe",    price = 120000, speed = 82,  turn = 2.4, grip = 6, drift = 1.35,  color = RGB(255, 130, 30),  style = "coupe",  L = 15, W = 6.8, H = 2.0, clear = 0.8, wheel = 2.7, roof = 2.6, cab = 5.6, cabZ = 1.4},
-	{key = "hyper",  name = "Hyper Car",       price = 400000, speed = 104, turn = 2.6, grip = 7, drift = 1.2,  color = RGB(150, 60, 255),  style = "hyper",  L = 16, W = 7.2, H = 1.8, clear = 0.7, wheel = 2.7, roof = 2.4, cab = 5, cabZ = -0.4, glow = RGB(170, 90, 255)},
+	{key = "hatch",  name = "City Hatch",      price = 6000,   speed = 52,  turn = 2.3, grip = 6, drift = 1.0,  color = RGB(70, 140, 235),  style = "hatch",  L = 13, W = 6.2, H = 2.4, clear = 1.0, wheel = 2.7, roof = 3.0, cab = 6.5, cabZ = 1.2},
+	{key = "sedan",  name = "Sedan LX",        price = 40000,  speed = 60,  turn = 2.1, grip = 6.5, drift = 0.85,  color = RGB(236, 236, 240), style = "sedan",  L = 15.5, W = 6.6, H = 2.3, clear = 1.0, wheel = 2.8, roof = 3.0, cab = 7, cabZ = 0.4},
+	{key = "van",    name = "Delivery Van",    price = 60000,  speed = 52,  turn = 1.9, grip = 5, drift = 0.75,  color = RGB(245, 245, 245), style = "van",    L = 17, W = 7,   H = 2.5, clear = 1.2, wheel = 3.0, roof = 4.3, cab = 12, cabZ = 2.2, delivery = true},
+	{key = "suv",    name = "Trail SUV",       price = 250000,  speed = 58,  turn = 2.0, grip = 5.5, drift = 0.8,  color = RGB(60, 90, 70),    style = "suv",    L = 15.5, W = 7, H = 2.8, clear = 1.7, wheel = 3.4, roof = 3.1, cab = 9, cabZ = 1.4},
+	{key = "truck",  name = "Monster Truck",   price = 400000,  speed = 56,  turn = 1.8, grip = 4.5, drift = 0.95,  color = RGB(220, 60, 60),   style = "pickup", L = 16, W = 7.6, H = 2.8, clear = 3.4, wheel = 5.4, roof = 3.0, cab = 5.5, cabZ = -1.5},
+	{key = "coupe",  name = "Sports Coupe",    price = 2500000, speed = 82,  turn = 2.4, grip = 6, drift = 1.35,  color = RGB(255, 130, 30),  style = "coupe",  L = 15, W = 6.8, H = 2.0, clear = 0.8, wheel = 2.7, roof = 2.6, cab = 5.6, cabZ = 1.4},
+	{key = "hyper",  name = "Hyper Car",       price = 50000000, speed = 104, turn = 2.6, grip = 7, drift = 1.2,  color = RGB(150, 60, 255),  style = "hyper",  L = 16, W = 7.2, H = 1.8, clear = 0.7, wheel = 2.7, roof = 2.4, cab = 5, cabZ = -0.4, glow = RGB(170, 90, 255)},
 	{key = "golden", name = "Golden Supercar", pass = "goldcar", speed = 116, turn = 2.7, grip = 7, drift = 1.25,  color = RGB(255, 200, 50), style = "hyper", L = 16, W = 7.2, H = 1.8, clear = 0.7, wheel = 2.7, roof = 2.4, cab = 5, cabZ = -0.4, gold = true, glow = RGB(255, 210, 80)},
 	{key = "legend", name = "Legend Hypercar", rebirths = 100, speed = 132, turn = 2.8, grip = 7.5, drift = 1.3,  color = RGB(20, 20, 26), style = "hyper", L = 16.5, W = 7.4, H = 1.8, clear = 0.7, wheel = 2.8, roof = 2.4, cab = 5, cabZ = -0.4, glow = RGB(255, 200, 60)},
 }
@@ -390,7 +440,7 @@ C.MINIGAMES = {
 	rush   = {name = "Lemonade Rush", icon = "🍋", fee = 20, minTime = 29, maxTime = 90,  maxScore = 30, perPoint = 0.9},
 	memory = {name = "Memory Match",  icon = "🧠", fee = 15, minTime = 6,  maxTime = 120, maxScore = 3,  perPoint = 2},
 }
-C.MINIGAME_PROFIT_CAP = 900   -- max mini-game profit per 10 minutes, in seconds of your income
+C.MINIGAME_PROFIT_CAP = E.minigameCapSeconds   -- max mini-game profit per 10 minutes, in seconds of your income
 C.FERRIS = {fee = 10, buff = 0.1, buffTime = 180}
 C.FIREWORKS = {fee = 30, cooldown = 60}
 C.RACE = {fee = 20, par = 42, maxTime = 300}
@@ -400,7 +450,7 @@ C.TUTORIAL = {
 	{text = "Welcome to Corner Empire! 🍋 Tap BUY on the Lemonade Stand in your business panel.", target = "plot"},
 	{text = "Nice! Upgrade the Lemonade Stand to Level 3 — watch it transform.", target = "plot"},
 	{text = "Buy the Ice Cream Cart. More businesses = more customers!", target = "plot"},
-	{text = "Open your 📱 Phone (press P or tap the phone button). Everything lives in there.", target = nil},
+	{text = "Open your 📱 Phone: press P, tap the 📱 button, or press Y on a controller. Everything lives in there.", target = nil},
 	{text = "Visit your home! Walk there, or use Phone → Map → My Home.", target = "home"},
 	{text = "Customers leave reviews. Reach LOCAL FAVORITE reputation to unlock Staff, Cars & Deliveries.", target = "plot"},
 	{text = "Go to Corner Motors, buy a car and hop in! (Phone → Map → Dealership)", target = "dealer"},

@@ -29,6 +29,8 @@ def main():
             elif fn.endswith(".client.lua"): cls, name = "LocalScript", rel[:-len(".client.lua")]
             else: cls, name = "ModuleScript", rel[:-len(".lua")]
             parts.append('SOURCES[%s] = {cls = "%s", src = %s}\n' % (repr(name).replace("'", '"'), cls, longstr(open(full, encoding="utf-8").read())))
+    # optional settings for a test, e.g. SIM_ARGS='profile="active", hours=8' python3 tests/run.py tests/economy_sim.lua
+    parts.append("SIM_ARGS = {" + os.environ.get("SIM_ARGS", "") + "}\n")
     parts.append("\n-- ===== common =====\n")
     parts.append(open(os.path.join(ROOT, "tests", "common.lua"), encoding="utf-8").read())
     parts.append("\n-- ===== test file =====\n")

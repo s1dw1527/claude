@@ -10,6 +10,7 @@ local STAFF_ROLES, NAMES, PROBLEMS, NPC_TYPES, REVIEWS, EVENTS, WAR_CATS, ADS, S
 local FEATURES, FEATURE_NAMES, REBIRTH, TUTORIAL, HOOD, CAR = C.FEATURES, C.FEATURE_NAMES, C.REBIRTH, C.TUTORIAL, C.HOOD, C.CAR
 local fmt, notify, announceAll, burst, stageOf = C.fmt, C.notify, C.announceAll, C.burst, C.stageOf
 local LOTS, DESTS = C.LOTS, C.DESTS
+local E = C.ECONOMY
 
 local G = {
 	event = nil, eventText = nil, eventEnds = 0, nextEvent = os.clock() + CFG.EVENT_INTERVAL, viralKey = nil,
@@ -44,7 +45,8 @@ end
 function F.passMult(d)
 	local m = 1
 	if d.passes.x4 then m = 4 elseif d.passes.x2 then m = 2 end
-	if d.passes.vip then m *= 1.25 end
+	-- VIP adds +25% on top (4x + VIP = 4.25x, not 5x)
+	if d.passes.vip then m += E.vipBonus end
 	return m
 end
 function F.rebirthMult(d)
@@ -56,8 +58,8 @@ end
 function F.claimRichStart(plr, d)
 	if d.passes.richstart and not d.richClaimed then
 		d.richClaimed = true
+		-- a gift, not earnings: it doesn't count toward lifetime earnings (story chapters, achievements)
 		d.cash += CFG.RICH_START_BONUS
-		d.earned += CFG.RICH_START_BONUS
 		notify(plr, "🎁 Rich Start: +$" .. fmt(CFG.RICH_START_BONUS) .. " to kick off your empire!")
 	end
 end
@@ -67,12 +69,12 @@ function F.bizMult(d, key)
 	if ev and ev.biz and ev.biz[key] then m *= ev.biz[key] end
 	if G.viralKey == key then m *= 3 end
 	local s = d.staff[key]
-	if s then m *= 1 + 0.04 * staffStars(s) end
+	if s then m *= 1 + E.staffPerStar * staffStars(s) end
 	for _, c in ipairs(COMBOS) do
 		if d.combos[c.key] and table.find(c.needs, key) then m *= c.mult end
 	end
-	for id in pairs(d.lots) do
-		local boost = DISTRICT[LOTS[id].dkey].boost[key]
+	for dkey in pairs(F.ownedDistricts(d)) do
+		local boost = DISTRICT[dkey].boost[key]
 		if boost then m *= boost end
 	end
 	if F.homeHood(d) == "ocean" and (key == "lemonade" or key == "icecream") then m *= 1.25 end
@@ -80,21 +82,35 @@ function F.bizMult(d, key)
 	if d.problems[key] then m *= 0.5 end
 	return m
 end
+-- district boosts: once per district you own land in (or once per lot, if E.districtBoostOnce is off)
+function F.ownedDistricts(d)
+	local out = {}
+	for id in pairs(d.lots) do
+		local k = LOTS[id].dkey
+		out[k] = E.districtBoostOnce and 1 or (out[k] or 0) + 1
+	end
+	return out
+end
+local function districtBoost(d, kind)
+	local m = 1
+	for dkey, n in pairs(F.ownedDistricts(d)) do
+		local b = DISTRICT[dkey].boost[kind]
+		if b then m *= b ^ n end
+	end
+	return m
+end
 function F.globalMult(d, now)
 	local m = F.passMult(d)
-	m *= 1 + 0.05 * (F.tierIndex(d.rep) - 1)
+	m *= 1 + E.repTierBonus * (F.tierIndex(d.rep) - 1)
 	if G.event and G.event.all then m *= G.event.all end
 	if d.buffUntil > now then m *= 1 + 0.2 * d.buffWins end
 	if d.adUntil > now then m *= ADS_BY[d.adKey].income end
 	if (d.relaxedUntil or 0) > now then m *= 1 + C.FERRIS.buff end
 	local mgr = d.staff.manager
-	if mgr then m *= 1 + 0.02 * staffStars(mgr) end
+	if mgr then m *= 1 + E.managerPerStar * staffStars(mgr) end
 	if (d.megaBuffUntil or 0) > now then m *= d.megaBuffMult or 1 end
-	for id in pairs(d.lots) do
-		local all = DISTRICT[LOTS[id].dkey].boost.all
-		if all then m *= all end
-	end
-	m *= 1 + 0.2 * (G.spire.era - 1)
+	m *= districtBoost(d, "all")
+	m *= 1 + E.eraBonus * (G.spire.era - 1)
 	m *= F.comboPerk(d, "all")
 	if F.mysteryPerk then m *= F.mysteryPerk(d, "all") end
 	m *= F.homeMult(d)
@@ -109,7 +125,7 @@ function F.income(d, now)
 	for _, b in ipairs(BUSINESSES) do
 		local lvl = d.levels[b.key] or 0
 		if lvl > 0 then
-			local base = b.income * lvl + b.income * 10 * (d.chains[b.key] or 0)
+			local base = b.income * lvl + b.income * E.chainIncome * (d.chains[b.key] or 0)
 			local v = base * F.bizMult(d, b.key)
 			per[b.key] = v * g
 			total += v
@@ -122,14 +138,15 @@ end
 function F.incomePerSec(d) return (F.income(d, os.clock())) end
 function F.globalRentMult(d) return F.rebirthMult(d) * F.passMult(d) end
 function F.upgradeCost(d, key)
-	local c = BIZ[key].cost * 1.5 ^ (d.levels[key] or 0)
+	local c = BIZ[key].cost * E.upgradeGrowth ^ (d.levels[key] or 0)
 	if G.event and G.event.crash then c *= CFG.CRASH_DISCOUNT end
 	return math.floor(c)
 end
 function F.chainCost(d, key)
 	local c = d.chains[key] or 0
 	if c >= #CHAINS then return nil end
-	return math.floor(BIZ[key].cost * CHAINS[c + 1].mult)
+	-- a new location costs a multiple of that business's Lv 10 upgrade: a real investment, not a shortcut
+	return math.floor(BIZ[key].cost * E.upgradeGrowth ^ (CFG.MAX_LEVEL - 1) * CHAINS[c + 1].mult)
 end
 
 -- ===== REPUTATION + UNLOCKS =====
@@ -209,7 +226,7 @@ function F.customerRate(d, now)
 	local levels = 0
 	for _, b in ipairs(BUSINESSES) do levels += d.levels[b.key] or 0 end
 	if levels == 0 then return 0 end
-	local r = 0.15 + 0.04 * levels
+	local r = E.customerBase + E.customerPerLevel * levels
 	if d.adUntil > now then r *= ADS_BY[d.adKey].customers end
 	if d.trendUntil > now then r *= 2 end
 	local mk = d.staff.marketer
@@ -286,13 +303,15 @@ function F.serveCustomer(plr, d, key, t, review)
 	d.war.customers += 1
 	if F.countServed then F.countServed(d) end
 	if d.frozenUntil <= now then
-		local sale = BIZ[key].income * lvl * 4 * F.bizMult(d, key) * F.globalMult(d, now) * (t.tip or 1)
+		local sale = BIZ[key].income * lvl * E.customerSale * F.bizMult(d, key) * F.globalMult(d, now) * (t.tip or 1)
 		d.cash += sale
 		d.earned += sale
 		d.war.earned += sale
 	end
 	if review then
-		F.addRep(plr, ({-2, -1, 0, 1, 2})[review.stars])
+		-- good reviews build reputation slowly (E.reviewRep); bad ones still hurt at full strength
+		local r = ({-2, -1, 0, 1, 2})[review.stars]
+		F.addRep(plr, r > 0 and r * E.reviewRep or r)
 		d.war.stars += review.stars
 		d.war.starsN += 1
 		d.revSum += review.stars
@@ -390,6 +409,7 @@ function F.openChain(plr, d, key)
 		F.addRep(plr, 15)
 	end
 end
+function F.sabotageCost(d) return math.max(E.sabotageCost, math.floor(F.incomePerSec(d) * E.sabotageSeconds)) end
 function F.sabotage(plr, d, targetId, now)
 	if not F.unlocked(d, "sabotage") then return end
 	local target = Players:GetPlayerByUserId(targetId)
@@ -399,8 +419,9 @@ function F.sabotage(plr, d, targetId, now)
 		notify(plr, "🛡️ " .. target.Name .. " has a Freeze Shield!")
 		return
 	end
-	if now < d.sabCooldown or d.cash < CFG.SABOTAGE_COST then return end
-	d.cash -= CFG.SABOTAGE_COST
+	local cost = F.sabotageCost(d)
+	if now < d.sabCooldown or d.cash < cost then return end
+	d.cash -= cost
 	d.sabCooldown = now + CFG.SABOTAGE_COOLDOWN
 	td.frozenUntil = now + CFG.SABOTAGE_TIME
 	F.setIce(td.plot, true)
@@ -440,7 +461,7 @@ function F.makeProblem(plr, d, now)
 	local _, per = F.income(d, now)
 	local eng = d.staff.engineer
 	local discount = eng and (1 - 0.04 * staffStars(eng)) or 1
-	local repair = math.max(100, math.floor((per[key] or 0) * 30 * discount))
+	local repair = math.max(E.repairFloor, math.floor((per[key] or 0) * E.repairSeconds * discount))
 	d.problems[key] = {type = ti, repair = repair, replace = repair * 4, state = "new"}
 	F.problemVisual(plr, key, true)
 	F.refreshWorkers(plr)
@@ -511,6 +532,15 @@ function F.tradeStock(plr, d, ownerId, action, qty)
 	if not qty or not C.finite(price) then return end
 	if action == "buy" then
 		if qty < 1 then return end
+		-- position limit: at most ~20 minutes of your own income in any one company. Crash dips recover on
+		-- their own, so without a limit a rich player could park their whole bank in shares every crash.
+		local limit = math.max(5000, F.incomePerSec(d) * E.stockPositionSeconds)
+		local room = math.floor((limit - (d.shares[ownerId] or 0) * price) / price)
+		if room < 1 then
+			notify(plr, "📈 That's as many shares as you can hold in one company ($" .. fmt(limit) .. ", about 20 minutes of your income).")
+			return
+		end
+		qty = math.min(qty, room)
 		local cost = price * qty
 		if d.cash < cost then
 			notify(plr, "Not enough cash for " .. qty .. " shares.")
@@ -560,6 +590,12 @@ function F.buyLot(plr, lot)
 end
 
 -- ===== ADVERTISING =====
+-- an ad costs its listed price or a few minutes of income, whichever is more (so it stays a real decision)
+function F.adCost(d, key)
+	local ad = ADS_BY[key]
+	local i = table.find(ADS, ad) or 1
+	return math.max(ad.cost, math.floor(F.incomePerSec(d) * (E.adSeconds[i] or 60)))
+end
 function F.runAd(plr, d, key, now)
 	local ad = ADS_BY[key]
 	if not ad then return end
@@ -568,11 +604,12 @@ function F.runAd(plr, d, key, now)
 		notify(plr, "A campaign is already running!")
 		return
 	end
-	if d.cash < ad.cost then
-		notify(plr, "You need $" .. fmt(ad.cost) .. " for a " .. ad.name .. ".")
+	local cost = F.adCost(d, key)
+	if d.cash < cost then
+		notify(plr, "You need $" .. fmt(cost) .. " for a " .. ad.name .. ".")
 		return
 	end
-	d.cash -= ad.cost
+	d.cash -= cost
 	d.adKey = key
 	d.adUntil = now + ad.dur
 	if ad.marketing then d.marketing = true end
@@ -630,7 +667,7 @@ function F.startEvent(now)
 			if not lowD or inc < lowI then lowP, lowD, lowI = p, d, inc end
 		end
 		if lowD then
-			local gift = math.max(2500, math.floor(lowI * 120))
+			local gift = math.max(E.investorFloor, math.floor(lowI * E.investorSeconds))
 			lowD.cash += gift
 			notify(lowP, "😇 An angel investor gave you $" .. fmt(gift) .. "!")
 			burst(lowD.plot.center + V3(0, 12, 0), RGB(255, 215, 80), 120)
@@ -685,14 +722,19 @@ function F.warLeaders()
 end
 function F.endWar(now)
 	local results = {}
+	-- a war needs rivals: with fewer than 2 empires playing, nobody "wins" (a solo player used to win
+	-- all 5 categories every 10 minutes, which was a free +75% income)
+	local playing = 0
+	for _ in pairs(data) do playing += 1 end
+	local contested = playing >= E.warMinPlayers
 	for _, l in ipairs(F.warLeaders()) do
-		table.insert(results, {cat = l.cat, name = l.name, value = l.value})
+		table.insert(results, {cat = l.cat, name = contested and l.name or "—", value = contested and l.value or "needs 2+ empires"})
 		local p = l.plr
-		local d = p and data[p]
+		local d = contested and p and data[p]
 		if d then
 			if d.buffUntil > now then d.buffWins += 1 else d.buffWins = 1 end
 			d.buffUntil = now + CFG.WAR_BUFF_TIME
-			d.cash += F.income(d, now) * 90
+			d.cash += F.income(d, now) * E.warSeconds
 			d.ep += 1
 			d.trophies += 1
 			F.addRep(p, 30)
@@ -703,7 +745,7 @@ function F.endWar(now)
 	F.buzz("🏆", "CORNER WAR results are in! Winners get buffs, cash, trophies & rare skins.", RGB(255, 200, 60))
 	for _, d in pairs(data) do
 		d.war = {earned = 0, customers = 0, rep = 0, stars = 0, starsN = 0}
-		if d.passes.richstart then d.cash += CFG.RICH_START_BONUS end
+		if d.passes.richstart then d.cash += math.min(E.richStartWarMax, math.floor(F.income(d, now) * E.richStartWarSeconds)) end
 	end
 	G.warEnds = now + CFG.WAR_INTERVAL
 end
@@ -725,7 +767,7 @@ function F.deliveryTick(plr, d, now)
 			local inc = F.income(d, now)
 			local dist = (DESTS[di].pos - d.plot.center).Magnitude
 			d.delivery = {state = "offer", dest = di, biz = b.key, qty = math.random(5, 24),
-				reward = math.floor(math.max(400, inc * 45) * (0.8 + dist / 400)), expires = now + 25}
+				reward = math.floor(math.max(E.deliveryFloor, inc * E.deliverySeconds) * (0.8 + dist / 400)), expires = now + 25}
 		end
 		return
 	end
@@ -762,7 +804,7 @@ end
 function F.spireGoal()
 	local s = G.spire
 	if s.stage < #SPIRE_STAGES then return SPIRE_STAGES[s.stage + 1].name, SPIRE_STAGES[s.stage + 1].cost end
-	return "🌆 Era " .. (s.era + 1) .. ": " .. C.eraName(s.era + 1), 40000000 * 3 ^ (s.era - 2)
+	return "🌆 Era " .. (s.era + 1) .. ": " .. C.eraName(s.era + 1), E.eraGoalBase * E.eraGoalGrowth ^ (s.era - 2)
 end
 function F.contribute(plr, amount)
 	local d = data[plr]
@@ -786,7 +828,7 @@ function F.contribute(plr, amount)
 		s.era += 1
 		local info = C.ERAS[math.min(s.era, #C.ERAS)]
 		local unlocks = (s.era <= #C.ERAS and #info.unlocks > 0) and table.concat(info.unlocks, " • ") or "an even bigger income bonus"
-		R.Splash:FireAllClients(info.icon .. " ERA " .. s.era .. ": " .. string.upper(C.eraName(s.era)) .. " " .. info.icon, "All income +" .. (20 * (s.era - 1)) .. "%  •  NEW: " .. unlocks, RGB(120, 220, 255))
+		R.Splash:FireAllClients(info.icon .. " ERA " .. s.era .. ": " .. string.upper(C.eraName(s.era)) .. " " .. info.icon, "All income +" .. math.floor(E.eraBonus * 100 * (s.era - 1) + 0.5) .. "%  •  NEW: " .. unlocks, RGB(120, 220, 255))
 		F.buzz(info.icon, "THE EMPIRE SPIRE IS COMPLETE! The city entered Era " .. s.era .. ": " .. C.eraName(s.era) .. "!", RGB(120, 220, 255))
 		-- everyone who helped build this era keeps credit for it forever (Legacy Museum, Cyber skin)
 		for p, dd in pairs(data) do
@@ -834,7 +876,7 @@ function F.rebirth(plr)
 	for key, lvl in pairs(d.levels) do
 		if lvl > 0 then owned[key] = true end
 	end
-	d.cash = CFG.START_CASH + (n >= 10 and 25000 or 0)
+	d.cash = CFG.START_CASH + (n >= 10 and E.rebirthTycoonCash or 0)
 	d.levels = {}
 	if n >= 50 then
 		for key in pairs(owned) do d.levels[key] = 3 end
@@ -868,50 +910,126 @@ function F.rebirth(plr)
 end
 
 -- ===== TUTORIAL =====
-function F.tutorialEvent(plr, ev)
+-- Every step is checked by the server once a second against the player's real state, so a step can't be
+-- missed because a message arrived at the wrong moment. Step 4 (open the phone) used to be the only step
+-- finished by a one-shot client message: it only counted if it arrived while the server was already on
+-- step 4, so opening the phone a moment early, or having it open when the step began, left the
+-- tutorial stuck there forever. Now the client reports whether the phone is open, and the server checks
+-- that like any other condition.
+local RunService = game:GetService("RunService")
+local tutDebugAt = {}
+local function tutDebug(plr, d, why)
+	if not (CFG.TUTORIAL_DEBUG and RunService:IsStudio()) then return end
+	local key = plr.UserId .. ":" .. d.tut
+	local now = os.clock()
+	if tutDebugAt[key] and now - tutDebugAt[key] < 10 then return end
+	tutDebugAt[key] = now
+	print("[Tutorial] " .. plr.Name .. " is on step " .. d.tut .. " of " .. #TUTORIAL .. ": " .. why)
+end
+function F.tutorialEvent(plr, ev, value)
 	local d = data[plr]
-	if not d or d.tut == 0 then return end
-	if ev == "phone" and d.tut == 4 then F.advanceTutorial(plr, d) end
+	if not d then return end
+	if ev == "phone" then
+		-- the client tells us every time the phone opens or closes (even from an app button or photo mode)
+		d.phoneOpen = value ~= false
+		if d.phoneOpen then d.phoneOpenedAt = os.clock() end
+	end
 end
 function F.advanceTutorial(plr, d)
 	-- each step pays once per save, ever: restarting the tutorial re-walks the steps without paying again
 	if d.tut > (d.tutPaid or 0) then
-		local reward = 250 * d.tut
+		local reward = (C.ECONOMY and C.ECONOMY.tutorialReward or 250) * d.tut
 		d.cash += reward
 		d.tutPaid = d.tut
-		notify(plr, "🎓 Tutorial step complete! +$" .. fmt(reward))
+		notify(plr, "🎓 Tutorial step " .. d.tut .. " complete! +$" .. fmt(reward))
+	else
+		notify(plr, "✅ Tutorial step " .. d.tut .. " complete!")
 	end
+	if CFG.TUTORIAL_DEBUG and RunService:IsStudio() then print("[Tutorial] " .. plr.Name .. " finished step " .. d.tut) end
 	d.tut += 1
+	d.tutStepAt = os.clock()
 	if d.tut > #TUTORIAL then
 		d.tut = 0
 		R.Splash:FireClient(plr, "🎓 TUTORIAL COMPLETE", "You know the basics. Now go build your empire! 👑", RGB(120, 220, 255))
+		if F.storyEvent then F.storyEvent(plr, "tutorialDone") end
 	end
+end
+local function cheapestCar()
+	local best
+	for _, c in ipairs(C.CARS) do
+		if c.price and (not best or c.price < best.price) then best = c end
+	end
+	return best
+end
+-- is the step done, and what should the card say about the player's progress?
+function F.tutorialStatus(plr, d)
+	local s = d.tut
+	if s == 1 then
+		local cost = F.upgradeCost(d, "lemonade")
+		if (d.levels.lemonade or 0) >= 1 then return true, "✅ Lemonade Stand open!" end
+		if d.cash < cost then return false, "You need $" .. fmt(cost) .. " (you have $" .. fmt(d.cash) .. "). Your corner earns a little on its own: wait a few seconds.", "not enough cash for the stand" end
+		return false, "🍋 Lemonade Stand: $" .. fmt(cost) .. " • tap BUY in the business panel", "stand not bought yet"
+	elseif s == 2 then
+		local lvl = d.levels.lemonade or 0
+		if lvl >= 3 then return true, "✅ Level 3!" end
+		if lvl == 0 then return false, "Your Lemonade Stand is gone: buy it again in the business panel.", "lemonade level 0" end
+		local cost = F.upgradeCost(d, "lemonade")
+		local p = "🍋 Level " .. lvl .. " / 3 • next upgrade $" .. fmt(cost)
+		if d.cash < cost then return false, p .. " (you have $" .. fmt(d.cash) .. ": customers are paying you, hang on!)", "saving for the upgrade" end
+		return false, p, "can afford the upgrade, waiting for the player to press it"
+	elseif s == 3 then
+		if (d.levels.icecream or 0) >= 1 then return true, "✅ Ice Cream Cart open!" end
+		local cost = F.upgradeCost(d, "icecream")
+		if d.cash < cost then return false, "🍦 Ice Cream Cart: $" .. fmt(cost) .. " (you have $" .. fmt(d.cash) .. "). Keep serving customers!", "saving for the ice cream cart" end
+		return false, "🍦 Ice Cream Cart: $" .. fmt(cost) .. " • you can afford it, tap BUY!", "can afford the cart, waiting for the player to buy it"
+	elseif s == 4 then
+		-- open right now, or opened since this step began (a quick open-and-close between two ticks counts;
+		-- 2s of slack covers an open that raced the step change)
+		local opened = d.phoneOpen == true or (d.phoneOpenedAt ~= nil and d.phoneOpenedAt >= (d.tutStepAt or 0) - 2)
+		if opened then return true, "✅ Phone opened!" end
+		return false, "📱 Phone: not opened yet • press P, tap 📱 (bottom right), press Y on a controller, or use the button here",
+			"phone not opened since this step began (phoneOpen=" .. tostring(d.phoneOpen) .. ")"
+	elseif s == 5 then
+		local lot = F.homeLot(d)
+		if not lot then return true, "✅ (no home lot)" end
+		local root = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
+		if not root then return false, "🏠 Respawning...", "no character" end
+		local dist = (root.Position - lot.pos).Magnitude
+		if dist < 32 then return true, "✅ Welcome home!" end
+		return false, "🏠 " .. math.floor(dist) .. " studs to your home • follow the blue beam", "player is " .. math.floor(dist) .. " studs from home (needs < 32)"
+	elseif s == 6 then
+		local need = REP_TIERS[2].rep
+		if F.tierIndex(d.rep) >= 2 then return true, "✅ LOCAL FAVORITE!" end
+		local p = "⭐ Reputation " .. math.floor(d.rep) .. " / " .. need .. " • good reviews raise it, so keep businesses running and fix problems fast"
+		return false, p, "reputation " .. math.floor(d.rep) .. " / " .. need
+	elseif s == 7 then
+		local car = F.activeCar(plr)
+		local occ = car and car.seat.Occupant
+		-- only YOUR character in YOUR car counts (a friend sitting in it doesn't finish your tutorial)
+		if occ and plr.Character and occ.Parent == plr.Character then return true, "✅ Vroom!" end
+		if car then return false, "🚗 Your car is waiting: walk up and hop in!", "car spawned, player not in the seat" end
+		local owned = d.cars and next(d.cars) ~= nil
+		if owned then return false, "🚗 Phone → Garage → spawn your car, then hop in!", "owns a car but hasn't spawned it" end
+		local cheap = cheapestCar()
+		local p = "🚗 Cheapest car: " .. cheap.name .. " $" .. fmt(cheap.price)
+		if d.cash < cheap.price then return false, p .. " (you have $" .. fmt(d.cash) .. ", keep earning!)", "saving for a car" end
+		return false, p .. " • Phone → Map → Dealership", "can afford a car, hasn't bought one"
+	end
+	return false, nil
 end
 function F.tutorialTick(plr, d)
 	local s = d.tut
-	if not s or s == 0 then return end
-	local done = false
-	if s == 1 then
-		done = (d.levels.lemonade or 0) >= 1
-	elseif s == 2 then
-		done = (d.levels.lemonade or 0) >= 3
-	elseif s == 3 then
-		done = (d.levels.icecream or 0) >= 1
-	elseif s == 5 then
-		local lot = F.homeLot(d)
-		local root = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
-		done = (not lot) or (root and (root.Position - lot.pos).Magnitude < 32)
-	elseif s == 6 then
-		done = F.tierIndex(d.rep) >= 2
-	elseif s == 7 then
-		local car = F.activeCar(plr)
-		done = car ~= nil and car.seat.Occupant ~= nil
+	if not s or s == 0 or not TUTORIAL[s] then return end
+	local done, _, why = F.tutorialStatus(plr, d)
+	if done then
+		F.advanceTutorial(plr, d)
+	elseif why then
+		tutDebug(plr, d, "waiting: " .. why)
 	end
-	if done then F.advanceTutorial(plr, d) end
 end
 function F.tutorialTarget(d)
 	local s = d.tut
-	if not s or s == 0 then return nil end
+	if not s or s == 0 or not TUTORIAL[s] then return nil end
 	local t = TUTORIAL[s].target
 	if t == "plot" then return d.plot.center + V3(0, 1, 0) end
 	if t == "home" then
