@@ -204,7 +204,7 @@ function F.finishMinigame(plr, token, score)
 	end
 	if profit > 0 then w.profit += profit end
 	d.cash += prize
-	d.earned += prize
+	F.earn(d, prize)
 	F.addRep(plr, 1)
 	if mult >= 2 then F.buzz(g.icon, plr.Name .. " crushed " .. g.name .. " and won $" .. fmt(prize) .. "!", RGB(255, 180, 60)) end
 	R.Splash:FireClient(plr, g.icon .. " " .. (mult >= 1 and "YOU WIN!" or "NICE TRY!"), "Score: " .. score .. " • Prize: $" .. fmt(prize) .. " (entry was $" .. fmt(p.fee) .. ")", mult >= 1 and RGB(120, 255, 150) or RGB(255, 180, 120))

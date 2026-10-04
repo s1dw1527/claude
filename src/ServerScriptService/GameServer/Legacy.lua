@@ -55,7 +55,7 @@ local function findSpots(plr, d, root)
 				-- a lucky find: a few minutes of income (at least a tenth of the old flat prize), never a skip
 				local cash = math.max(math.floor(s.cash / 10), math.floor(F.incomePerSec(d) * C.ECONOMY.secretSeconds))
 				d.cash += cash
-				d.earned += cash
+				F.earn(d, cash)
 				F.addRep(plr, s.rep)
 				R.Splash:FireClient(plr, s.icon .. " SECRET FOUND: " .. string.upper(s.name), s.text .. "  (+$" .. fmt(cash) .. ")", RGB(255, 225, 120))
 				burst(s.pos + V3(0, 4, 0), RGB(255, 225, 120), 120)
@@ -325,7 +325,7 @@ local function buyLot(plr)
 	if f.cashSeconds then
 		local cash = math.max(math.floor(price * 1.3), math.floor(F.incomePerSec(d) * f.cashSeconds))
 		d.cash += cash
-		d.earned += cash
+		F.earn(d, cash)
 		extra = "  +$" .. fmt(cash)
 	end
 	if f.followers then d.followers += f.followers end

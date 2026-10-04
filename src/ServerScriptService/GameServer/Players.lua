@@ -31,7 +31,7 @@ end
 local SAVE_KEYS = {"cash", "levels", "chains", "staff", "combos", "rep", "ep", "trophies", "skin", "cars", "seen", "served", "deliveries",
 	"marketing", "revSum", "revN", "contributed", "rebirths", "followers", "home", "raceBest", "tut", "earned", "rentEarned",
 	"tutPaid", "richClaimed", "eraContrib", "achievements", "shared", "found", "wentViral", "viralCount",
-	"mystery", "weekServed", "weeklyClaimed", "showcaseWeek", "votes", "favorites", "homeLikes", "homeRatingSum", "homeRatingN"}
+	"mystery", "weekServed", "weeklyClaimed", "showcaseWeek", "votes", "favorites", "homeLikes", "homeRatingSum", "homeRatingN", "story", "storyEarned"}
 local function metaKey(plr) return "u" .. plr.UserId .. "_meta" end
 local function slotKey(plr, slot) return "u" .. plr.UserId .. "_s" .. slot end
 local DEFAULT_SETTINGS = {music = true, musicVol = 5, sfx = true, crowd = "high", weather = true, units = "MPH", spawnAt = "business"}
@@ -400,7 +400,7 @@ function F.sendState(plr, now)
 		maxLevel = CFG.MAX_LEVEL, unlocks = unlocks, followers = d.followers,
 		homeInfo = homeState(d), props = propsState(plr, d),
 		rebirth = {count = d.rebirths, cost = F.rebirthCost(d), mult = math.floor((F.rebirthMult(d) - 1) * 100 + 0.5), perks = perks, unlocked = unlocks.rebirth},
-		tut = tut, raceBest = d.raceBest,
+		tut = tut, raceBest = d.raceBest, story = F.storyState and F.storyState(plr, d) or nil,
 		showcase = F.showcasePoints(d), tours = F.toursList(), mysterySite = C.mysterySite and C.mysterySite() or nil,
 		mysteryPrice = C.mysterySite and C.mysterySite() and F.mysteryPrice(d) or nil,
 		shareable = C.shareableList(d), viralLeft = math.max(0, math.ceil((d.viralUntil or 0) - now)),
@@ -559,6 +559,8 @@ function F.startGame(plr, slot, starterIdx)
 	if C.pruneVotes then C.pruneVotes(d) end
 	F.refreshMuseum(plr)
 	if F.claimWeeklyRewards then task.spawn(F.claimWeeklyRewards, plr) end
+	-- story mode: chapter 1 for new saves; older saves pick up where their empire already is
+	if F.storyStart then F.storyStart(plr, d, isNew) end
 	-- leaderstats
 	local ls = plr:FindFirstChild("leaderstats")
 	if not ls then
@@ -614,6 +616,7 @@ function F.unload(plr, backToMenu)
 	F.clearRentalTimers(plr)
 	F.clearFun(plr)
 	F.clearSocial(plr)
+	if F.storyLeave then F.storyLeave(plr) end
 	for _, lot in ipairs(LOTS) do
 		if lot.owner == plr then
 			lot.owner = nil
@@ -721,7 +724,7 @@ C.allowAction = allow
 local CONTRIB = {k1 = true, k10 = true, p10 = true, p50 = true}
 local PROBLEM_CHOICE = {repair = true, replace = true, ignore = true}
 local TUT_ACTIONS = {phone = true, skip = true, restart = true}
-C.ACTIONS = {}  -- other modules can add validated actions: C.ACTIONS[name] = function(plr, d, a, b, c, now) end
+C.ACTIONS = C.ACTIONS or {}  -- other modules can add validated actions: C.ACTIONS[name] = function(plr, d, a, b, c, now) end
 
 R.Action.OnServerEvent:Connect(function(plr, action, a, b, c)
 	if type(action) ~= "string" or #action > 24 then return end
@@ -924,6 +927,9 @@ R.Action.OnServerEvent:Connect(function(plr, action, a, b, c)
 		elseif a == "save" then
 			F.save(plr)
 			notify(plr, "💾 Saved.")
+		elseif a == "story" then
+			local ch = int(b, 1, 7)
+			if ch and F.storyDebugJump then F.storyDebugJump(plr, d, ch) end
 		end
 	elseif action == "shareAch" then
 		if str(a, 30) then F.shareAchievement(plr, a) end
@@ -964,7 +970,7 @@ do
 		for _, p in ipairs(PASSES) do table.insert(passes, {key = p.key, name = p.name, price = p.price, icon = p.icon, desc = p.desc}) end
 		for _, slot in ipairs(STAFF_ORDER) do
 			local r = STAFF_ROLES[slot]
-			table.insert(staff, {slot = slot, role = r.role, icon = r.icon, desc = r.desc or ("Boosts your " .. BIZ[slot].name .. " (+4% per star)")})
+			table.insert(staff, {slot = slot, role = r.role, icon = r.icon, desc = r.desc or ("Boosts your " .. BIZ[slot].name .. " (+" .. math.floor(C.ECONOMY.staffPerStar * 100 + 0.5) .. "% per star)")})
 		end
 		for _, a in ipairs(ADS) do table.insert(ads, {key = a.key, name = a.name, cost = a.cost, dur = a.dur, customers = a.customers}) end
 		for _, t in ipairs(NPC_TYPES) do table.insert(npcs, {icon = t.icon, shirt = t.shirt, pants = t.pants, fancy = t.fancy}) end
@@ -973,7 +979,8 @@ do
 		local tiers = {}
 		for i, t in ipairs(REP_TIERS) do tiers[i] = {name = t.name, rep = t.rep, unlocks = t.unlocks} end
 		return {cars = cars, passes = passes, staff = staff, ads = ads, npcs = npcs, chains = #CHAINS, rentals = rentals,
-			features = features, tiers = tiers, presets = C.PRESET_COUNT, minigames = MINIGAMES, homeLevels = HOME_LEVELS}
+			features = features, tiers = tiers, presets = C.PRESET_COUNT, minigames = MINIGAMES, homeLevels = HOME_LEVELS,
+			story = C.storyCatalog and C.storyCatalog() or nil}
 	end
 end
 
@@ -1051,7 +1058,7 @@ task.spawn(function()
 				if d.frozenUntil <= now then
 					local inc = F.income(d, now)
 					d.cash += inc
-					d.earned += inc
+					F.earn(d, inc)
 					d.war.earned += inc
 				end
 				d.custAcc = math.min(5, d.custAcc + F.customerRate(d, now))
@@ -1078,6 +1085,7 @@ task.spawn(function()
 				F.deliveryTick(plr, d, now)
 				F.rentalTick(plr, d, now)
 				F.tutorialTick(plr, d)
+				if tick % 2 == 0 and F.storyTick then F.storyTick(plr, d, now) end
 				F.setIce(d.plot, d.frozenUntil > now)
 				local ls = plr:FindFirstChild("leaderstats")
 				if ls then

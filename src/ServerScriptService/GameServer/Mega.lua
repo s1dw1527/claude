@@ -45,7 +45,7 @@ local function pay(plr, amount, rep, why)
 	local d = data[plr]
 	if not d or amount <= 0 then return end
 	d.cash += amount
-	d.earned += amount
+	F.earn(d, amount)
 	if rep and rep ~= 0 then F.addRep(plr, rep) end
 	if why then notify(plr, why .. "  +$" .. fmt(amount)) end
 end
@@ -582,8 +582,8 @@ function F.forceProblem(plr, d, why, key, typeIndex)
 	if #owned == 0 then return end
 	local k = owned[math.random(#owned)]
 	local _, per = F.income(d, os.clock())
-	local repair = math.max(100, math.floor((per[k] or 0) * 30))
-	d.problems[k] = {type = typeIndex or math.random(#C.PROBLEMS), repair = repair, replace = repair * 4, state = "new"}
+	local repair = math.max(C.ECONOMY.repairFloor, math.floor((per[k] or 0) * C.ECONOMY.repairSeconds))
+	d.problems[k] = {type = typeIndex or math.random(C.PROBLEM_RANDOM), repair = repair, replace = repair * 4, state = "new"}
 	F.problemVisual(plr, k, true)
 	F.refreshWorkers(plr)
 	if why then notify(plr, why .. " Your " .. BIZ[k].name .. " needs a repair.") end

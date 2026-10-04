@@ -175,6 +175,7 @@ C.ACHIEVEMENTS = {
 	showcaseStar = {icon = "🏆", title = "Empire of the Week", post = "My empire won the Weekly Empire Showcase! 🏆"},
 	weeklyChamp = {icon = "🥇", title = "Weekly Champion", post = "I topped a weekly leaderboard! 🥇"},
 	legendary = {icon = "🌠", title = "Legendary Find", post = "I found something LEGENDARY in a Mystery Lot 🌠"},
+	storyLegend = {icon = "🎙️", title = "Golden Mic", post = "I finished the Corner Empire story. Lil Clipz owes me an apology 🎙️✨"},
 }
 for _, b in ipairs(C.BUSINESSES) do
 	C.ACHIEVEMENTS["biz_" .. b.key] = {icon = b.icon, title = "New: " .. b.name, post = "Just opened a brand new " .. b.tiers[1] .. "! " .. b.icon, quiet = b.key == "lemonade"}
@@ -284,7 +285,10 @@ C.PROBLEMS = {
 	{text = "Supply shortage!", icon = "📦"}, {text = "Delivery truck broke down!", icon = "🚚"}, {text = "Customer complaint!", icon = "😠"},
 	{text = "A bad review is spreading!", icon = "👎"}, {text = "A competitor opened nearby!", icon = "🏪"}, {text = "Theft! Stock was stolen!", icon = "🦹"},
 	{text = "Construction is blocking the road!", icon = "🚧"},
+	{text = "Surprise inspection! The inspector found a mess.", icon = "🧑‍⚖️"},   -- story chapter 4 only
 }
+C.PROBLEM_RANDOM = 10          -- random problems use the first 10 types
+C.INSPECTION_PROBLEM = 11
 
 C.NPC_TYPES = {
 	{key = "office",     icon = "💼", shirt = RGB(60, 75, 120),   pants = RGB(35, 35, 45),   likes = {coffee = 3, tech = 2, bakery = 1}},

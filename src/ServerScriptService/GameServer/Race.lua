@@ -238,7 +238,7 @@ task.spawn(function()
 								local driftBonus = math.floor(prize * RACE.driftBonusMax * math.clamp((st.drift or 0) / 100, 0, 1))
 								prize += driftBonus
 								d.cash += prize
-								d.earned += prize
+								F.earn(d, prize)
 								local pb = not d.raceBest or t < d.raceBest
 								if pb then d.raceBest = t end
 								local record = (not C.serverBest[1]) or t < C.serverBest[1].time

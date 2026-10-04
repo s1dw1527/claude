@@ -374,6 +374,7 @@ function F.buyOrDrive(plr, key)
 	end
 	d.cash -= spec.price
 	d.cars[key] = true
+	if spec.price >= 1000000 and F.storyEvent then F.storyEvent(plr, "luxury", key) end
 	R.Splash:FireClient(plr, "🚗 NEW CAR!", "You bought the " .. spec.name .. "! Hold SHIFT for nitro (with the pass).", spec.color)
 	F.buzz("🚗", plr.Name .. " just bought a " .. spec.name .. "!", spec.color)
 	F.spawnCar(plr, key)

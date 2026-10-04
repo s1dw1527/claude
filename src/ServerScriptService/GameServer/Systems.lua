@@ -49,6 +49,13 @@ function F.passMult(d)
 	if d.passes.vip then m += E.vipBonus end
 	return m
 end
+-- every dollar the empire earns goes through here. storyEarned is the same money WITHOUT the Money pass
+-- boost: the story measures what your businesses earned, so paid passes give more cash to spend but
+-- can't skip story chapters
+function F.earn(d, amount)
+	d.earned += amount
+	d.storyEarned = (d.storyEarned or d.earned - amount) + amount / F.passMult(d)
+end
 function F.rebirthMult(d)
 	local m = 1 + REBIRTH.incomePer * d.rebirths
 	if d.rebirths >= 100 then m *= 2 end
@@ -290,7 +297,9 @@ function F.spawnCustomer(plr, d, now)
 		if pr and stars <= 2 then text = PROBLEMS[pr.type].icon .. " " .. PROBLEMS[pr.type].text end
 		review = {stars = stars, text = text}
 	end
-	R.Customer:FireAllClients({plot = plot.index, npc = ti, start = start, entry = entry, door = V3(door.X, 1, door.Z), t = travel, review = review})
+	-- from story chapter 3 on, some customers recognize you and shout something
+	local shout = F.storyShout and plr and F.storyShout(plr, d) or nil
+	R.Customer:FireAllClients({plot = plot.index, npc = ti, start = start, entry = entry, door = V3(door.X, 1, door.Z), t = travel, review = review, shout = shout, owner = plr.UserId})
 	task.delay(travel, function()
 		if data[plr] == d then F.serveCustomer(plr, d, key, t, review) end
 	end)
@@ -305,13 +314,14 @@ function F.serveCustomer(plr, d, key, t, review)
 	if d.frozenUntil <= now then
 		local sale = BIZ[key].income * lvl * E.customerSale * F.bizMult(d, key) * F.globalMult(d, now) * (t.tip or 1)
 		d.cash += sale
-		d.earned += sale
+		F.earn(d, sale)
 		d.war.earned += sale
 	end
 	if review then
 		-- good reviews build reputation slowly (E.reviewRep); bad ones still hurt at full strength
 		local r = ({-2, -1, 0, 1, 2})[review.stars]
 		F.addRep(plr, r > 0 and r * E.reviewRep or r)
+		if F.storyEvent then F.storyEvent(plr, "review", review.stars) end
 		d.war.stars += review.stars
 		d.war.starsN += 1
 		d.revSum += review.stars
@@ -349,6 +359,7 @@ function F.goViral(plr, d, key, quote)
 	burst(door + V3(0, 6, 0), RGB(255, 110, 200), 200)
 	C.shockwave(door + V3(0, 1, 0), RGB(255, 110, 200), 40)
 	if F.achieve then F.achieve(plr, "viral") end
+	if F.storyEvent then F.storyEvent(plr, "viral") end
 	F.checkCombos(plr, d)
 end
 
@@ -381,6 +392,7 @@ function F.buyUpgrade(plr, d, key)
 		F.achieve(plr, "firstBusiness")
 		F.achieve(plr, "biz_" .. key)
 	end
+	if lvl == 0 and key ~= "lemonade" and F.storyEvent then F.storyEvent(plr, "newBusiness", key) end
 	F.checkCombos(plr, d)
 end
 function F.openChain(plr, d, key)
@@ -453,7 +465,7 @@ function F.makeProblem(plr, d, now)
 	end
 	if #owned == 0 then return end
 	local key = owned[math.random(#owned)]
-	local ti = math.random(#PROBLEMS)
+	local ti = math.random(C.PROBLEM_RANDOM)   -- (the story's inspection is a problem type too, but never a random one)
 	if d.rebirths >= 50 then
 		notify(plr, "🔧 Your crew auto-fixed a problem at your " .. BIZ[key].name .. " (" .. PROBLEMS[ti].text .. ")")
 		return
@@ -493,6 +505,7 @@ function F.resolveProblem(plr, d, key, choice, now)
 		F.addRep(plr, -10)
 		notify(plr, "😬 Ignored. That business earns -50% and customers are unhappy for 2 minutes.")
 	end
+	if F.storyEvent then F.storyEvent(plr, "problemResolved", key, choice) end
 end
 function F.problemChance(d)
 	local eng = d.staff.engineer
@@ -788,7 +801,7 @@ function F.deliveryTick(plr, d, now)
 			local bonus = car ~= nil and CAR[car.key].delivery == true and car.seat.Occupant ~= nil
 			if bonus then reward = math.floor(reward * 1.5) end
 			d.cash += reward
-			d.earned += reward
+			F.earn(d, reward)
 			d.war.earned += reward
 			d.deliveries += 1
 			F.addRep(plr, 5)
@@ -901,6 +914,7 @@ function F.rebirth(plr)
 	F.buzz("♻️", plr.Name .. " was reborn! (Rebirth #" .. n .. ")", RGB(255, 120, 255))
 	if perkText ~= "" then F.pushMsg(plr, {icon = "🎁", from = "Rebirth", text = perkText}) end
 	F.applyCharacter(plr, plr.Character)
+	if F.storyEvent then F.storyEvent(plr, "rebirth") end
 	if F.achieve then
 		for _, at in ipairs({1, 10, 50, 100}) do
 			if n >= at then F.achieve(plr, "rebirth" .. at) end

@@ -23,7 +23,21 @@ H.main(function()
 	if ARGS.passes then
 		for k in string.gmatch(ARGS.passes, "[^,]+") do H.ownedPasses[k] = true end
 	end
-	local d = T.newGame(plr, 1, 1)
+	local d
+	if ARGS.fromSave then
+		-- an existing v6 save, the way a regular player's empire looked after an hour or two of v6
+		local store = H.stores["CornerEmpire_v5/global"]
+		rawget(store, "_data")["u4242_s1"] = {cash = 3e7, earned = 5e8, rep = 2100, served = 3000, deliveries = 5, followers = 1500, tut = 0, tutPaid = 7,
+			levels = {lemonade = 10, icecream = 10, bakery = 10, coffee = 10, pizza = 8, arcade = 5, tech = 2},
+			staff = {lemonade = {name = "Sam", service = 3, speed = 2, exp = 1}, icecream = {name = "Ivy", service = 2, speed = 3, exp = 1}, bakery = {name = "Leo", service = 3, speed = 3, exp = 1}},
+			combos = {frozenlemon = true, dessert = true, cafebakery = true}, contributed = 50000, rebirths = 0}
+		T.act(plr, "menuPlay", 1)
+		H.task.wait(3)
+		d = T.data(plr)
+		print(string.format("  loaded a v6 save: cash $%s, lifetime $%s, income now $%s/s, story chapter %d", C.fmt(d.cash), C.fmt(d.earned), C.fmt(F.incomePerSec(d)), F.storyChapter and F.storyChapter(d) or 0))
+	else
+		d = T.newGame(plr, 1, 1)
+	end
 	if ARGS.passes then
 		for k in string.gmatch(ARGS.passes, "[^,]+") do d.passes[k] = true end
 	end
@@ -231,7 +245,7 @@ H.main(function()
 		if d.rebirths >= 2 then mark("rebirth2", "Second rebirth") end
 		if F.storyChapter then
 			local ch = F.storyChapter(d)
-			for i = 2, ch do mark("story" .. i, "Story chapter " .. i .. (C.STORY and C.STORY[i] and (": " .. C.STORY[i].title) or "")) end
+			for i = 1, ch - 1 do mark("story" .. i, "📖 Story Ch " .. i .. " complete: " .. C.STORY[i].title) end
 		end
 
 		if H.now() >= nextCheck then
@@ -263,7 +277,23 @@ H.main(function()
 					if not b.units[i] and b.applicants and #b.applicants > 0 then T.act(plr, "tenantAccept", bi, 1) end
 				end
 			end
-			if ACTIVE then
+			-- story mode: do what the Story app asks (both kinds of player follow the story)
+			local stState = F.storyState and F.storyState(plr, d)
+			local needDeliveries = false
+			if stState and stState.obj then
+				for _, o in ipairs(stState.obj) do
+					if o.act == "clapback" then T.act(plr, "story", "clapback", math.random(1, 3))
+					elseif o.act == "challenge" then T.act(plr, "story", "challenge")
+					elseif o.act == "choice" then T.act(plr, "story", "choice", "reinvest")
+					elseif o.act == "finale" then T.act(plr, "story", "finale") end
+					if not o.done and o.t:find("deliveries") then needDeliveries = true end
+					-- "Flex: a Hyper Car...": buy it once it's affordable (a player following the story would)
+					if not o.done and o.t:find("Flex") and F.unlocked(d, "cars") and d.cash >= C.CAR.hyper.price then T.act(plr, "car", "spawn", "hyper") end
+					-- "Invest $X in the Empire Spire": put in a quarter of the cash on hand until it's done
+					if not o.done and o.t:find("Empire Spire") and d.cash > 1000 then F.contribute(plr, math.floor(d.cash * 0.25)) end
+				end
+			end
+			if ACTIVE or needDeliveries then
 				-- deliveries: accept, drive there (about 45 studs/s), arrive
 				local dl = d.delivery
 				if dl and dl.state == "offer" then T.act(plr, "delivery", "accept") end
@@ -274,6 +304,8 @@ H.main(function()
 				if dl and dl.state == "active" and H.now() >= dl.simArrive and plr.Character then
 					plr.Character.HumanoidRootPart.CFrame = CFrame.new(C.DESTS[dl.dest].pos + Vector3.new(0, 3, 0))
 				end
+			end
+			if ACTIVE then
 				-- the Fun Park: play memory match (perfect score) until the 10-minute cap pays nothing more
 				if F.unlocked(d, "funpark") and H.now() - lastFun > 600 then
 					lastFun = H.now()
@@ -330,7 +362,7 @@ H.main(function()
 			print(string.format("  ... %5.0f min  earned $%s  income $%s/s  rep %d  businesses %d  levels %d", mins(), C.fmt(d.earned), C.fmt(F.incomePerSec(d)), d.rep, owned, total))
 		end
 	end
-	print(string.format("\n== %s player, %s, %d simulated hours ==", PROFILE, ARGS.passes and ("passes: " .. ARGS.passes) or "no passes", HOURS))
+	print(string.format("\n== %s player%s, %s, %d simulated hours ==", PROFILE, ARGS.fromSave and " (existing v6 save)" or "", ARGS.passes and ("passes: " .. ARGS.passes) or "no passes", HOURS))
 	table.sort(order, function(a, b) return marks[a].t < marks[b].t end)
 	for _, k in ipairs(order) do
 		local m = marks[k]

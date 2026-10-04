@@ -35,9 +35,13 @@ def main():
     parts.append(open(os.path.join(ROOT, "tests", "common.lua"), encoding="utf-8").read())
     parts.append("\n-- ===== test file =====\n")
     parts.append(open(test, encoding="utf-8").read())
-    bundle = os.path.join(ROOT, "tests", ".bundle.lua")
+    # one bundle per run, so several tests can run at the same time
+    bundle = os.path.join(ROOT, "tests", ".bundle_%d.lua" % os.getpid())
     open(bundle, "w", encoding="utf-8").write("".join(parts))
-    r = subprocess.run([LUAU, bundle])
+    try:
+        r = subprocess.run([LUAU, bundle])
+    finally:
+        os.remove(bundle)
     sys.exit(r.returncode)
 
 main()

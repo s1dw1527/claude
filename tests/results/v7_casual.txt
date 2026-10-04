@@ -1,0 +1,61 @@
+  ...    30 min  earned $2.12M  income $1024/s  rep 855  businesses 4  levels 29
+  ...    60 min  earned $13.09M  income $4722/s  rep 2320  businesses 5  levels 35
+  ...    90 min  earned $37.19M  income $9759/s  rep 3348  businesses 5  levels 38
+  ...   120 min  earned $62.84M  income $15.2K/s  rep 4344  businesses 5  levels 38
+  ...   150 min  earned $105.42M  income $40.3K/s  rep 5307  businesses 5  levels 38
+  ...   180 min  earned $202.11M  income $69.3K/s  rep 6379  businesses 5  levels 39
+  ...   210 min  earned $342.47M  income $77.7K/s  rep 7445  businesses 6  levels 40
+  ...   240 min  earned $485.06M  income $73.0K/s  rep 8465  businesses 6  levels 42
+  ...   270 min  earned $623.92M  income $113.3K/s  rep 9559  businesses 6  levels 42
+  ...   301 min  earned $775.55M  income $113.3K/s  rep 10590  businesses 6  levels 42
+  ...   331 min  earned $933.18M  income $75.5K/s  rep 11575  businesses 6  levels 42
+  ...   361 min  earned $1.35B  income $245.7K/s  rep 12629  businesses 6  levels 42
+  ...   391 min  earned $1.95B  income $409.7K/s  rep 13676  businesses 6  levels 42
+  ...   421 min  earned $2.90B  income $733.8K/s  rep 14774  businesses 6  levels 43
+  ...   451 min  earned $4.31B  income $820.3K/s  rep 15887  businesses 8  levels 56
+  ...   481 min  earned $5.84B  income $875.1K/s  rep 17223  businesses 8  levels 58
+  ...   511 min  earned $7.58B  income $940.3K/s  rep 18250  businesses 8  levels 61
+  ...   541 min  earned $9.44B  income $962.8K/s  rep 19343  businesses 8  levels 64
+  ...   571 min  earned $11.42B  income $1.06M/s  rep 20314  businesses 8  levels 66
+  ...   601 min  earned $13.53B  income $1.08M/s  rep 21378  businesses 8  levels 67
+  ...   631 min  earned $15.81B  income $1.13M/s  rep 22450  businesses 8  levels 68
+  ...   661 min  earned $18.08B  income $1.03M/s  rep 23471  businesses 8  levels 69
+  ...   691 min  earned $20.36B  income $1.10M/s  rep 24513  businesses 8  levels 70
+
+== casual player, no passes, 12 simulated hours ==
+     0.3m  First business upgrade (Lemonade Lv 2)                income then: $6/s
+     0.5m  Second business (Ice Cream Cart)                      income then: $13/s
+     1.1m  Lifetime earned $1K                                   income then: $44/s
+     2.4m  Lifetime earned $10K                                  income then: $131/s
+     2.6m  📖 Story Ch 1 complete: BROKE LEGEND                income then: $131/s
+     8.9m  Lifetime earned $100K                                 income then: $137/s
+     9.1m  Reputation: LOCAL FAVORITE                            income then: $143/s
+     9.3m  First employee                                        income then: $236/s
+     9.3m  Tutorial complete                                     income then: $236/s
+     9.3m  📖 Story Ch 2 complete: POCKET CHANGE CEO           income then: $236/s
+    14.9m  4 businesses                                          income then: $475/s
+    17.9m  Reputation: HOTSPOT                                   income then: $892/s
+    21.6m  📖 Story Ch 3 complete: LOCAL MENACE                income then: $1154/s
+    22.3m  Lifetime earned $1M                                   income then: $841/s
+    25.6m  First rental property                                 income then: $1024/s
+    39.6m  Reputation: CITY ICON                                 income then: $1847/s
+    42.8m  📖 Story Ch 4 complete: ACTUALLY GETTING MONEY      income then: $3062/s
+    53.8m  Lifetime earned $10M                                  income then: $6480/s
+    1h20m  First luxury purchase (Sports Coupe, $2.50M)          income then: $9538/s
+    1h34m  Reputation: EMPIRE                                    income then: $11.1K/s
+    2h27m  Lifetime earned $100M                                 income then: $37.2K/s
+    2h27m  📖 Story Ch 5 complete: THE CITY KNOWS YOUR NAME    income then: $37.2K/s
+    4h14m  Reputation: LEGENDARY DISTRICT                        income then: $75.5K/s
+    5h37m  Lifetime earned $1B                                   income then: $245.7K/s
+    5h37m  📖 Story Ch 6 complete: BILLIONAIRE BEHAVIOR        income then: $245.7K/s
+    7h17m  All 8 businesses open                                 income then: $782.0K/s
+    9h10m  Lifetime earned $10B                                  income then: $960.5K/s
+
+  where the money came from (of $22.71B earned):
+    passive income    90.6%
+    customers          9.1%
+    rent               0.0%
+    deliveries         0.0%
+    tutorial           0.0%
+
+MILESTONES_JSON {"allBiz":{"label":"All 8 businesses open","t":437.7},"earned$100K":{"label":"Lifetime earned $100K","t":8.9},"earned$100M":{"label":"Lifetime earned $100M","t":147.4},"earned$10B":{"label":"Lifetime earned $10B","t":550.2},"earned$10K":{"label":"Lifetime earned $10K","t":2.3},"earned$10M":{"label":"Lifetime earned $10M","t":53.7},"earned$1B":{"label":"Lifetime earned $1B","t":337.1},"earned$1K":{"label":"Lifetime earned $1K","t":1.1},"earned$1M":{"label":"Lifetime earned $1M","t":22.3},"firstProp":{"label":"First rental property","t":25.6},"firstStaff":{"label":"First employee","t":9.3},"firstUpgrade":{"label":"First business upgrade (Lemonade Lv 2)","t":0.2},"fourBiz":{"label":"4 businesses","t":14.8},"luxuryCar":{"label":"First luxury purchase (Sports Coupe, $2.50M)","t":80.4},"secondBiz":{"label":"Second business (Ice Cream Cart)","t":0.5},"story1":{"label":"📖 Story Ch 1 complete: BROKE LEGEND","t":2.5},"story2":{"label":"📖 Story Ch 2 complete: POCKET CHANGE CEO","t":9.3},"story3":{"label":"📖 Story Ch 3 complete: LOCAL MENACE","t":21.5},"story4":{"label":"📖 Story Ch 4 complete: ACTUALLY GETTING MONEY","t":42.7},"story5":{"label":"📖 Story Ch 5 complete: THE CITY KNOWS YOUR NAME","t":147.4},"story6":{"label":"📖 Story Ch 6 complete: BILLIONAIRE BEHAVIOR","t":337.3},"tier2":{"label":"Reputation: LOCAL FAVORITE","t":9.1},"tier3":{"label":"Reputation: HOTSPOT","t":17.8},"tier4":{"label":"Reputation: CITY ICON","t":39.5},"tier5":{"label":"Reputation: EMPIRE","t":94.1},"tier6":{"label":"Reputation: LEGENDARY DISTRICT","t":254.3},"tutorial":{"label":"Tutorial complete","t":9.3}}

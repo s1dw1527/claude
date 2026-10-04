@@ -444,7 +444,7 @@ function F.rentalTick(plr, d, now)
 		local net = total - upkeep
 		d.cash = math.max(0, d.cash + net)
 		if total > 0 then
-			d.earned += total
+			F.earn(d, total)
 			d.rentEarned = (d.rentEarned or 0) + total
 			R.Customer:FireClient(plr, {rent = total, upkeep = upkeep})
 		end

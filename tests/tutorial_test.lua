@@ -17,7 +17,12 @@ H.main(function()
 	local pbtn = find(pg, function(x) return x.ClassName == "TextButton" and x.Text == "📱" end)
 	local cardOpen = find(pg, function(x) return x.ClassName == "TextButton" and x.Text == "📱 Open Phone" end)
 	local function click(btn) H.signalOf(btn, "MouseButton1Click"):Fire() H.task.wait(0.2) end
-	local function key(k) H.signalOf(UIS, "InputBegan"):Fire({KeyCode = k, UserInputType = Enum.UserInputType.Keyboard}, false) H.task.wait(0.2) end
+	-- story cutscenes hide the HUD (and ignore P) while they play: wait for them like a player would
+	local function calm()
+		local t = H.now()
+		while cc.storyCutscene and cc.storyCutscene() and H.now() - t < 120 do H.task.wait(0.5) end
+	end
+	local function key(k) calm() H.signalOf(UIS, "InputBegan"):Fire({KeyCode = k, UserInputType = Enum.UserInputType.Keyboard}, false) H.task.wait(0.2) end
 	local function card() return cc.S and cc.S.tut end
 	local function waitFor(cond, secs)
 		local t = H.now()
@@ -167,8 +172,8 @@ H.main(function()
 	H.check(d.tutPaid == 7, "all 7 steps paid exactly once (tutPaid = " .. tostring(d.tutPaid) .. ")")
 	H.check(card() == nil, "the tutorial card is gone")
 	print(string.format("    whole tutorial: %.1f minutes of simulated play", (H.now() - t0) / 60))
-	-- step rewards are the only cash that doesn't count as "earned", so cash - earned shows any reward paid
-	local c0, e0 = d.cash, d.earned
+	-- walk the whole tutorial again after finishing it: no step may pay a second time
+	local mark = #H.remoteLog
 	T.act(a, "tut", "restart")
 	waitFor(function() return d.tut == 4 end, 10)
 	cc.togglePhone(true)
@@ -176,7 +181,11 @@ H.main(function()
 	cc.togglePhone(false)
 	waitFor(function() return d.tut == 0 end, 5)
 	H.check(d.tut == 0, "a restarted tutorial can be walked to the end again")
-	H.check(math.abs((d.cash - c0) - (d.earned - e0)) < 1, "restarting a finished tutorial pays no step rewards (extra $" .. math.floor((d.cash - c0) - (d.earned - e0)) .. ")")
+	local paidAgain = 0
+	for _, txt in ipairs(T.announcesSince(mark, a)) do
+		if tostring(txt):find("Tutorial step") and tostring(txt):find("%+%$") then paidAgain += 1 end
+	end
+	H.check(paidAgain == 0 and d.tutPaid == 7, "restarting a finished tutorial pays no step rewards (" .. paidAgain .. " paid)")
 	T.assertClean("the whole tutorial")
 	local dbg = 0
 	for _, p in ipairs(H.prints) do if tostring(p):find("%[Tutorial%]") then dbg += 1 end end

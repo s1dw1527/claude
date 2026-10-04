@@ -561,7 +561,11 @@ section("secrets", function(ctx)
 	local rnd = gmath.random
 	da.viralCooldown = 0
 	da.viralUntil = 0
-	gmath.random = function(x, y) if x == nil then return 0 end return rnd(x, y) end
+	gmath.random = function(x, y)
+		if x == nil then return 0 end
+		if y == nil then return rnd(x) end
+		return rnd(x, y)
+	end
 	local influencer
 	for _, t in ipairs(C.NPC_TYPES) do if t.trendy then influencer = t end end
 	da.trendUntil = 0

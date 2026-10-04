@@ -727,6 +727,14 @@ do
 		for i, t in ipairs(tools) do
 			row(100 + i, t[1], function() return "Run" end, function() act("debug", t[2]) end)
 		end
+		-- jump the story to the next chapter (plays its intro) to test cutscenes quickly
+		row(120, "🧪 Story: jump to next chapter", function()
+			local st = C.S and C.S.story
+			return st and ("→ Ch " .. math.min(st.ch + 1, 7)) or "Run"
+		end, function()
+			local st = C.S and C.S.story
+			act("debug", "story", st and math.min(st.ch + 1, 7) or 2)
+		end)
 	end
 	C.U.refreshSettings = function()
 		for _, r in ipairs(rows) do r.b.Text = r.get() end

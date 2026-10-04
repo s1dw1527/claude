@@ -1,0 +1,48 @@
+  loaded a v6 save: cash $30.06M, lifetime $500.06M, income now $20.5K/s, story chapter 5
+  ...    30 min  earned $615.86M  income $76.6K/s  rep 3763  businesses 7  levels 55
+  ...    60 min  earned $797.26M  income $89.8K/s  rep 4766  businesses 7  levels 55
+  ...    90 min  earned $991.73M  income $54.7K/s  rep 5759  businesses 7  levels 55
+  ...   120 min  earned $1.19B  income $91.2K/s  rep 6749  businesses 7  levels 55
+  ...   150 min  earned $1.52B  income $245.1K/s  rep 7742  businesses 7  levels 55
+  ...   180 min  earned $2.02B  income $403.9K/s  rep 8741  businesses 7  levels 55
+  ...   210 min  earned $2.89B  income $555.4K/s  rep 9697  businesses 7  levels 55
+  ...   240 min  earned $4.16B  income $781.9K/s  rep 10925  businesses 8  levels 57
+  ...   270 min  earned $5.67B  income $864.5K/s  rep 12010  businesses 8  levels 59
+  ...   300 min  earned $7.37B  income $884.1K/s  rep 12993  businesses 8  levels 61
+  ...   331 min  earned $9.24B  income $913.5K/s  rep 13998  businesses 8  levels 65
+
+== casual player (existing v6 save), no passes, 6 simulated hours ==
+     0.0m  First business upgrade (Lemonade Lv 2)                income then: $20.5K/s
+     0.0m  Lifetime earned $10M                                  income then: $20.5K/s
+     0.0m  Lifetime earned $1M                                   income then: $20.5K/s
+     0.0m  Lifetime earned $100K                                 income then: $20.5K/s
+     0.0m  📖 Story Ch 1 complete: BROKE LEGEND                income then: $20.5K/s
+     0.0m  📖 Story Ch 3 complete: LOCAL MENACE                income then: $20.5K/s
+     0.0m  📖 Story Ch 2 complete: POCKET CHANGE CEO           income then: $20.5K/s
+     0.0m  📖 Story Ch 4 complete: ACTUALLY GETTING MONEY      income then: $20.5K/s
+     0.0m  Lifetime earned $10K                                  income then: $20.5K/s
+     0.0m  Lifetime earned $100M                                 income then: $20.5K/s
+     0.0m  Reputation: CITY ICON                                 income then: $20.5K/s
+     0.0m  Tutorial complete                                     income then: $20.5K/s
+     0.0m  First employee                                        income then: $20.5K/s
+     0.0m  4 businesses                                          income then: $20.5K/s
+     0.0m  Lifetime earned $1K                                   income then: $20.5K/s
+     0.0m  Reputation: HOTSPOT                                   income then: $20.5K/s
+     0.0m  Reputation: LOCAL FAVORITE                            income then: $20.5K/s
+     0.0m  Second business (Ice Cream Cart)                      income then: $20.5K/s
+     0.0m  First luxury purchase (Sports Coupe, $2.50M)          income then: $27.1K/s
+     0.3m  First rental property                                 income then: $35.4K/s
+     6.6m  📖 Story Ch 5 complete: THE CITY KNOWS YOUR NAME    income then: $39.3K/s
+    21.2m  Reputation: EMPIRE                                    income then: $68.4K/s
+    1h31m  Lifetime earned $1B                                   income then: $91.2K/s
+    1h31m  📖 Story Ch 6 complete: BILLIONAIRE BEHAVIOR        income then: $91.2K/s
+    3h08m  Reputation: LEGENDARY DISTRICT                        income then: $422.0K/s
+    3h51m  All 8 businesses open                                 income then: $734.2K/s
+    5h43m  Lifetime earned $10B                                  income then: $900.2K/s
+
+  where the money came from (of $11.05B earned):
+    passive income    88.0%
+    customers          7.3%
+    rent               0.0%
+
+MILESTONES_JSON {"allBiz":{"label":"All 8 businesses open","t":231.6},"earned$100K":{"label":"Lifetime earned $100K","t":0},"earned$100M":{"label":"Lifetime earned $100M","t":0},"earned$10B":{"label":"Lifetime earned $10B","t":343},"earned$10K":{"label":"Lifetime earned $10K","t":0},"earned$10M":{"label":"Lifetime earned $10M","t":0},"earned$1B":{"label":"Lifetime earned $1B","t":91.7},"earned$1K":{"label":"Lifetime earned $1K","t":0},"earned$1M":{"label":"Lifetime earned $1M","t":0},"firstProp":{"label":"First rental property","t":0.3},"firstStaff":{"label":"First employee","t":0},"firstUpgrade":{"label":"First business upgrade (Lemonade Lv 2)","t":0},"fourBiz":{"label":"4 businesses","t":0},"luxuryCar":{"label":"First luxury purchase (Sports Coupe, $2.50M)","t":0},"secondBiz":{"label":"Second business (Ice Cream Cart)","t":0},"story1":{"label":"📖 Story Ch 1 complete: BROKE LEGEND","t":0},"story2":{"label":"📖 Story Ch 2 complete: POCKET CHANGE CEO","t":0},"story3":{"label":"📖 Story Ch 3 complete: LOCAL MENACE","t":0},"story4":{"label":"📖 Story Ch 4 complete: ACTUALLY GETTING MONEY","t":0},"story5":{"label":"📖 Story Ch 5 complete: THE CITY KNOWS YOUR NAME","t":6.6},"story6":{"label":"📖 Story Ch 6 complete: BILLIONAIRE BEHAVIOR","t":91.9},"tier2":{"label":"Reputation: LOCAL FAVORITE","t":0},"tier3":{"label":"Reputation: HOTSPOT","t":0},"tier4":{"label":"Reputation: CITY ICON","t":0},"tier5":{"label":"Reputation: EMPIRE","t":21.2},"tier6":{"label":"Reputation: LEGENDARY DISTRICT","t":188.4},"tutorial":{"label":"Tutorial complete","t":0}}

@@ -1,5 +1,5 @@
---// CORNER EMPIRE v6 — CLIENT. All the code lives in the ModuleScripts inside this LocalScript.
-local modules = {"UI", "Audio", "HUD", "WorldFX", "Workers", "Menus", "Phone", "Driving", "MiniGames", "PhotoMode", "MainMenu"}
+--// CORNER EMPIRE v7 — CLIENT. All the code lives in the ModuleScripts inside this LocalScript.
+local modules = {"UI", "Audio", "HUD", "WorldFX", "Workers", "Menus", "Phone", "Driving", "MiniGames", "PhotoMode", "Story", "MainMenu"}
 local C = {}
 for _, name in ipairs(modules) do
 	local ok, err = pcall(function() require(script:WaitForChild(name))(C) end)

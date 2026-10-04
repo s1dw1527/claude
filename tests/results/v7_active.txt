@@ -1,0 +1,66 @@
+  ...    34 min  earned $3.60M  income $1737/s  rep 1611  businesses 4  levels 30
+  ...    68 min  earned $20.67M  income $4941/s  rep 3069  businesses 5  levels 33
+  ...   102 min  earned $64.59M  income $14.3K/s  rep 4491  businesses 5  levels 38
+  ...   135 min  earned $152.75M  income $40.7K/s  rep 5777  businesses 5  levels 39
+  ...   170 min  earned $430.76M  income $78.8K/s  rep 7247  businesses 6  levels 41
+  ...   203 min  earned $745.12M  income $48.6K/s  rep 8750  businesses 5  levels 36
+  ...   238 min  earned $1.10B  income $131.5K/s  rep 10031  businesses 6  levels 40
+  ...   271 min  earned $1.49B  income $101.1K/s  rep 11470  businesses 6  levels 41
+  ...   305 min  earned $1.92B  income $349.9K/s  rep 12660  businesses 6  levels 41
+  ...   339 min  earned $4.51B  income $1.07M/s  rep 14101  businesses 7  levels 49
+  ...   372 min  earned $9.04B  income $1.78M/s  rep 15650  businesses 8  levels 62
+  ...   405 min  earned $15.20B  income $1.66M/s  rep 16840  businesses 8  levels 66
+  ...   440 min  earned $23.05B  income $1.81M/s  rep 18121  businesses 8  levels 69
+  ...   473 min  earned $33.06B  income $2.96M/s  rep 19509  businesses 8  levels 71
+  ...   505 min  earned $45.52B  income $3.04M/s  rep 20667  businesses 8  levels 73
+  ...   540 min  earned $61.55B  income $4.01M/s  rep 21998  businesses 8  levels 75
+  ...   573 min  earned $81.08B  income $4.90M/s  rep 23315  businesses 8  levels 77
+  ...   607 min  earned $106.48B  income $5.25M/s  rep 24574  businesses 8  levels 77
+  ...   641 min  earned $138.98B  income $7.29M/s  rep 25825  businesses 8  levels 78
+  ...   675 min  earned $173.56B  income $7.76M/s  rep 27078  businesses 8  levels 78
+  ...   709 min  earned $209.10B  income $7.39M/s  rep 28360  businesses 8  levels 78
+
+== active player, no passes, 12 simulated hours ==
+     0.1m  First business upgrade (Lemonade Lv 2)                income then: $6/s
+     0.1m  Second business (Ice Cream Cart)                      income then: $12/s
+     0.6m  Lifetime earned $1K                                   income then: $37/s
+     2.6m  📖 Story Ch 1 complete: BROKE LEGEND                income then: $28/s
+     2.8m  Lifetime earned $10K                                  income then: $58/s
+     6.0m  Reputation: LOCAL FAVORITE                            income then: $70/s
+     7.2m  First employee                                        income then: $87/s
+     7.2m  Tutorial complete                                     income then: $87/s
+     7.2m  📖 Story Ch 2 complete: POCKET CHANGE CEO           income then: $143/s
+     8.0m  Lifetime earned $100K                                 income then: $245/s
+    11.8m  4 businesses                                          income then: $463/s
+    13.7m  Reputation: HOTSPOT                                   income then: $630/s
+    17.2m  📖 Story Ch 3 complete: LOCAL MENACE                income then: $433/s
+    19.3m  Lifetime earned $1M                                   income then: $818/s
+    24.2m  First rental property                                 income then: $1020/s
+    32.3m  Reputation: CITY ICON                                 income then: $1586/s
+    37.7m  📖 Story Ch 4 complete: ACTUALLY GETTING MONEY      income then: $2495/s
+    51.6m  Lifetime earned $10M                                  income then: $4065/s
+    1h15m  First luxury purchase (Sports Coupe, $2.50M)          income then: $8236/s
+    1h19m  Reputation: EMPIRE                                    income then: $12.7K/s
+    1h59m  Lifetime earned $100M                                 income then: $26.2K/s
+    1h59m  📖 Story Ch 5 complete: THE CITY KNOWS YOUR NAME    income then: $26.2K/s
+    2h33m  City Era 2 (Growing City)                             income then: $99.0K/s
+    3h17m  First rebirth                                         income then: $68.3K/s
+    3h30m  Reputation: LEGENDARY DISTRICT                        income then: $85.4K/s
+    3h49m  Lifetime earned $1B                                   income then: $87.7K/s
+    3h49m  📖 Story Ch 6 complete: BILLIONAIRE BEHAVIOR        income then: $87.7K/s
+    4h05m  Second rebirth                                        income then: $96.4K/s
+    4h35m  City Era 3 (Mega City)                                income then: $104.1K/s
+    5h44m  All 8 businesses open                                 income then: $1.13M/s
+    5h58m  City Era 4 (Future City)                              income then: $1.36M/s
+    6h17m  Lifetime earned $10B                                  income then: $860.9K/s
+    7h36m  City Era 5 (Cyber City)                               income then: $2.91M/s
+
+  where the money came from (of $219.79B earned):
+    passive income    48.1%
+    deliveries        21.5%
+    mini-games        16.3%
+    customers         14.1%
+    rent               0.0%
+    tutorial           0.0%
+
+MILESTONES_JSON {"allBiz":{"label":"All 8 businesses open","t":344},"earned$100K":{"label":"Lifetime earned $100K","t":7.9},"earned$100M":{"label":"Lifetime earned $100M","t":119.5},"earned$10B":{"label":"Lifetime earned $10B","t":377.8},"earned$10K":{"label":"Lifetime earned $10K","t":2.8},"earned$10M":{"label":"Lifetime earned $10M","t":51.6},"earned$1B":{"label":"Lifetime earned $1B","t":229.7},"earned$1K":{"label":"Lifetime earned $1K","t":0.5},"earned$1M":{"label":"Lifetime earned $1M","t":19.2},"era2":{"label":"City Era 2 (Growing City)","t":153.5},"era3":{"label":"City Era 3 (Mega City)","t":275.9},"era4":{"label":"City Era 4 (Future City)","t":358.2},"era5":{"label":"City Era 5 (Cyber City)","t":456.5},"firstProp":{"label":"First rental property","t":24.2},"firstStaff":{"label":"First employee","t":7.1},"firstUpgrade":{"label":"First business upgrade (Lemonade Lv 2)","t":0},"fourBiz":{"label":"4 businesses","t":11.7},"luxuryCar":{"label":"First luxury purchase (Sports Coupe, $2.50M)","t":75.2},"rebirth1":{"label":"First rebirth","t":197.5},"rebirth2":{"label":"Second rebirth","t":245.4},"secondBiz":{"label":"Second business (Ice Cream Cart)","t":0.1},"story1":{"label":"📖 Story Ch 1 complete: BROKE LEGEND","t":2.5},"story2":{"label":"📖 Story Ch 2 complete: POCKET CHANGE CEO","t":7.1},"story3":{"label":"📖 Story Ch 3 complete: LOCAL MENACE","t":17.1},"story4":{"label":"📖 Story Ch 4 complete: ACTUALLY GETTING MONEY","t":37.7},"story5":{"label":"📖 Story Ch 5 complete: THE CITY KNOWS YOUR NAME","t":119.5},"story6":{"label":"📖 Story Ch 6 complete: BILLIONAIRE BEHAVIOR","t":229.8},"tier2":{"label":"Reputation: LOCAL FAVORITE","t":6},"tier3":{"label":"Reputation: HOTSPOT","t":13.6},"tier4":{"label":"Reputation: CITY ICON","t":32.2},"tier5":{"label":"Reputation: EMPIRE","t":79.1},"tier6":{"label":"Reputation: LEGENDARY DISTRICT","t":210},"tutorial":{"label":"Tutorial complete","t":7.1}}

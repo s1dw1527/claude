@@ -1,6 +1,7 @@
 {
   "/ServerScriptService/GameServer": [
     "Config",
+    "StoryData",
     "Util",
     "World",
     "Buildings",
@@ -14,6 +15,7 @@
     "Mega",
     "Legacy",
     "Weekly",
+    "Story",
     "Players"
   ],
   "/StarterPlayer/StarterPlayerScripts/EmpireClient": [
@@ -27,6 +29,7 @@
     "Driving",
     "MiniGames",
     "PhotoMode",
+    "Story",
     "MainMenu"
   ]
 }

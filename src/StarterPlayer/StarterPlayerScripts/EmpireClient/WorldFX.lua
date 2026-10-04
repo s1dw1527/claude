@@ -92,7 +92,7 @@ R.Customer.OnClientEvent:Connect(function(c)
 		segs[i] = len
 		total += len
 	end
-	table.insert(customers, {n = makePerson(c.npc), pts = pts, segs = segs, total = total, t = c.t, age = 0, review = c.review, door = c.door})
+	table.insert(customers, {n = makePerson(c.npc), pts = pts, segs = segs, total = total, t = c.t, age = 0, review = c.review, door = c.door, shout = c.shout})
 end)
 
 -- ===== loops for pedestrians and traffic =====
@@ -308,7 +308,9 @@ RunService.RenderStepped:Connect(function(dt)
 			table.remove(customers, i)
 			local lines = {{"💵", GREEN}}
 			if c.review then lines = {{stars(c.review.stars), GOLD}, {"\"" .. c.review.text .. "\"", WHITE}} end
-			floatBillboard(c.door + V3(0, 6, 0), lines, c.review and 3.5 or 1.2)
+			-- fans who recognize the owner (story chapter 3+)
+			if c.shout then table.insert(lines, 1, {"🗣️ " .. c.shout, RGB(255, 140, 200)}) end
+			floatBillboard(c.door + V3(0, 6, 0), lines, (c.review or c.shout) and 3.5 or 1.2)
 		end
 	end
 	for _, w in ipairs(walkers) do
