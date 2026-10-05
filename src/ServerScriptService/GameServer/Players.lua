@@ -37,7 +37,7 @@ local SAVE_KEYS = {"cash", "levels", "chains", "staff", "combos", "rep", "ep", "
 	"viral", "evictions", "openings",
 	-- v10
 	"deeds", "deedSeq", "brands", "products", "stock", "hq", "mgr", "computer", "homeBuild", "furniture", "carMods", "garage", "arcade",
-	"perms", "invites", "guide"}
+	"perms", "invites", "guide", "heist"}
 -- everything this version writes itself; any OTHER field found in a save is kept as-is when saving
 local KNOWN_KEYS = {lots = true, props = true, SchemaVersion = true, saveSeq = true, gameVersion = true, savedAt = true}
 for _, k in ipairs(SAVE_KEYS) do KNOWN_KEYS[k] = true end
@@ -255,7 +255,7 @@ local newDataBase
 local function newData(plot)
 	local now = os.clock()
 	local d = newDataBase(plot, now)
-	for k, v in pairs(C.DataMigration.v10Defaults()) do d[k] = v end
+	for k, v in pairs(C.DataMigration.featureDefaults()) do d[k] = v end
 	return d
 end
 newDataBase = function(plot, now)

@@ -103,7 +103,30 @@ M.steps = {
 		end
 		return notes
 	end,
+	[10] = function(t)
+		local notes = {}
+		-- v11: the secret mountain HQ and robberies. One new record; robbery loot itself is never saved.
+		for k, v in pairs(M.v11Defaults()) do
+			if t[k] == nil then
+				t[k] = v
+				table.insert(notes, k)
+			end
+		end
+		return notes
+	end,
 }
+-- every new v11 field and its safe default
+function M.v11Defaults()
+	return {
+		heist = {discovered = false, done = 0, failed = 0, earned = 0, best = 0, bag = 1, base = 1, arrests = 0, policeEarned = 0},
+	}
+end
+-- all the "new feature" records v10+ added (each repaired on its own, never fatal)
+function M.featureDefaults()
+	local out = M.v10Defaults()
+	for k, v in pairs(M.v11Defaults()) do out[k] = v end
+	return out
+end
 -- the 16 land lots of v5-v9, in the order the world built them (4 per district)
 M.OLD_LOT_DISTRICT = {"downtown", "downtown", "downtown", "downtown", "industrial", "industrial", "industrial", "industrial",
 	"beach", "beach", "beach", "beach", "luxury", "luxury", "luxury", "luxury"}
@@ -128,7 +151,7 @@ function M.v10Defaults()
 end
 -- v10 data is repaired, never fatal: a broken new table is replaced by its default and the original is kept
 function M.repairV10(t, fixes)
-	for k, def in pairs(M.v10Defaults()) do
+	for k, def in pairs(M.featureDefaults()) do
 		if t[k] ~= nil and type(t[k]) ~= "table" then
 			t[k .. "Recovered"] = t[k .. "Recovered"] == nil and t[k] or t[k .. "Recovered"]
 			t[k] = def
@@ -137,7 +160,7 @@ function M.repairV10(t, fixes)
 	end
 	-- one level deeper: a field inside a v10 record with the wrong type (e.g. homeBuild.items = "x") goes back
 	-- to its default; numbers must be real, non-negative numbers
-	for k, def in pairs(M.v10Defaults()) do
+	for k, def in pairs(M.featureDefaults()) do
 		local cur = t[k]
 		if type(cur) == "table" then
 			for sub, dv in pairs(def) do
@@ -309,6 +332,9 @@ function M.sampleSaves()
 		v9old = {SchemaVersion = 9, cash = 9e6, earned = 2e8, levels = {lemonade = 10, coffee = 6, pizza = 3}, rep = 1500, tut = 0, tutPaid = 7, lots = {1, 6, 10}, mail = {},
 			viral = {score = 12, mentions = 1, log = {}, seen = {}, cd = {}, hall = {}, week = 0, weekScore = 0, cats = {}}, evictions = 1, openings = {}},
 		brokenV10 = {SchemaVersion = 10, cash = 31337, earned = 1e5, levels = {lemonade = 3}, rep = 50, tut = 0, tutPaid = 7, brands = "oops", deeds = {{id = "d1", district = "midtown"}, "junk"}},
+		v10 = {SchemaVersion = 10, cash = 4.2e7, earned = 9e8, levels = {lemonade = 10, pizza = 6}, rep = 2500, tut = 0, tutPaid = 7, deeds = {{id = "d1", district = "downtown", plot = 2}},
+			brands = {lemonade = {name = "Sunny Sips"}}, hq = {level = 3}, garage = {fav = {coupe = true}, names = {}}, cars = {coupe = true}, homeBuild = {items = {{k = "sofa", x = 3, z = 7, r = 0}}, styles = {}, v = 2}},
+		brokenV11 = {SchemaVersion = 11, cash = 777, earned = 999, levels = {lemonade = 2}, rep = 5, tut = 0, tutPaid = 7, heist = {bag = "huge", done = -3, discovered = "yes"}},
 		brokenViral = {SchemaVersion = 9, cash = 500, earned = 900, levels = {lemonade = 4}, rep = 10, tut = 0, tutPaid = 7, viral = "garbage", evictions = -5},
 		future = {SchemaVersion = 99, cash = 1, earned = 1, levels = {}, rep = 0, someNewThing = {x = 1}},
 		corrupt = {cash = "lots", earned = 0/0, levels = {lemonade = "ten"}},
@@ -349,6 +375,25 @@ function M.selfTest()
 		local ok, t, log = M.migrate(samples.brokenV10)
 		add(ok and t.cash == 31337 and type(t.brands) == "table" and t.brandsRecovered == "oops" and #t.deeds == 1,
 			"a damaged v10 record is repaired and the rest loads (" .. table.concat(log, " | ") .. ")")
+	end
+	do
+		local ok, t, log = M.migrate(samples.v10)
+		add(ok and t.SchemaVersion == V.SCHEMA_VERSION and t.cash == 4.2e7 and #t.deeds == 1 and t.brands.lemonade.name == "Sunny Sips" and t.hq.level == 3
+			and t.homeBuild.items[1].k == "sofa" and type(t.heist) == "table" and t.heist.discovered == false and t.heist.bag == 1,
+			"v10 save keeps deeds, brand, HQ, garage and furniture, and gets the v11 heist record (" .. table.concat(log, " | ") .. ")")
+	end
+	do
+		local ok, t, log = M.migrate(samples.brokenV11)
+		add(ok and t.cash == 777 and t.heist.bag == 1 and t.heist.done == 0 and t.heist.discovered == false,
+			"a damaged v11 heist record is repaired; the rest of the save loads (" .. table.concat(log, " | ") .. ")")
+	end
+	do
+		local broken = deepCopy(samples.v10)
+		local real = M.steps[10]
+		M.steps[10] = function() error("simulated bug in the v11 step") end
+		local ok, _, _, err = M.migrate(broken)
+		M.steps[10] = real
+		add(not ok and tostring(err):find("10 %-> 11") ~= nil and samples.v10.heist == nil, "a crashing v11 step is refused and the stored v10 save is untouched: " .. tostring(err))
 	end
 	do
 		local ok, t, log = M.migrate(samples.brokenViral)

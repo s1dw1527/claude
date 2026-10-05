@@ -24,7 +24,7 @@ H.main(function()
 	H.check(d.perms.house == "public" and d.perms.hq == "friends", "visitor defaults: house public, HQ friends-only")
 	F.save(a)
 	H.task.wait(0.5)
-	H.check(db["u101_s1"].SchemaVersion == 10 and db["u101_s1"].saveSeq == 4, "saved back as schema 10")
+	H.check(db["u101_s1"].SchemaVersion == C.VERSION.SCHEMA_VERSION and db["u101_s1"].saveSeq == 4, "saved back as the current schema")
 
 	H.section("A v9 save with land lots → permanent deeds")
 	db["u102_s1"] = {SchemaVersion = 9, cash = 8e6, earned = 3e8, rep = 1500, tut = 0, tutPaid = 7, levels = {lemonade = 10, coffee = 6, pizza = 3}, lots = {1, 6}, mail = {}, saveSeq = 9,

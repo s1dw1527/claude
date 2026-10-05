@@ -37,8 +37,19 @@ function C.openModal(key, extra)
 		return
 	end
 	local was = m.frame.Visible
-	C.closeModals()
-	if was and not extra then return end
+	-- close the OTHER windows. (v11: this used to hide this window too and show it again, which fired its
+	-- Visible signal; windows that ask the server for data when opened then asked again on every reply —
+	-- the v10 Arcade app glitch.)
+	for k, o in pairs(modals) do if k ~= key then o.frame.Visible = false end end
+	if was and not extra then
+		m.frame.Visible = false
+		return
+	end
+	if was then
+		-- already open: just refresh what it shows
+		if C.S and m.update then m.update(C.S) end
+		return
+	end
 	m.extra = extra
 	m.frame.Visible = true
 	-- small screens (phones): shrink the window to fit instead of running off the edges

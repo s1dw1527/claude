@@ -181,7 +181,7 @@ R.Menu.OnClientEvent:Connect(function(kind, e)
 		return
 	elseif kind == "arcadeInfo" and type(e) == "table" then
 		A.info = e
-		C.openModal("arcadeInfo", true)
+		if not C.modals.arcadeInfo.frame.Visible then C.openModal("arcadeInfo", true) end
 		A.renderInfo()
 		return
 	end

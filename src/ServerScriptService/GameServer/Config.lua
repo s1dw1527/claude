@@ -4,20 +4,16 @@ local RGB = Color3.fromRGB
 
 -- ===== VERSION (bump these with every published update; see README "How to update Corner Empire") =====
 C.VERSION = {
-	VERSION = "10.0.0",
-	UPDATE_NAME = "Ownership, HQ, Cars & Lifestyle",
-	SCHEMA_VERSION = 10,         -- the shape of a player's save. Raise it only together with a new step in DataMigration.
+	VERSION = "11.0.0",
+	UPDATE_NAME = "Secret Mountain Base & Heists",
+	SCHEMA_VERSION = 11,         -- the shape of a player's save. Raise it only together with a new step in DataMigration.
 	MIN_SUPPORTED_SCHEMA = 6,   -- saves older than v6 (no version field, no tutorial-reward tracking) are treated as v6
 	-- shown once to every returning player after an update (Messages app)
 	NOTES = {
-		"🏙️ A real city real-estate market: 8 districts, ~100 plots, ownership limits that grow with you",
-		"🏷️ Name your businesses, customize your brand, and create your own products",
-		"🏢 Build an HQ with floors, an Empire Wall, and a General Manager on contract",
-		"💻 Computers for your home and HQ, with apps for your whole empire",
-		"🏡 Seven house tiers, furniture shop and grid furniture placement",
-		"🚗 15 new original cars with real stats, classes and customization",
-		"🕹️ Fun Zone + two-player arcade games (in friends' arcades too)",
-		"🎓 A new guide that explains every new system as you reach it",
+		"⛰️ Rumors say something hums inside the mountain up north... find the lever",
+		"💰 Heists: rob the Corner Bank and 7 other targets, then get the loot back to the mountain",
+		"🚓 Go on duty as police and stop robbers before they reach their hideout",
+		"📱 New HEISTS phone app; the Arcade app no longer glitches",
 	},
 }
 
