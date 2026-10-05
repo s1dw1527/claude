@@ -160,6 +160,11 @@ R.Menu.OnClientEvent:Connect(function(kind, a)
 		musicText()
 		if U.refreshSettings then U.refreshSettings() end
 		C.gui.Enabled = false
+		C.inMainMenu = true
+		-- v9: nothing from the city keeps playing behind the menu
+		if C.Cinematics then C.Cinematics.clear() end
+		if C.CityLife then C.CityLife.endAll() end
+		if C.InteriorLife then C.InteriorLife.stop() end
 		if C.phoneFrame then C.phoneFrame.Visible = false end
 		C.closeModals()
 		mg.Enabled = true
@@ -169,6 +174,7 @@ R.Menu.OnClientEvent:Connect(function(kind, a)
 		mg.Enabled = false
 		overlay.Visible = false
 		stopCamera()
+		C.inMainMenu = false
 		C.gui.Enabled = true
 		C.S = nil
 		if C.reloadInbox then task.spawn(C.reloadInbox) end

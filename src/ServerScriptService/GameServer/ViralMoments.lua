@@ -78,7 +78,7 @@ C.VIRAL_MOMENTS = {
 		posts = {"🏆 LEGENDARY: all four city influencers posted about {name} in one week. THE FULL SET."}},
 	funnyEvent = {icon = "😂", title = "{title}", score = 30, cat = "funny", importance = "low", cd = 300,
 		posts = {"{post}"}},
-	capture = {icon = "📸", title = "Captured It", score = 25, cat = "funny", importance = "low", cd = 120},
+	capture = {icon = "📸", title = "Captured It", score = 25, cat = "funny", importance = "low", cd = 120, quiet = true},
 	competition = {icon = "🏆", title = "Champion", score = 150, cat = "empire", importance = "high", cd = 3600},
 }
 local MOMENTS = C.VIRAL_MOMENTS
@@ -168,13 +168,15 @@ function F.viralMoment(plr, key, ctx)
 			posted = true
 		end
 	end
-	-- tell the player (with a capture button for Photo Mode)
+	-- tell the player (with a capture button for Photo Mode). Quiet moments (like the capture itself) don't pop up.
 	nextMomentId += 1
-	recent[plr] = recent[plr] or {}
-	recent[plr][nextMomentId] = clock
-	local pos = ctx.pos
-	R.Viral:FireClient(plr, {kind = "moment", id = nextMomentId, key = key, title = title, icon = m.icon, text = post or title, score = score,
-		total = v.score, pos = typeof(pos) == "Vector3" and pos or nil, rare = m.rare == true, legendary = imp == "legendary"})
+	if not m.quiet then
+		recent[plr] = recent[plr] or {}
+		recent[plr][nextMomentId] = clock
+		local pos = ctx.pos
+		R.Viral:FireClient(plr, {kind = "moment", id = nextMomentId, key = key, title = title, icon = m.icon, text = post or title, score = score,
+			total = v.score, pos = typeof(pos) == "Vector3" and pos or nil, rare = m.rare == true, legendary = imp == "legendary"})
+	end
 	-- achievements
 	if F.achieve then
 		if m.rare then F.achieve(plr, "mainCharacter") end

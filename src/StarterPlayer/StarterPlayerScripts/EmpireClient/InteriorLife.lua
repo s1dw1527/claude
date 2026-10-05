@@ -288,6 +288,7 @@ local function customerThink(r, a, now)
 end
 
 -- ===== the room lifecycle =====
+IL.folder = function() return folder end
 local function stop()
 	if folder then folder:Destroy() folder = nil end
 	room = nil

@@ -25,9 +25,19 @@ end
 local bars = new("Frame", {Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Visible = false}, sg)
 new("Frame", {Size = UDim2.new(1, 0, 0.1, 0), BackgroundColor3 = Color3.new(0, 0, 0), BorderSizePixel = 0}, bars)
 new("Frame", {AnchorPoint = Vector2.new(0, 1), Position = UDim2.fromScale(0, 1), Size = UDim2.new(1, 0, 0.1, 0), BackgroundColor3 = Color3.new(0, 0, 0), BorderSizePixel = 0}, bars)
-local bar = new("Frame", {AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -12), Size = UDim2.new(0, 760, 0, 104), BackgroundColor3 = RGB(20, 22, 32), BackgroundTransparency = 0.15, BorderSizePixel = 0}, sg)
+local bar = new("Frame", {AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -12), Size = UDim2.new(0, 980, 0, 104), BackgroundColor3 = RGB(20, 22, 32), BackgroundTransparency = 0.15, BorderSizePixel = 0}, sg)
 corner(bar, 12)
-new("UISizeConstraint", {MaxSize = Vector2.new(760, 104)}, bar)
+new("UISizeConstraint", {MaxSize = Vector2.new(980, 104)}, bar)
+-- narrow screens: the bar scales down instead of running off the edge
+do
+	local bs = new("UIScale", {}, bar)
+	local function fitBar()
+		local vp = camera and camera.ViewportSize or Vector2.new(1280, 720)
+		bs.Scale = math.clamp((vp.X - 24) / 980, 0.45, 1)
+	end
+	fitBar()
+	if camera then camera:GetPropertyChangedSignal("ViewportSize"):Connect(fitBar) end
+end
 local hint = label({Position = UDim2.fromOffset(10, 2), Size = UDim2.new(1, -20, 0, 18), TextSize = 11, TextColor3 = SUB, TextXAlignment = Enum.TextXAlignment.Left,
 	Text = "📸 PHOTO MODE • WASD/QE fly • hold right-click or drag to look • SHIFT fast • H hides this bar • V exits • take the shot with Roblox's Capture button"}, bar)
 local row1 = new("Frame", {Position = UDim2.fromOffset(8, 22), Size = UDim2.new(1, -16, 0, 38), BackgroundTransparency = 1}, bar)
@@ -169,6 +179,12 @@ for _, e in ipairs(EMOTES) do
 			local ok, played = pcall(function() return hum:PlayEmote(e[2]) end)
 			if not (ok and played) and U.toast then U.toast("📸 That pose isn't available on this avatar.") end
 		end
+	end)
+end
+-- v9 reactions and poses (EmpireClient > AnimationConfig: your own animation ids, or safe fallbacks)
+for _, r in ipairs({{"😎", "ownerPose"}, {"🤦", "facepalm"}, {"💸", "money"}, {"😱", "shocked"}, {"😤", "armsCrossed"}}) do
+	pbtn(row2, r[1], 40, RGB(150, 90, 200), function()
+		if C.AnimationConfig then C.AnimationConfig.react(r[2]) end
 	end)
 end
 pbtn(row2, "# Grid", 60, GRAY, function() grid.Visible = not grid.Visible end)

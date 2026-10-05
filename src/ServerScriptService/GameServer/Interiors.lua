@@ -589,6 +589,19 @@ local function buildFixtures(m, o, L, key, accent, lvl, ownerName, title, icon)
 		end
 	end
 end
+-- what the client-side staff and customers need to come alive in a room (kept fresh while it exists)
+function F.roomInfo(room)
+	local d, key, m = data[room.owner], room.key, room.model
+	if not (d and m and m.Parent) then return end
+	m:SetAttribute("Level", BIZ[key] and (d.levels[key] or 1) or 0)
+	m:SetAttribute("Score", F.interiorScore100(d, key))
+	m:SetAttribute("Sat", BIZ[key] and F.satisfaction and F.satisfaction(d, key) or 70)
+	if BIZ[key] then
+		local s = d.staff[key]
+		m:SetAttribute("Staff", s and s.name or "")
+		m:SetAttribute("Manager", d.staff.manager and d.staff.manager.name or "")
+	end
+end
 local function buildRoom(room)
 	local owner, key = room.owner, room.key
 	local d = data[owner]
@@ -633,18 +646,10 @@ local function buildRoom(room)
 	local title = BIZ[key] and BIZ[key].tiers[math.max(1, C.stageOf(lvl, d.chains[key] or 0))] or "Home"
 	local ok, err = pcall(buildFixtures, m, o, L, BIZ[key] and key or "home", accent, lvl, owner.Name, title, BIZ[key] and BIZ[key].icon or "🏠")
 	if not ok then warn("[CornerEmpire] interior fixtures (" .. key .. "): " .. tostring(err)) end
-	-- what the client-side staff and customers need to come alive in here
 	m:SetAttribute("Key", key)
 	m:SetAttribute("OwnerId", owner.UserId)
-	m:SetAttribute("Level", lvl)
-	m:SetAttribute("Score", F.interiorScore100(d, key))
-	m:SetAttribute("Sat", BIZ[key] and F.satisfaction and F.satisfaction(d, key) or 70)
 	m:SetAttribute("Origin", o.Position)
-	if BIZ[key] then
-		local s = d.staff[key]
-		m:SetAttribute("Staff", s and s.name or "")
-		m:SetAttribute("Manager", d.staff.manager and d.staff.manager.name or "")
-	end
+	F.roomInfo(room)
 	-- decorations in their spots
 	for i, sp in ipairs(L.spots) do
 		local item = r.spots[tostring(i)]
@@ -702,7 +707,7 @@ function F.enterInterior(plr, owner, key)
 	local root = char and char:FindFirstChild("HumanoidRootPart")
 	if not root then return end
 	local room = roomFor(owner, key)
-	if not room.model or not room.model.Parent then buildRoom(room) end
+	if not room.model or not room.model.Parent then buildRoom(room) else pcall(F.roomInfo, room) end
 	where[plr] = {room = room, back = root.CFrame}
 	room.occupants[plr] = true
 	room.empty = nil
@@ -880,13 +885,7 @@ task.spawn(function()
 				if not who.Parent or not data[who] then room.occupants[who] = nil where[who] = nil end
 			end
 			-- keep the live room's info fresh for the people inside (customers react to satisfaction)
-			if room.model and room.model.Parent and data[room.owner] then
-				local od = data[room.owner]
-				pcall(function()
-					room.model:SetAttribute("Sat", BIZ[room.key] and F.satisfaction(od, room.key) or 70)
-					room.model:SetAttribute("Score", F.interiorScore100(od, room.key))
-				end)
-			end
+			if room.model and room.model.Parent then pcall(F.roomInfo, room) end
 			if next(room.occupants) == nil then
 				room.empty = room.empty or now
 				if now - room.empty > 60 and room.model then

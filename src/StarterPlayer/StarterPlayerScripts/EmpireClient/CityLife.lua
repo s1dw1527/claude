@@ -294,6 +294,18 @@ capB.MouseButton1Click:Connect(function()
 	if C.setPhoto then C.setPhoto(true) end
 end)
 CL.capture = function() if popMoment then act("viral", "capture", popMoment.id) end end
+-- opening Photo Mode any other way (V, controller D-pad up, the 📸 button) while a moment is up captures it too
+if C.setPhoto then
+	local setPhoto = C.setPhoto
+	C.setPhoto = function(on)
+		setPhoto(on)
+		if on and popMoment and C.photoActive then
+			act("viral", "capture", popMoment.id)
+			popMoment = nil
+			pop.Visible = false
+		end
+	end
+end
 
 -- the beef / live challenge tracker (top center, under the event bar)
 local pill = C.panel({AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 150), Size = UDim2.fromOffset(440, 32), BackgroundColor3 = RGB(120, 30, 30), Visible = false, ZIndex = 30}, gui)

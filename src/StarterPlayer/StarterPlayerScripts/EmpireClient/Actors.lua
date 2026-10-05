@@ -159,8 +159,9 @@ function A.make(folder, look, opts)
 	return a
 end
 function A.destroy(a)
-	for _, v in pairs(a) do
-		if typeof(v) == "Instance" then v:Destroy() end
+	for k, v in pairs(a) do
+		-- (never the shared folder the actor lives in: other actors are still using it)
+		if k ~= "folder" and typeof(v) == "Instance" then v:Destroy() end
 	end
 	if a.propParts then for _, p in ipairs(a.propParts) do p:Destroy() end end
 	a.dead = true

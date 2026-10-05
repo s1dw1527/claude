@@ -588,7 +588,8 @@ local function run(scene)
 	conn:Disconnect()
 	S.folder:Destroy()
 	setUI(full, false)
-	if full then
+	-- (back on the main menu? it owns the camera and the HUD stays hidden)
+	if full and not C.inMainMenu then
 		cam.CameraType = (oldType == Enum.CameraType.Scriptable) and Enum.CameraType.Custom or oldType
 		local hum = plr.Character and plr.Character:FindFirstChildOfClass("Humanoid")
 		if hum then cam.CameraSubject = hum end
@@ -651,6 +652,12 @@ end
 remote.OnClientEvent:Connect(CC.play)
 function C.cinematicSkip()
 	if current then current.skipped = true end
+end
+-- leaving to the main menu: end the scene and forget anything queued
+function CC.clear()
+	table.clear(queue)
+	if current then current.skipped = true end
+	banner.Visible = false
 end
 skipB.MouseButton1Click:Connect(function()
 	play(SND.click)

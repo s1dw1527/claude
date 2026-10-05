@@ -69,6 +69,18 @@
         "Interiors": {
           "$path": "src/ServerScriptService/GameServer/Interiors.lua"
         },
+        "Cinematics": {
+          "$path": "src/ServerScriptService/GameServer/Cinematics.lua"
+        },
+        "ViralMoments": {
+          "$path": "src/ServerScriptService/GameServer/ViralMoments.lua"
+        },
+        "Influencers": {
+          "$path": "src/ServerScriptService/GameServer/Influencers.lua"
+        },
+        "CityEvents": {
+          "$path": "src/ServerScriptService/GameServer/CityEvents.lua"
+        },
         "Updates": {
           "$path": "src/ServerScriptService/GameServer/Updates.lua"
         },
@@ -88,6 +100,12 @@
           },
           "Audio": {
             "$path": "src/StarterPlayer/StarterPlayerScripts/EmpireClient/Audio.lua"
+          },
+          "AnimationConfig": {
+            "$path": "src/StarterPlayer/StarterPlayerScripts/EmpireClient/AnimationConfig.lua"
+          },
+          "Actors": {
+            "$path": "src/StarterPlayer/StarterPlayerScripts/EmpireClient/Actors.lua"
           },
           "HUD": {
             "$path": "src/StarterPlayer/StarterPlayerScripts/EmpireClient/HUD.lua"
@@ -116,11 +134,23 @@
           "Story": {
             "$path": "src/StarterPlayer/StarterPlayerScripts/EmpireClient/Story.lua"
           },
+          "Cinematics": {
+            "$path": "src/StarterPlayer/StarterPlayerScripts/EmpireClient/Cinematics.lua"
+          },
           "MapApp": {
             "$path": "src/StarterPlayer/StarterPlayerScripts/EmpireClient/MapApp.lua"
           },
           "InteriorUI": {
             "$path": "src/StarterPlayer/StarterPlayerScripts/EmpireClient/InteriorUI.lua"
+          },
+          "InteriorLife": {
+            "$path": "src/StarterPlayer/StarterPlayerScripts/EmpireClient/InteriorLife.lua"
+          },
+          "CityLife": {
+            "$path": "src/StarterPlayer/StarterPlayerScripts/EmpireClient/CityLife.lua"
+          },
+          "ViralApp": {
+            "$path": "src/StarterPlayer/StarterPlayerScripts/EmpireClient/ViralApp.lua"
           },
           "MainMenu": {
             "$path": "src/StarterPlayer/StarterPlayerScripts/EmpireClient/MainMenu.lua"

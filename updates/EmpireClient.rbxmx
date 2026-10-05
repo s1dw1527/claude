@@ -1,7 +1,8 @@
 <roblox version="4">
-<Item class="LocalScript" referent="RBX25"><Properties><string name="Name">EmpireClient</string>
-<ProtectedString name="Source"><![CDATA[--// CORNER EMPIRE v8 — CLIENT. All the code lives in the ModuleScripts inside this LocalScript.
-local modules = {"UI", "Audio", "HUD", "WorldFX", "Workers", "Menus", "Phone", "Driving", "MiniGames", "PhotoMode", "Story", "MapApp", "InteriorUI", "MainMenu"}
+<Item class="LocalScript" referent="RBX29"><Properties><string name="Name">EmpireClient</string>
+<ProtectedString name="Source"><![CDATA[--// CORNER EMPIRE v9 — CLIENT. All the code lives in the ModuleScripts inside this LocalScript.
+local modules = {"UI", "Audio", "AnimationConfig", "Actors", "HUD", "WorldFX", "Workers", "Menus", "Phone", "Driving", "MiniGames", "PhotoMode", "Story", "Cinematics",
+	"MapApp", "InteriorUI", "InteriorLife", "CityLife", "ViralApp", "MainMenu"}
 local C = {}
 for _, name in ipairs(modules) do
 	local ok, err = pcall(function() require(script:WaitForChild(name))(C) end)
@@ -9,7 +10,7 @@ for _, name in ipairs(modules) do
 end
 -- the server leaves out big sections that didn't change; keep our last copy of those (same list as HEAVY in GameServer > Players)
 local HEAVY = {"archive", "homeInfo", "props", "districts", "market", "staff", "reviews", "tours", "shareable", "standings", "passes", "cars", "showcase", "biz", "warLeaders",
-	"rebirth", "unlocks", "fees", "spire", "map"}
+	"rebirth", "unlocks", "fees", "spire", "map", "viral"}
 local asked = 0
 C.R.State.OnClientEvent:Connect(function(s)
 	local prev = C.S
@@ -31,7 +32,7 @@ C.R.State.OnClientEvent:Connect(function(s)
 	end
 end)
 ]]></ProtectedString></Properties>
-<Item class="ModuleScript" referent="RBX26"><Properties><string name="Name">UI</string>
+<Item class="ModuleScript" referent="RBX30"><Properties><string name="Name">UI</string>
 <ProtectedString name="Source"><![CDATA[-- UI: theme, helper functions, sounds, the main ScreenGui. Everything else builds on this.
 return function(C)
 local Players = game:GetService("Players")
@@ -155,7 +156,7 @@ C.SND = {
 	event = sound("rbxasset://sounds/snap.mp3", 0.6),
 	msg = sound("rbxasset://sounds/electronicpingshort.wav", 0.3),
 }
-C.settings = {music = true, musicVol = 5, sfx = true, crowd = "high", weather = true, units = "MPH", spawnAt = "business"}
+C.settings = {music = true, musicVol = 5, sfx = true, crowd = "high", weather = true, units = "MPH", spawnAt = "business", cinematics = "full"}
 function C.play(s)
 	if not C.settings.sfx then return end
 	pcall(function() SoundService:PlayLocalSound(s) end)
@@ -179,7 +180,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX27"><Properties><string name="Name">Audio</string>
+<Item class="ModuleScript" referent="RBX31"><Properties><string name="Name">Audio</string>
 <ProtectedString name="Source"><![CDATA[-- AUDIO: background music playlist + applying settings.
 -- ================================================================
 -- 🎵 ADD YOUR MUSIC HERE
@@ -229,7 +230,511 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX28"><Properties><string name="Name">HUD</string>
+<Item class="ModuleScript" referent="RBX32"><Properties><string name="Name">AnimationConfig</string>
+<ProtectedString name="Source"><![CDATA[-- ANIMATION CONFIG: every animation the game uses, in one place, with a safe fallback for each.
+--
+-- ✏️  TO USE YOUR OWN ANIMATIONS: upload them to Roblox (Animation Editor → Publish), copy the asset id and paste
+--     it into `id` below, e.g. id = "rbxassetid://1234567890". Leave id = nil to use the fallback.
+--
+-- How a player reaction plays (C.AnimationConfig.react(name)):
+--   1. `id` (your uploaded animation) on the avatar's Animator, if set and it loads
+--   2. otherwise `emote`: one of Roblox's built-in avatar emotes (wave, point, dance, cheer, laugh)
+--   3. otherwise a floating emoji reaction over the avatar's head (always works)
+-- A missing or broken animation never stops a cinematic or errors; in Studio it is logged once in Output.
+--
+-- Cinematic actors (the part-built NPCs in EmpireClient > Actors) use procedural moves by name. An unknown move
+-- name falls back to `ACTOR_FALLBACK` (also logged once in Studio).
+return function(C)
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local new, label, tween = C.new, C.label, C.tween
+local plr = Players.LocalPlayer
+
+local AC = {}
+C.AnimationConfig = AC
+
+-- Roblox's default R15 emote animations (from the default Animate script). Your own uploads go in `id`.
+AC.REACTIONS = {
+	celebrate   = {id = "rbxassetid://507770677", emote = "cheer", emoji = "🎉", actor = "celebrate"},
+	facepalm    = {id = nil, emote = nil, emoji = "🤦", actor = "facepalm"},
+	confused    = {id = nil, emote = nil, emoji = "🤔", actor = "shrug"},
+	pointing    = {id = "rbxassetid://507770453", emote = "point", emoji = "👉", actor = "point"},
+	shocked     = {id = nil, emote = nil, emoji = "😱", actor = "shock"},
+	laughing    = {id = "rbxassetid://507770818", emote = "laugh", emoji = "😂", actor = "laugh"},
+	thinking    = {id = nil, emote = nil, emoji = "🧠", actor = "think"},
+	armsCrossed = {id = nil, emote = nil, emoji = "😤", actor = "crossed"},
+	money       = {id = nil, emote = "dance", emoji = "💸", actor = "money"},
+	ownerPose   = {id = nil, emote = nil, emoji = "😎", actor = "owner"},
+	wave        = {id = "rbxassetid://507770239", emote = "wave", emoji = "👋", actor = "wave"},
+	dance       = {id = "rbxassetid://507771019", emote = "dance", emoji = "🕺", actor = "hype"},
+}
+AC.ACTOR_FALLBACK = "idle"
+
+-- ===== Studio-only logging (once per missing thing) =====
+local logged = {}
+local isStudio = RunService:IsStudio()
+local function logOnce(key, text)
+	if logged[key] then return end
+	logged[key] = true
+	if isStudio then print("[CornerEmpire][AnimationConfig] " .. text) end
+end
+AC.logged = logged
+
+-- a cinematic actor move: known name, or the configured fallback
+function AC.actorFallback(name)
+	logOnce("actor:" .. tostring(name), "actor move \"" .. tostring(name) .. "\" doesn't exist; using \"" .. AC.ACTOR_FALLBACK .. "\"")
+	return AC.ACTOR_FALLBACK
+end
+-- the actor move for a reaction (so cinematics show the same reaction on the "you" actor)
+function AC.actorMove(reaction)
+	local r = AC.REACTIONS[reaction]
+	return r and r.actor or AC.actorFallback(reaction)
+end
+
+-- ===== the emoji fallback: always available =====
+local function emojiPop(char, emoji)
+	local head = char and (char:FindFirstChild("Head") or char:FindFirstChild("HumanoidRootPart"))
+	if not head then return end
+	local bb = new("BillboardGui", {Size = UDim2.fromOffset(70, 70), StudsOffset = Vector3.new(0, 2.6, 0), AlwaysOnTop = true, MaxDistance = 120, Name = "Reaction"}, head)
+	local l = label({Size = UDim2.fromScale(1, 1), Text = emoji or "❗", TextScaled = true}, bb)
+	tween(bb, 1.8, {StudsOffset = Vector3.new(0, 4.4, 0)})
+	tween(l, 1.8, {TextTransparency = 1}, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
+	task.delay(1.9, function() bb:Destroy() end)
+end
+
+-- tracks that failed to load are remembered so they aren't retried every time
+local broken = {}
+local function animator(hum)
+	local an = hum:FindFirstChildOfClass("Animator")
+	if not an then
+		an = Instance.new("Animator")
+		an.Parent = hum
+	end
+	return an
+end
+-- returns how it played: "id", "emote", "emoji" or nil (no character)
+function AC.react(name, who)
+	local r = AC.REACTIONS[name]
+	if not r then
+		logOnce("reaction:" .. tostring(name), "unknown reaction \"" .. tostring(name) .. "\"; showing a wave instead")
+		r = AC.REACTIONS.wave
+	end
+	local char = (who or plr).Character
+	local hum = char and char:FindFirstChildOfClass("Humanoid")
+	if not hum then return nil end
+	if r.id and not broken[r.id] then
+		local ok = pcall(function()
+			local anim = Instance.new("Animation")
+			anim.AnimationId = r.id
+			local track = animator(hum):LoadAnimation(anim)
+			track.Priority = Enum.AnimationPriority.Action
+			track:Play(0.15)
+			task.delay(3, function() pcall(function() track:Stop(0.3) end) end)
+		end)
+		if ok then
+			emojiPop(char, r.emoji)
+			return "id"
+		end
+		broken[r.id] = true
+		logOnce("id:" .. r.id, "animation " .. r.id .. " for \"" .. name .. "\" didn't load; using the fallback")
+	elseif not r.id then
+		logOnce("noid:" .. name, "no animation id set for \"" .. name .. "\" (fallback: " .. (r.emote and ("emote " .. r.emote) or ("emoji " .. r.emoji)) .. ")")
+	end
+	if r.emote then
+		local ok, played = pcall(function() return hum:PlayEmote(r.emote) end)
+		if ok and played then
+			emojiPop(char, r.emoji)
+			return "emote"
+		end
+	end
+	emojiPop(char, r.emoji)
+	return "emoji"
+end
+end
+]]></ProtectedString></Properties>
+</Item>
+<Item class="ModuleScript" referent="RBX33"><Properties><string name="Name">Actors</string>
+<ProtectedString name="Source"><![CDATA[-- ACTORS: the shared kit for every scripted character the client draws: the story cast, cinematic actors,
+-- the city's influencers, interior staff and customers, crowds and photographers.
+-- Actors are a handful of anchored, non-colliding parts posed every frame by a small procedural animation
+-- (no Humanoids, no physics), so they are cheap and always clean up with their folder.
+-- Every look here is an original design; none of them copies a real person.
+return function(C)
+local Workspace = game:GetService("Workspace")
+local RGB, V3, CF = Color3.fromRGB, Vector3.new, CFrame.new
+local new, tween, label, corner = C.new, C.tween, C.label, C.corner
+local WHITE = Color3.new(1, 1, 1)
+
+local A = {}
+C.Actors = A
+
+function A.part(folder, size, color, mat, shape)
+	local p = Instance.new("Part")
+	p.Anchored, p.CanCollide, p.CanQuery, p.CanTouch, p.CastShadow = true, false, false, false, false
+	p.TopSurface, p.BottomSurface = Enum.SurfaceType.Smooth, Enum.SurfaceType.Smooth
+	p.Size, p.Color, p.Material = size, color, mat or Enum.Material.SmoothPlastic
+	if shape then p.Shape = shape end
+	p.Parent = folder
+	return p
+end
+function A.folder(name)
+	return new("Folder", {Name = name}, Workspace)
+end
+
+-- ===== looks =====
+-- shirt, pants, skin; optional: hat (color) + hatKind, tophat, tie, headset, shades (color), prop (in the right hand),
+-- jacket (a second torso layer), live = a floating LIVE sign, tag = a name tag
+local SKIN = {RGB(255, 220, 180), RGB(235, 190, 150), RGB(190, 140, 100), RGB(125, 88, 62)}
+A.SKIN = SKIN
+A.LOOKS = {
+	-- story cast
+	rival = {shirt = RGB(255, 70, 140), pants = RGB(30, 30, 40), skin = RGB(190, 140, 100), hat = RGB(20, 20, 24), headset = true, live = true},
+	kevin = {shirt = RGB(255, 210, 60), pants = RGB(90, 90, 110), skin = RGB(255, 220, 180), hat = RGB(255, 240, 120)},
+	ulysses = {shirt = RGB(120, 200, 255), pants = RGB(40, 50, 70), skin = RGB(235, 190, 150), tie = RGB(255, 60, 60)},
+	brenda = {shirt = RGB(170, 120, 255), pants = RGB(40, 30, 60), skin = RGB(125, 88, 62), tie = RGB(255, 255, 255)},
+	reginald = {shirt = RGB(30, 30, 34), pants = RGB(30, 30, 34), skin = RGB(255, 225, 200), tophat = true, tie = RGB(255, 205, 80)},
+	fan = {shirt = RGB(80, 200, 140), pants = RGB(60, 70, 120), skin = RGB(235, 190, 150)},
+	-- the city's influencers (v9): original characters with their own colors and props
+	baysnaps = {shirt = RGB(0, 200, 190), jacket = RGB(255, 120, 30), pants = RGB(40, 40, 60), skin = RGB(190, 140, 100), hat = RGB(255, 225, 40), hatKind = "beanie",
+		shades = RGB(255, 60, 200), prop = "selfiestick", live = true},
+	jaxcash = {shirt = RGB(245, 245, 250), jacket = RGB(20, 30, 70), pants = RGB(20, 30, 70), skin = RGB(235, 190, 150), shades = RGB(210, 170, 60), tie = RGB(210, 170, 60), prop = "keys"},
+	mayamax = {shirt = RGB(250, 225, 235), jacket = RGB(190, 160, 240), pants = RGB(150, 225, 200), skin = RGB(125, 88, 62), hat = RGB(255, 250, 240), hatKind = "bucket",
+		shades = RGB(60, 40, 30), prop = "camera"},
+	drewdeals = {shirt = RGB(255, 255, 255), jacket = RGB(70, 160, 70), pants = RGB(70, 160, 70), skin = RGB(255, 220, 180), tie = RGB(255, 60, 60), hat = RGB(70, 160, 70),
+		hatKind = "cap", prop = "briefcase"},
+	-- city people
+	tenant = {shirt = RGB(200, 200, 210), pants = RGB(90, 110, 160), skin = RGB(235, 190, 150), hat = RGB(120, 70, 50), hatKind = "messy"},
+	inspector = {shirt = RGB(200, 180, 140), jacket = RGB(170, 150, 110), pants = RGB(90, 80, 60), skin = RGB(255, 220, 180), hat = RGB(110, 90, 60), hatKind = "fedora", prop = "clipboard"},
+	photographer = {shirt = RGB(60, 60, 66), jacket = RGB(120, 110, 80), pants = RGB(40, 40, 46), skin = RGB(235, 190, 150), hat = RGB(30, 30, 30), hatKind = "cap", prop = "camera"},
+	richkid = {shirt = RGB(120, 30, 120), jacket = RGB(150, 40, 150), pants = RGB(250, 250, 250), skin = RGB(255, 225, 200), hat = RGB(255, 210, 60), hatKind = "crown", prop = "goldcard"},
+	investor = {shirt = RGB(250, 250, 250), jacket = RGB(80, 84, 96), pants = RGB(80, 84, 96), skin = RGB(190, 140, 100), tie = RGB(40, 90, 200), prop = "briefcase"},
+	courier = {shirt = RGB(230, 50, 50), pants = RGB(40, 40, 50), skin = RGB(125, 88, 62), hat = RGB(230, 50, 50), hatKind = "cap", prop = "pizzabox"},
+	staff = {shirt = RGB(255, 214, 60), pants = RGB(60, 70, 120), skin = RGB(235, 190, 150), apron = WHITE},
+	customer = {shirt = RGB(120, 160, 240), pants = RGB(50, 50, 60), skin = RGB(235, 190, 150)},
+	you = {shirt = RGB(80, 140, 255), pants = RGB(40, 40, 60), skin = RGB(235, 190, 150)},
+}
+-- a random city person (deterministic from a seed, so the same NPC looks the same each time)
+function A.randomLook(seed)
+	local r = Random.new(seed or math.random(1, 1e6))
+	return {shirt = Color3.fromHSV(r:NextNumber(), 0.55, 0.9), pants = Color3.fromHSV(r:NextNumber(), 0.3, 0.35), skin = SKIN[r:NextInteger(1, #SKIN)],
+		hat = r:NextNumber() < 0.3 and Color3.fromHSV(r:NextNumber(), 0.6, 0.8) or nil, hatKind = r:NextNumber() < 0.5 and "cap" or "beanie"}
+end
+-- the local player's own colors (from their avatar), for the "you" actor in cinematics
+function A.lookOfCharacter(char)
+	local look = table.clone(A.LOOKS.you)
+	if not char then return look end
+	local bc = char:FindFirstChildOfClass("BodyColors")
+	if bc then
+		look.skin = bc.HeadColor3
+		look.shirt = bc.TorsoColor3
+		look.pants = bc.LeftLegColor3
+	end
+	local shirt = char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso")
+	if shirt and shirt:IsA("BasePart") then look.shirt = shirt.Color end
+	return look
+end
+
+-- ===== building one =====
+local PROPS = {
+	selfiestick = function(f) return {A.part(f, V3(0.15, 3.2, 0.15), RGB(40, 40, 40), Enum.Material.Metal), A.part(f, V3(0.9, 1.4, 0.15), RGB(20, 20, 26), Enum.Material.Glass),
+		A.part(f, V3(1.2, 1.2, 0.1), RGB(255, 250, 230), Enum.Material.Neon, Enum.PartType.Cylinder)} end,
+	keys = function(f) return {A.part(f, V3(0.5, 0.7, 0.2), RGB(20, 20, 24)), A.part(f, V3(0.3, 0.3, 0.3), RGB(210, 170, 60), Enum.Material.Metal, Enum.PartType.Ball)} end,
+	camera = function(f) return {A.part(f, V3(1.1, 0.8, 0.7), RGB(30, 30, 34)), A.part(f, V3(0.5, 0.5, 0.6), RGB(60, 60, 70), Enum.Material.Glass, Enum.PartType.Cylinder)} end,
+	briefcase = function(f) return {A.part(f, V3(1.6, 1.1, 0.4), RGB(110, 70, 40), Enum.Material.Leather), A.part(f, V3(0.6, 0.15, 0.15), RGB(210, 170, 60), Enum.Material.Metal)} end,
+	clipboard = function(f) return {A.part(f, V3(1, 1.3, 0.1), RGB(150, 110, 70), Enum.Material.Wood), A.part(f, V3(0.8, 1, 0.05), WHITE)} end,
+	goldcard = function(f) return {A.part(f, V3(0.8, 0.5, 0.05), RGB(255, 210, 60), Enum.Material.Neon)} end,
+	pizzabox = function(f) return {A.part(f, V3(1.8, 0.3, 1.8), RGB(220, 190, 140))} end,
+	notice = function(f)
+		local p = A.part(f, V3(1.6, 2, 0.08), RGB(255, 250, 240))
+		local sg = new("SurfaceGui", {Face = Enum.NormalId.Front, CanvasSize = Vector2.new(120, 150), LightInfluence = 0}, p)
+		label({Size = UDim2.fromScale(1, 0.3), Text = "EVICTION", TextScaled = true, Font = Enum.Font.GothamBlack, TextColor3 = RGB(200, 30, 30)}, sg)
+		label({Position = UDim2.fromScale(0, 0.3), Size = UDim2.fromScale(1, 0.25), Text = "NOTICE", TextScaled = true, Font = Enum.Font.GothamBlack, TextColor3 = RGB(200, 30, 30)}, sg)
+		label({Position = UDim2.fromScale(0.05, 0.6), Size = UDim2.fromScale(0.9, 0.35), Text = "please pack your stuff :)", TextScaled = true, TextColor3 = RGB(40, 40, 40)}, sg)
+		return {p}
+	end,
+	box = function(f) return {A.part(f, V3(1.6, 1.4, 1.4), RGB(200, 160, 100), Enum.Material.Cardboard)} end,
+	phone = function(f) return {A.part(f, V3(0.45, 0.8, 0.1), RGB(20, 20, 26), Enum.Material.Glass)} end,
+	cup = function(f) return {A.part(f, V3(0.4, 0.6, 0.4), RGB(255, 240, 200), nil, Enum.PartType.Cylinder)} end,
+	mop = function(f) return {A.part(f, V3(0.15, 4, 0.15), RGB(150, 110, 70), Enum.Material.Wood), A.part(f, V3(1, 0.4, 0.6), RGB(230, 230, 240), Enum.Material.Fabric)} end,
+	tray = function(f) return {A.part(f, V3(1.6, 0.15, 1.1), RGB(120, 120, 130), Enum.Material.Metal), A.part(f, V3(0.6, 0.4, 0.6), RGB(230, 150, 60))} end,
+}
+function A.setProp(a, kind)
+	if a.propParts then
+		for _, p in ipairs(a.propParts) do p:Destroy() end
+		a.propParts = nil
+	end
+	a.prop = kind
+	if kind and PROPS[kind] then
+		local ok, parts = pcall(PROPS[kind], a.folder)
+		if ok then a.propParts = parts end
+	end
+end
+function A.make(folder, look, opts)
+	local L = type(look) == "table" and look or A.LOOKS[look] or A.LOOKS.fan
+	opts = opts or {}
+	local P = function(size, color, mat, shape) return A.part(folder, size, color, mat, shape) end
+	local a = {
+		folder = folder, look = type(look) == "string" and look or "custom", scale = opts.scale or 1,
+		torso = P(V3(2, 2, 1), L.shirt), head = P(V3(1.4, 1.4, 1.4), L.skin, nil, Enum.PartType.Ball),
+		la = P(V3(0.9, 2, 0.9), L.jacket or L.shirt), ra = P(V3(0.9, 2, 0.9), L.jacket or L.shirt),
+		ll = P(V3(0.95, 2, 0.95), L.pants), rl = P(V3(0.95, 2, 0.95), L.pants),
+		eyes = P(V3(0.9, 0.22, 0.1), RGB(20, 20, 20)),
+	}
+	if L.jacket then a.jacket = P(V3(2.15, 2.05, 1.12), L.jacket) a.jacketGap = P(V3(0.7, 2.06, 1.14), L.shirt) end
+	if L.apron then a.apron = P(V3(1.7, 2.2, 0.1), L.apron) end
+	if L.hat then
+		local kind = L.hatKind or "cap"
+		if kind == "beanie" then a.hat = P(V3(1.5, 0.8, 1.5), L.hat, Enum.Material.Fabric)
+		elseif kind == "bucket" then a.hat = P(V3(1.9, 0.6, 1.9), L.hat, Enum.Material.Fabric)
+		elseif kind == "fedora" then a.hat = P(V3(1.3, 0.6, 1.3), L.hat) a.brim = P(V3(2.1, 0.12, 2.1), L.hat)
+		elseif kind == "crown" then a.hat = P(V3(1.2, 0.6, 1.2), L.hat, Enum.Material.Neon)
+		elseif kind == "messy" then a.hat = P(V3(1.6, 0.6, 1.6), L.hat, Enum.Material.Grass)
+		else a.hat = P(V3(1.5, 0.45, 1.5), L.hat) a.brim = P(V3(1.5, 0.12, 0.8), L.hat) end
+		a.hatKind = kind
+	end
+	if L.tophat then a.hat = P(V3(1.1, 1.2, 1.1), RGB(20, 20, 20), nil, Enum.PartType.Cylinder) a.hatKind = "tophat" end
+	if L.tie then a.tie = P(V3(0.35, 1.2, 0.1), L.tie) end
+	if L.shades then a.shades = P(V3(1.2, 0.3, 0.15), L.shades, Enum.Material.Glass) end
+	if L.headset then
+		a.band = P(V3(1.6, 0.2, 0.3), RGB(30, 30, 30))
+		a.mic = P(V3(0.12, 0.12, 0.8), RGB(30, 30, 30))
+		a.micTip = P(V3(0.3, 0.3, 0.3), RGB(255, 60, 60), Enum.Material.Neon, Enum.PartType.Ball)
+	end
+	if L.live or opts.tag then
+		local bb = new("BillboardGui", {Size = UDim2.fromOffset(L.live and 90 or 160, 30), StudsOffset = V3(0, 3.2, 0), AlwaysOnTop = true, MaxDistance = 140}, a.head)
+		local f = new("Frame", {Size = UDim2.fromScale(1, 1), BackgroundColor3 = L.live and RGB(230, 30, 50) or RGB(20, 20, 30), BackgroundTransparency = L.live and 0 or 0.3, BorderSizePixel = 0}, bb)
+		corner(f, 8)
+		label({Size = UDim2.fromScale(1, 1), Text = L.live and "🔴 LIVE" or opts.tag, TextScaled = true, Font = Enum.Font.GothamBlack}, f)
+		if L.live and opts.tag then
+			bb.Size = UDim2.fromOffset(170, 30)
+			f:FindFirstChildOfClass("TextLabel").Text = "🔴 LIVE • " .. opts.tag
+		end
+	end
+	if opts.prop or L.prop then A.setProp(a, opts.prop or L.prop) end
+	a.base = CF()
+	return a
+end
+function A.destroy(a)
+	for k, v in pairs(a) do
+		-- (never the shared folder the actor lives in: other actors are still using it)
+		if k ~= "folder" and typeof(v) == "Instance" then v:Destroy() end
+	end
+	if a.propParts then for _, p in ipairs(a.propParts) do p:Destroy() end end
+	a.dead = true
+end
+-- show / hide (an actor waiting off-stage)
+function A.setVisible(a, on)
+	for _, v in pairs(a) do
+		if typeof(v) == "Instance" and v:IsA("BasePart") then v.LocalTransparencyModifier = on and 0 or 1 end
+	end
+	if a.propParts then for _, p in ipairs(a.propParts) do p.LocalTransparencyModifier = on and 0 or 1 end end
+	a.hidden = not on
+end
+
+-- ===== posing =====
+-- base = where they stand (facing -Z of the CFrame); p = {la, ra (arm swing), laz, raz (arm out), bounce, lean, tilt, kneel, sit, walk, look (head yaw)}
+function A.pose(a, base, p)
+	local y = (p.bounce or 0) - (p.kneel or 0) - (p.sit and 1.1 or 0)
+	local root = base * CF(0, y, 0) * CFrame.Angles(p.lean or 0, p.turn or 0, p.tilt or 0)
+	local sw = p.walk and math.sin(p.walk) * 0.6 or 0
+	local head = root * CF(0, 4.7, 0) * CFrame.Angles(p.nod or 0, p.look or 0, 0)
+	a.torso.CFrame = root * CF(0, 3, 0)
+	a.head.CFrame = head
+	a.eyes.CFrame = head * CF(0, 0.1, -0.68)
+	if p.sit then
+		a.ll.CFrame = root * CF(-0.5, 2, 0) * CFrame.Angles(1.5, 0, 0) * CF(0, -1, 0)
+		a.rl.CFrame = root * CF(0.5, 2, 0) * CFrame.Angles(1.5, 0, 0) * CF(0, -1, 0)
+	else
+		a.ll.CFrame = root * CF(-0.5, 2 + (p.kneel or 0) * 0.5, 0) * CFrame.Angles(sw + (p.kneel and p.kneel > 0 and 1.2 or 0), 0, 0) * CF(0, -1, 0)
+		a.rl.CFrame = root * CF(0.5, 2, 0) * CFrame.Angles(-sw, 0, 0) * CF(0, -1, 0)
+	end
+	local laCF = root * CF(-1.45, 3.9, 0) * CFrame.Angles(p.la or -sw, 0, p.laz or 0) * CF(0, -0.9, 0)
+	local raCF = root * CF(1.45, 3.9, 0) * CFrame.Angles(p.ra or sw, 0, p.raz or 0) * CF(0, -0.9, 0)
+	a.la.CFrame = laCF
+	a.ra.CFrame = raCF
+	if a.jacket then
+		a.jacket.CFrame = root * CF(0, 3, 0)
+		a.jacketGap.CFrame = root * CF(0, 3, -0.02)
+	end
+	if a.apron then a.apron.CFrame = root * CF(0, 2.6, -0.56) end
+	if a.hat then
+		local k = a.hatKind
+		if k == "tophat" or a.look == "reginald" then a.hat.CFrame = head * CF(0, 1.2, 0) * CFrame.Angles(0, 0, math.pi / 2)
+		elseif k == "beanie" then a.hat.CFrame = head * CF(0, 0.55, 0.05)
+		elseif k == "bucket" then a.hat.CFrame = head * CF(0, 0.6, 0)
+		elseif k == "crown" then a.hat.CFrame = head * CF(0, 0.85, 0)
+		elseif k == "messy" then a.hat.CFrame = head * CF(0, 0.6, 0.1)
+		else a.hat.CFrame = head * CF(0, 0.65, 0.05) end
+	end
+	if a.brim then a.brim.CFrame = a.hatKind == "fedora" and head * CF(0, 0.4, 0) or head * CF(0, 0.5, -0.7) end
+	if a.tie then a.tie.CFrame = root * CF(0, 3.2, -0.58) end
+	if a.shades then a.shades.CFrame = head * CF(0, 0.12, -0.7) end
+	if a.band then
+		a.band.CFrame = head * CF(0, 0.65, 0)
+		a.mic.CFrame = head * CF(0.62, -0.2, -0.45)
+		a.micTip.CFrame = head * CF(0.62, -0.25, -0.85)
+	end
+	if a.propParts then
+		-- the prop sits in the right hand (or both hands for carried things)
+		local hand = raCF * CF(0, -1.1, -0.2)
+		local k = a.prop
+		local pp = a.propParts
+		if k == "selfiestick" then
+			pp[1].CFrame = hand * CFrame.Angles(-0.4, 0, 0) * CF(0, 1.4, 0)
+			pp[2].CFrame = hand * CFrame.Angles(-0.4, 0, 0) * CF(0, 3, 0)
+			pp[3].CFrame = hand * CFrame.Angles(-0.4, 0, 0) * CF(0, 3, 0.15) * CFrame.Angles(0, math.pi / 2, 0)
+		elseif k == "box" or k == "pizzabox" or k == "tray" then
+			local mid = root * CF(0, 3.3, -1.3)
+			for i, part in ipairs(pp) do part.CFrame = mid * CF(0, (i - 1) * 0.3, 0) end
+		elseif k == "camera" then
+			pp[1].CFrame = head * CF(0.2, -0.1, -1.2)
+			pp[2].CFrame = head * CF(0.2, -0.1, -1.7) * CFrame.Angles(0, math.pi / 2, 0)
+		else
+			for i, part in ipairs(pp) do part.CFrame = hand * CF(0, -0.2, -0.1 * i) end
+		end
+	end
+end
+
+-- ===== procedural animations (pose for t seconds into the move). Names are listed in AnimationConfig. =====
+A.ANIMS = {
+	idle = function(t) return {bounce = math.abs(math.sin(t * 2)) * 0.1, la = 0.1, ra = -0.1} end,
+	entrance = function(t)
+		if t < 0.7 then return {bounce = (1 - t / 0.7) ^ 2 * 30, la = -2.6, ra = -2.6} end
+		local k = math.max(0, 1 - (t - 0.7) * 3)
+		return {bounce = math.abs(math.sin((t - 0.7) * 9)) * 0.6 * k, kneel = 0.4 * k, la = -2.4, ra = -2.4}
+	end,
+	point = function(t) return {ra = -1.6, la = 0.2, bounce = math.abs(math.sin(t * 6)) * 0.15, lean = -0.05} end,
+	laugh = function(t) return {bounce = math.abs(math.sin(t * 14)) * 0.5, lean = 0.25 + math.sin(t * 7) * 0.08, la = -0.6 + math.sin(t * 14) * 0.3, ra = -0.6 - math.sin(t * 14) * 0.3} end,
+	clap = function(t) local s = math.abs(math.sin(t * 10)) return {la = -1.3, ra = -1.3, laz = -0.5 * s, raz = 0.5 * s, bounce = s * 0.1} end,
+	shrug = function(t) return {laz = 0.9, raz = -0.9, la = -0.4, ra = -0.4, tilt = math.sin(t * 2) * 0.08} end,
+	shock = function(t) return {bounce = t < 0.3 and math.sin(t / 0.3 * math.pi) * 1.5 or 0, lean = 0.3, la = -2.8, ra = -2.8} end,
+	kneel = function(t) return {kneel = 1.4, la = -1.5 + math.sin(t * 5) * 0.1, ra = -1.5 - math.sin(t * 5) * 0.1, lean = -0.15} end,
+	hype = function(t) return {bounce = math.abs(math.sin(t * 8)) * 1.6, la = -2.9, ra = -2.9, laz = -0.3, raz = 0.3} end,
+	talk = function(t) return {la = 0.1, ra = -0.5 + math.sin(t * 6) * 0.35, bounce = math.abs(math.sin(t * 6)) * 0.05} end,
+	walk = function(t) return {walk = t * 9, bounce = math.abs(math.sin(t * 9)) * 0.15} end,
+	run = function(t) return {walk = t * 15, bounce = math.abs(math.sin(t * 15)) * 0.35, lean = -0.2} end,
+	knock = function(t) local k = math.abs(math.sin(t * 9)) return {ra = -1.5 - k * 0.4, la = 0.1, lean = -0.05} end,
+	wave = function(t) return {ra = -2.8, raz = 0.4 + math.sin(t * 10) * 0.4, la = 0.1} end,
+	show = function() return {ra = -1.5, la = -1.5, laz = -0.2, raz = 0.2} end,
+	flail = function(t) return {la = -2.6 + math.sin(t * 18) * 0.8, ra = -2.6 - math.sin(t * 18) * 0.8, bounce = math.abs(math.sin(t * 12)) * 0.6, tilt = math.sin(t * 9) * 0.15} end,
+	carry = function(t) return {la = -1.4, ra = -1.4, laz = -0.25, raz = 0.25, walk = t * 8, bounce = math.abs(math.sin(t * 8)) * 0.1} end,
+	throw = function(t) local k = math.min(1, t * 3) return {la = -2.6 + k * 1.8, ra = -2.6 + k * 1.8, lean = 0.2 - k * 0.4} end,
+	gesture = function(t) return {ra = -1.4, raz = 1.2, la = 0.1, look = 0.4} end,
+	facepalm = function(t) return {ra = -2.4, raz = -0.9, la = 0.2, nod = 0.25, lean = 0.1} end,
+	crossed = function() return {la = -1.4, ra = -1.4, laz = 0.9, raz = -0.9} end,
+	think = function(t) return {ra = -2.1, raz = -0.6, la = -1.2, laz = 0.8, nod = -0.15, tilt = math.sin(t) * 0.05} end,
+	money = function(t) return {la = -2.6, ra = -2.6 + math.sin(t * 12) * 0.5, raz = 0.3, bounce = math.abs(math.sin(t * 8)) * 0.8} end,
+	owner = function() return {la = -0.2, laz = 0.5, ra = -0.2, raz = -0.5, lean = -0.08, nod = -0.1} end,
+	celebrate = function(t) return {bounce = math.abs(math.sin(t * 7)) * 1.2, la = -2.9, ra = -2.9} end,
+	sit = function(t) return {sit = true, la = -0.6, ra = -0.6} end,
+	eat = function(t) return {sit = true, la = -0.6, ra = -1.8 - math.abs(math.sin(t * 3)) * 0.5, raz = -0.3} end,
+	phone = function(t) return {ra = -1.7, raz = -0.25, nod = 0.35, la = 0.05} end,
+	sitphone = function(t) return {sit = true, ra = -1.7, raz = -0.25, nod = 0.35, la = -0.6} end,
+	selfie = function(t) return {ra = -2.6, raz = 0.5, la = 0.2, tilt = 0.12, bounce = math.abs(math.sin(t * 4)) * 0.1} end,
+	wipe = function(t) return {ra = -1.2 + math.sin(t * 8) * 0.3, raz = math.sin(t * 8) * 0.5, lean = 0.35} end,
+	cook = function(t) return {la = -1.3, ra = -1.3 + math.sin(t * 9) * 0.4, laz = -0.2, raz = 0.2 + math.cos(t * 9) * 0.2, lean = 0.12} end,
+	type = function(t) return {la = -1.4 + math.abs(math.sin(t * 16)) * 0.2, ra = -1.4 + math.abs(math.cos(t * 16)) * 0.2, lean = 0.1} end,
+	clipboard = function(t) return {la = -1.3, ra = -1.1 + math.sin(t * 4) * 0.2, nod = 0.2, look = math.sin(t * 0.7) * 0.5} end,
+	lift = function(t) local k = math.abs(math.sin(t * 2)) return {la = -1.4, ra = -1.4, laz = -0.3, raz = 0.3, kneel = (1 - k) * 0.8} end,
+	stir = function(t) return {ra = -1.3, raz = math.sin(t * 6) * 0.4, la = -0.6, lean = 0.08} end,
+	sweep = function(t) return {la = -0.9 + math.sin(t * 5) * 0.4, ra = -0.9 + math.sin(t * 5) * 0.4, lean = 0.2} end,
+	dramatic = function(t) return {la = -2.9, ra = 0.4, laz = 0.4, lean = 0.4 + math.sin(t * 3) * 0.1, tilt = -0.3, kneel = 0.6} end,
+	flash = function(t) return {ra = -1.6, la = -1.6, bounce = math.abs(math.sin(t * 10)) * 0.1} end,
+	look = function(t) return {look = math.sin(t * 1.3) * 0.9, la = 0.05, ra = -0.05} end,
+}
+
+-- ===== moving =====
+function A.faceTowards(at, target)
+	local flat = V3(target.X, at.Y, target.Z)
+	if (flat - at).Magnitude < 0.1 then return CF(at) end
+	return CFrame.lookAt(at, flat)
+end
+-- start walking somewhere: A.step moves them along; done when they arrive
+function A.walkTo(a, pos, speed)
+	a.goal = pos
+	a.speed = speed or 7
+end
+-- advance one frame. anim = the move to show when standing still. Returns true while still walking.
+function A.step(a, dt, now)
+	if a.dead then return false end
+	local walking = false
+	if a.goal then
+		local here = a.base.Position
+		local flat = V3(a.goal.X, here.Y, a.goal.Z)
+		local dist = (flat - here).Magnitude
+		local stepLen = (a.speed or 7) * dt
+		if dist <= stepLen or dist < 0.05 then
+			a.base = A.faceTowards(flat, flat + a.base.LookVector)
+			a.goal = nil
+		else
+			local dir = (flat - here).Unit
+			a.base = CFrame.lookAt(here + dir * stepLen, here + dir * (stepLen + 1))
+			walking = true
+		end
+	end
+	if a.hidden then return walking end
+	local name = walking and ((a.speed or 7) > 12 and "run" or (a.prop == "box" and "carry" or "walk")) or (a.anim or "idle")
+	local fn = A.ANIMS[name] or A.ANIMS.idle
+	A.pose(a, a.base, fn(now - (a.animT or 0)))
+	return walking
+end
+function A.play(a, name, now)
+	if not A.ANIMS[name] and C.AnimationConfig then name = C.AnimationConfig.actorFallback(name) end
+	a.anim = name
+	a.animT = now or os.clock()
+end
+
+-- ===== effects =====
+local CHAT = {"💀💀💀", "W", "L + ratio", "CLIP IT", "chat is crying 😭", "🔥🔥", "NO WAY", "😂😂", "+1000 aura", "-500 aura", "he's cooked", "WHAT JUST HAPPENED"}
+A.CHAT = CHAT
+function A.chatPop(folder, pos, lines)
+	local a = A.part(folder, V3(0.2, 0.2, 0.2), WHITE)
+	a.Transparency = 1
+	a.CFrame = CF(pos + V3(math.random(-30, 30) / 10, math.random(0, 20) / 10, 0))
+	local pool = lines or CHAT
+	local bb = new("BillboardGui", {Size = UDim2.fromOffset(150, 28), AlwaysOnTop = true, MaxDistance = 140}, a)
+	local l = label({Size = UDim2.fromScale(1, 1), TextScaled = true, Text = pool[math.random(#pool)], Font = Enum.Font.GothamBlack,
+		TextColor3 = Color3.fromHSV(math.random(), 0.6, 1), TextStrokeTransparency = 0.2}, bb)
+	tween(a, 1.6, {CFrame = a.CFrame + V3(0, 5, 0)})
+	tween(l, 1.6, {TextTransparency = 1, TextStrokeTransparency = 1}, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
+	task.delay(1.7, function() a:Destroy() end)
+end
+function A.confetti(folder, pos, n)
+	for _ = 1, n do
+		local p = A.part(folder, V3(0.4, 0.05, 0.6), Color3.fromHSV(math.random(), 0.8, 1), Enum.Material.Neon)
+		p.CFrame = CF(pos + V3(math.random(-6, 6), math.random(6, 12), math.random(-6, 6))) * CFrame.Angles(math.random() * 6, math.random() * 6, 0)
+		tween(p, 2 + math.random(), {CFrame = p.CFrame * CF(0, -10, 0) * CFrame.Angles(4, 2, 1), Transparency = 1})
+		task.delay(3.2, function() p:Destroy() end)
+	end
+end
+-- a white speech bubble over a spot in the world for a few seconds
+function A.bubble(pos, who, text, dur, parent)
+	local a = Instance.new("Part")
+	a.Anchored, a.CanCollide, a.CanQuery, a.CanTouch, a.Transparency = true, false, false, false, 1
+	a.Size = V3(0.2, 0.2, 0.2)
+	a.CFrame = CF(pos)
+	a.Parent = parent or Workspace
+	local bb = new("BillboardGui", {Size = UDim2.fromOffset(240, 60), MaxDistance = 90, LightInfluence = 0, AlwaysOnTop = true}, a)
+	local f = new("Frame", {Size = UDim2.fromScale(1, 1), BackgroundColor3 = WHITE, BorderSizePixel = 0}, bb)
+	corner(f, 12)
+	label({Position = UDim2.fromOffset(8, 4), Size = UDim2.new(1, -16, 0, 14), TextSize = 11, Text = who or "", TextColor3 = RGB(120, 120, 140), TextXAlignment = Enum.TextXAlignment.Left}, f)
+	label({Position = UDim2.fromOffset(8, 18), Size = UDim2.new(1, -16, 1, -22), TextSize = 13, TextWrapped = true, Text = text, TextColor3 = RGB(20, 20, 30), TextXAlignment = Enum.TextXAlignment.Left}, f)
+	task.delay(dur or 6, function() a:Destroy() end)
+	return a
+end
+-- a camera flash at a spot (paparazzi, selfies)
+function A.flashAt(folder, pos)
+	local p = A.part(folder, V3(0.6, 0.6, 0.6), WHITE, Enum.Material.Neon, Enum.PartType.Ball)
+	p.CFrame = CF(pos)
+	local l = Instance.new("PointLight")
+	l.Brightness, l.Range, l.Color = 8, 14, WHITE
+	l.Parent = p
+	task.delay(0.12, function() p:Destroy() end)
+end
+end
+]]></ProtectedString></Properties>
+</Item>
+<Item class="ModuleScript" referent="RBX34"><Properties><string name="Name">HUD</string>
 <ProtectedString name="Source"><![CDATA[-- HUD: top bar, events, toasts, splash, war results, collapsible business panel + leaderboard,
 -- problem card, delivery card, tutorial card.
 return function(C)
@@ -484,11 +989,17 @@ do
 	corner(probRow, 8)
 	local probL = label({Position = UDim2.fromOffset(8, 0), Size = UDim2.new(1, -100, 1, 0), TextSize = 11, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, TextColor3 = RGB(255, 190, 170)}, probRow)
 	local probFix = button({AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -4, 0.5, 0), Size = UDim2.fromOffset(88, 26), TextSize = 11, BackgroundColor3 = RGB(235, 160, 30)}, probRow)
+	-- v9: the interior score (0-100) and a way in
+	local intRow = new("Frame", {Size = UDim2.new(1, -6, 0, 30), BackgroundColor3 = RGB(40, 34, 60), BorderSizePixel = 0, LayoutOrder = 5, Visible = false}, cardF)
+	corner(intRow, 8)
+	local intL = label({Position = UDim2.fromOffset(8, 0), Size = UDim2.new(1, -86, 1, 0), TextSize = 11, Font = Enum.Font.GothamBlack, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left}, intRow)
+	local intGo = button({AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -4, 0.5, 0), Size = UDim2.fromOffset(76, 24), Text = "🚪 Go inside", TextSize = 10, BackgroundColor3 = PURPLE}, intRow)
+	local TIER_COLOR = {EMPTY = SUB, BASIC = WHITE, DECENT = RGB(140, 220, 255), PROFESSIONAL = RGB(120, 255, 160), ELITE = GOLD, VIRAL = RGB(255, 110, 200)}
 	local impTitle = label({Size = UDim2.new(1, -6, 0, 18), Text = "IMPROVEMENTS (happier customers, better reviews)", TextSize = 10, TextColor3 = SUB, Font = Enum.Font.GothamBlack,
-		TextXAlignment = Enum.TextXAlignment.Left, LayoutOrder = 5}, cardF)
+		TextXAlignment = Enum.TextXAlignment.Left, LayoutOrder = 6}, cardF)
 	local impRows = {}
 	for i = 1, 5 do
-		local r = new("Frame", {Size = UDim2.new(1, -6, 0, 26), BackgroundColor3 = CARD, BorderSizePixel = 0, LayoutOrder = 5 + i}, cardF)
+		local r = new("Frame", {Size = UDim2.new(1, -6, 0, 26), BackgroundColor3 = CARD, BorderSizePixel = 0, LayoutOrder = 6 + i}, cardF)
 		corner(r, 6)
 		local l = label({Position = UDim2.fromOffset(6, 0), Size = UDim2.new(1, -96, 1, 0), TextSize = 11, TextXAlignment = Enum.TextXAlignment.Left}, r)
 		local b = button({AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -3, 0.5, 0), Size = UDim2.fromOffset(86, 22), TextSize = 10, BackgroundColor3 = BLUE}, r)
@@ -507,6 +1018,9 @@ do
 	end)
 	probFix.MouseButton1Click:Connect(function()
 		if cur.b then play(SND.click) act("problem", cur.b.key, "repair") end
+	end)
+	intGo.MouseButton1Click:Connect(function()
+		if cur.b then play(SND.click) act("enterBiz", cur.b.key) end
 	end)
 	for i, r in ipairs(impRows) do
 		r.btn.MouseButton1Click:Connect(function()
@@ -550,6 +1064,11 @@ do
 			probL.Text = "⚠️ " .. (b.problemText or "Problem") .. " (earning -50%)"
 			probFix.Text = "Fix $" .. fmt(b.repair or 0)
 			probFix.BackgroundColor3 = s.cash >= (b.repair or 0) and RGB(235, 160, 30) or GRAY
+		end
+		intRow.Visible = open and b.interior ~= nil
+		if b.interior then
+			intL.Text = "🛋️ " .. b.name .. " Interior: " .. b.interior.score .. "/100 — " .. b.interior.tier
+			intL.TextColor3 = TIER_COLOR[b.interior.tier] or WHITE
 		end
 		impTitle.Visible = open and b.improve ~= nil
 		for i, r in ipairs(impRows) do
@@ -982,7 +1501,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX29"><Properties><string name="Name">WorldFX</string>
+<Item class="ModuleScript" referent="RBX35"><Properties><string name="Name">WorldFX</string>
 <ProtectedString name="Source"><![CDATA[-- WORLD FX: customers, pedestrians, traffic, rides, traffic lights, marquees, weather, guide beams.
 return function(C)
 local RunService = game:GetService("RunService")
@@ -1452,7 +1971,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX30"><Properties><string name="Name">Workers</string>
+<Item class="ModuleScript" referent="RBX36"><Properties><string name="Name">Workers</string>
 <ProtectedString name="Source"><![CDATA[-- WORKERS: your hired staff, standing at their businesses in uniform and working.
 -- The server publishes a roster on each plot folder (attribute "Workers"); this module draws it.
 -- Everything here is client-only visuals: no physics, no collisions, capped count, frozen when far away.
@@ -1765,7 +2284,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX31"><Properties><string name="Name">Menus</string>
+<Item class="ModuleScript" referent="RBX37"><Properties><string name="Name">Menus</string>
 <ProtectedString name="Source"><![CDATA[-- MENUS: modal windows opened from the phone (and from world prompts).
 return function(C)
 local RGB = Color3.fromRGB
@@ -2487,7 +3006,10 @@ do
 	row(5, "🌦️ Weather effects", function() return st.weather and "ON" or "OFF" end, function() C.setSetting("weather", not st.weather) end)
 	row(6, "🚗 Speed units", function() return st.units end, function() C.setSetting("units", st.units == "MPH" and "KMH" or "MPH") end)
 	row(7, "📍 Spawn at", function() return st.spawnAt == "home" and "🏠 Home" or "🏢 Business" end, function() C.setSetting("spawnAt", st.spawnAt == "home" and "business" or "home") end)
-	row(8, "🎓 Tutorial", function() return "Restart" end, function() act("tut", "restart") end)
+	row(8, "🎬 Cinematics", function() return ({full = "FULL", short = "SHORT", off = "OFF"})[st.cinematics or "full"] end, function()
+		C.setSetting("cinematics", ({full = "short", short = "off", off = "full"})[st.cinematics or "full"] or "full")
+	end)
+	row(10, "🎓 Tutorial", function() return "Restart" end, function() act("tut", "restart") end)
 	row(9, "🏢 Panels", function() return "Show all" end, function()
 		if U.collapse_biz then U.collapse_biz(true) end
 		if U.collapse_board then U.collapse_board(true) end
@@ -2496,7 +3018,11 @@ do
 		-- 🧪 Studio-only helpers for playtesting (the server ignores these in a live game)
 		local tools = {{"🧪 +$1M", "cash"}, {"🧪 Next reputation tier", "rep"}, {"🧪 Start a mega event", "mega"}, {"🧪 Spawn a Mystery Lot", "mystery"},
 			{"🧪 Finish a Spire stage", "spire"}, {"🧪 Go viral now", "viral"}, {"🧪 Save now", "save"},
-			{"🧪 Update + data safety test", "dataTest"}}
+			{"🧪 Update + data safety test", "dataTest"},
+			-- v9
+			{"🧪 Eviction cinematic", "cineEvict"}, {"🧪 Grand opening", "cineOpening"}, {"🧪 Influencer visit", "influencer"}, {"🧪 Viral moment", "viralMoment"},
+			{"🧪 Rare event: paparazzi", "rareEvent"}, {"🧪 CityBuzz post", "buzzPost"}, {"🧪 Customer rush (THE CROWD)", "rush"}, {"🧪 Inspection", "inspection"},
+			{"🧪 Funny random event", "funny"}, {"🧪 Enter a business interior", "interior"}, {"🧪 Cinematic camera", "cineCamera"}}
 		for i, t in ipairs(tools) do
 			row(100 + i, t[1], function() return "Run" end, function() act("debug", t[2]) end)
 		end
@@ -2656,7 +3182,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX32"><Properties><string name="Name">Phone</string>
+<Item class="ModuleScript" referent="RBX38"><Properties><string name="Name">Phone</string>
 <ProtectedString name="Source"><![CDATA[-- PHONE: app launcher + CityBuzz social media + Messages + Map (press P).
 return function(C)
 local UserInputService = game:GetService("UserInputService")
@@ -2780,7 +3306,7 @@ do
 		{"🏢", "Properties", "modal", "properties", RGB(120, 150, 240), "properties"}, {"📈", "Stocks", "modal", "market", RGB(60, 160, 90), "market"}, {"📣", "Marketing", "modal", "marketing", RGB(235, 130, 40), "ads"},
 		{"🎡", "Fun & Race", "modal", "fun", RGB(255, 110, 190), "funpark"}, {"♻️", "Rebirth", "modal", "rebirth", RGB(200, 80, 220)}, {"🏙️", "City", "modal", "city", RGB(60, 150, 200)},
 		{"📖", "Archive", "modal", "archive", RGB(140, 90, 230)}, {"🛒", "Store", "modal", "passes", RGB(235, 170, 30)}, {"🏆", "Weekly", "modal", "weekly", RGB(230, 150, 40)},
-		{"🎬", "Story", "view", "story", RGB(200, 50, 120)}, {"⚙️", "Settings", "modal", "settings", RGB(100, 104, 124)},
+		{"🎬", "Story", "view", "story", RGB(200, 50, 120)}, {"🔥", "Viral", "view", "viral", RGB(255, 90, 60)}, {"⚙️", "Settings", "modal", "settings", RGB(100, 104, 124)},
 	}
 	local icons = {}
 	for i, a in ipairs(APPS) do
@@ -3188,7 +3714,7 @@ C.phoneView("home")
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX33"><Properties><string name="Name">Driving</string>
+<Item class="ModuleScript" referent="RBX39"><Properties><string name="Name">Driving</string>
 <ProtectedString name="Source"><![CDATA[-- DRIVING: smooth client-side car physics (you own your car's physics), speedometer, race HUD.
 return function(C)
 local RunService = game:GetService("RunService")
@@ -3579,7 +4105,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX34"><Properties><string name="Name">MiniGames</string>
+<Item class="ModuleScript" referent="RBX40"><Properties><string name="Name">MiniGames</string>
 <ProtectedString name="Source"><![CDATA[-- MINI-GAMES: Hoop Shot, Lemonade Rush, Memory Match + the Ferris wheel camera ride.
 return function(C)
 local RunService = game:GetService("RunService")
@@ -3857,7 +4383,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX35"><Properties><string name="Name">PhotoMode</string>
+<Item class="ModuleScript" referent="RBX41"><Properties><string name="Name">PhotoMode</string>
 <ProtectedString name="Source"><![CDATA[-- PHOTO MODE ("Empire Flex"): hide the UI, fly a free camera, cinematic orbits, poses and framing guides.
 -- Open with V, the 📸 button, or D-pad Up on a controller. Everything here is local to this player.
 return function(C)
@@ -3885,9 +4411,19 @@ end
 local bars = new("Frame", {Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Visible = false}, sg)
 new("Frame", {Size = UDim2.new(1, 0, 0.1, 0), BackgroundColor3 = Color3.new(0, 0, 0), BorderSizePixel = 0}, bars)
 new("Frame", {AnchorPoint = Vector2.new(0, 1), Position = UDim2.fromScale(0, 1), Size = UDim2.new(1, 0, 0.1, 0), BackgroundColor3 = Color3.new(0, 0, 0), BorderSizePixel = 0}, bars)
-local bar = new("Frame", {AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -12), Size = UDim2.new(0, 760, 0, 104), BackgroundColor3 = RGB(20, 22, 32), BackgroundTransparency = 0.15, BorderSizePixel = 0}, sg)
+local bar = new("Frame", {AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -12), Size = UDim2.new(0, 980, 0, 104), BackgroundColor3 = RGB(20, 22, 32), BackgroundTransparency = 0.15, BorderSizePixel = 0}, sg)
 corner(bar, 12)
-new("UISizeConstraint", {MaxSize = Vector2.new(760, 104)}, bar)
+new("UISizeConstraint", {MaxSize = Vector2.new(980, 104)}, bar)
+-- narrow screens: the bar scales down instead of running off the edge
+do
+	local bs = new("UIScale", {}, bar)
+	local function fitBar()
+		local vp = camera and camera.ViewportSize or Vector2.new(1280, 720)
+		bs.Scale = math.clamp((vp.X - 24) / 980, 0.45, 1)
+	end
+	fitBar()
+	if camera then camera:GetPropertyChangedSignal("ViewportSize"):Connect(fitBar) end
+end
 local hint = label({Position = UDim2.fromOffset(10, 2), Size = UDim2.new(1, -20, 0, 18), TextSize = 11, TextColor3 = SUB, TextXAlignment = Enum.TextXAlignment.Left,
 	Text = "📸 PHOTO MODE • WASD/QE fly • hold right-click or drag to look • SHIFT fast • H hides this bar • V exits • take the shot with Roblox's Capture button"}, bar)
 local row1 = new("Frame", {Position = UDim2.fromOffset(8, 22), Size = UDim2.new(1, -16, 0, 38), BackgroundTransparency = 1}, bar)
@@ -4031,6 +4567,12 @@ for _, e in ipairs(EMOTES) do
 		end
 	end)
 end
+-- v9 reactions and poses (EmpireClient > AnimationConfig: your own animation ids, or safe fallbacks)
+for _, r in ipairs({{"😎", "ownerPose"}, {"🤦", "facepalm"}, {"💸", "money"}, {"😱", "shocked"}, {"😤", "armsCrossed"}}) do
+	pbtn(row2, r[1], 40, RGB(150, 90, 200), function()
+		if C.AnimationConfig then C.AnimationConfig.react(r[2]) end
+	end)
+end
 pbtn(row2, "# Grid", 60, GRAY, function() grid.Visible = not grid.Visible end)
 -- post this moment to CityBuzz (the post card says where you were; the screenshot itself is Roblox's Capture button)
 pbtn(row2, "📤 Post to CityBuzz", 130, RGB(230, 70, 150), function()
@@ -4165,7 +4707,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX36"><Properties><string name="Name">Story</string>
+<Item class="ModuleScript" referent="RBX42"><Properties><string name="Name">Story</string>
 <ProtectedString name="Source"><![CDATA[-- STORY: cutscenes with the rival (Lil Clipz), his speech bubbles, the on-screen story tracker and the
 -- phone's Story app. Everything here is local to this player: other players never get pulled into
 -- your cutscene, and all the parts are client-side (cleaned up when the scene ends).
@@ -4188,124 +4730,25 @@ local CAST = cat.cast or {}
 local sg = new("ScreenGui", {Name = "EmpireStory", ResetOnSpawn = false, IgnoreGuiInset = true, DisplayOrder = 20, ZIndexBehavior = Enum.ZIndexBehavior.Sibling}, plr:WaitForChild("PlayerGui"))
 
 -- =====================================================================
--- THE RIVAL: a stylized blocky streamer built from parts (an original character, not anyone real)
+-- THE CAST: built with the shared actor kit (EmpireClient > Actors); Lil Clipz is an original character
 -- =====================================================================
+local A = C.Actors
 local FX
-local function part(size, color, mat, shape)
-	local p = Instance.new("Part")
-	p.Anchored, p.CanCollide, p.CanQuery, p.CanTouch, p.CastShadow = true, false, false, false, false
-	p.TopSurface, p.BottomSurface = Enum.SurfaceType.Smooth, Enum.SurfaceType.Smooth
-	p.Size, p.Color, p.Material = size, color, mat or Enum.Material.SmoothPlastic
-	if shape then p.Shape = shape end
-	p.Parent = FX
-	return p
-end
+local function part(size, color, mat, shape) return A.part(FX, size, color, mat, shape) end
 local function newFolder()
 	if FX then FX:Destroy() end
 	FX = new("Folder", {Name = "StoryScene"}, Workspace)
 	return FX
 end
--- who: "rival" (hoodie + headset), "kevin" (copycat cousin), or any NPC style
-local LOOKS = {
-	rival = {shirt = RGB(255, 70, 140), pants = RGB(30, 30, 40), skin = RGB(190, 140, 100), hat = RGB(20, 20, 24), headset = true},
-	kevin = {shirt = RGB(255, 210, 60), pants = RGB(90, 90, 110), skin = RGB(255, 220, 180), hat = RGB(255, 240, 120)},
-	ulysses = {shirt = RGB(120, 200, 255), pants = RGB(40, 50, 70), skin = RGB(235, 190, 150), tie = RGB(255, 60, 60)},
-	brenda = {shirt = RGB(170, 120, 255), pants = RGB(40, 30, 60), skin = RGB(125, 88, 62), tie = RGB(255, 255, 255)},
-	reginald = {shirt = RGB(30, 30, 34), pants = RGB(30, 30, 34), skin = RGB(255, 225, 200), tophat = true, tie = RGB(255, 205, 80)},
-	fan = {shirt = RGB(80, 200, 140), pants = RGB(60, 70, 120), skin = RGB(235, 190, 150)},
-}
-local function makeActor(look)
-	local L = LOOKS[look] or LOOKS.fan
-	local a = {
-		torso = part(V3(2, 2, 1), L.shirt), head = part(V3(1.4, 1.4, 1.4), L.skin, nil, Enum.PartType.Ball),
-		la = part(V3(0.9, 2, 0.9), L.shirt), ra = part(V3(0.9, 2, 0.9), L.shirt),
-		ll = part(V3(0.95, 2, 0.95), L.pants), rl = part(V3(0.95, 2, 0.95), L.pants),
-		eyes = part(V3(0.9, 0.22, 0.1), RGB(20, 20, 20)),
-	}
-	if L.hat then a.hat = part(V3(1.5, 0.45, 1.5), L.hat) a.brim = part(V3(1.5, 0.12, 0.8), L.hat) end
-	if L.tophat then a.hat = part(V3(1.1, 1.2, 1.1), RGB(20, 20, 20), nil, Enum.PartType.Cylinder) end
-	if L.tie then a.tie = part(V3(0.35, 1.2, 0.1), L.tie) end
-	if L.headset then
-		a.band = part(V3(1.6, 0.2, 0.3), RGB(30, 30, 30))
-		a.mic = part(V3(0.12, 0.12, 0.8), RGB(30, 30, 30))
-		a.micTip = part(V3(0.3, 0.3, 0.3), RGB(255, 60, 60), Enum.Material.Neon, Enum.PartType.Ball)
-		-- a LIVE sign floating over his head
-		local bb = new("BillboardGui", {Size = UDim2.fromOffset(90, 30), StudsOffset = V3(0, 3.2, 0), AlwaysOnTop = true, MaxDistance = 140}, a.head)
-		local f = new("Frame", {Size = UDim2.fromScale(1, 1), BackgroundColor3 = RGB(230, 30, 50), BorderSizePixel = 0}, bb)
-		corner(f, 8)
-		label({Size = UDim2.fromScale(1, 1), Text = "🔴 LIVE", TextScaled = true, Font = Enum.Font.GothamBlack}, f)
-	end
-	a.look = look
-	return a
-end
--- pose: base = where they stand (facing -Z of the CFrame), p = {arm angles, bounce, lean, kneel}
-local function pose(a, base, p)
-	local y = (p.bounce or 0) - (p.kneel or 0)
-	local root = base * CF(0, y, 0) * CFrame.Angles(p.lean or 0, 0, p.tilt or 0)
-	local sw = p.walk and math.sin(p.walk) * 0.6 or 0
-	a.torso.CFrame = root * CF(0, 3, 0)
-	a.head.CFrame = root * CF(0, 4.7, 0)
-	a.eyes.CFrame = root * CF(0, 4.8, -0.68)
-	a.ll.CFrame = root * CF(-0.5, 2 + (p.kneel or 0) * 0.5, 0) * CFrame.Angles(sw + (p.kneel and p.kneel > 0 and 1.2 or 0), 0, 0) * CF(0, -1, 0)
-	a.rl.CFrame = root * CF(0.5, 2, 0) * CFrame.Angles(-sw, 0, 0) * CF(0, -1, 0)
-	a.la.CFrame = root * CF(-1.45, 3.9, 0) * CFrame.Angles(p.la or -sw, 0, p.laz or 0) * CF(0, -0.9, 0)
-	a.ra.CFrame = root * CF(1.45, 3.9, 0) * CFrame.Angles(p.ra or sw, 0, p.raz or 0) * CF(0, -0.9, 0)
-	if a.hat then a.hat.CFrame = a.look == "reginald" and root * CF(0, 5.9, 0) * CFrame.Angles(0, 0, math.pi / 2) or root * CF(0, 5.35, 0.05) end
-	if a.brim then a.brim.CFrame = root * CF(0, 5.2, -0.7) end
-	if a.tie then a.tie.CFrame = root * CF(0, 3.2, -0.52) end
-	if a.band then
-		a.band.CFrame = root * CF(0, 5.35, 0)
-		a.mic.CFrame = root * CF(0.62, 4.5, -0.45)
-		a.micTip.CFrame = root * CF(0.62, 4.45, -0.85)
-	end
-end
--- each animation returns the pose for time t (seconds into the line)
-local ANIMS = {
-	idle = function(t) return {bounce = math.abs(math.sin(t * 2)) * 0.1, la = 0.1, ra = -0.1} end,
-	entrance = function(t)
-		if t < 0.7 then return {bounce = (1 - t / 0.7) ^ 2 * 30, la = -2.6, ra = -2.6} end
-		local k = math.max(0, 1 - (t - 0.7) * 3)
-		return {bounce = math.abs(math.sin((t - 0.7) * 9)) * 0.6 * k, kneel = 0.4 * k, la = -2.4, ra = -2.4}
-	end,
-	point = function(t) return {ra = -1.6, la = 0.2, bounce = math.abs(math.sin(t * 6)) * 0.15, lean = -0.05} end,
-	laugh = function(t) return {bounce = math.abs(math.sin(t * 14)) * 0.5, lean = 0.25 + math.sin(t * 7) * 0.08, la = -0.6 + math.sin(t * 14) * 0.3, ra = -0.6 - math.sin(t * 14) * 0.3} end,
-	clap = function(t) local s = math.abs(math.sin(t * 10)) return {la = -1.3, ra = -1.3, laz = -0.5 * s, raz = 0.5 * s, bounce = s * 0.1} end,
-	shrug = function(t) return {laz = 0.9, raz = -0.9, la = -0.4, ra = -0.4, tilt = math.sin(t * 2) * 0.08} end,
-	shock = function(t) return {bounce = t < 0.3 and math.sin(t / 0.3 * math.pi) * 1.5 or 0, lean = 0.3, la = -2.8, ra = -2.8} end,
-	kneel = function(t) return {kneel = 1.4, la = -1.5 + math.sin(t * 5) * 0.1, ra = -1.5 - math.sin(t * 5) * 0.1, lean = -0.15} end,
-	hype = function(t) return {bounce = math.abs(math.sin(t * 8)) * 1.6, la = -2.9, ra = -2.9, laz = -0.3, raz = 0.3} end,
-	talk = function(t) return {la = 0.1, ra = -0.5 + math.sin(t * 6) * 0.35, bounce = math.abs(math.sin(t * 6)) * 0.05} end,
-}
--- floating stream-chat reactions near the rival
-local CHAT = {"💀💀💀", "W", "L + ratio", "CLIP IT", "chat is crying 😭", "🔥🔥", "NO WAY", "bro said folding table", "😂😂", "+1000 aura", "-500 aura", "he's cooked"}
-local function chatPop(pos)
-	local a = part(V3(0.2, 0.2, 0.2), WHITE)
-	a.Transparency = 1
-	a.CFrame = CF(pos + V3(math.random(-30, 30) / 10, math.random(0, 20) / 10, 0))
-	local bb = new("BillboardGui", {Size = UDim2.fromOffset(150, 28), AlwaysOnTop = true, MaxDistance = 140}, a)
-	local l = label({Size = UDim2.fromScale(1, 1), TextScaled = true, Text = CHAT[math.random(#CHAT)], Font = Enum.Font.GothamBlack,
-		TextColor3 = Color3.fromHSV(math.random(), 0.6, 1), TextStrokeTransparency = 0.2}, bb)
-	tween(a, 1.6, {CFrame = a.CFrame + V3(0, 5, 0)})
-	tween(l, 1.6, {TextTransparency = 1, TextStrokeTransparency = 1}, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
-	task.delay(1.7, function() a:Destroy() end)
-end
-local function confetti(pos, n)
-	for _ = 1, n do
-		local p = part(V3(0.4, 0.05, 0.6), Color3.fromHSV(math.random(), 0.8, 1), Enum.Material.Neon)
-		p.CFrame = CF(pos + V3(math.random(-6, 6), math.random(6, 12), math.random(-6, 6))) * CFrame.Angles(math.random() * 6, math.random() * 6, 0)
-		tween(p, 2 + math.random(), {CFrame = p.CFrame * CF(0, -10, 0) * CFrame.Angles(4, 2, 1), Transparency = 1})
-		task.delay(3.2, function() p:Destroy() end)
-	end
-end
+local function makeActor(look) return A.make(FX, look) end
+local pose, ANIMS = A.pose, A.ANIMS
+local function chatPop(pos) A.chatPop(FX, pos) end
+local function confetti(pos, n) A.confetti(FX, pos, n) end
+local faceTowards = A.faceTowards
 
 -- =====================================================================
 -- STAGE PROPS: Kevin's copycat stand, the spotlight entrance, the golden limo
 -- =====================================================================
-local function faceTowards(at, target)
-	local flat = V3(target.X, at.Y, target.Z)
-	if (flat - at).Magnitude < 0.1 then return CF(at) end
-	return CFrame.lookAt(at, flat)
-end
 local function copycatStand(where)
 	local base = faceTowards(where.curb + V3(-26, 0, 0), where.focus)
 	local p = part(V3(7, 3.4, 3), RGB(255, 230, 120), Enum.Material.WoodPlanks)
@@ -4547,7 +4990,8 @@ local function pump()
 			while true do
 				local hum = plr.Character and plr.Character:FindFirstChildOfClass("Humanoid")
 				local seated = hum and hum.SeatPart ~= nil
-				if gui.Enabled and not C.photoActive and not seated and C.S then break end
+				local cine = C.cinematicPlaying and C.cinematicPlaying()
+				if gui.Enabled and not C.photoActive and not seated and C.S and not cine then break end
 				task.wait(0.5)
 			end
 			local sc = table.remove(queue, 1)
@@ -4617,19 +5061,7 @@ local function showBubble(who, text)
 	end)
 end
 -- small speech bubble over something in the world (your employees muttering at work)
-local function worldBubble(pos, who, text)
-	local a = Instance.new("Part")
-	a.Anchored, a.CanCollide, a.CanQuery, a.CanTouch, a.Transparency = true, false, false, false, 1
-	a.Size = V3(0.2, 0.2, 0.2)
-	a.CFrame = CF(pos)
-	a.Parent = Workspace
-	local bb = new("BillboardGui", {Size = UDim2.fromOffset(240, 60), MaxDistance = 80, LightInfluence = 0}, a)
-	local f = new("Frame", {Size = UDim2.fromScale(1, 1), BackgroundColor3 = WHITE, BorderSizePixel = 0}, bb)
-	corner(f, 12)
-	label({Position = UDim2.fromOffset(8, 4), Size = UDim2.new(1, -16, 0, 14), TextSize = 11, Text = who, TextColor3 = RGB(120, 120, 140), TextXAlignment = Enum.TextXAlignment.Left}, f)
-	label({Position = UDim2.fromOffset(8, 18), Size = UDim2.new(1, -16, 1, -22), TextSize = 13, TextWrapped = true, Text = text, TextColor3 = RGB(20, 20, 30), TextXAlignment = Enum.TextXAlignment.Left}, f)
-	task.delay(6, function() a:Destroy() end)
-end
+local function worldBubble(pos, who, text) A.bubble(pos, who, text, 6) end
 
 remote.OnClientEvent:Connect(function(msg)
 	if type(msg) ~= "table" then return end
@@ -4893,7 +5325,706 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX37"><Properties><string name="Name">MapApp</string>
+<Item class="ModuleScript" referent="RBX43"><Properties><string name="Name">Cinematics</string>
+<ProtectedString name="Source"><![CDATA[-- CINEMATIC CONTROLLER: plays the short interaction cinematics the server sends (GameServer > Cinematics):
+-- evictions, grand openings, hires, inspections, influencer visits...
+--
+-- One reusable stage does the work for every scene: camera shots, part-built actors (EmpireClient > Actors),
+-- props, timed dialogue, a Skip button (mouse, touch, Backspace, controller B) and a 📸 button that pauses the
+-- scene in Photo Mode. Scenes are pure presentation: the server already applied every change before sending it,
+-- so skipping, respawning or leaving mid-scene can't break anything, and everything is cleaned up afterwards.
+--
+-- Two ways to show a scene (Settings → 🎬 Cinematics):
+--   FULL  - the camera takes over with letterbox bars and the HUD steps aside (big moments)
+--   SHORT - nothing takes your camera: the actors act it out in the world and lines pop up as bubbles
+--   OFF   - just the result banner
+-- Only the player involved gets the scene; actors only appear if you're close to where it happens.
+return function(C)
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
+local RGB, V3, CF = Color3.fromRGB, Vector3.new, CFrame.new
+local new, tween, label, button, corner, stroke = C.new, C.tween, C.label, C.button, C.corner, C.stroke
+local play, SND, act, gui, plr = C.play, C.SND, C.act, C.gui, C.plr
+local GOLD, WHITE, SUB, GRAY = C.GOLD, C.WHITE, C.SUB, C.GRAY
+local A = C.Actors
+local remote = ReplicatedStorage:WaitForChild("Cinematic")
+local CAST = (C.catalog and C.catalog.cast) or {}
+
+local CC = {stats = {played = 0, skipped = 0, cleaned = 0, errors = 0, dropped = 0}}
+C.Cinematics = CC
+local NEAR = 170            -- SHORT scenes only draw actors if you're this close
+local MAX_QUEUE = 3
+
+-- =====================================================================
+-- SCREEN
+-- =====================================================================
+local sg = new("ScreenGui", {Name = "EmpireCinematic", ResetOnSpawn = false, IgnoreGuiInset = true, DisplayOrder = 22, ZIndexBehavior = Enum.ZIndexBehavior.Sibling}, plr:WaitForChild("PlayerGui"))
+local barTop = new("Frame", {Size = UDim2.new(1, 0, 0, 0), BackgroundColor3 = Color3.new(0, 0, 0), BorderSizePixel = 0, ZIndex = 2}, sg)
+local barBot = new("Frame", {AnchorPoint = Vector2.new(0, 1), Position = UDim2.fromScale(0, 1), Size = UDim2.new(1, 0, 0, 0), BackgroundColor3 = Color3.new(0, 0, 0), BorderSizePixel = 0, ZIndex = 2}, sg)
+local titleCard = label({AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 14), Size = UDim2.new(0.7, 0, 0, 40), TextScaled = true, Font = Enum.Font.GothamBlack,
+	TextColor3 = GOLD, TextStrokeTransparency = 0.2, Visible = false, ZIndex = 5}, sg)
+-- subtitles (FULL) / caption (SHORT)
+local sub = new("Frame", {AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -76), Size = UDim2.new(0.8, 0, 0, 74), BackgroundColor3 = RGB(14, 14, 22),
+	BackgroundTransparency = 0.1, BorderSizePixel = 0, Visible = false, ZIndex = 6}, sg)
+new("UISizeConstraint", {MaxSize = Vector2.new(720, 90)}, sub)
+corner(sub, 14)
+local subStroke = stroke(sub, WHITE, 2, 0.3)
+local subIcon = label({Position = UDim2.fromOffset(10, 9), Size = UDim2.fromOffset(56, 56), TextScaled = true, Text = "💬", ZIndex = 7}, sub)
+local subName = label({Position = UDim2.fromOffset(74, 6), Size = UDim2.new(1, -84, 0, 20), TextSize = 15, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 7}, sub)
+local subText = label({Position = UDim2.fromOffset(74, 26), Size = UDim2.new(1, -84, 1, -30), TextSize = 17, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left,
+	TextYAlignment = Enum.TextYAlignment.Top, ZIndex = 7}, sub)
+-- buttons: big enough for thumbs, top-right so they never cover the mobile jump button or the phone
+local skipB = button({AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -14, 0, 70), Size = UDim2.fromOffset(122, 44), Text = "Skip ⏭", TextSize = 16, BackgroundColor3 = GRAY, Visible = false, ZIndex = 8}, sg)
+local photoB = button({AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -144, 0, 70), Size = UDim2.fromOffset(54, 44), Text = "📸", TextSize = 22, BackgroundColor3 = RGB(230, 70, 150), Visible = false, ZIndex = 8}, sg)
+local hintL = label({AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -14, 0, 116), Size = UDim2.fromOffset(240, 16), TextSize = 11, TextColor3 = SUB,
+	TextXAlignment = Enum.TextXAlignment.Right, Text = "Skip: Backspace / Ⓑ  •  Next line: Space / Ⓐ", Visible = false, ZIndex = 8}, sg)
+if UserInputService.TouchEnabled then hintL.Text = "Tap Skip to skip" end
+-- result banner (shown after every scene, even skipped or OFF)
+local banner = C.panel and C.panel({AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 96), Size = UDim2.fromOffset(420, 86), BackgroundColor3 = RGB(30, 20, 44), Visible = false, ZIndex = 9}, sg)
+	or new("Frame", {AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 96), Size = UDim2.fromOffset(420, 86), BackgroundColor3 = RGB(30, 20, 44), Visible = false, ZIndex = 9}, sg)
+stroke(banner, GOLD, 2, 0.2)
+local banTitle = label({Position = UDim2.fromOffset(10, 8), Size = UDim2.new(1, -20, 0, 36), TextSize = 26, Font = Enum.Font.GothamBlack, TextColor3 = GOLD, ZIndex = 10}, banner)
+local banSub = label({Position = UDim2.fromOffset(10, 46), Size = UDim2.new(1, -20, 0, 30), TextSize = 15, TextWrapped = true, ZIndex = 10}, banner)
+local bannerId = 0
+local function showBanner(r)
+	if type(r) ~= "table" or not r[1] then return end
+	bannerId += 1
+	local id = bannerId
+	banTitle.Text = tostring(r[1])
+	banSub.Text = tostring(r[2] or "")
+	banner.Visible = true
+	local s = new("UIScale", {Scale = 0.6}, banner)
+	tween(s, 0.35, {Scale = 1}, Enum.EasingStyle.Back)
+	play(SND.event)
+	task.delay(3, function()
+		s:Destroy()
+		if bannerId == id then banner.Visible = false end
+	end)
+end
+CC.showBanner = showBanner
+
+-- =====================================================================
+-- THE STAGE: one per scene
+-- =====================================================================
+local Stage = {}
+Stage.__index = Stage
+local current = nil      -- the playing stage
+local advance = false
+
+local function newStage(scene)
+	local S = setmetatable({}, Stage)
+	S.scene, S.kind, S.anchor = scene, scene.kind, scene.at
+	S.mode = scene.mode
+	S.folder = A.folder("Cinematic_" .. scene.kind)
+	S.actors, S.updaters, S.alias = {}, {}, {}
+	S.skipped, S.paused = false, false
+	S.cam = Workspace.CurrentCamera
+	S.names = scene.names or {}
+	-- SHORT scenes far away: no actors (lines show as captions only)
+	local root = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
+	S.near = S.mode == "full" or (root ~= nil and (root.Position - S.anchor.Position).Magnitude < NEAR)
+	return S
+end
+-- a point in front of the door, in anchor space (x: right, z: towards the street)
+function Stage:pt(x, z, y) return (self.anchor * CF(x, y or 0, z)).Position end
+function Stage:wait(t)
+	local left = t
+	while left > 0 and not self.skipped do
+		local dt = task.wait(0.03)
+		if not self.paused then left -= dt end
+	end
+end
+function Stage:actor(who, pos, faceTo, opts)
+	if not self.near then return nil end
+	local look = (opts and opts.look) or (who == "you" and A.lookOfCharacter(plr.Character)) or (CAST[who] and CAST[who].look) or who
+	local a = A.make(self.folder, look, opts)
+	a.base = A.faceTowards(pos, faceTo or self.anchor.Position)
+	a.who = who
+	self.actors[who] = a
+	A.step(a, 0, os.clock())
+	return a
+end
+function Stage:move(a, name)
+	if a then A.play(a, name, os.clock()) end
+end
+function Stage:walk(a, pos, speed, waitArrive)
+	if not a then return end
+	A.walkTo(a, pos, speed or 7)
+	if waitArrive then
+		local limit = os.clock() + 4
+		while a.goal and os.clock() < limit and not self.skipped do task.wait(0.03) end
+	end
+end
+function Stage:part(size, color, mat, cf, shape)
+	local p = A.part(self.folder, size, color, mat, shape)
+	p.CFrame = cf
+	return p
+end
+-- camera shot: a position and a look-at point in anchor space (FULL mode only)
+function Stage:shot(pos, look, dur)
+	if self.mode ~= "full" then return end
+	local cf = CFrame.lookAt((self.anchor * CF(pos)).Position, (self.anchor * CF(look)).Position)
+	self.lastShot = cf
+	if not dur or dur <= 0 then
+		self.cam.CFrame = cf
+	else
+		tween(self.cam, dur, {CFrame = cf}, Enum.EasingStyle.Sine)
+	end
+end
+function Stage:sfx(name)
+	if name == "knock" then
+		task.spawn(function() for _ = 1, 3 do play(SND.click) task.wait(0.22) end end)
+	else
+		play(SND[name] or SND.event)
+	end
+end
+function Stage:speaker(who)
+	local c = CAST[who] or {}
+	local name = self.names[who] or c.name or who
+	if who == "you" then name = plr.DisplayName end
+	return name, c.icon or (who == "you" and "😎" or "💬")
+end
+-- one line of dialogue: the speaker acts it out; FULL shows subtitles, SHORT shows a bubble over their head
+function Stage:say(who, text, move)
+	if self.skipped then return end
+	text = tostring(text or "")
+	local a = self.actors[who] or self.alias[who]
+	if a then
+		self:move(a, move or "talk")
+		if move == "hype" or move == "shock" or move == "flail" or move == "laugh" then
+			for _ = 1, 3 do A.chatPop(self.folder, a.head.Position + V3(0, 2, 0)) end
+		end
+	end
+	local name, icon = self:speaker(who)
+	if self.mode == "full" then
+		subName.Text = name
+		subIcon.Text = icon
+		subText.Text = text
+		sub.Visible = true
+	else
+		local pos = a and (a.head.Position + V3(0, 2.6, 0)) or (self.anchor.Position + V3(0, 7, 0))
+		if self.near then A.bubble(pos, name, text, 3, self.folder) end
+		if C.U and C.U.toast and not self.near then C.U.toast(icon .. " " .. name .. ": " .. text) end
+	end
+	advance = false
+	local dur = math.clamp(#text * 0.04 + 0.9, 1.3, 2.8)
+	local left = dur
+	while left > 0 and not self.skipped and not advance do
+		local dt = task.wait(0.03)
+		if not self.paused then left -= dt end
+	end
+	advance = false
+	if a and not self.skipped then self:move(a, "idle") end
+end
+function Stage:lines(list, from, to)
+	for i = from or 1, to or #list do
+		local l = list[i]
+		if not l or self.skipped then break end
+		self:say(l[1], l[2], l[3])
+	end
+end
+-- throw a prop in an arc (with bounces) from a CFrame to a point
+function Stage:toss(kind, fromCF, toPos, height, dur, bounces, label_)
+	if not self.near then return end
+	local p
+	if kind == "box" then
+		p = self:part(V3(1.6, 1.3, 1.4), RGB(200, 160, 100), Enum.Material.Cardboard, fromCF)
+	else
+		p = self:part(V3(1.3, 1.3, 1.3), Color3.fromHSV(math.random(), 0.7, 1), Enum.Material.SmoothPlastic, fromCF, Enum.PartType.Ball)
+		if label_ then
+			local bb = new("BillboardGui", {Size = UDim2.fromOffset(200, 26), StudsOffset = V3(0, 1.6, 0), AlwaysOnTop = true, MaxDistance = 120}, p)
+			label({Size = UDim2.fromScale(1, 1), Text = "✨ " .. label_, TextScaled = true, Font = Enum.Font.GothamBlack, TextStrokeTransparency = 0.2}, bb)
+		end
+	end
+	local from = fromCF.Position
+	local t = 0
+	local hops = {{from, toPos, height, dur}}
+	local land = toPos
+	for i = 1, bounces or 0 do
+		local nxt = land + (land - from).Unit * (3 / i) + V3(0, 0, 0)
+		table.insert(hops, {land, V3(nxt.X, toPos.Y, nxt.Z), height / (i * 2.2), dur / (i + 1)})
+		land = V3(nxt.X, toPos.Y, nxt.Z)
+	end
+	local hop = 1
+	table.insert(self.updaters, function(dt)
+		local h = hops[hop]
+		if not h then return true end
+		t += dt
+		local k = math.min(1, t / h[4])
+		local pos = h[1]:Lerp(h[2], k) + V3(0, math.sin(k * math.pi) * h[3], 0)
+		p.CFrame = CF(pos) * CFrame.Angles(t * 7, t * 5, 0)
+		if k >= 1 then
+			hop += 1
+			t = 0
+		end
+		return false
+	end)
+	return p
+end
+-- swing a door around its hinge
+function Stage:swing(door, hinge, angle, dur)
+	local rel = hinge:ToObjectSpace(door.CFrame)
+	local startA = door:GetAttribute("Swing") or 0
+	local t = 0
+	table.insert(self.updaters, function(dt)
+		t += dt
+		local k = math.min(1, t / dur)
+		local a = startA + (angle - startA) * k
+		door.CFrame = hinge * CFrame.Angles(0, a, 0) * rel
+		if k >= 1 then door:SetAttribute("Swing", angle) return true end
+		return false
+	end)
+end
+
+-- =====================================================================
+-- SCENES
+-- =====================================================================
+local T = {}
+-- a simple face-off: you on the left, the other speakers in a row on the right, then their lines
+local function dialogue(S, o, lines, opts)
+	opts = opts or {}
+	local you = S:actor("you", S:pt(-2.6, 7), S:pt(2.5, 6.5))
+	local who = {}
+	for _, l in ipairs(lines) do
+		if l[1] ~= "you" and not who[l[1]] then
+			who[l[1]] = true
+			local n = 0
+			for _ in pairs(S.actors) do n += 1 end
+			S:actor(l[1], S:pt(1.6 + (n - 1) * 2.8, 5.6 - (n - 1) * 0.6), S:pt(-2.6, 7), {prop = opts.props and opts.props[l[1]] or nil})
+		end
+	end
+	S:shot(V3(0.4, 4.6, 17), V3(0, 3.6, 6), 0)
+	S:shot(V3(1.2, 4.2, 14.5), V3(0, 3.6, 6.2), 1.6)
+	if opts.before then opts.before(you) end
+	S:lines(lines)
+	return you
+end
+T.evict = function(S, o, ctx, lines)
+	local you = S:actor("you", S:pt(-3, 17), S:pt(0, 0))
+	local door = S:part(V3(5, 8, 0.4), RGB(120, 80, 50), Enum.Material.Wood, o * CF(0, 4, 0.25))
+	local tenant = S:actor("tenant", S:pt(0, -1.4), S:pt(0, 10))
+	if tenant then A.setVisible(tenant, false) end
+	S:shot(V3(15, 7, 24), V3(0, 3, 4), 0)
+	S:walk(you, S:pt(0, 4.3), 9, true)
+	S:shot(V3(8, 5, 10), V3(0, 4, 2), 0.7)
+	S:move(you, "knock")
+	S:sfx("knock")
+	S:wait(0.9)
+	S:swing(door, o * CF(-2.5, 4, 0.25), -1.7, 0.35)
+	if tenant then
+		A.setVisible(tenant, true)
+		tenant.base = A.faceTowards(S:pt(0, 1.8), S:pt(0, 10))
+	end
+	S:wait(0.3)
+	S:move(you, "show")
+	if you then A.setProp(you, "notice") end
+	S:shot(V3(-6, 5, 9.5), V3(0, 4, 2.5), 0.5)
+	S:lines(lines)
+	if you then A.setProp(you, nil) end
+	-- the move-out, cartoon style
+	if tenant then A.setProp(tenant, "box") end
+	S:move(you, "gesture")
+	S:shot(V3(13, 8, 17), V3(0, 2, 8), 0.7)
+	S:walk(tenant, S:pt(5, 11), 9)
+	for i = 1, 3 do
+		S:toss("box", o * CF(0, 6, 0.6), S:pt(-5 + i * 2.6, 8.5 + i), 6, 0.8)
+		S:wait(0.3)
+	end
+	S:toss("item", o * CF(0, 6, 0.6), S:pt(6.5, 13), 9, 1.2, 3, ctx.item)
+	if you then for _ = 1, 3 do A.chatPop(S.folder, you.head.Position + V3(0, 3, 0), {"💀", "NOT THE " .. string.upper(string.match(tostring(ctx.item), "(%S+)$") or "STUFF"), "W landlord", "CLIP IT"}) end end
+	S:wait(1.2)
+	S:walk(tenant, S:pt(16, 26), 11)
+	S:walk(you, S:pt(0, 4.8), 6, true)
+	S:swing(door, o * CF(-2.5, 4, 0.25), 0, 0.3)
+	S:move(you, "owner")
+	S:wait(0.9)
+end
+-- each business's signature opening moment
+local SIGNATURE = {
+	lemonade = function(S, o)
+		local sign = S:part(V3(4, 2, 0.3), RGB(255, 225, 60), Enum.Material.SmoothPlastic, o * CF(2.5, 5, 1.2))
+		local front = new("SurfaceGui", {Face = Enum.NormalId.Back, CanvasSize = Vector2.new(200, 100), LightInfluence = 0}, sign)
+		label({Size = UDim2.fromScale(1, 1), Text = "CLOSED", TextScaled = true, Font = Enum.Font.GothamBlack, TextColor3 = RGB(200, 40, 40)}, front)
+		local back = new("SurfaceGui", {Face = Enum.NormalId.Front, CanvasSize = Vector2.new(200, 100), LightInfluence = 0}, sign)
+		label({Size = UDim2.fromScale(1, 1), Text = "OPEN 🍋", TextScaled = true, Font = Enum.Font.GothamBlack, TextColor3 = RGB(30, 150, 60)}, back)
+		local t = 0
+		local base = sign.CFrame * CFrame.Angles(0, math.pi, 0)
+		sign.CFrame = base
+		S:wait(0.5)
+		table.insert(S.updaters, function(dt)
+			t += dt
+			local k = math.min(1, t / 0.6)
+			sign.CFrame = base * CFrame.Angles(0, math.pi * k + math.sin(k * math.pi) * 0.3, 0)
+			return k >= 1
+		end)
+	end,
+	icecream = function(S, o)
+		local box = S:part(V3(5, 2.6, 2.4), RGB(220, 240, 255), Enum.Material.Glass, o * CF(0, 1.3, 2.6))
+		local lid = S:part(V3(5, 0.3, 2.4), RGB(180, 220, 255), Enum.Material.SmoothPlastic, o * CF(0, 2.75, 2.6))
+		S:swing(lid, o * CF(0, 2.75, 1.4), 0, 0.01)
+		S:wait(0.4)
+		local hinge = o * CF(0, 2.75, 1.4)
+		local rel = hinge:ToObjectSpace(lid.CFrame)
+		local t = 0
+		table.insert(S.updaters, function(dt)
+			t += dt
+			local k = math.min(1, t / 0.5)
+			lid.CFrame = hinge * CFrame.Angles(-1.4 * k, 0, 0) * rel
+			return k >= 1
+		end)
+		for i = 1, 12 do
+			local m = S:part(V3(1, 1, 1), RGB(235, 250, 255), Enum.Material.Neon, o * CF(math.random(-20, 20) / 10, 3, 2.6), Enum.PartType.Ball)
+			m.Transparency = 0.3
+			tween(m, 1.6, {Size = V3(5, 5, 5), Transparency = 1, CFrame = m.CFrame + V3(math.random(-30, 30) / 10, 3 + math.random() * 2, 2)})
+			if i % 4 == 0 then S:wait(0.15) end
+		end
+		local _ = box
+	end,
+	bakery = function(S, o)
+		S:part(V3(5, 4, 3), RGB(170, 90, 60), Enum.Material.Brick, o * CF(0, 2, 2.5))
+		local glow = S:part(V3(3, 1.4, 0.2), RGB(255, 140, 40), Enum.Material.Neon, o * CF(0, 2, 4.05))
+		glow.Transparency = 1
+		tween(glow, 0.5, {Transparency = 0})
+		for i = 1, 6 do
+			local w = S:part(V3(0.25, 1.4, 0.25), RGB(255, 240, 220), Enum.Material.Neon, o * CF(-1.5 + i * 0.5, 4.5, 4))
+			tween(w, 1.8, {CFrame = w.CFrame * CF(math.sin(i) * 2, 5, 3) * CFrame.Angles(0, 0, 0.6), Transparency = 1})
+		end
+		S:wait(0.6)
+	end,
+	coffee = function(S, o)
+		local m = S:part(V3(3, 3, 2), RGB(190, 190, 200), Enum.Material.Metal, o * CF(0, 1.5, 2.6))
+		for i = 1, 8 do
+			local puff = S:part(V3(0.8, 0.8, 0.8), WHITE, Enum.Material.Neon, o * CF(0.5, 3.2, 2.6), Enum.PartType.Ball)
+			tween(puff, 1.2, {CFrame = puff.CFrame + V3(math.random(-10, 10) / 10, 3, math.random(0, 10) / 10), Size = V3(2, 2, 2), Transparency = 1})
+			S:wait(0.1)
+		end
+		A.bubble(m.Position + V3(0, 3, 0), "Espresso machine", "BRRRRRRRRR ☕", 2.5, S.folder)
+	end,
+	pizza = function(S, o)
+		S:part(V3(5, 4, 3), RGB(170, 90, 60), Enum.Material.Brick, o * CF(-2, 2, 2.5))
+		S:part(V3(4, 2.6, 2), RGB(230, 225, 215), Enum.Material.SmoothPlastic, o * CF(3, 1.3, 3.2))
+		local pz = S:part(V3(0.3, 2.6, 2.6), RGB(240, 180, 70), Enum.Material.SmoothPlastic, o * CF(-2, 2.4, 4), Enum.PartType.Cylinder)
+		local t = 0
+		table.insert(S.updaters, function(dt)
+			t += dt
+			local k = math.min(1, t / 1.2)
+			local pos = (o * CF(-2, 2.4, 4)).Position:Lerp((o * CF(3, 2.9, 3.2)).Position, k) + V3(0, math.sin(k * math.pi) * 4, 0)
+			pz.CFrame = CF(pos) * CFrame.Angles(0, t * 14, math.pi / 2)
+			return k >= 1
+		end)
+		S:wait(1.3)
+	end,
+	arcade = function(S, o)
+		local lights = {}
+		for i = 1, 7 do
+			local l = S:part(V3(1.4, 1.4, 0.3), Color3.fromHSV(i / 7, 0.8, 0.25), Enum.Material.Neon, o * CF(-6 + i * 1.5, 7, 0.8))
+			lights[i] = l
+		end
+		for i, l in ipairs(lights) do
+			l.Color = Color3.fromHSV(i / 7, 0.8, 1)
+			play(SND.click)
+			S:wait(0.12)
+		end
+	end,
+	tech = function(S, o)
+		for i = 1, 4 do
+			local scr = S:part(V3(2.6, 1.6, 0.2), RGB(10, 10, 14), Enum.Material.Glass, o * CF(-4.5 + i * 1.8 + (i > 2 and 0.6 or 0), 4, 1))
+			S:wait(0.18)
+			scr.Material = Enum.Material.Neon
+			scr.Color = RGB(80, 200, 255)
+		end
+	end,
+	factory = function(S, o)
+		local gears = {}
+		for i = 1, 2 do gears[i] = S:part(V3(0.6, 3, 3), RGB(160, 160, 170), Enum.Material.Metal, o * CF(-3 + i * 3.5, 3, 1.5), Enum.PartType.Cylinder) end
+		local t = 0
+		table.insert(S.updaters, function(dt)
+			t += dt
+			for i, g in ipairs(gears) do g.CFrame = o * CF(-3 + i * 3.5, 3, 1.5) * CFrame.Angles(0, math.pi / 2, t * (i == 1 and 4 or -4)) end
+			return t > 6
+		end)
+		for _ = 1, 6 do
+			local puff = S:part(V3(1.2, 1.2, 1.2), RGB(200, 200, 205), Enum.Material.SmoothPlastic, o * CF(0, 7, 0.5), Enum.PartType.Ball)
+			tween(puff, 1.6, {CFrame = puff.CFrame + V3(math.random(-10, 10) / 10, 5, 0), Size = V3(3, 3, 3), Transparency = 1})
+			S:wait(0.18)
+		end
+	end,
+}
+T.opening = function(S, o, ctx, lines)
+	local you = S:actor("you", S:pt(-1.5, 6), S:pt(0, 0))
+	S:shot(V3(6, 5, 15), V3(0, 3.5, 2), 0)
+	S:shot(V3(3, 4.5, 11), V3(0, 3.5, 2), 1.2)
+	S:move(you, "owner")
+	local sig = SIGNATURE[ctx.key] or SIGNATURE.lemonade
+	local ok, err = pcall(sig, S, o)
+	if not ok then warn("[CornerEmpire] opening signature: " .. tostring(err)) end
+	S:wait(0.6)
+	if ctx.crowd then
+		local crowd = {}
+		for i = 1, 6 do
+			local a = S.near and A.make(S.folder, A.randomLook(i * 37 + #tostring(ctx.key)))
+			if a then
+				a.base = A.faceTowards(S:pt(-6 + i * 2.2, 13 + (i % 2) * 2), S:pt(0, 0))
+				crowd[i] = a
+				S.actors["crowd" .. i] = a
+			end
+		end
+		S.alias.crowd1, S.alias.crowd2 = crowd[2], crowd[4]
+		S:shot(V3(9, 6, 22), V3(0, 3, 9), 0.8)
+		S:lines(lines)
+		-- the rush for the door
+		for _, a in ipairs(crowd) do A.walkTo(a, S:pt(math.random(-15, 15) / 10, 1.5), 15 + math.random() * 4) end
+		S:shot(V3(-8, 5, 12), V3(0, 3, 4), 0.6)
+		S:wait(1.1)
+	end
+	A.confetti(S.folder, S:pt(0, 5), 30)
+	S:move(you, "celebrate")
+	S:wait(1.2)
+end
+T.hire = function(S, o, ctx, lines) dialogue(S, o, lines) end
+T.fire = function(S, o, ctx, lines)
+	dialogue(S, o, lines, {props = {staff = "box"}})
+	local staff = S.actors.staff
+	S:walk(staff, S:pt(14, 20), 8)
+	S:wait(1.2)
+end
+T.buyProperty = function(S, o, ctx, lines)
+	dialogue(S, o, lines, {props = {realtor = "keys"}})
+	A.confetti(S.folder, S:pt(0, 6), 20)
+end
+T.upgrade = function(S, o, ctx, lines)
+	A.confetti(S.folder, S:pt(0, 3, 6), 24)
+	dialogue(S, o, lines)
+end
+T.complaint = function(S, o, ctx, lines) dialogue(S, o, lines) end
+T.inspection = function(S, o, ctx, lines) dialogue(S, o, lines, {props = {inspector = "clipboard"}}) end
+T.competition = function(S, o, ctx, lines)
+	S:part(V3(6, 1.5, 4), RGB(255, 205, 60), Enum.Material.Neon, o * CF(-2.6, 0.75, 7))
+	local you = dialogue(S, o, lines, {before = function(you) if you then you.base = you.base + V3(0, 1.5, 0) end end})
+	A.confetti(S.folder, S:pt(-2.6, 7), 40)
+	S:move(you, "celebrate")
+	S:wait(1)
+end
+T.investment = function(S, o, ctx, lines)
+	local you = dialogue(S, o, lines, {props = {investor = "briefcase"}})
+	for _ = 1, 4 do A.chatPop(S.folder, S:pt(-2.6, 7, 6), {"💸", "💰", "$$$", "💵💵"}) end
+	S:move(you, "money")
+	S:wait(1)
+end
+T.luxury = function(S, o, ctx, lines)
+	local you = S:actor("you", S:pt(0, 5), S:pt(0, 14))
+	for i = 1, 4 do
+		local p = S:actor("photographer" .. i, S:pt(-6 + i * 2.4, 12 + (i % 2)), S:pt(0, 5), {prop = "camera", look = "photographer"})
+		if p then p.anim = "flash" end
+	end
+	S.alias.crowd1, S.alias.crowd2 = S.actors.photographer2, S.actors.photographer3
+	S:shot(V3(3, 4, 10), V3(0, 4, 5), 0)
+	S:shot(V3(-2, 4.5, 12), V3(0, 4, 5), 2)
+	S:move(you, "owner")
+	local flashing = true
+	task.spawn(function()
+		while flashing and not S.skipped do
+			A.flashAt(S.folder, S:pt(math.random(-6, 6), 12, 4.5))
+			task.wait(0.2 + math.random() * 0.3)
+		end
+	end)
+	S:lines(lines)
+	flashing = false
+end
+T.customerArmy = function(S, o, ctx, lines)
+	S:actor("manager", S:pt(3, 4), S:pt(0, 14), {prop = "clipboard"})
+	S:actor("you", S:pt(-3, 5), S:pt(0, 14))
+	for i = 1, 10 do
+		local a = S.near and A.make(S.folder, A.randomLook(i * 13))
+		if a then
+			a.base = A.faceTowards(S:pt(-10 + i * 2, 24 + (i % 3) * 2), S:pt(0, 0))
+			A.walkTo(a, S:pt(math.random(-20, 20) / 10, 1), 14 + math.random() * 5)
+			S.actors["army" .. i] = a
+		end
+	end
+	S:shot(V3(8, 6, 16), V3(0, 3, 10), 0)
+	S:lines(lines)
+end
+T.deliveryDisaster = function(S, o, ctx, lines) dialogue(S, o, lines, {props = {courier = "pizzabox"}}) end
+T.richKid = function(S, o, ctx, lines) dialogue(S, o, lines, {props = {richkid = "goldcard"}}) end
+T.badInvestor = function(S, o, ctx, lines) dialogue(S, o, lines, {props = {investor = "briefcase"}}) end
+T.influencer = function(S, o, ctx, lines)
+	local you = dialogue(S, o, lines)
+	if ctx.influencer == "baysnaps" then for _ = 1, 5 do A.chatPop(S.folder, S:pt(2, 6, 6)) end end
+	S:move(you, "owner")
+end
+T.clipz = function(S, o, ctx, lines) dialogue(S, o, lines) end
+
+-- =====================================================================
+-- PLAYING
+-- =====================================================================
+local queue, playing = {}, false
+C.cinematicPlaying = function() return playing end
+CC.queue = queue
+local function setUI(full, on)
+	sub.Visible = false
+	skipB.Visible = on
+	hintL.Visible = on and full
+	photoB.Visible = on and full and C.setPhoto ~= nil
+	titleCard.Visible = false
+	if full then
+		tween(barTop, 0.35, {Size = UDim2.new(1, 0, 0, on and 56 or 0)})
+		tween(barBot, 0.35, {Size = UDim2.new(1, 0, 0, on and 56 or 0)})
+	end
+end
+local function run(scene)
+	local S = newStage(scene)
+	current = S
+	playing = true
+	local full = S.mode == "full"
+	local guiWas = gui.Enabled
+	local cam = S.cam
+	local oldType = cam.CameraType
+	if full then
+		gui.Enabled = false
+		cam.CameraType = Enum.CameraType.Scriptable
+	end
+	setUI(full, true)
+	if scene.title then
+		titleCard.Text = scene.title
+		titleCard.Visible = true
+		titleCard.TextTransparency = 0
+		task.delay(1.6, function() if current == S then tween(titleCard, 0.5, {TextTransparency = 1}) end end)
+	end
+	local last = os.clock()
+	local conn = RunService.RenderStepped:Connect(function()
+		local now = os.clock()
+		local dt = math.min(0.1, now - last)
+		last = now
+		if S.paused then return end
+		for _, a in pairs(S.actors) do A.step(a, dt, now) end
+		for i = #S.updaters, 1, -1 do
+			local ok, done = pcall(S.updaters[i], dt, now)
+			if not ok or done then table.remove(S.updaters, i) end
+		end
+	end)
+	local tmpl = T[scene.kind] or function(St, o, ctx, lines) dialogue(St, o, lines) end
+	local ok, err = pcall(tmpl, S, S.anchor, scene.ctx or {}, scene.lines or {})
+	if not ok then
+		CC.stats.errors += 1
+		warn("[CornerEmpire] cinematic \"" .. tostring(scene.kind) .. "\" error (cleaned up safely): " .. tostring(err))
+	end
+	-- always clean up, whatever happened
+	conn:Disconnect()
+	S.folder:Destroy()
+	setUI(full, false)
+	-- (back on the main menu? it owns the camera and the HUD stays hidden)
+	if full and not C.inMainMenu then
+		cam.CameraType = (oldType == Enum.CameraType.Scriptable) and Enum.CameraType.Custom or oldType
+		local hum = plr.Character and plr.Character:FindFirstChildOfClass("Humanoid")
+		if hum then cam.CameraSubject = hum end
+		gui.Enabled = guiWas ~= false
+	end
+	if S.skipped then CC.stats.skipped += 1 end
+	CC.stats.played += 1
+	CC.stats.cleaned += 1
+	CC.last = {kind = scene.kind, id = scene.id, skipped = S.skipped, mode = S.mode, near = S.near, error = not ok, cleaned = S.folder.Parent == nil}
+	current = nil
+	playing = false
+	showBanner(scene.result)
+	if scene.react and C.AnimationConfig then pcall(C.AnimationConfig.react, scene.react) end
+end
+local pumping = false
+local function pump()
+	if pumping then return end
+	pumping = true
+	task.spawn(function()
+		while #queue > 0 do
+			local scene = queue[1]
+			-- wait for a calm moment: in the game, not in Photo Mode, not during a story cutscene
+			local waited = os.clock()
+			while true do
+				local busy = not gui.Enabled or C.photoActive or (C.storyCutscene and C.storyCutscene()) or not C.S
+				if not busy then break end
+				if os.clock() - waited > 20 then break end
+				task.wait(0.25)
+			end
+			table.remove(queue, 1)
+			local setting = C.settings and C.settings.cinematics or "full"
+			if os.clock() - waited > 20 or setting == "off" then
+				-- too late (or turned off): just the result
+				CC.stats.dropped += 1
+				showBanner(scene.result)
+			else
+				local hum = plr.Character and plr.Character:FindFirstChildOfClass("Humanoid")
+				if setting == "short" or (hum and hum.SeatPart ~= nil) then scene.mode = "short" end
+				if typeof(scene.at) ~= "CFrame" then
+					local root = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
+					scene.at = root and root.CFrame * CF(0, -3, -8) or CF()
+				end
+				run(scene)
+			end
+		end
+		pumping = false
+	end)
+end
+function CC.play(scene)
+	if type(scene) ~= "table" or type(scene.kind) ~= "string" then return end
+	if #queue >= MAX_QUEUE then
+		-- never let scenes pile up: drop the oldest (its result banner still shows)
+		local old = table.remove(queue, 1)
+		CC.stats.dropped += 1
+		showBanner(old.result)
+	end
+	table.insert(queue, scene)
+	pump()
+end
+remote.OnClientEvent:Connect(CC.play)
+function C.cinematicSkip()
+	if current then current.skipped = true end
+end
+-- leaving to the main menu: end the scene and forget anything queued
+function CC.clear()
+	table.clear(queue)
+	if current then current.skipped = true end
+	banner.Visible = false
+end
+skipB.MouseButton1Click:Connect(function()
+	play(SND.click)
+	C.cinematicSkip()
+end)
+UserInputService.InputBegan:Connect(function(input)
+	if not playing then return end
+	local k = input.KeyCode
+	if k == Enum.KeyCode.Backspace or k == Enum.KeyCode.ButtonB then C.cinematicSkip() end
+	if k == Enum.KeyCode.Space or k == Enum.KeyCode.Return or k == Enum.KeyCode.ButtonA then advance = true end
+end)
+-- respawning mid-scene ends it cleanly
+plr.CharacterAdded:Connect(function() if current then current.skipped = true end end)
+-- 📸: pause the scene and open Photo Mode at the current shot
+photoB.MouseButton1Click:Connect(function()
+	local S = current
+	if not (S and S.mode == "full" and C.setPhoto) then return end
+	play(SND.click)
+	S.paused = true
+	if S.scene.moment then act("viral", "capture", S.scene.moment) end
+	local shot = S.cam.CFrame
+	sg.Enabled = false
+	gui.Enabled = true
+	C.setPhoto(true)
+	task.spawn(function()
+		while C.photoActive do task.wait(0.1) end
+		gui.Enabled = false
+		sg.Enabled = true
+		if current == S then
+			S.cam.CameraType = Enum.CameraType.Scriptable
+			S.cam.CFrame = S.lastShot or shot
+		end
+		S.paused = false
+	end)
+end)
+end
+]]></ProtectedString></Properties>
+</Item>
+<Item class="ModuleScript" referent="RBX44"><Properties><string name="Name">MapApp</string>
 <ProtectedString name="Source"><![CDATA[-- MAP APP: a real city map in the phone. Roads and districts are drawn from the server's world data; markers show
 -- your businesses, home, properties and land, other players' empires, attractions, the Mystery Lot, your delivery
 -- and the tutorial objective. You are the arrow. Tap a marker (or a place in the list) to see what it is, whether
@@ -5122,7 +6253,7 @@ C.openMap = function() if C.togglePhone then C.togglePhone(true) C.phoneView("ma
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX38"><Properties><string name="Name">InteriorUI</string>
+<Item class="ModuleScript" referent="RBX45"><Properties><string name="Name">InteriorUI</string>
 <ProtectedString name="Source"><![CDATA[-- INTERIOR UI: while you're inside a business or a home: a small bar (whose place, interior score, Leave) and,
 -- in your own rooms, the Decorate panel: numbered spots for furniture and decorations, walls, floors and lighting.
 -- Every change is a request; the server checks the price, the spot and the unlocks.
@@ -5319,7 +6450,911 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX39"><Properties><string name="Name">MainMenu</string>
+<Item class="ModuleScript" referent="RBX46"><Properties><string name="Name">InteriorLife</string>
+<ProtectedString name="Source"><![CDATA[-- INTERIOR LIFE: staff at work and customers living their lives inside the business you're standing in.
+--
+-- Staff (by business level): a cashier at the register, a cook at the prep area / ovens, a cleaner from level 5,
+-- a manager doing rounds (if you hired one, or from level 7). Customers come in, look around, order, sit,
+-- eat or check their phone, react to the place (good or bad), and leave. Now and then one takes a selfie,
+-- complains dramatically, compliments the interior, brings a friend or says something you'll want to clip.
+--
+-- All of it is client-side visuals (it never changes anything on the server), only runs while YOU are inside a
+-- room, uses small state machines ticking 10 times a second, and is capped (5 staff, 8 customers).
+return function(C)
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+local RGB, V3, CF = Color3.fromRGB, Vector3.new, CFrame.new
+local plr = C.plr
+local A = C.Actors
+
+local IL = {stats = {served = 0, spawned = 0, behaviors = {}, staff = 0, customers = 0, rooms = 0}}
+C.InteriorLife = IL
+local MAX_CUSTOMERS, MAX_STAFF = 8, 5
+
+-- uniforms and the move each business's staff do at work
+local UNI = {
+	lemonade = {shirt = RGB(255, 214, 60), pants = RGB(60, 70, 120), work = "stir"},
+	icecream = {shirt = RGB(255, 170, 210), pants = RGB(240, 240, 250), work = "stir"},
+	bakery = {shirt = RGB(250, 250, 250), pants = RGB(60, 60, 70), work = "cook"},
+	coffee = {shirt = RGB(55, 62, 58), pants = RGB(35, 35, 40), work = "cook"},
+	pizza = {shirt = RGB(230, 70, 50), pants = RGB(250, 250, 250), work = "cook"},
+	arcade = {shirt = RGB(150, 80, 255), pants = RGB(30, 30, 40), work = "wave"},
+	tech = {shirt = RGB(40, 44, 58), pants = RGB(60, 70, 120), work = "type"},
+	factory = {shirt = RGB(90, 94, 102), pants = RGB(50, 60, 90), work = "lift"},
+}
+local NAMES = {"Sam", "Riley", "Jordan", "Alex", "Casey", "Morgan", "Taylor", "Jamie", "Quinn", "Avery", "Rowan", "Drew"}
+local GOOD = {"Mmm!", "10/10 honestly.", "Okay this slaps.", "Coming back tomorrow.", "Worth it.", "Chef's kiss."}
+local DECOR_GOOD = {"Okay... this place actually eats.", "Love the decor!", "The vibes in here!", "Who designed this?! 😍"}
+local BAD = {"Took forever...", "Hmm. It's fine I guess.", "Needs... something.", "The line was long."}
+local FUNNY = {"This {thing} changed my life.", "I waited 14 minutes. I have aged.", "My mom said we're leaving. I disagree.", "The bathroom deserves its own business.",
+	"Too much {thing}. Perfect amount, actually.", "I'm telling the group chat about this."}
+local THINGS = {lemonade = "lemonade", icecream = "ice cream", bakery = "croissant", coffee = "coffee", pizza = "pizza", arcade = "arcade", tech = "phone", factory = "factory tour"}
+local ORDER_PROP = {lemonade = "cup", icecream = "cup", bakery = "tray", coffee = "cup", pizza = "pizzabox", arcade = nil, tech = "phone", factory = nil}
+
+local room = nil   -- the active room: {model, key, wps, staff = {}, customers = {}, seatsUsed = {}, ...}
+local folder = nil
+
+local function wpList(model)
+	local out = {}
+	for _, p in ipairs(model:GetChildren()) do
+		if p.Name == "WP" and p:IsA("BasePart") then
+			local k = p:GetAttribute("Kind")
+			if k then
+				out[k] = out[k] or {}
+				table.insert(out[k], p.Position - V3(0, 0.5, 0))
+			end
+		end
+	end
+	return out
+end
+local function anyOf(r, ...)
+	for _, k in ipairs({...}) do
+		local l = r.wps[k]
+		if l and #l > 0 then return l[math.random(#l)] end
+	end
+	return nil
+end
+local function bubble(a, text, dur)
+	if a and not a.dead and text then A.bubble(a.head.Position + V3(0, 2.6, 0), "", text, dur or 2.6, folder) end
+end
+local function note(kind) IL.stats.behaviors[kind] = (IL.stats.behaviors[kind] or 0) + 1 end
+local function fillThing(r, text) return (string.gsub(text, "{thing}", THINGS[r.key] or "food")) end
+
+-- ===== staff =====
+local function addStaff(r, role, name)
+	if #r.staff >= MAX_STAFF then return end
+	local u = UNI[r.key] or UNI.lemonade
+	local look = {shirt = role == "manager" and RGB(30, 36, 62) or u.shirt, pants = role == "manager" and RGB(30, 36, 62) or u.pants, skin = A.SKIN[(#r.staff % #A.SKIN) + 1],
+		apron = (role == "cook" or role == "cashier") and Color3.new(1, 1, 1) or nil, tie = role == "manager" and RGB(200, 40, 50) or nil,
+		hat = role == "cook" and Color3.new(1, 1, 1) or (r.key == "factory" and RGB(255, 205, 40) or nil), hatKind = role == "cook" and "beanie" or "cap"}
+	local start = anyOf(r, role == "cook" and "prep" or "register", "register", "wander") or r.origin
+	local a = A.make(folder, look, {tag = name and (name .. " • " .. role) or nil, prop = role == "manager" and "clipboard" or (role == "cleaner" and "mop" or nil)})
+	a.base = A.faceTowards(start, r.origin)
+	a.role, a.state, a.wait = role, "go", 0
+	table.insert(r.staff, a)
+	IL.stats.staff = #r.staff
+end
+local function staffThink(r, a, now)
+	if now < a.wait or a.goal then return end
+	local work = (UNI[r.key] or UNI.lemonade).work
+	if a.role == "cashier" then
+		-- at the register; serves whoever is waiting to order
+		local spot = anyOf(r, "register") or r.origin
+		if (a.base.Position - spot).Magnitude > 2 then A.walkTo(a, spot, 6) return end
+		a.base = A.faceTowards(a.base.Position, anyOf(r, "order") or r.origin)
+		for _, c in ipairs(r.customers) do
+			if c.state == "ordering" and not c.servedBy then
+				c.servedBy = a
+				A.play(a, "show", now)
+				bubble(a, ({"What can I get you?", "Next!", "Welcome in!", "Coming right up!"})[math.random(4)], 2)
+				a.wait = now + 1.6
+				return
+			end
+		end
+		A.play(a, math.random() < 0.3 and "look" or "idle", now)
+		a.wait = now + 1
+	elseif a.role == "cook" then
+		if a.state == "go" then
+			local spot = anyOf(r, "oven", "prep", "machine", "station") or r.origin
+			A.walkTo(a, spot, 6)
+			a.state = "cooking"
+		elseif a.state == "cooking" then
+			A.play(a, work, now)
+			a.wait = now + 3 + math.random() * 3
+			a.state = "deliver"
+		elseif a.state == "deliver" then
+			A.setProp(a, r.key == "factory" and "box" or "tray")
+			A.walkTo(a, anyOf(r, "register", "display", "loading") or r.origin, 6)
+			a.state = "drop"
+		else
+			A.setProp(a, nil)
+			A.play(a, "idle", now)
+			a.wait = now + 0.8
+			a.state = "go"
+		end
+	elseif a.role == "cleaner" then
+		if a.state == "go" then
+			A.walkTo(a, anyOf(r, "seat", "trash", "wander") or r.origin, 4.5)
+			a.state = "clean"
+		else
+			A.play(a, math.random() < 0.5 and "wipe" or "sweep", now)
+			a.wait = now + 2 + math.random() * 2
+			a.state = "go"
+			if math.random() < 0.1 then bubble(a, ({"Who spilled this?!", "Sparkling. ✨", "I see you, crumbs."})[math.random(3)]) end
+		end
+	elseif a.role == "manager" then
+		if a.state == "go" then
+			A.walkTo(a, anyOf(r, "office", "prep", "register", "wander") or r.origin, 5)
+			a.state = "check"
+		else
+			A.play(a, "clipboard", now)
+			a.wait = now + 2.5 + math.random() * 2
+			a.state = "go"
+			if math.random() < 0.15 then bubble(a, ({"Numbers look good.", "Who moved my stapler?", "Great work, team!", "Checking the register..."})[math.random(4)]) end
+		end
+	elseif a.role == "worker" then
+		-- factory floor: a station, a machine, the loading dock
+		if a.state == "go" then
+			A.walkTo(a, anyOf(r, "station", "machine", "loading", "storage") or r.origin, 5)
+			a.state = "work"
+		else
+			A.play(a, math.random() < 0.5 and "lift" or "type", now)
+			a.wait = now + 3 + math.random() * 3
+			a.state = "go"
+		end
+	end
+end
+
+-- ===== customers =====
+local function freeSeat(r)
+	local seats = r.wps.seat or {}
+	local free = {}
+	for i, p in ipairs(seats) do if not r.seatsUsed[i] then table.insert(free, i) end end
+	if #free == 0 then return nil end
+	local i = free[math.random(#free)]
+	return i, seats[i]
+end
+local function addCustomer(r, now, friendOf)
+	if #r.customers >= MAX_CUSTOMERS then return nil end
+	local door = anyOf(r, "door") or r.origin
+	local a = A.make(folder, A.randomLook(math.random(1, 1e6)))
+	a.base = A.faceTowards(door + (friendOf and V3(1.5, 0, 0.5) or V3()), r.origin)
+	a.state, a.wait, a.friend = "enter", now + (friendOf and 0.3 or 0), friendOf
+	table.insert(r.customers, a)
+	IL.stats.spawned += 1
+	IL.stats.customers = #r.customers
+	-- rare behaviors are decided when they walk in
+	local roll = math.random()
+	if roll < 0.06 then a.rare = "selfie"
+	elseif roll < 0.10 then a.rare = "complain"
+	elseif roll < 0.15 then a.rare = "compliment"
+	elseif roll < 0.19 and not friendOf then a.rare = "friend"
+	elseif roll < 0.25 then a.rare = "review"
+	elseif roll < 0.28 then a.rare = "post" end
+	if a.rare == "friend" then
+		note("friend")
+		local f = addCustomer(r, now, a)
+		if f then bubble(a, "I brought a friend!") end
+	end
+	return a
+end
+local function leave(r, a, now)
+	if a.seat then r.seatsUsed[a.seat] = nil a.seat = nil end
+	A.setProp(a, nil)
+	A.walkTo(a, anyOf(r, "door") or r.origin, 6)
+	a.state = "leaving"
+end
+local function customerThink(r, a, now)
+	if now < a.wait then return end
+	if a.goal then return end
+	local sat = r.model:GetAttribute("Sat") or 70
+	local score = r.model:GetAttribute("Score") or 0
+	if a.state == "enter" then
+		A.walkTo(a, anyOf(r, "wander", "display", "machine") or r.origin, 5)
+		a.state = "browse"
+	elseif a.state == "browse" then
+		A.play(a, "look", now)
+		a.wait = now + 1.2 + math.random() * 1.6
+		a.state = "toOrder"
+	elseif a.state == "toOrder" then
+		-- queue up: a small offset per person already waiting
+		local spot = anyOf(r, "order") or r.origin
+		local waiting = 0
+		for _, c in ipairs(r.customers) do if c ~= a and (c.state == "ordering" or c.state == "queue") then waiting += 1 end end
+		A.walkTo(a, spot + V3(0, 0, waiting * 2.2), 5)
+		a.state = "ordering"
+		a.orderedAt = now
+	elseif a.state == "ordering" then
+		a.base = A.faceTowards(a.base.Position, anyOf(r, "register") or r.origin)
+		if a.servedBy or now - (a.orderedAt or now) > 6 then
+			IL.stats.served += 1
+			note("ordered")
+			A.setProp(a, ORDER_PROP[r.key])
+			a.state = "got"
+			a.wait = now + 1.2
+		else
+			A.play(a, "idle", now)
+			a.wait = now + 0.5
+		end
+	elseif a.state == "got" then
+		if a.rare == "selfie" then
+			A.play(a, "selfie", now)
+			A.flashAt(folder, a.head.Position + a.base.LookVector * -1.5)
+			bubble(a, "For the CityBuzz 📸")
+			note("selfie")
+			a.rare = nil
+			a.wait = now + 2.2
+			return
+		elseif a.rare == "complain" then
+			A.play(a, "dramatic", now)
+			bubble(a, fillThing(r, ({"I WAITED 14 MINUTES. I HAVE AGED.", "THIS IS NOT THE {thing} I ORDERED.", "Is this... the small? THE SMALL?!"})[math.random(3)]), 3)
+			note("complain")
+			a.rare = nil
+			a.wait = now + 3
+			return
+		elseif a.rare == "compliment" or (score >= 61 and math.random() < 0.25) then
+			A.play(a, "celebrate", now)
+			bubble(a, DECOR_GOOD[math.random(#DECOR_GOOD)])
+			note("compliment")
+			a.rare = nil
+			a.wait = now + 2
+		end
+		local i, pos = freeSeat(r)
+		if i and math.random() < 0.7 then
+			r.seatsUsed[i] = true
+			a.seat = i
+			A.walkTo(a, pos, 5)
+			a.state = "sit"
+		else
+			leave(r, a, now)
+		end
+	elseif a.state == "sit" then
+		local move = r.key == "arcade" and "type" or (math.random() < 0.3 and "sitphone" or (ORDER_PROP[r.key] and "eat" or "sit"))
+		A.play(a, move, now)
+		note(move)
+		a.wait = now + 5 + math.random() * 5
+		a.state = "react"
+	elseif a.state == "react" then
+		local line
+		if a.rare == "review" then
+			line = fillThing(r, FUNNY[math.random(#FUNNY)])
+			note("review")
+		elseif a.rare == "post" then
+			line = "Posting this 📱 #" .. string.gsub(THINGS[r.key] or "food", " ", "")
+			A.play(a, "phone", now)
+			note("post")
+		elseif sat >= 65 then
+			line = math.random() < 0.5 and GOOD[math.random(#GOOD)] or nil
+		elseif sat < 40 then
+			line = BAD[math.random(#BAD)]
+			A.play(a, "shrug", now)
+		end
+		if line then bubble(a, line, 3) end
+		a.wait = now + 1.5
+		a.state = "go"
+	elseif a.state == "go" then
+		leave(r, a, now)
+	elseif a.state == "leaving" then
+		a.done = true
+	end
+end
+
+-- ===== the room lifecycle =====
+IL.folder = function() return folder end
+local function stop()
+	if folder then folder:Destroy() folder = nil end
+	room = nil
+	IL.stats.staff, IL.stats.customers = 0, 0
+end
+IL.stop = stop
+local function start(model)
+	stop()
+	folder = A.folder("InteriorLife")
+	local key = model:GetAttribute("Key")
+	local origin = model:GetAttribute("Origin")
+	if typeof(origin) ~= "Vector3" then origin = model:GetPivot().Position end
+	room = {model = model, key = key, origin = origin, wps = wpList(model), staff = {}, customers = {}, seatsUsed = {}, nextCustomer = os.clock() + 1.5}
+	IL.stats.rooms += 1
+	if key == "home" or not UNI[key] then return end
+	local lvl = model:GetAttribute("Level") or 1
+	local staffName = model:GetAttribute("Staff")
+	local mgr = model:GetAttribute("Manager")
+	local seed = tonumber(model:GetAttribute("OwnerId")) or 1
+	local function nm(i) return NAMES[(seed + i * 7) % #NAMES + 1] end
+	if key == "factory" then
+		addStaff(room, "worker", staffName ~= "" and staffName or nil)
+		addStaff(room, "worker", nil)
+		if lvl >= 3 then addStaff(room, "cook", nil) end   -- the forklift... er, the runner
+	else
+		addStaff(room, "cashier", staffName ~= "" and staffName or nm(1))
+		if lvl >= 3 then addStaff(room, "cook", nm(2)) end
+		if lvl >= 5 then addStaff(room, "cleaner", nm(3)) end
+	end
+	if (mgr and mgr ~= "") or lvl >= 7 then addStaff(room, "manager", (mgr and mgr ~= "") and mgr or nm(4)) end
+end
+local function findRoom()
+	local key = plr:GetAttribute("Interior")
+	local owner = plr:GetAttribute("InteriorOwner")
+	if not key then return nil end
+	local folderI = Workspace:FindFirstChild("Interiors")
+	if not folderI then return nil end
+	for _, m in ipairs(folderI:GetChildren()) do
+		if m:IsA("Model") and m:GetAttribute("Key") == key and m:GetAttribute("OwnerId") == owner then return m end
+	end
+	return nil
+end
+local function check()
+	local m = findRoom()
+	if m and (not room or room.model ~= m) then start(m)
+	elseif not m and room then stop() end
+end
+plr:GetAttributeChangedSignal("Interior"):Connect(function() task.delay(0.3, check) end)
+task.spawn(function()
+	while true do
+		task.wait(1.5)
+		if plr:GetAttribute("Interior") or room then pcall(check) end
+	end
+end)
+IL.check = check
+
+-- think 10x a second, pose every frame
+local acc, last = 0, os.clock()
+RunService.RenderStepped:Connect(function()
+	local now = os.clock()
+	local dt = math.min(0.1, now - last)
+	last = now
+	if not room then return end
+	if not room.model.Parent then
+		-- the room was rebuilt (someone decorated): pick up the new one
+		stop()
+		task.delay(0.5, check)
+		return
+	end
+	acc += dt
+	if acc >= 0.1 then
+		acc = 0
+		local ok, err = pcall(function()
+			local lvl = room.model:GetAttribute("Level") or 1
+			local cap = math.clamp(2 + lvl, 3, MAX_CUSTOMERS)
+			if room.key ~= "home" and UNI[room.key] and now >= room.nextCustomer and #room.customers < cap then
+				room.nextCustomer = now + 4 + math.random() * 3
+				addCustomer(room, now)
+			end
+			for _, a in ipairs(room.staff) do staffThink(room, a, now) end
+			for i = #room.customers, 1, -1 do
+				local a = room.customers[i]
+				customerThink(room, a, now)
+				if a.done then
+					A.destroy(a)
+					table.remove(room.customers, i)
+				end
+			end
+			IL.stats.customers = #room.customers
+		end)
+		if not ok then warn("[CornerEmpire] interior life: " .. tostring(err)) stop() return end
+	end
+	for _, a in ipairs(room.staff) do A.step(a, dt, now) end
+	for _, a in ipairs(room.customers) do A.step(a, dt, now) end
+end)
+-- the factory floor moves: goods slide along the belts and the pistons pump (local only, purely visual)
+task.spawn(function()
+	while true do
+		task.wait(0.05)
+		if room and room.key == "factory" and room.model.Parent then
+			local t = os.clock()
+			for _, p in ipairs(room.model:GetChildren()) do
+				if p.Name == "Goods" then
+					local base = p:GetAttribute("StartX")
+					if not base then
+						base = p.Position.X
+						p:SetAttribute("StartX", base)
+					end
+					p.CFrame = p.CFrame + V3((base + (t * 3) % 6) - p.Position.X, 0, 0)
+				elseif p.Name == "Piston" then
+					local y0 = p:GetAttribute("StartY")
+					if not y0 then
+						y0 = p.Position.Y
+						p:SetAttribute("StartY", y0)
+					end
+					p.CFrame = p.CFrame + V3(0, y0 + math.abs(math.sin(t * 3)) * 1.2 - p.Position.Y, 0)
+				end
+			end
+		end
+	end
+end)
+end
+]]></ProtectedString></Properties>
+</Item>
+<Item class="ModuleScript" referent="RBX47"><Properties><string name="Name">CityLife</string>
+<ProtectedString name="Source"><![CDATA[-- CITY LIFE: what the whole server sees when something happens in the city.
+--   influencer sightings (the influencer standing there, a 🚨 marker you can find from anywhere)
+--   THE CROWD outside a business, PAPARAZZI following a player, EVERYONE KNOWS YOU passers-by
+--   the "VIRAL MOMENT" pop-up (with a 📸 capture button) and the beef / live-challenge tracker
+-- Performance: actors are only built near the camera and animated only when close; everything is capped and
+-- removed when its event ends. Another player's event far across the city costs you (almost) nothing.
+return function(C)
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+local RGB, V3, CF = Color3.fromRGB, Vector3.new, CFrame.new
+local new, tween, label, button, corner, stroke = C.new, C.tween, C.label, C.button, C.corner, C.stroke
+local play, SND, act, gui, plr, U = C.play, C.SND, C.act, C.gui, C.plr, C.U
+local GOLD, WHITE, SUB = C.GOLD, C.WHITE, C.SUB
+local A = C.Actors
+local remote = ReplicatedStorage:WaitForChild("Viral")
+
+local FOLDER = A.folder("CityLife")
+local BUILD_DIST, ANIM_DIST = 260, 160
+local MAX_EXTRA = 24          -- crowd + paparazzi + passers-by actors on screen at once
+local CL = {events = {}, actorCount = 0}
+C.CityLife = CL
+
+local function camPos() return Workspace.CurrentCamera.CFrame.Position end
+local function myRoot() return plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") end
+local function count() return CL.actorCount end
+
+-- =====================================================================
+-- EVENTS: each one owns its actors and gets a step(dt, now) until it ends
+-- =====================================================================
+local events = CL.events
+local function addEvent(ev)
+	ev.actors = ev.actors or {}
+	ev.started = os.clock()
+	table.insert(events, ev)
+	return ev
+end
+local function freeActor(ev, a)
+	for i, x in ipairs(ev.actors) do
+		if x == a then table.remove(ev.actors, i) break end
+	end
+	A.destroy(a)
+	CL.actorCount -= 1
+end
+local function endEvent(ev)
+	for _, a in ipairs(ev.actors) do A.destroy(a) CL.actorCount -= 1 end
+	ev.actors = {}
+	if ev.marker then ev.marker:Destroy() end
+	ev.dead = true
+end
+local function makeActor(ev, look, cf, opts)
+	if CL.actorCount >= MAX_EXTRA + (ev.vip and 4 or 0) then return nil end
+	local a = A.make(FOLDER, look, opts)
+	a.base = cf
+	CL.actorCount += 1
+	table.insert(ev.actors, a)
+	return a
+end
+CL.endAll = function() for _, ev in ipairs(events) do endEvent(ev) end table.clear(events) end
+
+-- =====================================================================
+-- INFLUENCERS
+-- =====================================================================
+local influencerEv = {}   -- [visit id] = event
+local function marker(pos, text, color)
+	local p = Instance.new("Part")
+	p.Anchored, p.CanCollide, p.CanQuery, p.CanTouch, p.Transparency = true, false, false, false, 1
+	p.Size = V3(0.5, 0.5, 0.5)
+	p.CFrame = CF(pos + V3(0, 9, 0))
+	p.Parent = FOLDER
+	local bb = new("BillboardGui", {Size = UDim2.fromOffset(210, 34), AlwaysOnTop = true, MaxDistance = 900, LightInfluence = 0}, p)
+	local f = new("Frame", {Size = UDim2.fromScale(1, 1), BackgroundColor3 = color or RGB(230, 30, 80), BorderSizePixel = 0}, bb)
+	corner(f, 10)
+	label({Size = UDim2.fromScale(1, 1), Text = text, TextScaled = true, Font = Enum.Font.GothamBlack}, f)
+	return p
+end
+local IDLE = {baysnaps = {"selfie", "hype", "talk", "selfie"}, jaxcash = {"crossed", "owner", "phone"}, mayamax = {"look", "selfie", "think"}, drewdeals = {"talk", "show", "phone"}}
+local function influencer(e)
+	if typeof(e.cf) ~= "CFrame" then return end
+	local mine = e.target == plr.UserId
+	local ev = addEvent({kind = "influencer", id = e.id, who = e.who, vip = true, ends = os.clock() + (e.dur or 120) + 5})
+	influencerEv[e.id] = ev
+	ev.marker = marker(e.cf.Position, "🚨 " .. string.upper(e.name or "?") .. (mine and " • FOR YOU" or ""), mine and RGB(230, 30, 80) or RGB(120, 60, 200))
+	ev.step = function(dt, now)
+		local d = (camPos() - e.cf.Position).Magnitude
+		if not ev.npc and d < BUILD_DIST then
+			ev.npc = makeActor(ev, e.who, e.cf, {tag = e.name})
+			if ev.npc then A.play(ev.npc, "wave", now) end
+		elseif ev.npc and d > BUILD_DIST + 60 then
+			freeActor(ev, ev.npc)
+			ev.npc = nil
+		end
+		if ev.npc and d < ANIM_DIST then
+			if now >= (ev.nextMove or 0) then
+				ev.nextMove = now + 3 + math.random() * 2
+				local list = IDLE[e.who] or {"idle"}
+				A.play(ev.npc, list[math.random(#list)], now)
+				if e.who == "baysnaps" and math.random() < 0.6 then
+					for _ = 1, 2 do A.chatPop(FOLDER, ev.npc.head.Position + V3(0, 2, 0)) end
+				end
+				if math.random() < 0.3 then A.bubble(ev.npc.head.Position + V3(0, 3, 0), e.name, e.catch or "", 3, FOLDER) end
+			end
+			A.step(ev.npc, dt, now)
+		end
+	end
+	if mine then
+		play(SND.event)
+		if C.Cinematics then C.Cinematics.showBanner({"🚨 " .. string.upper(e.name) .. " IS HERE", "At your " .. tostring(e.place) .. " — go talk to them!"}) end
+		if U.setBeamTarget then U.setBeamTarget("map", e.cf.Position) end
+		ev.beam = true
+	elseif U.toast then
+		U.toast("🚨 " .. e.name .. " spotted at " .. tostring(e.targetName) .. "'s " .. tostring(e.place) .. "!")
+	end
+end
+local function influencerLeave(e)
+	local ev = influencerEv[e.id]
+	if not ev then return end
+	influencerEv[e.id] = nil
+	if ev.beam and U.setBeamTarget then U.setBeamTarget("map", nil) end
+	if ev.marker then ev.marker:Destroy() ev.marker = nil end
+	-- walk off, then gone
+	if ev.npc then
+		A.walkTo(ev.npc, ev.npc.base.Position + ev.npc.base.LookVector * -2 + V3(math.random(-30, 30), 0, math.random(-30, 30)), 8)
+		ev.ends = os.clock() + 3.5
+	else
+		ev.ends = os.clock()
+	end
+end
+
+-- =====================================================================
+-- THE CROWD
+-- =====================================================================
+local CROWD_MOVES = {"hype", "selfie", "phone", "clap", "look", "point"}
+local function crowd(e)
+	if typeof(e.anchor) ~= "CFrame" then return end
+	local ev = addEvent({kind = "crowd", ends = os.clock() + (e.dur or 40)})
+	local o = e.anchor
+	ev.step = function(dt, now)
+		local d = (camPos() - o.Position).Magnitude
+		if #ev.actors == 0 and d < BUILD_DIST and not ev.built then
+			ev.built = true
+			for i = 1, math.min(e.n or 12, 16) do
+				local ring = 8 + (i % 3) * 3
+				local ang = (i / (e.n or 12)) * math.pi - math.pi / 2
+				local pos = (o * CF(math.sin(ang) * ring, 0, 6 + math.cos(ang) * ring * 0.6)).Position
+				local a = makeActor(ev, A.randomLook(i * 31 + (e.owner or 0)), A.faceTowards(pos, o.Position))
+				if a then A.play(a, CROWD_MOVES[math.random(#CROWD_MOVES)], now + math.random()) end
+			end
+		elseif ev.built and d > BUILD_DIST + 80 then
+			for _, a in ipairs(table.clone(ev.actors)) do freeActor(ev, a) end
+			ev.built = false
+		end
+		if d < ANIM_DIST then
+			for _, a in ipairs(ev.actors) do
+				if math.random() < dt * 0.25 then A.play(a, CROWD_MOVES[math.random(#CROWD_MOVES)], now) end
+				if a.anim == "selfie" and math.random() < dt * 0.5 then A.flashAt(FOLDER, a.head.Position + a.base.LookVector * -1.5) end
+				A.step(a, dt, now)
+			end
+		end
+	end
+	if e.owner == plr.UserId and U.toast then U.toast("👥 THE CROWD is outside your " .. tostring(e.biz) .. "!") end
+end
+
+-- =====================================================================
+-- PAPARAZZI (follow a player around for a while)
+-- =====================================================================
+local function paparazzi(e)
+	local who = Players:GetPlayerByUserId(e.userId or 0)
+	if not who then return end
+	local ev = addEvent({kind = "paparazzi", ends = os.clock() + (e.dur or 30)})
+	ev.step = function(dt, now)
+		local root = who.Character and who.Character:FindFirstChild("HumanoidRootPart")
+		if not root then return end
+		local d = (camPos() - root.Position).Magnitude
+		if not ev.built and d < BUILD_DIST then
+			ev.built = true
+			for i = 1, 5 do makeActor(ev, "photographer", CF(root.Position + V3(math.cos(i) * 10, -3, math.sin(i) * 10)), {prop = "camera"}) end
+		end
+		if d < ANIM_DIST then
+			for i, a in ipairs(ev.actors) do
+				local ang = now * 0.4 + i * (math.pi * 2 / 5)
+				local goal = root.Position + V3(math.cos(ang) * 11, -3, math.sin(ang) * 11)
+				if (a.base.Position - goal).Magnitude > 2 then A.walkTo(a, goal, 14) end
+				if not a.goal then a.base = A.faceTowards(a.base.Position, root.Position) A.play(a, "flash", 0) end
+				if math.random() < dt * 1.2 then A.flashAt(FOLDER, a.head.Position + (root.Position - a.head.Position).Unit * 1.5) end
+				A.step(a, dt, now)
+			end
+		end
+	end
+	if who == plr and U.toast then U.toast("📸 PAPARAZZI MODE! Strike a pose (📸 → emotes).") end
+end
+
+-- =====================================================================
+-- EVERYONE KNOWS YOU (just for you: people walking past recognize you)
+-- =====================================================================
+local function famous(e)
+	if e.userId ~= plr.UserId then return end
+	local lines = e.lines or {"THAT'S THEM!"}
+	local ev = addEvent({kind = "famous", ends = os.clock() + (e.dur or 180)})
+	ev.step = function(dt, now)
+		local root = myRoot()
+		if not root or plr:GetAttribute("Interior") then return end
+		-- keep up to two passers-by around; each walks past, shouts once, then leaves
+		if #ev.actors < 2 and now >= (ev.next or 0) then
+			ev.next = now + 5 + math.random() * 3
+			local side = math.random() < 0.5 and -1 or 1
+			local fwd = root.CFrame.LookVector * V3(1, 0, 1)
+			if fwd.Magnitude < 0.1 then fwd = V3(0, 0, -1) end
+			fwd = fwd.Unit
+			local right = V3(-fwd.Z, 0, fwd.X)
+			local start = root.Position + fwd * 26 + right * side * 5 - V3(0, 3, 0)
+			local a = makeActor(ev, A.randomLook(math.random(1, 1e5)), A.faceTowards(start, root.Position))
+			if a then
+				a.line = lines[math.random(#lines)]
+				a.leave = now + 9
+				A.walkTo(a, root.Position - fwd * 22 + right * side * 4 - V3(0, 3, 0), 6)
+			end
+		end
+		for _, a in ipairs(table.clone(ev.actors)) do
+			if a.line and (a.base.Position - root.Position).Magnitude < 14 then
+				A.bubble(a.head.Position + V3(0, 2.6, 0), "", a.line, 3, FOLDER)
+				A.play(a, math.random() < 0.5 and "point" or "shock", now)
+				a.line = nil
+				a.goal = nil
+				task.delay(1.2, function() if not a.dead then A.walkTo(a, a.base.Position + V3(math.random(-20, 20), 0, math.random(-20, 20)), 7) end end)
+			end
+			A.step(a, dt, now)
+			if now > a.leave then freeActor(ev, a) end
+		end
+	end
+	play(SND.event)
+end
+
+-- =====================================================================
+-- THE LOOP
+-- =====================================================================
+local last = os.clock()
+RunService.RenderStepped:Connect(function()
+	local now = os.clock()
+	local dt = math.min(0.1, now - last)
+	last = now
+	for i = #events, 1, -1 do
+		local ev = events[i]
+		if ev.dead or now > ev.ends then
+			if not ev.dead then endEvent(ev) end
+			table.remove(events, i)
+		elseif ev.step then
+			local ok, err = pcall(ev.step, dt, now)
+			if not ok then
+				warn("[CornerEmpire] city life: " .. tostring(err))
+				endEvent(ev)
+				table.remove(events, i)
+			end
+		end
+	end
+end)
+
+-- =====================================================================
+-- VIRAL MOMENT POP-UP (+ 📸 capture)
+-- =====================================================================
+local pop = C.panel({AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 190), Size = UDim2.fromOffset(380, 96), BackgroundColor3 = RGB(40, 14, 30), Visible = false, ZIndex = 45}, gui)
+stroke(pop, RGB(255, 90, 60), 2, 0.1)
+local popTitle = label({Position = UDim2.fromOffset(12, 6), Size = UDim2.new(1, -24, 0, 22), TextSize = 15, Font = Enum.Font.GothamBlack, TextColor3 = RGB(255, 140, 90),
+	TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 46}, pop)
+local popText = label({Position = UDim2.fromOffset(12, 28), Size = UDim2.new(1, -120, 0, 60), TextSize = 13, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left,
+	TextYAlignment = Enum.TextYAlignment.Top, ZIndex = 46}, pop)
+local capB = button({AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -10, 1, -10), Size = UDim2.fromOffset(98, 40), Text = "📸 Capture", TextSize = 14, BackgroundColor3 = RGB(230, 70, 150), ZIndex = 47}, pop)
+local popId, popMoment = 0, nil
+CL.lastMoment = nil
+local function moment(e)
+	CL.lastMoment = e
+	popId += 1
+	local my = popId
+	popMoment = e
+	popTitle.Text = (e.legendary and "🏆 LEGENDARY MOMENT" or (e.rare and "🌟 RARE VIRAL MOMENT" or "🔥 VIRAL MOMENT")) .. "  +" .. tostring(e.score) .. "  (" .. C.fmt(e.total or 0) .. ")"
+	popText.Text = (e.icon or "🔥") .. " " .. tostring(e.title) .. "\n" .. tostring(e.text or "")
+	pop.Visible = true
+	play(SND.event)
+	local s = new("UIScale", {Scale = 0.7}, pop)
+	tween(s, 0.3, {Scale = 1}, Enum.EasingStyle.Back)
+	task.delay(10, function()
+		s:Destroy()
+		if popId == my then pop.Visible = false popMoment = nil end
+	end)
+end
+capB.MouseButton1Click:Connect(function()
+	local e = popMoment
+	if not e then return end
+	play(SND.click)
+	pop.Visible = false
+	popMoment = nil
+	act("viral", "capture", e.id)
+	if C.setPhoto then C.setPhoto(true) end
+end)
+CL.capture = function() if popMoment then act("viral", "capture", popMoment.id) end end
+-- opening Photo Mode any other way (V, controller D-pad up, the 📸 button) while a moment is up captures it too
+if C.setPhoto then
+	local setPhoto = C.setPhoto
+	C.setPhoto = function(on)
+		setPhoto(on)
+		if on and popMoment and C.photoActive then
+			act("viral", "capture", popMoment.id)
+			popMoment = nil
+			pop.Visible = false
+		end
+	end
+end
+
+-- the beef / live challenge tracker (top center, under the event bar)
+local pill = C.panel({AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 150), Size = UDim2.fromOffset(440, 32), BackgroundColor3 = RGB(120, 30, 30), Visible = false, ZIndex = 30}, gui)
+local pillL = label({Size = UDim2.fromScale(1, 1), TextSize = 13, Font = Enum.Font.GothamBlack, TextWrapped = true, ZIndex = 31}, pill)
+C.onState(function(s)
+	local b = s.beef
+	pill.Visible = b ~= nil
+	if b then
+		pill.BackgroundColor3 = b.kind == "beef" and RGB(120, 30, 30) or RGB(150, 40, 110)
+		pillL.Text = tostring(b.text) .. "  ⏱ " .. tostring(b.left) .. "s"
+	end
+end)
+
+-- =====================================================================
+-- CRASH DETECTION (your own car, hard stop next to your own business: the server checks the rest)
+-- =====================================================================
+local lastSpeed, lastCrash = 0, 0
+RunService.Heartbeat:Connect(function()
+	local hum = plr.Character and plr.Character:FindFirstChildOfClass("Humanoid")
+	local seat = hum and hum.SeatPart
+	if not (seat and seat:IsA("VehicleSeat") and seat:GetAttribute("CarOwner") == plr.UserId) then
+		lastSpeed = 0
+		return
+	end
+	local v = seat.AssemblyLinearVelocity
+	if typeof(v) ~= "Vector3" then return end
+	local speed = V3(v.X, 0, v.Z).Magnitude
+	local now = os.clock()
+	if lastSpeed > 45 and speed < lastSpeed * 0.35 and now - lastCrash > 60 then
+		lastCrash = now
+		act("viral", "crash", math.floor(lastSpeed))
+	end
+	lastSpeed = speed
+end)
+
+-- =====================================================================
+remote.OnClientEvent:Connect(function(e)
+	if type(e) ~= "table" then return end
+	local ok, err = pcall(function()
+		if e.kind == "influencer" then influencer(e)
+		elseif e.kind == "influencerLeave" then influencerLeave(e)
+		elseif e.kind == "crowd" then crowd(e)
+		elseif e.kind == "paparazzi" then paparazzi(e)
+		elseif e.kind == "famous" then famous(e)
+		elseif e.kind == "moment" then moment(e)
+		elseif e.kind == "say" then
+			if typeof(e.pos) == "Vector3" then A.bubble(e.pos + V3(0, 7, 0), e.name or "", e.text or "", 4, FOLDER) end
+		elseif e.kind == "beef" then
+			play(SND.event)
+			if C.Cinematics then C.Cinematics.showBanner({"🥩 BUSINESS BEEF", tostring(e.rival) .. " opened a pop-up next door. Serve " .. tostring(e.goal) .. " customers!"}) end
+		elseif e.kind == "beefEnd" then
+			if C.Cinematics then C.Cinematics.showBanner(e.won and {"🥩 BEEF WON", "The pop-up is packing up"} or {"🥩 BEEF OVER", "They'll be back. Probably."}) end
+		elseif e.kind == "challenge" then
+			play(SND.event)
+			if C.Cinematics then C.Cinematics.showBanner({"📸 LIVE CHALLENGE", "Serve " .. tostring(e.goal) .. " customers in 2 minutes!"}) end
+		end
+	end)
+	if not ok then warn("[CornerEmpire] viral event: " .. tostring(err)) end
+end)
+end
+]]></ProtectedString></Properties>
+</Item>
+<Item class="ModuleScript" referent="RBX48"><Properties><string name="Name">ViralApp</string>
+<ProtectedString name="Source"><![CDATA[-- VIRAL APP (phone): your Viral Score, your moments, the city's trending moments, influencer sightings,
+-- the funniest recent events, top CityBuzz posts and the weekly Most Viral leaderboards.
+return function(C)
+local RGB = Color3.fromRGB
+local new, label, button, corner, clear = C.new, C.label, C.button, C.corner, C.clear
+local fmt, play, SND = C.fmt, C.play, C.SND
+local GOLD, WHITE, SUB, CARD, GRAY = C.GOLD, C.WHITE, C.SUB, C.CARD, C.GRAY
+local kit = C.phoneKit
+if not kit then return end
+
+local view = kit.makeView("viral")
+kit.topBar(view, "🔥 Viral", RGB(255, 90, 60))
+-- score header
+local head = new("Frame", {Position = UDim2.fromOffset(4, 44), Size = UDim2.new(1, -8, 0, 74), BackgroundColor3 = RGB(60, 20, 30), BorderSizePixel = 0, ZIndex = 22}, view)
+corner(head, 12)
+label({Position = UDim2.fromOffset(10, 4), Size = UDim2.new(1, -20, 0, 14), TextSize = 11, TextColor3 = SUB, Text = "YOUR VIRAL SCORE", TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 23}, head)
+local scoreL = label({Position = UDim2.fromOffset(10, 18), Size = UDim2.new(1, -20, 0, 30), TextSize = 28, Font = Enum.Font.GothamBlack, TextColor3 = RGB(255, 150, 90),
+	TextXAlignment = Enum.TextXAlignment.Left, Text = "🔥 0", ZIndex = 23}, head)
+local mentionL = label({Position = UDim2.fromOffset(10, 50), Size = UDim2.new(1, -20, 0, 18), TextSize = 11, TextXAlignment = Enum.TextXAlignment.Left, TextWrapped = true, ZIndex = 23}, head)
+-- tabs
+local tab = "me"
+local tabs = {}
+local tabBar = new("Frame", {Position = UDim2.fromOffset(4, 122), Size = UDim2.new(1, -8, 0, 28), BackgroundTransparency = 1, ZIndex = 22}, view)
+new("UIListLayout", {FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 4)}, tabBar)
+local list = kit.scroller(view, 154)
+local render
+for _, t in ipairs({{"me", "⭐ Me"}, {"city", "🏙️ City"}, {"boards", "🏆 Weekly"}}) do
+	local b = button({Size = UDim2.new(1 / 3, -3, 1, 0), Text = t[2], TextSize = 12, BackgroundColor3 = GRAY, ZIndex = 23}, tabBar)
+	tabs[t[1]] = b
+	b.MouseButton1Click:Connect(function()
+		play(SND.click)
+		tab = t[1]
+		render()
+	end)
+end
+local function ago(t)
+	local s = math.max(0, os.time() - (tonumber(t) or os.time()))
+	if s < 60 then return "just now" end
+	if s < 3600 then return math.floor(s / 60) .. "m ago" end
+	if s < 86400 then return math.floor(s / 3600) .. "h ago" end
+	return math.floor(s / 86400) .. "d ago"
+end
+local order = 0
+local function section(text)
+	order += 1
+	label({Size = UDim2.new(1, 0, 0, 20), Text = text, TextSize = 12, Font = Enum.Font.GothamBlack, TextColor3 = GOLD, TextXAlignment = Enum.TextXAlignment.Left, LayoutOrder = order, ZIndex = 23}, list)
+end
+local function row(icon, title, sub, right, color)
+	order += 1
+	local f = new("Frame", {Size = UDim2.new(1, 0, 0, sub and 46 or 30), BackgroundColor3 = color or CARD, BorderSizePixel = 0, LayoutOrder = order, ZIndex = 22}, list)
+	corner(f, 8)
+	label({Position = UDim2.fromOffset(4, 0), Size = UDim2.new(0, 26, 1, 0), Text = icon or "🔥", TextSize = 16, ZIndex = 23}, f)
+	label({Position = UDim2.fromOffset(32, 3), Size = UDim2.new(1, -96, 0, 16), Text = title, TextSize = 12, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left,
+		TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 23}, f)
+	if sub then
+		label({Position = UDim2.fromOffset(32, 19), Size = UDim2.new(1, -40, 0, 26), Text = sub, TextSize = 10, TextColor3 = SUB, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left,
+			TextYAlignment = Enum.TextYAlignment.Top, ZIndex = 23}, f)
+	end
+	if right then
+		label({AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -6, 0, 3), Size = UDim2.fromOffset(64, 16), Text = right, TextSize = 11, TextColor3 = RGB(255, 150, 90),
+			TextXAlignment = Enum.TextXAlignment.Right, ZIndex = 23}, f)
+	end
+	return f
+end
+local function empty(text) row("💤", text, nil, nil, RGB(30, 32, 46)) end
+
+function render()
+	local v = C.S and C.S.viral
+	for k, b in pairs(tabs) do b.BackgroundColor3 = k == tab and RGB(255, 90, 60) or GRAY end
+	clear(list)
+	order = 0
+	if not v then
+		empty("Loading...")
+		return
+	end
+	scoreL.Text = "🔥 " .. fmt(v.score)
+	mentionL.Text = "Your empire has been mentioned " .. v.mentions .. " time" .. (v.mentions == 1 and "" or "s") .. " • this week: 🔥 " .. fmt(v.week)
+	if tab == "me" then
+		section("📈 YOUR RECENT MOMENTS")
+		if #v.mine == 0 then empty("Nothing yet. Go make some noise in the city!") end
+		for _, m in ipairs(v.mine) do row(m.icon, m.title, m.text .. "  • " .. ago(m.t), "+" .. m.score) end
+		section("🏅 HALL OF FAME (top 3 weekly finishes)")
+		if #v.hall == 0 then empty("Finish top 3 on a weekly Viral board to get in here.") end
+		for _, h in ipairs(v.hall) do row(({"🥇", "🥈", "🥉"})[h.rank] or "🏅", h.name, "Week " .. tostring(h.week)) end
+	elseif tab == "city" then
+		section("🚨 INFLUENCER SIGHTINGS")
+		if #v.sightings == 0 then empty("No sightings yet. They show up when you least expect it.") end
+		for _, s in ipairs(v.sightings) do row(s.icon, s.name .. (s.here and "  • HERE NOW" or ""), "At " .. tostring(s.place) .. "  • " .. ago(s.t), nil, s.here and RGB(90, 30, 60) or nil) end
+		section("🔥 TRENDING IN THE CITY")
+		if #v.city == 0 then empty("The city is quiet... for now.") end
+		for _, m in ipairs(v.city) do row(m.icon, m.who .. ": " .. m.title, m.text .. "  • " .. ago(m.t), m.rare and "RARE" or nil) end
+		section("😂 FUNNIEST RECENT EVENTS")
+		if #v.funny == 0 then empty("Nobody has done anything funny yet. Suspicious.") end
+		for _, m in ipairs(v.funny) do row(m.icon, m.who, m.text .. "  • " .. ago(m.t)) end
+		section("📱 TOP CITYBUZZ POSTS")
+		for _, p in ipairs(v.top) do row(p.icon, p.author, p.text, "❤️ " .. fmt(p.likes)) end
+	else
+		section("🏆 THIS WEEK'S MOST VIRAL (resets Monday)")
+		for _, b in ipairs(v.boards) do
+			section(b.name)
+			if #b.list == 0 then empty("Nobody yet. It could be you.") end
+			for _, e in ipairs(b.list) do
+				local me = e.userId == v.myId
+				row(({"🥇", "🥈", "🥉"})[e.rank] or ("#" .. e.rank), e.name .. (me and "  (you)" or ""), nil, fmt(e.value), me and RGB(70, 40, 20) or nil)
+			end
+		end
+	end
+end
+kit.onOpen("viral", render)
+C.onState(function(s)
+	if s.viral and view.Visible then render() end
+end)
+C.viralRender = render
+end
+]]></ProtectedString></Properties>
+</Item>
+<Item class="ModuleScript" referent="RBX49"><Properties><string name="Name">MainMenu</string>
 <ProtectedString name="Source"><![CDATA[-- MAIN MENU: cinematic camera, 3 save slots, new game (pick a starter home), delete.
 return function(C)
 local RunService = game:GetService("RunService")
@@ -5482,6 +7517,11 @@ R.Menu.OnClientEvent:Connect(function(kind, a)
 		musicText()
 		if U.refreshSettings then U.refreshSettings() end
 		C.gui.Enabled = false
+		C.inMainMenu = true
+		-- v9: nothing from the city keeps playing behind the menu
+		if C.Cinematics then C.Cinematics.clear() end
+		if C.CityLife then C.CityLife.endAll() end
+		if C.InteriorLife then C.InteriorLife.stop() end
 		if C.phoneFrame then C.phoneFrame.Visible = false end
 		C.closeModals()
 		mg.Enabled = true
@@ -5491,6 +7531,7 @@ R.Menu.OnClientEvent:Connect(function(kind, a)
 		mg.Enabled = false
 		overlay.Visible = false
 		stopCamera()
+		C.inMainMenu = false
 		C.gui.Enabled = true
 		C.S = nil
 		if C.reloadInbox then task.spawn(C.reloadInbox) end

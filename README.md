@@ -1,9 +1,38 @@
 # Corner Empire
 
-A 1–4 player Roblox business tycoon. **`CornerEmpire_v8.rbxlx` is the current place file**; open it in Roblox Studio.
-`CornerEmpire_v7.rbxlx`, `CornerEmpire_v6.rbxlx` and `CornerEmpire_v5.rbxlx` are earlier versions, kept for reference.
+A 1–4 player Roblox business tycoon. **`CornerEmpire_v9.rbxlx` is the current place file**; open it in Roblox Studio.
+`CornerEmpire_v8.rbxlx` … `CornerEmpire_v5.rbxlx` are earlier versions, kept for reference. The full v9 write-up is
+`docs/V9_REPORT.md`.
 
-## What's new in v8 — "The Empire Expansion"
+## What's new in v9 — "Empire Life & Viral Moments"
+
+- **Walk-in business interiors.** Each of the 8 businesses has its own layout: lemonade machine and cups, ice cream
+  case and toppings, ovens and display cases, espresso machines and couches, pizza ovens and a delivery pickup,
+  a walkable arcade with cabinets and racing machines, tech screens and a repair bench, and a much bigger factory
+  with conveyor belts and a loading dock. They grow with the business level, your logo is on the walls, and there's
+  a manager's office from level 5. Enter through the door, or **🚪 Go inside** on the business card.
+- **Interior score 0–100**, from EMPTY to VIRAL, shown on the business card ("Coffee House Interior: 89/100 —
+  ELITE"). It raises satisfaction and reviews, **never income**.
+- **Staff and customers inside.** Cashiers serve, cooks cook, cleaners clean and the manager does rounds.
+  Customers browse, order, sit, eat, check their phones and react. Now and then one takes a selfie, complains
+  dramatically, brings a friend or leaves a funny review.
+- **Cinematics** for evictions (cartoon slapstick, about 10 s), grand openings (with each business's signature
+  moment), hires, firings, big upgrades, complaints, inspections, investments, luxury purchases and competition wins.
+  You can always skip them: tap Skip, press Backspace, or press Ⓑ. **Settings → 🎬 Cinematics** sets FULL, SHORT or
+  OFF. Scenes are presentation only: the change has already happened on the server.
+- **Four original influencers**: Bay Snaps, Jax Cash, Maya Max and Drew Deals. They show up rarely, at your
+  business, home or car. Everyone sees them; only the player they came for gets the visit.
+- **Viral Moments.** The game notices what you actually do: evicting a tenant, crashing your car into your own
+  bakery, owning a mansion and a tiny lemonade stand, a 1-star review, 100 customers in a minute. It turns them into
+  CityBuzz posts, with cooldowns so the feed isn't spammed. Rare events: THE CROWD, PAPARAZZI MODE, EVERYONE KNOWS
+  YOU and BUSINESS BEEF. Funny events: the health inspector, a customer army, a delivery disaster, a rich kid and a
+  bad investor. Lil Clipz reacts too.
+- **📱 VIRAL app**: your Viral Score, your moments, influencer sightings, trending and funniest moments, top posts,
+  and the weekly **Most Viral** boards (top-3 finishes are kept in your Hall of Fame). 8 new achievements.
+- **Animations** live in `EmpireClient > AnimationConfig`. Paste your own animation ids there. A missing one falls
+  back safely and is logged in Studio; it never breaks a scene.
+
+## What was new in v8 — "The Empire Expansion"
 
 - **Phone apps fixed at the root.** Since v5 the phone stored a function on a Frame (`v.refresh = ...`). Real Roblox
   rejects custom fields on Instances, so the error stopped the Phone module partway through. Messages, the Map and the
@@ -43,11 +72,13 @@ same saves and upgrades them in memory.
 **Rules that keep saves safe (already built in):**
 - Never rename `CFG.DATASTORE` in `GameServer > Config`, and never change the key format.
 - Saves carry `SchemaVersion`. On load, `GameServer > DataMigration` upgrades an old save one step at a time
-  (6 → 7 → 8), on a copy, then validates it. If anything fails, the player plays with saving **turned off** for that
+  (6 → 7 → 8 → 9), on a copy, then validates it. If anything fails, the player plays with saving **turned off** for that
   slot and sees a warning. The stored save is never overwritten with defaults.
 - Saves use `UpdateAsync` with a save counter, so an older server can't overwrite a newer save. A save written by a
   **newer** version than the server running it is loaded read-only and never saved over.
 - Fields the current version doesn't know are kept and written back unchanged.
+- New-feature data is never fatal: if a v9 record (like the viral record) is damaged, only that part is reset. The
+  rest of the save loads, and the damaged original is kept in the save (`viralRecovered`).
 - A failed DataStore read never gives a fresh profile that later saves over the real one.
 
 **Major update that changes the save shape:**
@@ -61,8 +92,8 @@ same saves and upgrades them in memory.
 **Testing in Studio never touches live data.** In Studio, every DataStore name gets `_StudioTest` on the end
 (`C.storeName`, controlled by `CFG.STUDIO_USES_LIVE_DATA = false`). Playtests read and write a separate test copy,
 never your players' saves. Leave that setting `false`. In a Studio playtest, open **Settings → 🧪 Update + data
-safety test**. It runs the migration self-test on v6/v7/v8 sample saves and the real save/load code against an
-in-memory store (fresh save, rejoin, conflicts, newer schema, failed load, failed migration), then prints the
+safety test**. It runs the migration self-test on v5–v9 sample saves (including a damaged v9 record) and the real
+save/load code against an in-memory store (fresh save, rejoin, conflicts, newer schema, failed load, failed migration), then prints the
 result to the Output.
 
 ## Updating the game in Studio (without replacing your place)
@@ -107,6 +138,11 @@ uses `Config.lua` from the repository, so put your pass IDs in `src/ServerScript
   - `python3 tests/run.py tests/phone_test.lua`: Messages, Map, Story app and CityBuzz posts through the real client
   - `python3 tests/run.py tests/business_test.lua`: business selector, improvements and reviews that can be won back
   - `python3 tests/run.py tests/interior_test.lua`: interiors, decorating, house ratings and visits
+  - `python3 tests/run.py tests/v9_test.lua`: v8 → v9 saves, the eviction cinematic and its edge cases (skip, leave,
+    disconnect, two players, visitors), missing animations, grand openings, staff scenes, interiors, staff and
+    customer life
+  - `python3 tests/run.py tests/viral_test.lua`: Viral Moments, cooldowns, CityBuzz, capture, influencers, rare and
+    funny events, the Viral app, weekly boards, achievements, NPC caps
   - `python3 tests/run.py tests/smoke_test.lua`: quick boot check
   - `python3 tests/run.py tests/tutorial_test.lua`: the whole tutorial through the real client, with extra focus on step 4
   - `python3 tests/run.py tests/story_test.lua`: story chapters, rewards paid once, cutscenes, multiplayer, old saves
@@ -128,6 +164,10 @@ starts at the first one it hasn't.
 - Put the real game pass IDs in `GameServer > Config` (`C.PASSES`). The Rich Start and VIP descriptions changed in v7.
   Update the pass descriptions on the Roblox website to match.
 - Publish, turn on **Enable Studio Access to API Services**, and set the place's Max Players to 4.
-- In Studio, Settings shows 🧪 test tools: money, reputation, mega events, mystery lots, Spire, viral, and
-  **Story: jump to next chapter**, and **🧪 Update + data safety test**. The server refuses them outside Studio.
+- In Studio, Settings shows 🧪 test tools: money, reputation, mega events, mystery lots, Spire, viral,
+  **Story: jump to next chapter** and **🧪 Update + data safety test**. v9 adds buttons for the eviction cinematic, a
+  grand opening, an influencer visit, a viral moment, paparazzi, a CityBuzz post, a customer rush (THE CROWD), an
+  inspection, a funny random event, entering a business interior and the cinematic camera. The server refuses them
+  outside Studio.
+- Animations: paste your own animation ids into `EmpireClient > AnimationConfig` (optional; safe fallbacks are built in).
 - To rename the rival, edit `C.STORY_RIVAL` and `C.STORY_CAST.rival` in `GameServer > StoryData`.
