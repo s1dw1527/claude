@@ -75,6 +75,9 @@ local function top(b, n, ascending)
 	while #out > n do table.remove(out) end
 	return out
 end
+-- other modules (ViralMoments) keep their weekly boards in the same storage
+C.weeklyStore = {board = function(...) return board(...) end, add = function(...) return addValue(...) end, write = function(...) return writeValue(...) end,
+	top = function(...) return top(...) end}
 local names = {}
 local function nameOf(userId)
 	userId = tonumber(userId)
@@ -176,6 +179,7 @@ function F.weeklyInfo(plr)
 		submitted = d and d.showcaseWeek == week, myId = plr.UserId}
 end
 C.refreshWeeklyNow = refresh
+C.weeklyStore.nameOf = nameOf
 
 -- ===== Empire Showcase =====
 function F.showcaseSubmit(plr)
@@ -378,6 +382,9 @@ function F.claimWeeklyRewards(plr)
 				table.insert(wins, "#" .. rank .. " " .. cat.name)
 				if rank == 1 then
 					if F.achieve then F.achieve(plr, cat.key == "house" and "houseStar" or "weeklyChamp") end
+					if F.cinematic and F.playerAnchor(plr) then
+						F.cinematic(plr, "competition", {}, {at = F.playerAnchor(plr), title = "🏆 WEEKLY CHAMPION", result = {"🏆 CHAMPION", cat.name}, react = "celebrate"})
+					end
 				end
 			end
 		end

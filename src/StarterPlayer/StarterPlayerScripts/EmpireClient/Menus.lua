@@ -719,7 +719,10 @@ do
 	row(5, "🌦️ Weather effects", function() return st.weather and "ON" or "OFF" end, function() C.setSetting("weather", not st.weather) end)
 	row(6, "🚗 Speed units", function() return st.units end, function() C.setSetting("units", st.units == "MPH" and "KMH" or "MPH") end)
 	row(7, "📍 Spawn at", function() return st.spawnAt == "home" and "🏠 Home" or "🏢 Business" end, function() C.setSetting("spawnAt", st.spawnAt == "home" and "business" or "home") end)
-	row(8, "🎓 Tutorial", function() return "Restart" end, function() act("tut", "restart") end)
+	row(8, "🎬 Cinematics", function() return ({full = "FULL", short = "SHORT", off = "OFF"})[st.cinematics or "full"] end, function()
+		C.setSetting("cinematics", ({full = "short", short = "off", off = "full"})[st.cinematics or "full"] or "full")
+	end)
+	row(10, "🎓 Tutorial", function() return "Restart" end, function() act("tut", "restart") end)
 	row(9, "🏢 Panels", function() return "Show all" end, function()
 		if U.collapse_biz then U.collapse_biz(true) end
 		if U.collapse_board then U.collapse_board(true) end
@@ -728,7 +731,11 @@ do
 		-- 🧪 Studio-only helpers for playtesting (the server ignores these in a live game)
 		local tools = {{"🧪 +$1M", "cash"}, {"🧪 Next reputation tier", "rep"}, {"🧪 Start a mega event", "mega"}, {"🧪 Spawn a Mystery Lot", "mystery"},
 			{"🧪 Finish a Spire stage", "spire"}, {"🧪 Go viral now", "viral"}, {"🧪 Save now", "save"},
-			{"🧪 Update + data safety test", "dataTest"}}
+			{"🧪 Update + data safety test", "dataTest"},
+			-- v9
+			{"🧪 Eviction cinematic", "cineEvict"}, {"🧪 Grand opening", "cineOpening"}, {"🧪 Influencer visit", "influencer"}, {"🧪 Viral moment", "viralMoment"},
+			{"🧪 Rare event: paparazzi", "rareEvent"}, {"🧪 CityBuzz post", "buzzPost"}, {"🧪 Customer rush (THE CROWD)", "rush"}, {"🧪 Inspection", "inspection"},
+			{"🧪 Funny random event", "funny"}, {"🧪 Enter a business interior", "interior"}, {"🧪 Cinematic camera", "cineCamera"}}
 		for i, t in ipairs(tools) do
 			row(100 + i, t[1], function() return "Run" end, function() act("debug", t[2]) end)
 		end

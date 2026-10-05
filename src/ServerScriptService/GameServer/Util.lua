@@ -205,7 +205,7 @@ local function remote(name)
 	return r
 end
 C.R = {}
-for _, n in ipairs({"State", "Announce", "Splash", "Customer", "Buzz", "BuzzUpdate", "Msg", "WarResults", "Menu", "Action", "Race", "Mega"}) do
+for _, n in ipairs({"State", "Announce", "Splash", "Customer", "Buzz", "BuzzUpdate", "Msg", "WarResults", "Menu", "Action", "Race", "Mega", "Cinematic", "Viral"}) do
 	C.R[n] = remote(n)
 end
 function C.notify(plr, msg) C.R.Announce:FireClient(plr, msg) end

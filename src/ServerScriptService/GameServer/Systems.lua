@@ -320,6 +320,7 @@ function F.serveCustomer(plr, d, key, t, review)
 	d.bizServed[key] = (d.bizServed[key] or 0) + 1
 	if F.revisitReviews then F.revisitReviews(plr, d, key) end
 	if F.countServed then F.countServed(d) end
+	if F.viralServed then F.viralServed(plr, d, key) end
 	if d.frozenUntil <= now then
 		local sale = BIZ[key].income * lvl * E.customerSale * F.bizMult(d, key) * F.globalMult(d, now) * (t.tip or 1)
 		d.cash += sale
@@ -339,6 +340,16 @@ function F.serveCustomer(plr, d, key, t, review)
 		local bs = d.bizStars[key] or {0, 0}
 		d.bizStars[key] = {bs[1] + review.stars, bs[2] + 1}
 		if review.attr and F.bookReview then F.bookReview(plr, d, key, review, review.who) end
+		if F.viralReview then F.viralReview(plr, d, key, review) end
+		-- a dramatic complaint plays out in front of you (only if you're there to see it)
+		if review.stars == 1 and F.cinematic then
+			local root = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
+			local door = (F.slotCF(d.plot, key) * CF(0, 0, 9)).Position
+			if root and (root.Position - door).Magnitude < 70 then
+				F.cinematic(plr, "complaint", {text = string.upper(review.text), names = {customer = review.who}}, {at = F.bizAnchor(d, key), title = "😤 A CUSTOMER HAS THOUGHTS",
+					result = {"😤 COMPLAINT", "Tip: improvements win unhappy customers back"}, react = "facepalm"})
+			end
+		end
 		table.insert(d.reviews, 1, {stars = review.stars, text = review.text, biz = BIZ[key].tiers[math.max(1, stageOf(lvl, d.chains[key] or 0))]})
 		if #d.reviews > 8 then table.remove(d.reviews) end
 		if t.trendy and review.stars >= 4 and d.trendUntil < now then
@@ -373,6 +384,7 @@ function F.goViral(plr, d, key, quote)
 	C.shockwave(door + V3(0, 1, 0), RGB(255, 110, 200), 40)
 	if F.achieve then F.achieve(plr, "viral") end
 	if F.storyEvent then F.storyEvent(plr, "viral") end
+	if F.viralMoment then F.viralMoment(plr, "wentViral", {biz = b.name, pos = door}) end
 	F.checkCombos(plr, d)
 end
 
@@ -396,6 +408,11 @@ function F.buyUpgrade(plr, d, key)
 	if newStage ~= oldStage then F.refreshWorkers(plr) end
 	if newStage > oldStage and oldStage > 0 then
 		F.buzz(b.icon, plr.Name .. "'s " .. b.tiers[oldStage] .. " transformed into a " .. b.tiers[newStage] .. "!", b.color)
+		-- a major upgrade gets a short scene
+		if F.cinematic then
+			F.cinematic(plr, "upgrade", {biz = b.tiers[newStage], names = {staff = d.staff[key] and d.staff[key].name or nil}}, {at = F.bizAnchor(d, key),
+				title = "⬆️ " .. string.upper(b.tiers[newStage]), result = {"⬆️ MAJOR UPGRADE", b.tiers[oldStage] .. " → " .. b.tiers[newStage]}, react = "celebrate"})
+		end
 	end
 	if lvl + 1 == CFG.MAX_LEVEL then
 		notify(plr, "⭐ " .. b.tiers[newStage] .. " is MAX level!" .. (F.unlocked(d, "chains") and " Open new locations to build a chain." or ""))
@@ -407,6 +424,17 @@ function F.buyUpgrade(plr, d, key)
 	end
 	if lvl == 0 and key ~= "lemonade" and F.storyEvent then F.storyEvent(plr, "newBusiness", key) end
 	if lvl == 0 and F.refreshDoors then F.refreshDoors(plr) end
+	-- v9: grand opening. Every first opening gets its signature moment; bigger businesses often draw a crowd.
+	if lvl == 0 then
+		d.openings = type(d.openings) == "table" and d.openings or {}
+		local firstTime = d.openings[key] == nil
+		d.openings[key] = d.openings[key] or os.time()
+		if firstTime then
+			local crowd = key ~= "lemonade" and math.random() < 0.6
+			local m = F.viralMoment and F.viralMoment(plr, crowd and "openingCrowd" or "opening", {uniq = key, biz = b.tiers[1], pos = (F.slotCF(d.plot, key) * CF(0, 0, 9)).Position})
+			if F.cineOpening then F.cineOpening(plr, d, key, crowd, m and m.id or nil) end
+		end
+	end
 	F.checkCombos(plr, d)
 end
 function F.openChain(plr, d, key)
@@ -697,6 +725,10 @@ function F.startEvent(now)
 			local gift = math.max(E.investorFloor, math.floor(lowI * E.investorSeconds))
 			lowD.cash += gift
 			notify(lowP, "😇 An angel investor gave you $" .. fmt(gift) .. "!")
+			if F.cinematic and gift >= 1e5 then
+				local at = F.playerAnchor(lowP)
+				if at then F.cinematic(lowP, "investment", {amount = gift}, {at = at, title = "😇 A HUGE INVESTMENT", result = {"💰 +$" .. fmt(gift), "An angel investor believes in you"}, react = "money"}) end
+			end
 			burst(lowD.plot.center + V3(0, 12, 0), RGB(255, 215, 80), 120)
 		end
 	end
@@ -766,6 +798,7 @@ function F.endWar(now)
 			d.trophies += 1
 			F.addRep(p, 30)
 			F.refreshTower(p)
+			if F.viralMoment then F.viralMoment(p, "competition", {}) end
 		end
 	end
 	R.WarResults:FireAllClients(results)

@@ -379,7 +379,8 @@ function F.msgChoice(plr, id, choice)
 		if m.id == id then
 			if m.resolved or not m.choices or not m.choices[choice] then return end
 			local result = "Done."
-			if m.kind == "tenant" then result = F.tenantChoice(plr, m, choice) end
+			if m.kind == "tenant" then result = F.tenantChoice(plr, m, choice)
+			elseif m.kind == "deal" and F.dealChoice then result = F.dealChoice(plr, m, choice) end
 			m.resolved = result
 			m.read = true
 			R.Msg:FireClient(plr, "resolve", id, result, unreadCount(d))

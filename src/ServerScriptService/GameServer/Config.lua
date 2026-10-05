@@ -4,19 +4,18 @@ local RGB = Color3.fromRGB
 
 -- ===== VERSION (bump these with every published update; see README "How to update Corner Empire") =====
 C.VERSION = {
-	VERSION = "8.0.0",
-	UPDATE_NAME = "The Empire Expansion",
-	SCHEMA_VERSION = 8,         -- the shape of a player's save. Raise it only together with a new step in DataMigration.
+	VERSION = "9.0.0",
+	UPDATE_NAME = "Empire Life & Viral Moments",
+	SCHEMA_VERSION = 9,         -- the shape of a player's save. Raise it only together with a new step in DataMigration.
 	MIN_SUPPORTED_SCHEMA = 6,   -- saves older than v6 (no version field, no tutorial-reward tracking) are treated as v6
 	-- shown once to every returning player after an update (Messages app)
 	NOTES = {
-		"🚗 Cars steer properly now (left, right, U-turns)",
-		"🗺️ A real city map with your businesses, home and properties",
-		"💬 Messages from your staff, tenants, customers, rivals and City Hall",
-		"🏢 A compact business selector and smaller upgrade cards",
-		"⭐ Reviews can be won back by improving your business",
-		"🛋️ Interiors you can decorate, and visible house ratings",
-		"📸 Better CityBuzz posts with photos of your empire",
+		"🏪 Walk-in interiors for every business, with staff at work and customers living their lives",
+		"🎬 Cinematic moments: grand openings, evictions (cartoon style), big upgrades, inspections",
+		"🤳 Four city influencers: Bay Snaps, Jax Cash, Maya Max and Drew Deals",
+		"🔥 Viral Moments: the city notices what you actually do, and CityBuzz roasts it",
+		"📱 New VIRAL app: your Viral Score, trending moments and the weekly Most Viral boards",
+		"🏆 New achievements, from \"Kick Rocks\" to \"Empire Influencer\"",
 	},
 }
 
@@ -177,7 +176,7 @@ C.SECRET_SPOTS = {
 
 -- ===== ACHIEVEMENTS (shareable on CityBuzz, shown in the Legacy Museum) =====
 C.ACHIEVEMENTS = {
-	firstBusiness = {icon = "🏪", title = "First Business", post = "I just opened my very first business! 🍋"},
+	firstBusiness = {icon = "🏪", title = "Open for Business", post = "I just opened my very first business! 🍋"},
 	firstLandmark = {icon = "🌟", title = "First Landmark", post = "I built my first golden LANDMARK! 🌟"},
 	million = {icon = "💰", title = "First Million", post = "My empire has earned its first $1,000,000! 💰"},
 	billion = {icon = "💎", title = "First Billion", post = "ONE. BILLION. DOLLARS. 💎💎💎"},
@@ -204,6 +203,15 @@ C.ACHIEVEMENTS = {
 	weeklyChamp = {icon = "🥇", title = "Weekly Champion", post = "I topped a weekly leaderboard! 🥇"},
 	legendary = {icon = "🌠", title = "Legendary Find", post = "I found something LEGENDARY in a Mystery Lot 🌠"},
 	storyLegend = {icon = "🎙️", title = "Golden Mic", post = "I finished the Corner Empire story. Lil Clipz owes me an apology 🎙️✨"},
+	-- v9
+	kickRocks = {icon = "🚪", title = "Kick Rocks", post = "First eviction: complete. The rubber duck went flying. 🦆🚪"},
+	landlordMode = {icon = "🏢", title = "Landlord Mode", post = "10 evictions. I am the landlord now. 🏢"},
+	whoInvited = {icon = "👥", title = "WHO INVITED EVERYONE?", post = "25 customers at ONE of my businesses in 30 seconds. WHO INVITED EVERYONE? 👥"},
+	mainCharacter = {icon = "🎬", title = "Main Character", post = "I just triggered a rare viral event. Main character energy. 🎬"},
+	internetFamous = {icon = "📱", title = "Internet Famous", post = "An influencer just posted about my business. I'm internet famous now 📱"},
+	actuallyFamous = {icon = "🌟", title = "Actually Famous", post = "I'm on the weekly Most Viral leaderboard! 🌟"},
+	broGotContent = {icon = "📸", title = "Bro Got Content", post = "Captured a viral moment in Photo Mode. Content secured. 📸"},
+	empireInfluencer = {icon = "👑", title = "Empire Influencer", post = "10,000 Viral Score. I AM the content now. 👑🔥"},
 }
 for _, b in ipairs(C.BUSINESSES) do
 	C.ACHIEVEMENTS["biz_" .. b.key] = {icon = b.icon, title = "New: " .. b.name, post = "Just opened a brand new " .. b.tiers[1] .. "! " .. b.icon, quiet = b.key == "lemonade"}
@@ -328,11 +336,13 @@ C.NPC_TYPES = {
 	{key = "influencer", icon = "🤳", shirt = RGB(255, 110, 200), pants = RGB(240, 240, 250), likes = {}, trendy = true},
 }
 C.REVIEWS = {
-	[5] = {"The %s was amazing!", "Best %s in the city!", "10/10 would come back!", "Absolutely perfect!"},
-	[4] = {"Nice place but a bit expensive.", "Really good %s!", "Great vibes here.", "Nice building!"},
+	[5] = {"The %s was amazing!", "Best %s in the city!", "10/10 would come back!", "Absolutely perfect!", "This %s changed my life.",
+		"The bathroom deserves its own business.", "I came for one %s and left with four. No regrets."},
+	[4] = {"Nice place but a bit expensive.", "Really good %s!", "Great vibes here.", "Nice building!", "This place is fire. My mom said we're leaving. I disagree."},
 	[3] = {"It was okay.", "Pretty average honestly.", "Decent %s, nothing special."},
 	[2] = {"The line was way too long.", "Service was slow...", "Kinda disappointing %s."},
-	[1] = {"Terrible! Never again.", "Worst visit ever.", "Something was broken..."},
+	[1] = {"Terrible! Never again.", "Worst visit ever.", "Something was broken...", "I waited 14 minutes for a %s. I have aged.",
+		"Too much %s. Way too much. (Is that a complaint? Yes.)"},
 }
 
 C.EVENTS = {

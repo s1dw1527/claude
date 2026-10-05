@@ -21,12 +21,18 @@
     "Messages",
     "MapData",
     "Interiors",
+    "Cinematics",
+    "ViralMoments",
+    "Influencers",
+    "CityEvents",
     "Updates",
     "Players"
   ],
   "/StarterPlayer/StarterPlayerScripts/EmpireClient": [
     "UI",
     "Audio",
+    "AnimationConfig",
+    "Actors",
     "HUD",
     "WorldFX",
     "Workers",
@@ -36,8 +42,12 @@
     "MiniGames",
     "PhotoMode",
     "Story",
+    "Cinematics",
     "MapApp",
     "InteriorUI",
+    "InteriorLife",
+    "CityLife",
+    "ViralApp",
     "MainMenu"
   ]
 }

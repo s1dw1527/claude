@@ -382,6 +382,10 @@ function F.buyOrDrive(plr, key)
 	d.cash -= spec.price
 	d.cars[key] = true
 	if spec.price >= 1000000 and F.storyEvent then F.storyEvent(plr, "luxury", key) end
+	if spec.price >= 1000000 and F.viralMoment then
+		F.viralMoment(plr, "luxuryCar", {car = spec.name})
+		if F.paparazzi and math.random() < 0.4 then task.delay(4, function() if plr.Parent then F.paparazzi(plr) end end) end
+	end
 	R.Splash:FireClient(plr, "🚗 NEW CAR!", "You bought the " .. spec.name .. "! Hold SHIFT for nitro (with the pass).", spec.color)
 	F.buzz("🚗", plr.Name .. " just bought a " .. spec.name .. "!", spec.color)
 	F.spawnCar(plr, key)

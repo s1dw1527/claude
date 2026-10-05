@@ -252,11 +252,17 @@ do
 	corner(probRow, 8)
 	local probL = label({Position = UDim2.fromOffset(8, 0), Size = UDim2.new(1, -100, 1, 0), TextSize = 11, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, TextColor3 = RGB(255, 190, 170)}, probRow)
 	local probFix = button({AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -4, 0.5, 0), Size = UDim2.fromOffset(88, 26), TextSize = 11, BackgroundColor3 = RGB(235, 160, 30)}, probRow)
+	-- v9: the interior score (0-100) and a way in
+	local intRow = new("Frame", {Size = UDim2.new(1, -6, 0, 30), BackgroundColor3 = RGB(40, 34, 60), BorderSizePixel = 0, LayoutOrder = 5, Visible = false}, cardF)
+	corner(intRow, 8)
+	local intL = label({Position = UDim2.fromOffset(8, 0), Size = UDim2.new(1, -86, 1, 0), TextSize = 11, Font = Enum.Font.GothamBlack, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left}, intRow)
+	local intGo = button({AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -4, 0.5, 0), Size = UDim2.fromOffset(76, 24), Text = "🚪 Go inside", TextSize = 10, BackgroundColor3 = PURPLE}, intRow)
+	local TIER_COLOR = {EMPTY = SUB, BASIC = WHITE, DECENT = RGB(140, 220, 255), PROFESSIONAL = RGB(120, 255, 160), ELITE = GOLD, VIRAL = RGB(255, 110, 200)}
 	local impTitle = label({Size = UDim2.new(1, -6, 0, 18), Text = "IMPROVEMENTS (happier customers, better reviews)", TextSize = 10, TextColor3 = SUB, Font = Enum.Font.GothamBlack,
-		TextXAlignment = Enum.TextXAlignment.Left, LayoutOrder = 5}, cardF)
+		TextXAlignment = Enum.TextXAlignment.Left, LayoutOrder = 6}, cardF)
 	local impRows = {}
 	for i = 1, 5 do
-		local r = new("Frame", {Size = UDim2.new(1, -6, 0, 26), BackgroundColor3 = CARD, BorderSizePixel = 0, LayoutOrder = 5 + i}, cardF)
+		local r = new("Frame", {Size = UDim2.new(1, -6, 0, 26), BackgroundColor3 = CARD, BorderSizePixel = 0, LayoutOrder = 6 + i}, cardF)
 		corner(r, 6)
 		local l = label({Position = UDim2.fromOffset(6, 0), Size = UDim2.new(1, -96, 1, 0), TextSize = 11, TextXAlignment = Enum.TextXAlignment.Left}, r)
 		local b = button({AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -3, 0.5, 0), Size = UDim2.fromOffset(86, 22), TextSize = 10, BackgroundColor3 = BLUE}, r)
@@ -275,6 +281,9 @@ do
 	end)
 	probFix.MouseButton1Click:Connect(function()
 		if cur.b then play(SND.click) act("problem", cur.b.key, "repair") end
+	end)
+	intGo.MouseButton1Click:Connect(function()
+		if cur.b then play(SND.click) act("enterBiz", cur.b.key) end
 	end)
 	for i, r in ipairs(impRows) do
 		r.btn.MouseButton1Click:Connect(function()
@@ -318,6 +327,11 @@ do
 			probL.Text = "⚠️ " .. (b.problemText or "Problem") .. " (earning -50%)"
 			probFix.Text = "Fix $" .. fmt(b.repair or 0)
 			probFix.BackgroundColor3 = s.cash >= (b.repair or 0) and RGB(235, 160, 30) or GRAY
+		end
+		intRow.Visible = open and b.interior ~= nil
+		if b.interior then
+			intL.Text = "🛋️ " .. b.name .. " Interior: " .. b.interior.score .. "/100 — " .. b.interior.tier
+			intL.TextColor3 = TIER_COLOR[b.interior.tier] or WHITE
 		end
 		impTitle.Visible = open and b.improve ~= nil
 		for i, r in ipairs(impRows) do

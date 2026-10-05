@@ -233,9 +233,9 @@ function F.refreshHomeSign(lot)
 	local avg, n, visits, likes = F.homeRatingInfo(od)
 	local full = math.floor(avg + 0.5)
 	local l2, l3 = bb:FindFirstChild("L2"), bb:FindFirstChild("L3")
-	local inside = F.interiorScore and F.interiorScore(od, "home") or 0
+	local inside = F.interiorScore100 and F.interiorScore100(od, "home") or 0
 	if l2 then l2.Text = (n > 0 and (string.rep("★", full) .. string.rep("☆", 5 - full) .. "  " .. string.format("%.1f", avg)) or "☆☆☆☆☆  not rated yet") ..
-		(inside > 0 and ("   🛋️ " .. inside) or "") end
+		(inside > 0 and ("   🛋️ " .. inside .. "/100") or "") end
 	if l3 then
 		local level = od.home and od.home.level or 0
 		l3.Text = (level > 0 and (HOME_LEVELS[level] .. " • ") or "Empty lot • ") .. fmt(n) .. " ratings • " .. fmt(visits) .. " visits • ❤ " .. fmt(likes)
@@ -348,6 +348,13 @@ function F.buildHomeLevel(plr)
 	if F.achieve then
 		if lot.hood == "rich" then F.achieve(plr, "mansion") end
 		if d.home.level >= #HOME_LEVELS then F.achieve(plr, "dreamHome") end
+	end
+	-- v9: a luxury home is a moment (the paparazzi may show up)
+	if (lot.hood == "rich" or d.home.level >= #HOME_LEVELS) and F.viralMoment then
+		F.viralMoment(plr, "luxuryHome", {home = HOME_LEVELS[d.home.level] .. " in " .. HOOD[lot.hood].name})
+		if F.cinematic then
+			F.cinematic(plr, "luxury", {}, {at = F.homeAnchor(lot), title = "🏰 LIVING LARGE", result = {"🏰 " .. string.upper(HOME_LEVELS[d.home.level]), HOOD[lot.hood].name}, react = "ownerPose"})
+		end
 	end
 end
 end

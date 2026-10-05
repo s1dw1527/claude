@@ -20,124 +20,25 @@ local CAST = cat.cast or {}
 local sg = new("ScreenGui", {Name = "EmpireStory", ResetOnSpawn = false, IgnoreGuiInset = true, DisplayOrder = 20, ZIndexBehavior = Enum.ZIndexBehavior.Sibling}, plr:WaitForChild("PlayerGui"))
 
 -- =====================================================================
--- THE RIVAL: a stylized blocky streamer built from parts (an original character, not anyone real)
+-- THE CAST: built with the shared actor kit (EmpireClient > Actors); Lil Clipz is an original character
 -- =====================================================================
+local A = C.Actors
 local FX
-local function part(size, color, mat, shape)
-	local p = Instance.new("Part")
-	p.Anchored, p.CanCollide, p.CanQuery, p.CanTouch, p.CastShadow = true, false, false, false, false
-	p.TopSurface, p.BottomSurface = Enum.SurfaceType.Smooth, Enum.SurfaceType.Smooth
-	p.Size, p.Color, p.Material = size, color, mat or Enum.Material.SmoothPlastic
-	if shape then p.Shape = shape end
-	p.Parent = FX
-	return p
-end
+local function part(size, color, mat, shape) return A.part(FX, size, color, mat, shape) end
 local function newFolder()
 	if FX then FX:Destroy() end
 	FX = new("Folder", {Name = "StoryScene"}, Workspace)
 	return FX
 end
--- who: "rival" (hoodie + headset), "kevin" (copycat cousin), or any NPC style
-local LOOKS = {
-	rival = {shirt = RGB(255, 70, 140), pants = RGB(30, 30, 40), skin = RGB(190, 140, 100), hat = RGB(20, 20, 24), headset = true},
-	kevin = {shirt = RGB(255, 210, 60), pants = RGB(90, 90, 110), skin = RGB(255, 220, 180), hat = RGB(255, 240, 120)},
-	ulysses = {shirt = RGB(120, 200, 255), pants = RGB(40, 50, 70), skin = RGB(235, 190, 150), tie = RGB(255, 60, 60)},
-	brenda = {shirt = RGB(170, 120, 255), pants = RGB(40, 30, 60), skin = RGB(125, 88, 62), tie = RGB(255, 255, 255)},
-	reginald = {shirt = RGB(30, 30, 34), pants = RGB(30, 30, 34), skin = RGB(255, 225, 200), tophat = true, tie = RGB(255, 205, 80)},
-	fan = {shirt = RGB(80, 200, 140), pants = RGB(60, 70, 120), skin = RGB(235, 190, 150)},
-}
-local function makeActor(look)
-	local L = LOOKS[look] or LOOKS.fan
-	local a = {
-		torso = part(V3(2, 2, 1), L.shirt), head = part(V3(1.4, 1.4, 1.4), L.skin, nil, Enum.PartType.Ball),
-		la = part(V3(0.9, 2, 0.9), L.shirt), ra = part(V3(0.9, 2, 0.9), L.shirt),
-		ll = part(V3(0.95, 2, 0.95), L.pants), rl = part(V3(0.95, 2, 0.95), L.pants),
-		eyes = part(V3(0.9, 0.22, 0.1), RGB(20, 20, 20)),
-	}
-	if L.hat then a.hat = part(V3(1.5, 0.45, 1.5), L.hat) a.brim = part(V3(1.5, 0.12, 0.8), L.hat) end
-	if L.tophat then a.hat = part(V3(1.1, 1.2, 1.1), RGB(20, 20, 20), nil, Enum.PartType.Cylinder) end
-	if L.tie then a.tie = part(V3(0.35, 1.2, 0.1), L.tie) end
-	if L.headset then
-		a.band = part(V3(1.6, 0.2, 0.3), RGB(30, 30, 30))
-		a.mic = part(V3(0.12, 0.12, 0.8), RGB(30, 30, 30))
-		a.micTip = part(V3(0.3, 0.3, 0.3), RGB(255, 60, 60), Enum.Material.Neon, Enum.PartType.Ball)
-		-- a LIVE sign floating over his head
-		local bb = new("BillboardGui", {Size = UDim2.fromOffset(90, 30), StudsOffset = V3(0, 3.2, 0), AlwaysOnTop = true, MaxDistance = 140}, a.head)
-		local f = new("Frame", {Size = UDim2.fromScale(1, 1), BackgroundColor3 = RGB(230, 30, 50), BorderSizePixel = 0}, bb)
-		corner(f, 8)
-		label({Size = UDim2.fromScale(1, 1), Text = "🔴 LIVE", TextScaled = true, Font = Enum.Font.GothamBlack}, f)
-	end
-	a.look = look
-	return a
-end
--- pose: base = where they stand (facing -Z of the CFrame), p = {arm angles, bounce, lean, kneel}
-local function pose(a, base, p)
-	local y = (p.bounce or 0) - (p.kneel or 0)
-	local root = base * CF(0, y, 0) * CFrame.Angles(p.lean or 0, 0, p.tilt or 0)
-	local sw = p.walk and math.sin(p.walk) * 0.6 or 0
-	a.torso.CFrame = root * CF(0, 3, 0)
-	a.head.CFrame = root * CF(0, 4.7, 0)
-	a.eyes.CFrame = root * CF(0, 4.8, -0.68)
-	a.ll.CFrame = root * CF(-0.5, 2 + (p.kneel or 0) * 0.5, 0) * CFrame.Angles(sw + (p.kneel and p.kneel > 0 and 1.2 or 0), 0, 0) * CF(0, -1, 0)
-	a.rl.CFrame = root * CF(0.5, 2, 0) * CFrame.Angles(-sw, 0, 0) * CF(0, -1, 0)
-	a.la.CFrame = root * CF(-1.45, 3.9, 0) * CFrame.Angles(p.la or -sw, 0, p.laz or 0) * CF(0, -0.9, 0)
-	a.ra.CFrame = root * CF(1.45, 3.9, 0) * CFrame.Angles(p.ra or sw, 0, p.raz or 0) * CF(0, -0.9, 0)
-	if a.hat then a.hat.CFrame = a.look == "reginald" and root * CF(0, 5.9, 0) * CFrame.Angles(0, 0, math.pi / 2) or root * CF(0, 5.35, 0.05) end
-	if a.brim then a.brim.CFrame = root * CF(0, 5.2, -0.7) end
-	if a.tie then a.tie.CFrame = root * CF(0, 3.2, -0.52) end
-	if a.band then
-		a.band.CFrame = root * CF(0, 5.35, 0)
-		a.mic.CFrame = root * CF(0.62, 4.5, -0.45)
-		a.micTip.CFrame = root * CF(0.62, 4.45, -0.85)
-	end
-end
--- each animation returns the pose for time t (seconds into the line)
-local ANIMS = {
-	idle = function(t) return {bounce = math.abs(math.sin(t * 2)) * 0.1, la = 0.1, ra = -0.1} end,
-	entrance = function(t)
-		if t < 0.7 then return {bounce = (1 - t / 0.7) ^ 2 * 30, la = -2.6, ra = -2.6} end
-		local k = math.max(0, 1 - (t - 0.7) * 3)
-		return {bounce = math.abs(math.sin((t - 0.7) * 9)) * 0.6 * k, kneel = 0.4 * k, la = -2.4, ra = -2.4}
-	end,
-	point = function(t) return {ra = -1.6, la = 0.2, bounce = math.abs(math.sin(t * 6)) * 0.15, lean = -0.05} end,
-	laugh = function(t) return {bounce = math.abs(math.sin(t * 14)) * 0.5, lean = 0.25 + math.sin(t * 7) * 0.08, la = -0.6 + math.sin(t * 14) * 0.3, ra = -0.6 - math.sin(t * 14) * 0.3} end,
-	clap = function(t) local s = math.abs(math.sin(t * 10)) return {la = -1.3, ra = -1.3, laz = -0.5 * s, raz = 0.5 * s, bounce = s * 0.1} end,
-	shrug = function(t) return {laz = 0.9, raz = -0.9, la = -0.4, ra = -0.4, tilt = math.sin(t * 2) * 0.08} end,
-	shock = function(t) return {bounce = t < 0.3 and math.sin(t / 0.3 * math.pi) * 1.5 or 0, lean = 0.3, la = -2.8, ra = -2.8} end,
-	kneel = function(t) return {kneel = 1.4, la = -1.5 + math.sin(t * 5) * 0.1, ra = -1.5 - math.sin(t * 5) * 0.1, lean = -0.15} end,
-	hype = function(t) return {bounce = math.abs(math.sin(t * 8)) * 1.6, la = -2.9, ra = -2.9, laz = -0.3, raz = 0.3} end,
-	talk = function(t) return {la = 0.1, ra = -0.5 + math.sin(t * 6) * 0.35, bounce = math.abs(math.sin(t * 6)) * 0.05} end,
-}
--- floating stream-chat reactions near the rival
-local CHAT = {"💀💀💀", "W", "L + ratio", "CLIP IT", "chat is crying 😭", "🔥🔥", "NO WAY", "bro said folding table", "😂😂", "+1000 aura", "-500 aura", "he's cooked"}
-local function chatPop(pos)
-	local a = part(V3(0.2, 0.2, 0.2), WHITE)
-	a.Transparency = 1
-	a.CFrame = CF(pos + V3(math.random(-30, 30) / 10, math.random(0, 20) / 10, 0))
-	local bb = new("BillboardGui", {Size = UDim2.fromOffset(150, 28), AlwaysOnTop = true, MaxDistance = 140}, a)
-	local l = label({Size = UDim2.fromScale(1, 1), TextScaled = true, Text = CHAT[math.random(#CHAT)], Font = Enum.Font.GothamBlack,
-		TextColor3 = Color3.fromHSV(math.random(), 0.6, 1), TextStrokeTransparency = 0.2}, bb)
-	tween(a, 1.6, {CFrame = a.CFrame + V3(0, 5, 0)})
-	tween(l, 1.6, {TextTransparency = 1, TextStrokeTransparency = 1}, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
-	task.delay(1.7, function() a:Destroy() end)
-end
-local function confetti(pos, n)
-	for _ = 1, n do
-		local p = part(V3(0.4, 0.05, 0.6), Color3.fromHSV(math.random(), 0.8, 1), Enum.Material.Neon)
-		p.CFrame = CF(pos + V3(math.random(-6, 6), math.random(6, 12), math.random(-6, 6))) * CFrame.Angles(math.random() * 6, math.random() * 6, 0)
-		tween(p, 2 + math.random(), {CFrame = p.CFrame * CF(0, -10, 0) * CFrame.Angles(4, 2, 1), Transparency = 1})
-		task.delay(3.2, function() p:Destroy() end)
-	end
-end
+local function makeActor(look) return A.make(FX, look) end
+local pose, ANIMS = A.pose, A.ANIMS
+local function chatPop(pos) A.chatPop(FX, pos) end
+local function confetti(pos, n) A.confetti(FX, pos, n) end
+local faceTowards = A.faceTowards
 
 -- =====================================================================
 -- STAGE PROPS: Kevin's copycat stand, the spotlight entrance, the golden limo
 -- =====================================================================
-local function faceTowards(at, target)
-	local flat = V3(target.X, at.Y, target.Z)
-	if (flat - at).Magnitude < 0.1 then return CF(at) end
-	return CFrame.lookAt(at, flat)
-end
 local function copycatStand(where)
 	local base = faceTowards(where.curb + V3(-26, 0, 0), where.focus)
 	local p = part(V3(7, 3.4, 3), RGB(255, 230, 120), Enum.Material.WoodPlanks)
@@ -379,7 +280,8 @@ local function pump()
 			while true do
 				local hum = plr.Character and plr.Character:FindFirstChildOfClass("Humanoid")
 				local seated = hum and hum.SeatPart ~= nil
-				if gui.Enabled and not C.photoActive and not seated and C.S then break end
+				local cine = C.cinematicPlaying and C.cinematicPlaying()
+				if gui.Enabled and not C.photoActive and not seated and C.S and not cine then break end
 				task.wait(0.5)
 			end
 			local sc = table.remove(queue, 1)
@@ -449,19 +351,7 @@ local function showBubble(who, text)
 	end)
 end
 -- small speech bubble over something in the world (your employees muttering at work)
-local function worldBubble(pos, who, text)
-	local a = Instance.new("Part")
-	a.Anchored, a.CanCollide, a.CanQuery, a.CanTouch, a.Transparency = true, false, false, false, 1
-	a.Size = V3(0.2, 0.2, 0.2)
-	a.CFrame = CF(pos)
-	a.Parent = Workspace
-	local bb = new("BillboardGui", {Size = UDim2.fromOffset(240, 60), MaxDistance = 80, LightInfluence = 0}, a)
-	local f = new("Frame", {Size = UDim2.fromScale(1, 1), BackgroundColor3 = WHITE, BorderSizePixel = 0}, bb)
-	corner(f, 12)
-	label({Position = UDim2.fromOffset(8, 4), Size = UDim2.new(1, -16, 0, 14), TextSize = 11, Text = who, TextColor3 = RGB(120, 120, 140), TextXAlignment = Enum.TextXAlignment.Left}, f)
-	label({Position = UDim2.fromOffset(8, 18), Size = UDim2.new(1, -16, 1, -22), TextSize = 13, TextWrapped = true, Text = text, TextColor3 = RGB(20, 20, 30), TextXAlignment = Enum.TextXAlignment.Left}, f)
-	task.delay(6, function() a:Destroy() end)
-end
+local function worldBubble(pos, who, text) A.bubble(pos, who, text, 6) end
 
 remote.OnClientEvent:Connect(function(msg)
 	if type(msg) ~= "table" then return end

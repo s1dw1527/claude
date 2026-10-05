@@ -23,6 +23,7 @@ C.gate(FOLDER, V3(350, 0, 0), true, "🏢 RENTAL ROW", "Property Management • 
 P(FOLDER, V3(230, 2, 150), CF(455, -0.85, 0), RGB(190, 190, 196), MAT.Concrete, SOLID)
 
 local function unitName(i) return math.ceil(i / 2) .. (i % 2 == 1 and "A" or "B") end
+C.rentalUnitName = unitName
 C.unitName = unitName
 -- a full building pays back its price in RENTAL.payback seconds of rent (bigger buildings take longer)
 function F.rentPerUnit(typeKey)
@@ -216,6 +217,9 @@ function F.propBuy(plr, lotId, typeKey)
 	shockwave(lot.pos + V3(0, 0.6, 0), RGB(120, 190, 255), 40)
 	R.Splash:FireClient(plr, "🏢 " .. T.name .. " BUILT!", "Applicants will start showing up soon. Choose wisely...", RGB(120, 190, 255))
 	F.buzz("🏢", plr.Name .. " Property Co. just opened a " .. T.name .. " on Rental Row!", RGB(120, 190, 255))
+	if F.cinematic then
+		F.cinematic(plr, "buyProperty", {}, {at = F.rentalAnchor(lot), title = "🏢 NEW PROPERTY", result = {"🏢 PROPERTY ACQUIRED", T.name .. " on Rental Row"}, react = "ownerPose"})
+	end
 	for _ = 1, 2 do table.insert(b.applicants, F.newApplicant()) end
 end
 function F.upgradeRental(plr, bi)
@@ -309,8 +313,21 @@ function F.evict(plr, bi, ui)
 	local d = data[plr]
 	local b = d and d.props[bi]
 	if not (b and b.units[ui]) then return end
+	local tenant = b.units[ui]
 	local line = evictTenant(plr, d, b, ui)
-	if line then notify(plr, line) end
+	if not line then return end
+	notify(plr, line)
+	-- v9: the state change above is final; everything below is presentation and bookkeeping
+	d.evictions = (tonumber(d.evictions) or 0) + 1
+	if F.achieve then
+		F.achieve(plr, "kickRocks")
+		if d.evictions >= 10 then F.achieve(plr, "landlordMode") end
+	end
+	if F.cineEvict then
+		local ok, err = pcall(F.cineEvict, plr, d, b, ui, tenant)
+		if not ok then warn("[CornerEmpire] eviction cinematic: " .. tostring(err)) end
+	end
+	if F.viralMoment then F.viralMoment(plr, "eviction", {tenant = tenant.name}) end
 end
 function F.renovate(plr, bi)
 	local d = data[plr]
@@ -343,6 +360,7 @@ function F.sellProp(plr, bi)
 	end
 	table.remove(d.props, bi)
 	notify(plr, "💼 Sold the building for $" .. fmt(refund))
+	if F.viralMoment then F.viralMoment(plr, "lostKeys", {}) end
 end
 
 -- ===== inbox choices for tenant drama: 1 = Warn, 2 = Fine, 3 = Evict =====

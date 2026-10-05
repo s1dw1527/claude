@@ -33,13 +33,14 @@ local SAVE_KEYS = {"cash", "levels", "chains", "staff", "combos", "rep", "ep", "
 	"marketing", "revSum", "revN", "contributed", "rebirths", "followers", "home", "raceBest", "tut", "earned", "rentEarned",
 	"tutPaid", "richClaimed", "eraContrib", "achievements", "shared", "found", "wentViral", "viralCount",
 	"mystery", "weekServed", "weeklyClaimed", "showcaseWeek", "votes", "favorites", "homeLikes", "homeRatingSum", "homeRatingN", "story", "storyEarned",
-	"mail", "msgSeq", "interiors", "improve", "reviewBook", "reviewSeq", "homeVisits", "homeRatings"}
+	"mail", "msgSeq", "interiors", "improve", "reviewBook", "reviewSeq", "homeVisits", "homeRatings",
+	"viral", "evictions", "openings"}
 -- everything this version writes itself; any OTHER field found in a save is kept as-is when saving
 local KNOWN_KEYS = {lots = true, props = true, SchemaVersion = true, saveSeq = true, gameVersion = true, savedAt = true}
 for _, k in ipairs(SAVE_KEYS) do KNOWN_KEYS[k] = true end
 local function metaKey(plr) return "u" .. plr.UserId .. "_meta" end
 local function slotKey(plr, slot) return "u" .. plr.UserId .. "_s" .. slot end
-local DEFAULT_SETTINGS = {music = true, musicVol = 5, sfx = true, crowd = "high", weather = true, units = "MPH", spawnAt = "business"}
+local DEFAULT_SETTINGS = {music = true, musicVol = 5, sfx = true, crowd = "high", weather = true, units = "MPH", spawnAt = "business", cinematics = "full"}
 -- every setting has a validator, so a client can't store junk (NaN, huge numbers, unknown words) in the save
 local function oneOf(...)
 	local ok = {}
@@ -51,6 +52,7 @@ local SETTING_OK = {
 	music = isBool, sfx = isBool, weather = isBool,
 	musicVol = function(v) return C.int(v, 1, 10) ~= nil end,
 	crowd = oneOf("high", "low", "off"), units = oneOf("MPH", "KMH"), spawnAt = oneOf("business", "home"),
+	cinematics = oneOf("full", "short", "off"),
 }
 local function applySettings(target, incoming)
 	if type(incoming) ~= "table" then return end
@@ -216,6 +218,16 @@ local function loadSlot(plr, d, slot, readOverride, sOverride)
 		if saved[k] ~= nil then d[k] = saved[k] end
 	end
 	if F.restoreMail then F.restoreMail(d) end
+	-- v9 data: if anything about it is unusable, start it fresh but keep the rest of the save (and the original)
+	local okViral = pcall(function()
+		local v, fixed = C.DataMigration.repairViral(d.viral)
+		if fixed and d.saveExtras.viralRecovered == nil then d.saveExtras.viralRecovered = saved.viral end
+		d.viral = v
+	end)
+	if not okViral then
+		d.saveExtras.viralRecovered = d.saveExtras.viralRecovered or saved.viral
+		d.viral = C.DataMigration.defaultViral()
+	end
 	d.seen.stages = d.seen.stages or {}
 	d.seen.events = d.seen.events or {}
 	d.seen.roles = d.seen.roles or {}
@@ -249,6 +261,7 @@ local function newData(plot)
 		marketing = false, custAcc = 0, nextProblem = now + 90, nextDelivery = now + 45,
 		rebirths = 0, followers = 0, home = nil, props = {}, inbox = {}, raceBest = nil, tut = 1, rentEarned = 0,
 		mail = {}, interiors = {}, improve = {}, reviewBook = {}, homeVisits = 0,
+		viral = C.DataMigration.defaultViral(), evictions = 0, openings = {},
 		plot = plot,
 	}
 end
@@ -361,7 +374,7 @@ end
 -- Big, slow-changing parts of the state are only sent when they change (the client keeps the last copy).
 -- Keep this list in sync with HEAVY in EmpireClient.
 local HEAVY = {"archive", "homeInfo", "props", "districts", "market", "staff", "reviews", "tours", "shareable", "standings", "passes", "cars", "showcase", "biz", "warLeaders",
-	"rebirth", "unlocks", "fees", "spire", "map"}
+	"rebirth", "unlocks", "fees", "spire", "map", "viral"}
 local function sig(v)
 	local t = type(v)
 	if t == "table" then
@@ -417,6 +430,10 @@ function F.sendState(plr, now)
 		e.repair = d.problems[b.key] and d.problems[b.key].repair or nil
 		e.problemText = d.problems[b.key] and PROBLEMS[d.problems[b.key].type].text or nil
 		e.slot = b.index
+		if F.interiorScore100 and lvl > 0 then
+			local sc = F.interiorScore100(d, b.key)
+			e.interior = {score = sc, tier = F.interiorTier(sc)}
+		end
 		if F.improveLevel and lvl > 0 then
 			e.improve = {}
 			for i, im in ipairs(C.IMPROVEMENTS) do
@@ -515,6 +532,7 @@ function F.sendState(plr, now)
 		rebirth = {count = d.rebirths, cost = F.rebirthCost(d), mult = math.floor((F.rebirthMult(d) - 1) * 100 + 0.5), perks = perks, unlocked = unlocks.rebirth},
 		map = F.mapState and F.mapState(plr, d) or nil,
 		interior = F.interiorState and F.interiorState(plr, d) or nil,
+		viral = F.viralState and F.viralState(plr, d) or nil, beef = F.beefInfo and F.beefInfo(plr, d, now) or nil,
 		tut = tut, raceBest = d.raceBest, unread = F.unreadCount and F.unreadCount(d) or 0, story = F.storyState and F.storyState(plr, d) or nil,
 		showcase = F.showcasePoints(d), tours = F.toursList(), mysterySite = C.mysterySite and C.mysterySite() or nil,
 		mysteryPrice = C.mysterySite and C.mysterySite() and F.mysteryPrice(d) or nil,
@@ -933,6 +951,7 @@ R.Action.OnServerEvent:Connect(function(plr, action, a, b, c)
 		notify(plr, "👋 Hired " .. cand.name .. " as your " .. STAFF_ROLES[a].role .. "!")
 		R.Menu:FireClient(plr, "closeCandidates")
 		if F.refreshWorkers then F.refreshWorkers(plr) end
+		if F.cineStaff then F.cineStaff(plr, d, a, cand.name, true) end
 	elseif action == "train" and STAFF_ROLES[a] and d.staff[a] then
 		local st = d.staff[a]
 		if st.exp >= 5 then return end
@@ -946,9 +965,11 @@ R.Action.OnServerEvent:Connect(function(plr, action, a, b, c)
 		notify(plr, "📚 " .. st.name .. " leveled up! Experience " .. st.exp .. "★")
 		if F.refreshWorkers then F.refreshWorkers(plr) end
 	elseif action == "fire" and STAFF_ROLES[a] and d.staff[a] then
-		notify(plr, "👋 " .. d.staff[a].name .. " left the company.")
+		local who = d.staff[a].name
+		notify(plr, "👋 " .. who .. " left the company.")
 		d.staff[a] = nil
 		if F.refreshWorkers then F.refreshWorkers(plr) end
+		if F.cineStaff then F.cineStaff(plr, d, a, who, false) end
 	elseif action == "problem" then
 		if BIZ[a] and PROBLEM_CHOICE[b] then F.resolveProblem(plr, d, a, b, now) end
 	elseif action == "ad" then
@@ -1087,6 +1108,9 @@ R.Action.OnServerEvent:Connect(function(plr, action, a, b, c)
 		elseif a == "story" then
 			local ch = int(b, 1, 7)
 			if ch and F.storyDebugJump then F.storyDebugJump(plr, d, ch) end
+		elseif C.DEBUG and C.DEBUG[a] then
+			-- v9 Studio tools registered by other modules (cinematics, influencers, viral events...)
+			C.DEBUG[a](plr, d, str(b, 20) and b or nil)
 		end
 	elseif action == "shareAch" then
 		if str(a, 30) then F.shareAchievement(plr, a) end
@@ -1138,7 +1162,7 @@ do
 		return {cars = cars, passes = passes, staff = staff, ads = ads, npcs = npcs, chains = #CHAINS, rentals = rentals,
 			features = features, tiers = tiers, presets = C.PRESET_COUNT, minigames = MINIGAMES, homeLevels = HOME_LEVELS,
 			story = C.storyCatalog and C.storyCatalog() or nil, map = C.mapCatalog and C.mapCatalog() or nil, version = C.VERSION,
-			interiors = C.interiorCatalog and C.interiorCatalog() or nil}
+			interiors = C.interiorCatalog and C.interiorCatalog() or nil, cast = C.CAST}
 	end
 end
 

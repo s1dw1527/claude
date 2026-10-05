@@ -121,7 +121,7 @@ C.SND = {
 	event = sound("rbxasset://sounds/snap.mp3", 0.6),
 	msg = sound("rbxasset://sounds/electronicpingshort.wav", 0.3),
 }
-C.settings = {music = true, musicVol = 5, sfx = true, crowd = "high", weather = true, units = "MPH", spawnAt = "business"}
+C.settings = {music = true, musicVol = 5, sfx = true, crowd = "high", weather = true, units = "MPH", spawnAt = "business", cinematics = "full"}
 function C.play(s)
 	if not C.settings.sfx then return end
 	pcall(function() SoundService:PlayLocalSound(s) end)

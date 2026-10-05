@@ -16,7 +16,7 @@ H.main(function()
 	end
 
 	H.section("Version + store names")
-	H.check(C.VERSION.VERSION == "8.0.0" and C.VERSION.SCHEMA_VERSION == 8 and C.VERSION.MIN_SUPPORTED_SCHEMA == 6, "C.VERSION is 8.0.0 / schema 8 / oldest 6")
+	H.check(C.VERSION.VERSION == "9.0.0" and C.VERSION.SCHEMA_VERSION == 9 and C.VERSION.MIN_SUPPORTED_SCHEMA == 6, "C.VERSION is 9.0.0 / schema 9 / oldest 6")
 	H.check(C.CFG.DATASTORE == "CornerEmpire_v5", "the live DataStore name is unchanged (CornerEmpire_v5)")
 	H.check(C.storeName(C.CFG.DATASTORE) == "CornerEmpire_v5_StudioTest", "Studio playtests use a separate test copy of the store")
 
@@ -42,7 +42,7 @@ H.main(function()
 	F.save(a)
 	H.task.wait(0.5)
 	local s1 = db["u101_s1"]
-	H.check(s1.SchemaVersion == 8 and s1.gameVersion == "8.0.0" and s1.saveSeq == 1, "saved back as schema 8, save counter 1")
+	H.check(s1.SchemaVersion == 9 and s1.gameVersion == "9.0.0" and s1.saveSeq == 1 and type(s1.viral) == "table" and s1.evictions == 0, "saved back as schema 9 (with the v9 viral record), save counter 1")
 	H.check(s1.modFieldFromSomewhere and s1.modFieldFromSomewhere.keep == true, "a field this version doesn't know about is kept")
 	H.check(s1.earned >= 5e8 and s1.levels.lemonade == 10 and s1.tutPaid == 7, "every old field survives the round trip")
 	leave(a)
@@ -50,7 +50,7 @@ H.main(function()
 	H.check(d and not d.noSave and d.story.ch == 4 and d.story.title == "Local Menace" and d.storyEarned >= 3e6, "v7 save: story chapter, title and story earnings kept")
 	F.save(a)
 	H.task.wait(0.5)
-	H.check(db["u101_s2"].saveSeq == 8 and db["u101_s2"].SchemaVersion == 8, "the v7 save's counter continues (7 -> 8)")
+	H.check(db["u101_s2"].saveSeq == 8 and db["u101_s2"].SchemaVersion == 9, "the v7 save's counter continues (7 -> 8) and it's now schema 9")
 
 	H.section("Leaving and rejoining")
 	d.cash = 777777
@@ -73,12 +73,12 @@ H.main(function()
 	H.check(db["u101_s2"].cash == 123, "leaving doesn't overwrite it either")
 
 	H.section("A save from a newer version of the game")
-	db["u101_s3"] = {SchemaVersion = 9, cash = 42, earned = 42, levels = {lemonade = 2}, rep = 0, brandNewV9Thing = {1, 2, 3}}
+	db["u101_s3"] = {SchemaVersion = 10, cash = 42, earned = 42, levels = {lemonade = 2}, rep = 0, brandNewV10Thing = {1, 2, 3}}
 	d = play(a, 3)
 	H.check(d and d.noSave and d.loadProblem == "newer" and d.levels.lemonade == 2, "it loads (read-only) and this server won't save it")
 	d.cash = 1e9
 	leave(a)
-	H.check(db["u101_s3"].SchemaVersion == 9 and db["u101_s3"].cash == 42 and db["u101_s3"].brandNewV9Thing, "the v9 save is untouched")
+	H.check(db["u101_s3"].SchemaVersion == 10 and db["u101_s3"].cash == 42 and db["u101_s3"].brandNewV10Thing, "the v10 save is untouched")
 
 	H.section("Corrupt saves and failed loads never become a fresh save")
 	local b = T.join("Bob", 202)
