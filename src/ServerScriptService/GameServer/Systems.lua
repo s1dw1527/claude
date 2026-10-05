@@ -532,6 +532,7 @@ function F.makeProblem(plr, d, now)
 	F.problemVisual(plr, key, true)
 	F.refreshWorkers(plr)
 	notify(plr, "⚠️ PROBLEM at your " .. BIZ[key].name .. ": " .. PROBLEMS[ti].text)
+	if F.managerOnProblem then F.managerOnProblem(plr, d, key) end
 end
 function F.resolveProblem(plr, d, key, choice, now)
 	local pr = d.problems[key]

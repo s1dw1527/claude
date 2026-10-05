@@ -587,6 +587,7 @@ function F.forceProblem(plr, d, why, key, typeIndex)
 	F.problemVisual(plr, k, true)
 	F.refreshWorkers(plr)
 	if why then notify(plr, why .. " Your " .. BIZ[k].name .. " needs a repair.") end
+	if F.managerOnProblem then F.managerOnProblem(plr, d, k) end
 end
 C.megaState = function()
 	local ev = M.active

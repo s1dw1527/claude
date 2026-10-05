@@ -614,7 +614,14 @@ function F.refreshTower(plr, force)
 		billboard(holo, UDim2.fromOffset(220, 70), V3(0, 3, 0), {{text = "🏢 " .. string.upper(plr.Name) .. " HQ", h = 0.6}, {text = floors .. " floors", h = 0.4, color = accent, font = Enum.Font.GothamBold}}, 500)
 		local door = P(m, V3(3.4, 3.4, 0.3), CF(base + V3(0, 1.7, 5.2 * plot.fz)), RGB(255, 215, 90), MAT.Neon, {Transparency = 0.3})
 		C.prompt(door, "Enter HQ", "Empire Tower", 10, 0.2, function(who)
-			if who == plr then R.Menu:FireClient(plr, "open", "archive") end
+			-- v10: the tower is your HQ. Walk in once it has a floor; otherwise the HQ card shows what to build.
+			if who ~= plr then
+				if F.hqLevel and data[plr] and F.hqLevel(data[plr]) >= 1 then F.enterInterior(who, plr, "hq1") end
+			elseif F.hqLevel and F.hqLevel(data[plr]) >= 1 then
+				F.enterInterior(plr, plr, "hq1")
+			elseif F.hqInfo then
+				R.Menu:FireClient(plr, "hq", F.hqInfo(plr))
+			end
 		end)
 	end
 	m.Parent = plot.folder

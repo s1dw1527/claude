@@ -479,7 +479,7 @@ function F.sendState(plr, now)
 	local problems = {}
 	for key, pr in pairs(d.problems) do
 		table.insert(problems, {key = key, biz = BIZ[key].name, icon = PROBLEMS[pr.type].icon, text = PROBLEMS[pr.type].text,
-			repair = pr.repair, replace = pr.replace, state = pr.state, left = pr.untilT and math.max(0, math.ceil(pr.untilT - now)) or nil})
+			repair = pr.repair, replace = pr.replace, state = pr.state, managing = pr.manager == true, left = pr.untilT and math.max(0, math.ceil(pr.untilT - now)) or nil})
 	end
 	local dl
 	if d.delivery then
@@ -931,6 +931,7 @@ R.Action.OnServerEvent:Connect(function(plr, action, a, b, c)
 	local d = data[plr]
 	if not d then return end
 	local now = os.clock()
+	if F.markActive then F.markActive(plr) end
 	if action == "buy" then
 		if BIZ[a] then F.buyUpgrade(plr, d, a) end
 	elseif action == "chain" then

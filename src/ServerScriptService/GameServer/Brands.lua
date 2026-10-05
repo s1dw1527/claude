@@ -394,8 +394,9 @@ function F.restock(plr, key, how)
 	if how == "manager" then
 		remote = false
 	elseif remote then
-		if (d.computer and d.computer.tier or 0) < 3 then
-			notify(plr, "📦 Remote restocking needs an Executive Workstation (or better) computer.")
+		-- only from a computer you're standing at (see Computer.lua), and only an Executive Workstation or better
+		if not (F.computerOpen and F.computerOpen(plr) and F.computerSessionTier(plr, d) >= 3) then
+			notify(plr, "📦 Remote restocking works from an Executive Workstation (or better) computer.")
 			return false
 		end
 	elseif not F.canRestockHere(plr, d, key) then
@@ -498,7 +499,8 @@ C.ACTIONS.product = function(plr, d, a, b, c)
 	if not ok and why then notify(plr, "📦 " .. why) end
 end
 C.ACTIONS.restock = function(plr, d, a, b)
-	if C.str(a, 20) then F.restock(plr, a, b == "remote" and "remote" or "here") end
+	-- (remote restocking goes through the computer: pcRestock)
+	if C.str(a, 20) then F.restock(plr, a, "here") end
 end
 Players.PlayerRemoving:Connect(function(plr) lastTrend[plr] = nil end)
 

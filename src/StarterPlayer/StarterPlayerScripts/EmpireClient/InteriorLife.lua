@@ -72,6 +72,9 @@ local function fillThing(r, text) return (string.gsub(text, "{thing}", THINGS[r.
 local function addStaff(r, role, name)
 	if #r.staff >= MAX_STAFF then return end
 	local u = UNI[r.key] or UNI.lemonade
+	-- v10: the owner's brand uniform colour (Brand tab) replaces the default shirt
+	local brand = r.model:GetAttribute("Uniform")
+	if typeof(brand) == "Color3" then u = {shirt = brand, pants = u.pants, work = u.work} end
 	local look = {shirt = role == "manager" and RGB(30, 36, 62) or u.shirt, pants = role == "manager" and RGB(30, 36, 62) or u.pants, skin = A.SKIN[(#r.staff % #A.SKIN) + 1],
 		apron = (role == "cook" or role == "cashier") and Color3.new(1, 1, 1) or nil, tie = role == "manager" and RGB(200, 40, 50) or nil,
 		hat = role == "cook" and Color3.new(1, 1, 1) or (r.key == "factory" and RGB(255, 205, 40) or nil), hatKind = role == "cook" and "beanie" or "cap"}
@@ -94,7 +97,12 @@ local function staffThink(r, a, now)
 			if c.state == "ordering" and not c.servedBy then
 				c.servedBy = a
 				A.play(a, "show", now)
-				bubble(a, ({"What can I get you?", "Next!", "Welcome in!", "Coming right up!"})[math.random(4)], 2)
+				local menu = r.menu or {}
+				if #menu > 0 and math.random() < 0.5 then
+					bubble(a, ({"One %s, coming up!", "Try the %s!", "%s? Great choice."})[math.random(3)]:format(menu[math.random(#menu)]), 2)
+				else
+					bubble(a, ({"What can I get you?", "Next!", "Welcome in!", "Coming right up!"})[math.random(4)], 2)
+				end
 				a.wait = now + 1.6
 				return
 			end
@@ -139,6 +147,21 @@ local function staffThink(r, a, now)
 			a.wait = now + 2.5 + math.random() * 2
 			a.state = "go"
 			if math.random() < 0.15 then bubble(a, ({"Numbers look good.", "Who moved my stapler?", "Great work, team!", "Checking the register..."})[math.random(4)]) end
+		end
+	elseif a.role == "reception" or a.role == "desk" or a.role == "hqmanager" then
+		-- v10 HQ crew: they stay at their desks (the server says where) and get on with their day
+		if a.role == "desk" then
+			A.play(a, "type", now)
+			a.wait = now + 3 + math.random() * 3
+			if math.random() < 0.06 then bubble(a, ({"Quarterly numbers: up.", "Who took my stapler?", "Approved.", "Meeting in 5!"})[math.random(4)]) end
+		elseif a.role == "reception" then
+			A.play(a, math.random() < 0.3 and "wave" or "idle", now)
+			a.wait = now + 2.5 + math.random() * 2
+			if math.random() < 0.12 then bubble(a, ({"Welcome to the HQ!", "The boss is upstairs.", "Elevator's to your right.", "Please sign in!"})[math.random(4)]) end
+		else
+			A.play(a, math.random() < 0.5 and "clipboard" or "type", now)
+			a.wait = now + 3 + math.random() * 2
+			if math.random() < 0.08 then bubble(a, ({"Everything's under control.", "Contract's looking good.", "On it, boss.", "I'll handle the repairs."})[math.random(4)]) end
 		end
 	elseif a.role == "worker" then
 		-- factory floor: a station, a machine, the loading dock
@@ -303,6 +326,29 @@ local function start(model)
 	if typeof(origin) ~= "Vector3" then origin = model:GetPivot().Position end
 	room = {model = model, key = key, origin = origin, wps = wpList(model), staff = {}, customers = {}, seatsUsed = {}, nextCustomer = os.clock() + 1.5}
 	IL.stats.rooms += 1
+	local menu = model:GetAttribute("Menu")
+	room.menu = type(menu) == "string" and menu ~= "" and string.split(menu, "|") or {}
+	-- v10 HQ floors: the server lists the crew as "role,x,z;..." in room coordinates
+	local crew = model:GetAttribute("Crew")
+	if type(crew) == "string" then
+		local seed = tonumber(model:GetAttribute("OwnerId")) or 1
+		local roles = {receptionist = "reception", worker = "desk", manager = "hqmanager"}
+		for i, entry in ipairs(string.split(crew, ";")) do
+			local role, x, z = string.match(entry, "^(%a+),([%-%d%.]+),([%-%d%.]+)$")
+			if role and roles[role] then
+				local pos = origin + V3(tonumber(x), 0, tonumber(z))
+				local name = role == "manager" and model:GetAttribute("Manager") or NAMES[(seed + i * 5) % #NAMES + 1]
+				addStaff(room, roles[role], name ~= "" and name or nil)
+				local a = room.staff[#room.staff]
+				if a then
+					-- desks face the screens (-Z); the receptionist faces the lobby (+Z)
+					a.base = A.faceTowards(pos, pos + V3(0, 0, role == "receptionist" and 1 or -1))
+					a.state = "seat"
+				end
+			end
+		end
+		return
+	end
 	if key == "home" or not UNI[key] then return end
 	local lvl = model:GetAttribute("Level") or 1
 	local staffName = model:GetAttribute("Staff")

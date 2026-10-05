@@ -113,6 +113,11 @@ local LAYOUTS = {
 for _, L in pairs(LAYOUTS) do
 	for _, s in ipairs(walls(L.w, L.d)) do table.insert(L.spots, s) end
 end
+-- v10: HQ floors (filled in by GameServer > HQ). Floor 6 is the open-air rooftop.
+for n = 1, 6 do LAYOUTS["hq" .. n] = {w = 56, d = 40, fixtures = {}, spots = {}, hq = n, open = n == 6} end
+local function layoutOf(key) return LAYOUTS[key] or LAYOUTS.home end
+C.interiorLayoutOf = layoutOf
+local function isHQ(key) return type(key) == "string" and string.match(key, "^hq(%d)$") ~= nil end
 -- where the level-5 management office goes (x, z, width): a front corner, clear of the decoration spots
 LAYOUTS.bakery.office = {16.5, -1, 5}
 LAYOUTS.coffee.office = {17, 0, 6}
@@ -158,7 +163,7 @@ function F.interiorScore100(d, key)
 			filled += 1
 		end
 	end
-	local L = LAYOUTS[BIZ[key] and key or "home"]
+	local L = layoutOf(key)
 	local fill = L and #L.spots > 0 and filled / #L.spots * 10 or 0
 	return math.clamp(math.floor(style + math.min(50, decor * 0.9) + fill + 0.5), 0, 100)
 end
@@ -619,28 +624,31 @@ local function buildRoom(room)
 	m.Name = "Interior_" .. owner.Name .. "_" .. key
 	m.Parent = FOLDER
 	room.model = m
-	local L = LAYOUTS[BIZ[key] and key or "home"]
+	local L = layoutOf(key)
 	local r = roomData(d, key)
 	local wall, floor, light = styleOf("wall", r.wall), styleOf("floor", r.floor), styleOf("light", r.light)
 	local o = room.origin
 	local accent = BIZ[key] and BIZ[key].color or d.plot.color
-	local H = 14
+	local H = L.open and 4 or 14   -- (the rooftop has railings, not walls, and no ceiling)
 	box(m, V3(L.w, 1, L.d), o * CF(0, 0, 0), floor.color, mat(floor.mat), SOLID)
-	box(m, V3(L.w, 1, L.d), o * CF(0, H, 0), RGB(245, 245, 245), nil, SOLID)
+	if not L.open then box(m, V3(L.w, 1, L.d), o * CF(0, H, 0), RGB(245, 245, 245), nil, SOLID) end
 	box(m, V3(L.w, H, 1), o * CF(0, H / 2, -L.d / 2), wall.color, mat(wall.mat), SOLID)
 	box(m, V3(1, H, L.d), o * CF(-L.w / 2, H / 2, 0), wall.color, mat(wall.mat), SOLID)
 	box(m, V3(1, H, L.d), o * CF(L.w / 2, H / 2, 0), wall.color, mat(wall.mat), SOLID)
 	-- front wall with the exit door
 	box(m, V3(L.w / 2 - 3, H, 1), o * CF(-L.w / 4 - 1.5, H / 2, L.d / 2), wall.color, mat(wall.mat), SOLID)
 	box(m, V3(L.w / 2 - 3, H, 1), o * CF(L.w / 4 + 1.5, H / 2, L.d / 2), wall.color, mat(wall.mat), SOLID)
-	box(m, V3(6, H - 9, 1), o * CF(0, H - (H - 9) / 2, L.d / 2), wall.color, mat(wall.mat), SOLID)
+	if not L.open then box(m, V3(6, H - 9, 1), o * CF(0, H - (H - 9) / 2, L.d / 2), wall.color, mat(wall.mat), SOLID) end
 	local door = box(m, V3(6, 9, 0.6), o * CF(0, 4.5, L.d / 2), RGB(90, 60, 40), MAT.Wood, SOLID)
-	C.prompt(door, "Leave", (BIZ[key] and BIZ[key].name or "Home"), 10, 0, function(plr) F.leaveInterior(plr) end)
+	C.prompt(door, "Leave", (BIZ[key] and F.bizName(d, key) or (isHQ(key) and (owner.Name .. "'s HQ") or "Home")), 10, 0, function(plr) F.leaveInterior(plr) end)
 	-- name over the door, inside
-	local sign = box(m, V3(14, 2, 0.3), o * CF(0, 11.5, L.d / 2 - 0.7), RGB(30, 30, 34))
-	C.surfaceText(sign, Enum.NormalId.Front, (BIZ[key] and (BIZ[key].icon .. " " .. owner.Name .. "'s " .. BIZ[key].name) or ("🏠 " .. owner.Name .. "'s Home")), Color3.new(1, 1, 1))
+	if not L.open then
+		local sign = box(m, V3(14, 2, 0.3), o * CF(0, 11.5, L.d / 2 - 0.7), RGB(30, 30, 34))
+		local hqFloor = isHQ(key) and C.HQ_FLOORS and C.HQ_FLOORS[L.hq]
+		C.surfaceText(sign, Enum.NormalId.Front, (BIZ[key] and (BIZ[key].icon .. " " .. F.bizName(d, key)) or (hqFloor and ("🏢 " .. owner.Name .. " HQ • " .. hqFloor.name)) or ("🏠 " .. owner.Name .. "'s Home")), Color3.new(1, 1, 1))
+	end
 	-- lights
-	local nx = math.max(2, math.floor(L.w / 16))
+	local nx = L.open and 0 or math.max(2, math.floor(L.w / 16))
 	for i = 1, nx do
 		local x = -L.w / 2 + i * L.w / (nx + 1)
 		local fixture = box(m, light.chandelier and V3(3, 1.5, 3) or V3(3, 0.3, 3), o * CF(x, H - (light.chandelier and 1.4 or 0.4), 0),
@@ -666,7 +674,19 @@ local function buildRoom(room)
 		title = F.bizName(d, key)
 		if d.brands and d.brands[key] and d.brands[key].accent then accent = F.brandAccent(d, key) end
 	end
-	local ok, err = pcall(buildFixtures, m, o, L, BIZ[key] and key or "home", accent, lvl, owner.Name, title, BIZ[key] and (d.brands and d.brands[key] and d.brands[key].logo or BIZ[key].icon) or "🏠")
+	local ok, err
+	if isHQ(key) and C.HQ_THEMES and C.HQ_THEMES[key] then
+		-- an HQ floor: its own furniture, an elevator, and the people working there
+		ok, err = pcall(function()
+			local crew = C.HQ_THEMES[key](m, o, L, d, owner, accent) or {}
+			if C.hqElevator then C.hqElevator(m, o, L, owner) end
+			local parts = {}
+			for _, c in ipairs(crew) do table.insert(parts, c[1] .. "," .. c[2] .. "," .. c[3]) end
+			m:SetAttribute("Crew", table.concat(parts, ";"))
+		end)
+	else
+		ok, err = pcall(buildFixtures, m, o, L, BIZ[key] and key or "home", accent, lvl, owner.Name, title, BIZ[key] and (d.brands and d.brands[key] and d.brands[key].logo or BIZ[key].icon) or "🏠")
+	end
 	FURN.menuText, FURN.menuColor = nil, nil
 	if not ok then warn("[CornerEmpire] interior fixtures (" .. key .. "): " .. tostring(err)) end
 	m:SetAttribute("Key", key)
@@ -695,7 +715,7 @@ local function roomFor(owner, key)
 		nextSlot += 1
 		local d = data[owner]
 		local px = d and d.plot.index or 1
-		local idx = BIZ[key] and BIZ[key].index or 9
+		local idx = BIZ[key] and BIZ[key].index or (isHQ(key) and (10 + tonumber(string.match(key, "%d"))) or 9)
 		-- far above the eastern edge of the map, each owner in their own column, each room in its own row
 		room = {owner = owner, key = key, occupants = {}, origin = CF(1800 + px * 160, 400, -600 + idx * 70)}
 		rooms[id] = room
@@ -723,7 +743,14 @@ function F.enterInterior(plr, owner, key)
 	if not (d and od) then return end
 	if BIZ[key] then
 		if (od.levels[key] or 0) <= 0 then return end
+	elseif isHQ(key) then
+		if F.hqLevel(od) < tonumber(string.match(key, "%d")) then return end
 	elseif key ~= "home" or not (od.home and od.home.level and od.home.level > 0) then
+		return
+	end
+	-- v10: the owner decides who may come in (public / friends / invite only / private)
+	if owner ~= plr and F.canVisit and not F.canVisit(plr, owner, key) then
+		notify(plr, "🔒 " .. owner.Name .. " isn't letting visitors into their " .. (BIZ[key] and "business" or (isHQ(key) and "HQ" or "home")) .. " right now.")
 		return
 	end
 	local char = plr.Character
@@ -731,7 +758,13 @@ function F.enterInterior(plr, owner, key)
 	if not root then return end
 	local room = roomFor(owner, key)
 	if not room.model or not room.model.Parent then buildRoom(room) else pcall(F.roomInfo, room) end
-	where[plr] = {room = room, back = root.CFrame}
+	-- moving between rooms (the HQ elevator) keeps the original way out
+	local prev = where[plr]
+	if prev and prev.room ~= room then
+		prev.room.occupants[plr] = nil
+		if next(prev.room.occupants) == nil then prev.room.empty = os.clock() end
+	end
+	where[plr] = {room = room, back = prev and prev.back or root.CFrame}
 	room.occupants[plr] = true
 	room.empty = nil
 	F.despawnCar(plr)
@@ -821,7 +854,7 @@ function F.decorate(plr, what, slot, itemKey)
 	end
 	local key = w.room.key
 	local r = roomData(d, key)
-	local L = LAYOUTS[BIZ[key] and key or "home"]
+	local L = layoutOf(key)
 	local cost, label
 	if what == "wall" or what == "floor" or what == "light" then
 		local st
@@ -877,7 +910,7 @@ function F.interiorState(plr, d)
 		name = BIZ[key] and BIZ[key].name or "Home"}
 	if mine then
 		local r = roomData(d, key)
-		local L = LAYOUTS[BIZ[key] and key or "home"]
+		local L = layoutOf(key)
 		out.wall, out.floor, out.light = r.wall, r.floor, r.light
 		out.spots = {}
 		for i, sp in ipairs(L.spots) do out.spots[i] = {place = sp[3], item = r.spots[tostring(i)] or "", at = w.room.origin * CF(sp[1], 1, sp[2])} end

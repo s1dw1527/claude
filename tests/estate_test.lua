@@ -278,12 +278,11 @@ H.main(function()
 	T.act(a, "restock", "lemonade")
 	H.check(st[1] < 100, "you have to be at the business to restock it")
 	T.act(a, "restock", "lemonade", "remote")
-	H.check(st[1] < 100, "remote restocking needs an Executive computer")
+	H.check(st[1] < 100, "the restock action can't be made remote by the client")
 	d.computer.tier = 3
-	local cost = F.restockCost(d, "lemonade", true)
-	local cash1 = d.cash
-	T.act(a, "restock", "lemonade", "remote")
-	H.check(st[1] == 100 and st[2] == 100 and math.abs((cash1 - d.cash) - cost) < F.incomePerSec(d) + 2, "with an Executive computer: remote restock ($" .. C.fmt(cost) .. ", +10% delivery)")
+	T.act(a, "pcRestock", "lemonade")
+	H.check(st[1] < 100, "even with an Executive computer: remote restock only while standing at it (hq_test covers the real flow)")
+	H.check(F.restockCost(d, "lemonade", true) > F.restockCost(d, "lemonade", false), "remote restock costs a bit more (delivery)")
 	d.computer.tier = 0
 
 	H.section("Trending products")
