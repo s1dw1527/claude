@@ -25,6 +25,7 @@
     "Interiors",
     "HQ",
     "Computer",
+    "HomeBuilder",
     "Cinematics",
     "ViralMoments",
     "Influencers",
@@ -53,6 +54,7 @@
     "MapApp",
     "InteriorUI",
     "InteriorLife",
+    "BuilderUI",
     "CityLife",
     "ViralApp",
     "MainMenu"

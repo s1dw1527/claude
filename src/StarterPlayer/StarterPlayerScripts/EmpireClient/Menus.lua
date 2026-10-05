@@ -460,8 +460,8 @@ do
 	local hT = label({Position = UDim2.fromOffset(14, 8), Size = UDim2.new(1, -28, 0, 26), TextSize = 20, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left}, cur)
 	local hS = label({Position = UDim2.fromOffset(14, 34), Size = UDim2.new(1, -28, 0, 44), TextSize = 12, TextColor3 = SUB, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top}, cur)
 	local pips = {}
-	for k = 1, 5 do
-		local pp = new("Frame", {Position = UDim2.fromOffset(14 + (k - 1) * 34, 78), Size = UDim2.fromOffset(28, 10), BackgroundColor3 = GRAY, BorderSizePixel = 0}, cur)
+	for k = 1, 7 do
+		local pp = new("Frame", {Position = UDim2.fromOffset(14 + (k - 1) * 30, 78), Size = UDim2.fromOffset(25, 10), BackgroundColor3 = GRAY, BorderSizePixel = 0}, cur)
 		corner(pp, 3)
 		pips[k] = pp
 	end
@@ -471,7 +471,14 @@ do
 	inB.MouseButton1Click:Connect(function() play(SND.click) act("enterHome") m.frame.Visible = false end)
 	buildB.MouseButton1Click:Connect(function() play(SND.click) act("homeBuild") end)
 	goB.MouseButton1Click:Connect(function() play(SND.click) act("tp", "home") m.frame.Visible = false end)
-	header(m.body, "🗺️ Neighborhoods — visit a FOR SALE sign to buy land", 2)
+	-- v10: furniture, the home builder and visitor permissions
+	local tools = card(m.body, 50, 2, RGB(34, 38, 54))
+	for i, t in ipairs({{"🛒 Furniture shop", function() C.openModal("furniture", true) end}, {"🔨 Home builder", function() if C.BuilderUI then C.BuilderUI.open("place") end end},
+		{"🔐 Visitors", function() if C.BuilderUI then C.BuilderUI.open("visitors") end end}}) do
+		local b = button({Position = UDim2.new((i - 1) / 3, 6, 0, 6), Size = UDim2.new(1 / 3, -10, 0, 38), Text = t[1], TextSize = 13, BackgroundColor3 = i == 1 and GREEN or (i == 2 and RGB(230, 140, 40) or PURPLE)}, tools)
+		b.MouseButton1Click:Connect(function() play(SND.click) t[2]() end)
+	end
+	header(m.body, "🗺️ Neighborhoods — visit a FOR SALE sign to buy land", 3)
 	local rows = {}
 	m.update = function(s)
 		local hi = s.homeInfo
@@ -487,7 +494,7 @@ do
 				buildB.Text = "🔨 Build: " .. h.nextName .. "  $" .. fmt(h.cost)
 				buildB.BackgroundColor3 = s.cash >= h.cost and GREEN or GRAY
 			else
-				buildB.Text = "🌟 DREAM HOME COMPLETE"
+				buildB.Text = "🌟 EMPIRE ESTATE COMPLETE"
 				buildB.BackgroundColor3 = RGB(190, 145, 30)
 			end
 			goB.Visible = true
@@ -503,7 +510,7 @@ do
 		for i, hd in ipairs(hi.hoods) do
 			local r = rows[i]
 			if not r then
-				local c = card(m.body, 74, 2 + i)
+				local c = card(m.body, 74, 3 + i)
 				r = {c = c, key = hd.key}
 				r.t = label({Position = UDim2.fromOffset(12, 6), Size = UDim2.new(1, -150, 0, 22), TextSize = 16, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left}, c)
 				r.a = label({Position = UDim2.fromOffset(12, 28), Size = UDim2.new(1, -150, 0, 16), TextSize = 12, TextColor3 = SUB, TextXAlignment = Enum.TextXAlignment.Left}, c)

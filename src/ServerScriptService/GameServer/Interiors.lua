@@ -165,6 +165,12 @@ function F.interiorScore100(d, key)
 	end
 	local L = layoutOf(key)
 	local fill = L and #L.spots > 0 and filled / #L.spots * 10 or 0
+	-- v10: the home builder's furniture and house styles count too
+	if key == "home" and F.homeBuildScore then
+		local s, n = F.homeBuildScore(d)
+		decor += s
+		fill = math.min(10, fill + n / 2)
+	end
 	return math.clamp(math.floor(style + math.min(50, decor * 0.9) + fill + 0.5), 0, 100)
 end
 function F.interiorTier(score)
@@ -259,6 +265,7 @@ local function buildItem(m, it, cf, accent)
 		box(m, V3(2, 2, 2), cf * CF(0, 1.6, 0), accent)
 	end
 end
+C.interiorHelpers = {box = box, addLight = addLight}
 -- ===== the functional areas each business type always has (v9: a full layout per business, scaled by level) =====
 -- Every room also gets invisible waypoints (parts named "WP" with a Kind attribute) that the client-side staff and
 -- customers walk between: register, order, prep, seat, door, wander, trash, office, display, machine.
@@ -273,12 +280,14 @@ local function wp(m, o, kind, x, z)
 	p.Parent = m
 	return p
 end
+C.interiorHelpers.wp = wp
 local function sign(m, size, cf, text, face, color, bg)
 	local p = box(m, size, cf, bg or RGB(30, 30, 34))
 	C.surfaceText(p, face or Enum.NormalId.Back, text, color or Color3.new(1, 1, 1))
 	return p
 end
-local FURN = {
+local FURN
+FURN = {
 	counter = function(m, o, x, z, w, accent)
 		box(m, V3(w, 3.4, 2.4), o * CF(x, 2.2, z), RGB(230, 225, 215), MAT.SmoothPlastic, SOLID)
 		box(m, V3(w + 0.2, 0.3, 2.6), o * CF(x, 4, z), accent)
@@ -575,7 +584,9 @@ local function buildFixtures(m, o, L, key, accent, lvl, ownerName, title, icon)
 	end
 	local hw, hd = L.w / 2, L.d / 2
 	for _, f in ipairs(L.fixtures) do
-		if f == "homeRooms" then
+		if f == "homeRooms" and C.homeLayoutBuild and C.homeLayoutBuild(m, o, L, accent, FURN.homeLayout or "classic") then
+			-- v10: the house builder's room layout (GameServer > HomeBuilder)
+		elseif f == "homeRooms" then
 			-- partitions: living room (front), kitchen (back left), bedroom (back middle), bathroom (back right), garage (left)
 			box(m, V3(L.w, 12, 0.6), o * CF(0, 6.6, -4), RGB(220, 215, 205))
 			for _, x in ipairs({-8, 8}) do box(m, V3(0.6, 12, hd - 4), o * CF(x, 6.6, -hd / 2 - 2), RGB(220, 215, 205)) end
@@ -685,6 +696,7 @@ local function buildRoom(room)
 			m:SetAttribute("Crew", table.concat(parts, ";"))
 		end)
 	else
+		FURN.homeLayout = key == "home" and F.homeLayout and F.homeLayout(d) or nil
 		ok, err = pcall(buildFixtures, m, o, L, BIZ[key] and key or "home", accent, lvl, owner.Name, title, BIZ[key] and (d.brands and d.brands[key] and d.brands[key].logo or BIZ[key].icon) or "🏠")
 	end
 	FURN.menuText, FURN.menuColor = nil, nil
@@ -702,6 +714,7 @@ local function buildRoom(room)
 			buildItem(m, it, o * CF(sp[1], 0.5, sp[2]) * CFrame.Angles(0, yaw, 0), accent)
 		end
 	end
+	if key == "home" and C.buildHomeExtras then C.buildHomeExtras(m, o, L, d, owner, accent) end
 	room.spawn = o * CF(0, 3, L.d / 2 - 4)
 end
 
@@ -715,7 +728,7 @@ local function roomFor(owner, key)
 		nextSlot += 1
 		local d = data[owner]
 		local px = d and d.plot.index or 1
-		local idx = BIZ[key] and BIZ[key].index or (isHQ(key) and (10 + tonumber(string.match(key, "%d"))) or 9)
+		local idx = BIZ[key] and BIZ[key].index or (isHQ(key) and (10 + (tonumber(string.match(key, "%d")) or 0)) or 9)
 		-- far above the eastern edge of the map, each owner in their own column, each room in its own row
 		room = {owner = owner, key = key, occupants = {}, origin = CF(1800 + px * 160, 400, -600 + idx * 70)}
 		rooms[id] = room
@@ -786,6 +799,11 @@ function F.leaveInterior(plr)
 	if char then char:PivotTo(w.back + Vector3.new(0, 2, 0)) end
 end
 function F.interiorOf(plr) return where[plr] and where[plr].room end
+-- rebuild the room a player is standing in (the house builder calls this after every change)
+function F.rebuildInteriorOf(plr)
+	local w = where[plr]
+	if w and w.room.model then buildRoom(w.room) end
+end
 
 -- doors: an "Enter" prompt at every open business and every built home
 local doors = {}

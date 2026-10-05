@@ -76,9 +76,9 @@ local STYLE = {
 
 local function buildHouse(m, o, hood, lvl, ownerName, accent)
 	local S = STYLE[hood.style]
-	local w = S.w * (1 + (lvl - 1) * 0.07)
-	local d = S.d * (1 + (lvl - 1) * 0.05)
-	local floors = lvl >= 3 and 2 or 1
+	local w = S.w * (1 + (math.min(lvl, 5) - 1) * 0.07)
+	local d = S.d * (1 + (math.min(lvl, 5) - 1) * 0.05)
+	local floors = lvl >= 6 and 3 or (lvl >= 3 and 2 or 1)
 	local fh = hood.style == "mansion" and 8 or 7
 	local y0 = 0.4
 	if S.stilts then
@@ -168,6 +168,32 @@ local function buildHouse(m, o, hood, lvl, ownerName, accent)
 			cyl(m, 1.2, 4, o * CF(w / 2 + 3, y0 + 0.6, d / 2 + 4), RGB(150, 110, 70), MAT.WoodPlanks)
 			cyl(m, 0.2, 3.4, o * CF(w / 2 + 3, y0 + 1.25, d / 2 + 4), RGB(80, 200, 255), MAT.Glass, {Transparency = 0.2})
 		end
+	end
+	-- v10 level 6 (Mega Mansion): a second wing and a lit driveway
+	if lvl >= 6 then
+		local wx = -(w / 2 + 3.5)
+		local wh = fh * 2
+		P(m, V3(7, wh, d * 0.7), o * CF(wx, y0 + wh / 2, -d * 0.15), S.wall, S.mat, SOLID)
+		P(m, V3(7.6, 0.5, d * 0.7 + 0.6), o * CF(wx, y0 + wh + 0.25, -d * 0.15), S.roof)
+		for f = 0, 1 do hwindow(m, o * CF(wx, y0 + f * fh + fh * 0.55, d * 0.2 + 0.05), 2.4, 2.4, true) end
+		for k = -2, 2 do
+			cyl(m, 2.2, 0.3, o * CF(k * 3, 1.1, d / 2 + 7.5), RGB(60, 60, 66), MAT.Metal)
+			ball(m, V3(0.5, 0.5, 0.5), o * CF(k * 3, 2.4, d / 2 + 7.5), RGB(255, 225, 160), MAT.Neon)
+		end
+	end
+	-- v10 level 7 (Empire Estate): gold trim, a grand gate, statues and a searchlight
+	if lvl >= 7 then
+		P(m, V3(w + 0.6, 0.5, d + 0.6), o * CF(0, y0 + h + 0.1, 0), RGB(230, 190, 80), MAT.Foil)
+		for _, sx in ipairs({-1, 1}) do
+			P(m, V3(1.4, 7, 1.4), o * CF(sx * 5, 3.5, d / 2 + 11), RGB(235, 225, 205), MAT.Marble, SOLID)
+			ball(m, V3(1.4, 1.4, 1.4), o * CF(sx * 5, 7.6, d / 2 + 11), RGB(230, 190, 80), MAT.Foil)
+			P(m, V3(1.6, 1, 1.6), o * CF(sx * (w / 2 + 2), 0.9, d / 2 + 4), RGB(60, 60, 66), MAT.Marble)
+			P(m, V3(1, 3, 1), o * CF(sx * (w / 2 + 2), 2.9, d / 2 + 4), RGB(255, 205, 60), MAT.Foil)
+		end
+		local arch = P(m, V3(11.4, 1.2, 1), o * CF(0, 7.6, d / 2 + 11), RGB(230, 190, 80), MAT.Foil)
+		surfaceText(arch, Enum.NormalId.Front, "EMPIRE ESTATE", RGB(40, 30, 10))
+		local beam = P(m, V3(1.4, 30, 1.4), o * CF(w / 2 - 2, top + 15, -d / 2 + 2), RGB(255, 245, 210), MAT.Neon, {Transparency = 0.75})
+		beam.CanQuery = false
 	end
 	-- mailbox with the owner's name
 	local mb = P(m, V3(1, 1, 1.6), o * CF(w / 2 - 1, 3.4, d / 2 + 6), accent, MAT.Metal)

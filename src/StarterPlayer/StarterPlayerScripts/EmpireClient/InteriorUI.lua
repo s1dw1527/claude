@@ -16,6 +16,7 @@ local barL = label({Position = UDim2.fromOffset(10, 0), Size = UDim2.new(1, -220
 local decoB = button({AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -96, 0.5, 0), Size = UDim2.fromOffset(110, 32), Text = "🛋️ Decorate", TextSize = 13, BackgroundColor3 = RGB(200, 90, 160)}, bar)
 local leaveB = button({AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -6, 0.5, 0), Size = UDim2.fromOffset(84, 32), Text = "🚪 Leave", TextSize = 13, BackgroundColor3 = GRAY}, bar)
 leaveB.MouseButton1Click:Connect(function() play(SND.click) act("leaveInterior") end)
+C.interiorBar, C.interiorBarLabel = bar, barL   -- (BuilderUI adds its Build button here)
 
 -- the decorate panel
 local panel = C.panel({AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -16, 0.5, 0), Size = UDim2.fromOffset(330, 470), BackgroundColor3 = RGB(28, 26, 40), Visible = false, ZIndex = 5}, gui)

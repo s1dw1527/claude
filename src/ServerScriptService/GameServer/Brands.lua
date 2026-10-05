@@ -91,7 +91,7 @@ local function trim(s) return (string.gsub(string.gsub(s, "^%s+", ""), "%s+$", "
 -- returns the filtered text, or nil + a reason
 function C.filterText(plr, text, minLen, maxLen)
 	if type(text) ~= "string" then return nil, "No text." end
-	text = trim(string.gsub(text, "[%c]", ""))
+	text = trim((string.gsub(text, "[%c]", "")))
 	text = string.gsub(text, "%s+", " ")
 	local n = utf8.len(text) or #text
 	if n < (minLen or 1) then return nil, "Too short (at least " .. (minLen or 1) .. " characters)." end
