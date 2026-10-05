@@ -24,14 +24,29 @@ local function wheel(m, cf, D, rimColor, gold)
 	xcyl(m, 1.08, D * 0.2, cf, DARK, MAT.Metal)
 end
 
-function C.buildCar(spec, cf, plateText)
+-- v10 customization (Garage): mods = {paint, wheels, tint, interior, decal, spoiler, bumper, exhaust} (keys into
+-- C.CAR_MODS, see Garage.lua). Every car also gets named detail parts the client animates: Headlight, BrakeLight,
+-- SignalL / SignalR, a Dash screen and a SteeringWheel (held by a Weld so the driver's screen can turn it).
+function C.buildCar(spec, cf, plateText, mods)
 	local m = Instance.new("Model")
 	m.Name = spec.name
+	mods = type(mods) == "table" and mods or {}
+	local MODS = C.CAR_MODS or {}
+	local function mod(kind)
+		local list = MODS[kind]
+		if not list then return nil end
+		for _, o in ipairs(list) do if o.key == mods[kind] then return o end end
+		return nil
+	end
 	local L, W, H, Cl, D = spec.L, spec.W, spec.H, spec.clear, spec.wheel
-	local col = spec.color
-	local paintMat = spec.gold and MAT.Foil or MAT.SmoothPlastic
+	local col = mod("paint") and mod("paint").color or spec.color
+	local paintMat = (spec.gold and not mod("paint")) and MAT.Foil or (mod("paint") and mod("paint").mat or MAT.SmoothPlastic)
 	local paint = {Reflectance = spec.gold and 0 or 0.12}
-	local rimCol = spec.gold and RGB(255, 205, 60) or (spec.key == "legend" and RGB(255, 200, 60) or CHROME)
+	local rimCol = mod("wheels") and mod("wheels").color or (spec.gold and RGB(255, 205, 60) or (spec.key == "legend" and RGB(255, 200, 60) or CHROME))
+	local tint = mod("tint")
+	local GLASS = tint and tint.color or GLASS
+	local glassT = tint and tint.transparency or 0.25
+	local seatCol = mod("interior") and mod("interior").color or RGB(40, 40, 44)
 	local root
 	if spec.style == "moped" then
 		root = P(m, V3(2.4, 2.6, 6), cf * CF(0, 1.1 + 1.3, 0), WHITE, MAT.SmoothPlastic, {Transparency = 1, CanCollide = true, Name = "Chassis"})
@@ -61,10 +76,10 @@ function C.buildCar(spec, cf, plateText)
 		local WS = ({hatch = 2.6, sedan = 2.8, van = 1.6, suv = 2.4, pickup = 2.2, coupe = 3.4, hyper = 3.6})[spec.style] or 2.6
 		local RW = ({hatch = 1.2, sedan = 2.4, van = 0.4, suv = 0.8, pickup = 0.6, coupe = 3.6, hyper = 2.8})[spec.style] or 2
 		local cw = W - 0.7
-		P(m, V3(cw, Rh, CL), cf * CF(0, yb + Rh / 2, cz), GLASS, MAT.Glass, {Transparency = 0.25, Reflectance = 0.2})
+		P(m, V3(cw, Rh, CL), cf * CF(0, yb + Rh / 2, cz), GLASS, MAT.Glass, {Transparency = glassT, Reflectance = 0.2})
 		P(m, V3(cw + 0.2, 0.3, CL + 0.2), cf * CF(0, yb + Rh + 0.15, cz), col, paintMat, paint)
-		wedge(m, V3(cw, Rh, WS), cf * CF(0, yb + Rh / 2, cz - CL / 2 - WS / 2), GLASS, MAT.Glass, {Transparency = 0.25, Reflectance = 0.2})
-		wedge(m, V3(cw, Rh, RW), cf * CF(0, yb + Rh / 2, cz + CL / 2 + RW / 2) * CFrame.Angles(0, math.pi, 0), GLASS, MAT.Glass, {Transparency = 0.25, Reflectance = 0.2})
+		wedge(m, V3(cw, Rh, WS), cf * CF(0, yb + Rh / 2, cz - CL / 2 - WS / 2), GLASS, MAT.Glass, {Transparency = math.min(glassT, 0.3), Reflectance = 0.2})
+		wedge(m, V3(cw, Rh, RW), cf * CF(0, yb + Rh / 2, cz + CL / 2 + RW / 2) * CFrame.Angles(0, math.pi, 0), GLASS, MAT.Glass, {Transparency = glassT, Reflectance = 0.2})
 		local ang = math.atan2(Rh, WS)
 		local hyp = math.sqrt(Rh * Rh + WS * WS)
 		for _, sx in ipairs({-1, 1}) do
@@ -89,10 +104,32 @@ function C.buildCar(spec, cf, plateText)
 		-- interior (visible through the glass)
 		local seatDrop = (spec.style == "coupe" or spec.style == "hyper") and 1.25 or 0.9
 		for _, sx in ipairs({-W * 0.2, W * 0.2}) do
-			P(m, V3(1.7, 2.2, 0.4), cf * CF(sx, yb - seatDrop + 1.6, cz + 1.2) * CFrame.Angles(math.rad(-12), 0, 0), RGB(40, 40, 44), MAT.Fabric)
+			P(m, V3(1.7, 2.2, 0.4), cf * CF(sx, yb - seatDrop + 1.6, cz + 1.2) * CFrame.Angles(math.rad(-12), 0, 0), seatCol, MAT.Fabric)
+			P(m, V3(1.7, 0.4, 1.6), cf * CF(sx, yb - seatDrop + 0.55, cz + 0.4), seatCol, MAT.Fabric)
 		end
 		P(m, V3(cw - 0.2, 0.6, 1.2), cf * CF(0, yb + 0.3, cz - CL / 2 + 0.2), RGB(30, 30, 34), MAT.SmoothPlastic)
-		xcyl(m, 0.15, 1.2, cf * CF(-W * 0.2, yb + 0.9, cz - CL / 2 + 1.1) * CFrame.Angles(0, math.rad(90), 0) * CFrame.Angles(0, 0, math.rad(25)), RGB(30, 30, 34))
+		-- dashboard screen (the driver's client writes the speed on it) + the steering wheel
+		local dash = P(m, V3(1.4, 0.5, 0.1), cf * CF(-W * 0.2, yb + 0.72, cz - CL / 2 + 0.82) * CFrame.Angles(math.rad(-20), 0, 0), RGB(10, 14, 24), MAT.SmoothPlastic, {Name = "Dash"})
+		local dg = Instance.new("SurfaceGui")
+		dg.Name = "DashGui"
+		dg.Face = Enum.NormalId.Back
+		dg.CanvasSize = Vector2.new(140, 50)
+		dg.LightInfluence = 0
+		dg.Parent = dash
+		local dl = Instance.new("TextLabel")
+		dl.Name = "Speed"
+		dl.Size = UDim2.fromScale(1, 1)
+		dl.BackgroundTransparency = 1
+		dl.TextColor3 = RGB(120, 230, 255)
+		dl.TextScaled = true
+		dl.Font = Enum.Font.Code
+		dl.Text = "0 MPH"
+		dl.Parent = dg
+		local sw = xcyl(m, 0.15, 1.3, cf * CF(-W * 0.2, yb + 0.9, cz - CL / 2 + 1.1) * CFrame.Angles(0, math.rad(90), 0) * CFrame.Angles(0, 0, math.rad(25)), RGB(30, 30, 34))
+		sw.Name = "SteeringWheel"
+		P(m, V3(0.25, 0.25, 0.2), cf * CF(-W * 0.2, yb + 0.9, cz - CL / 2 + 1.1), RGB(60, 60, 66), MAT.Metal)
+		-- rear-view mirror
+		P(m, V3(0.9, 0.3, 0.12), cf * CF(0, yb + Rh - 0.35, cz - CL / 2 + 0.25), RGB(20, 20, 24))
 		-- fenders, wheel wells, wheels
 		local fz, rz = -L / 2 + D * 0.72 + 0.7, L / 2 - D * 0.72 - 0.7
 		if spec.style == "pickup" then fz, rz = -L / 2 + D * 0.62, L / 2 - D * 0.62 end
@@ -106,8 +143,12 @@ function C.buildCar(spec, cf, plateText)
 		end
 		-- lights, grille, plates
 		for _, sx in ipairs({-1, 1}) do
-			P(m, V3(W * 0.22, H * 0.2, 0.25), cf * CF(sx * W * 0.3, Cl + H * 0.72, -L / 2 + H * 0.06), RGB(255, 250, 235), MAT.Neon)
-			P(m, V3(W * 0.24, H * 0.18, 0.25), cf * CF(sx * W * 0.31, Cl + H * 0.72, L / 2 - H * 0.06), RGB(255, 30, 40), MAT.Neon)
+			P(m, V3(W * 0.22, H * 0.2, 0.25), cf * CF(sx * W * 0.3, Cl + H * 0.72, -L / 2 + H * 0.06), RGB(255, 250, 235), MAT.Neon, {Name = "Headlight"})
+			P(m, V3(W * 0.24, H * 0.18, 0.25), cf * CF(sx * W * 0.31, Cl + H * 0.72, L / 2 - H * 0.06), RGB(150, 20, 26), MAT.SmoothPlastic, {Name = "BrakeLight"})
+			-- turn signals, front and back
+			local sName = sx < 0 and "SignalL" or "SignalR"
+			P(m, V3(W * 0.08, H * 0.14, 0.26), cf * CF(sx * W * 0.45, Cl + H * 0.72, -L / 2 + H * 0.07), RGB(150, 90, 20), MAT.SmoothPlastic, {Name = sName})
+			P(m, V3(W * 0.08, H * 0.14, 0.26), cf * CF(sx * W * 0.45, Cl + H * 0.72, L / 2 - H * 0.07), RGB(150, 90, 20), MAT.SmoothPlastic, {Name = sName})
 			P(m, V3(0.25, 0.35, 0.65), cf * CF(sx * (W / 2 + 0.15), yb + 0.45, cz - CL / 2 - WS * 0.3), col, paintMat, paint)
 			P(m, V3(0.06, H * 0.85, 0.08), cf * CF(sx * (W / 2 + 0.01), Cl + H * 0.5, cz + 0.25), col:Lerp(DARK, 0.5))
 			P(m, V3(0.08, 0.14, 0.6), cf * CF(sx * (W / 2 + 0.05), Cl + H * 0.78, cz - 0.4), CHROME, MAT.Metal)
@@ -123,8 +164,59 @@ function C.buildCar(spec, cf, plateText)
 		local plate = P(m, V3(1.9, 0.55, 0.1), cf * CF(0, Cl + H * 0.35, L / 2 - H * 0.02), WHITE)
 		local tl = surfaceText(plate, Enum.NormalId.Back, string.upper(string.sub(plateText or "EMPIRE", 1, 7)), RGB(20, 40, 120))
 		tl.Parent.CanvasSize = Vector2.new(190, 55)
-		for _, sx in ipairs({-W * 0.28, W * 0.28}) do
-			xcyl(m, 0.7, 0.42, cf * CF(sx, Cl + 0.3, L / 2 - 0.1) * CFrame.Angles(0, math.rad(90), 0), CHROME, MAT.Metal)
+		local ex = mod("exhaust")
+		local pipes = ex and ex.pipes or {-W * 0.28, W * 0.28}
+		for _, sx in ipairs(pipes) do
+			local tip = xcyl(m, 0.7, ex and ex.size or 0.42, cf * CF(sx * (ex and W or 1), Cl + 0.3, L / 2 - 0.1) * CFrame.Angles(0, math.rad(90), 0), ex and ex.color or CHROME, ex and ex.neon and MAT.Neon or MAT.Metal)
+			tip.Name = "Exhaust"
+		end
+		-- bumpers
+		local bump = mod("bumper")
+		if bump and bump.key == "sport" then
+			P(m, V3(W + 0.1, 0.25, 1.4), cf * CF(0, Cl + 0.05, -L / 2 + 0.5), DARK)
+			P(m, V3(W * 0.9, 0.5, 0.5), cf * CF(0, Cl + 0.25, L / 2 - 0.2), DARK)
+		elseif bump and bump.key == "offroad" then
+			P(m, V3(W + 0.4, 0.8, 0.6), cf * CF(0, Cl + H * 0.35, -L / 2 - 0.2), RGB(40, 40, 44), MAT.DiamondPlate)
+			for _, sx in ipairs({-1, 1}) do P(m, V3(0.3, H * 0.9, 0.3), cf * CF(sx * W * 0.3, Cl + H * 0.6, -L / 2 - 0.35), RGB(40, 40, 44), MAT.Metal) end
+			P(m, V3(W + 0.4, 0.8, 0.6), cf * CF(0, Cl + H * 0.35, L / 2 + 0.2), RGB(40, 40, 44), MAT.DiamondPlate)
+		end
+		-- decals
+		local dec = mod("decal")
+		if dec and dec.key == "stripes" then
+			for _, sx in ipairs({-0.35, 0.35}) do P(m, V3(0.5, 0.05, L - 1.5), cf * CF(sx, yb + 0.5, 0), dec.color or WHITE) end
+			P(m, V3(0.5, 0.05, CL), cf * CF(0, yb + Rh + 0.32, cz), dec.color or WHITE)
+		elseif dec and dec.key == "flames" then
+			for _, sx in ipairs({-1, 1}) do
+				for k = 0, 3 do P(m, V3(0.06, 0.25 + k * 0.08, 1.8 - k * 0.3), cf * CF(sx * (W / 2 + 0.03), Cl + H * (0.35 + k * 0.12), -L / 2 + 2.2 + k * 0.4), k % 2 == 0 and RGB(255, 120, 20) or RGB(255, 210, 40), MAT.Neon) end
+			end
+		elseif dec and dec.key == "number" then
+			for _, sx in ipairs({-1, 1}) do
+				local circle = P(m, V3(0.06, H * 0.7, H * 0.7), cf * CF(sx * (W / 2 + 0.04), Cl + H * 0.5, cz + 0.6), WHITE)
+				surfaceText(circle, sx == 1 and Enum.NormalId.Right or Enum.NormalId.Left, tostring(mods.number or 7), DARK)
+			end
+		elseif dec and dec.key == "checker" then
+			for k = 0, 5 do P(m, V3(0.5, 0.05, 0.5), cf * CF(-1.25 + k * 0.5, yb + 0.5, -L / 2 + 2 + (k % 2) * 0.5), k % 2 == 0 and WHITE or DARK) end
+		end
+		-- spoilers (the Vortex R has a wing from the factory)
+		local sp = mod("spoiler")
+		local spKey = sp and sp.key or (spec.wing and "wing" or "none")
+		if spKey == "lip" then
+			P(m, V3(W - 0.8, 0.15, 0.6), cf * CF(0, yb + 0.45, L / 2 - 0.9), col, paintMat, paint)
+		elseif spKey == "wing" or spKey == "gt" then
+			local hgt = spKey == "gt" and 1.6 or 1.0
+			for _, sx in ipairs({-W * 0.3, W * 0.3}) do P(m, V3(0.25, hgt, 0.4), cf * CF(sx, yb + hgt / 2 + 0.3, L / 2 - 1.3), DARK) end
+			P(m, V3(W + (spKey == "gt" and 0.6 or 0), 0.22, spKey == "gt" and 1.8 or 1.2), cf * CF(0, yb + hgt + 0.35, L / 2 - 1.3), spKey == "gt" and DARK or col, spKey == "gt" and MAT.SmoothPlastic or paintMat)
+		end
+		-- model extras: roof rack, chrome trim, an EV's light bar
+		if spec.rack then
+			for _, sx in ipairs({-cw * 0.4, cw * 0.4}) do P(m, V3(0.2, 0.3, CL), cf * CF(sx, yb + Rh + 0.45, cz), DARK, MAT.Metal) end
+			for k = -1, 1 do P(m, V3(cw * 0.8, 0.15, 0.2), cf * CF(0, yb + Rh + 0.6, cz + k * CL * 0.35), DARK, MAT.Metal) end
+		end
+		if spec.chrome then
+			for _, sx in ipairs({-1, 1}) do P(m, V3(0.08, 0.12, L - 3), cf * CF(sx * (W / 2 + 0.04), Cl + H * 0.9, 0), CHROME, MAT.Metal) end
+		end
+		if spec.ev then
+			P(m, V3(W * 0.7, 0.12, 0.2), cf * CF(0, Cl + H * 0.78, -L / 2 + 0.05), RGB(160, 240, 255), MAT.Neon)
 		end
 		-- ===== style extras =====
 		if spec.style == "coupe" then
@@ -178,10 +270,19 @@ function C.buildCar(spec, cf, plateText)
 			p.Massless = true
 			p.CanCollide = false
 			p.CanQuery = false
-			local w = Instance.new("WeldConstraint")
-			w.Part0 = root
-			w.Part1 = p
-			w.Parent = p
+			if p.Name == "SteeringWheel" then
+				local w = Instance.new("Weld")
+				w.Name = "SteerWeld"
+				w.Part0 = root
+				w.Part1 = p
+				w.C0 = root.CFrame:ToObjectSpace(p.CFrame)
+				w.Parent = p
+			else
+				local w = Instance.new("WeldConstraint")
+				w.Part0 = root
+				w.Part1 = p
+				w.Parent = p
+			end
 			p.Anchored = false
 		end
 	end
@@ -244,7 +345,8 @@ function F.spawnCar(plr, key, at)
 		local y = hit and hit.Position.Y or 0
 		cf = CF(V3(pos.X, y + 0.2, pos.Z), V3(pos.X, y + 0.2, pos.Z) + flat)
 	end
-	local m, root = C.buildCar(spec, cf, plr.Name)
+	local mods = type(d.carMods) == "table" and d.carMods[key] or nil
+	local m, root = C.buildCar(spec, cf, type(mods) == "table" and mods.plate or plr.Name, mods)
 	-- driver seat (hidden inside the body) + upright stabilizer
 	local seat = Instance.new("VehicleSeat")
 	seat.Name = "DriveSeat"
@@ -275,6 +377,10 @@ function F.spawnCar(plr, key, at)
 	seat:SetAttribute("Half", root.Size.Y / 2)
 	seat:SetAttribute("Nitro", F.hasPass(plr, "nitro"))
 	seat:SetAttribute("Delivery", spec.delivery == true)
+	seat:SetAttribute("Accel", spec.accel or 1)
+	seat:SetAttribute("Brake", spec.brake or 1)
+	seat:SetAttribute("NitroPower", spec.nitro or 1.4)
+	seat:SetAttribute("Class", spec.class or "")
 	-- keep the car upright WITHOUT locking its heading. (Before v8 this constraint held all three axes, so
 	-- every physics step it pulled the car back to the heading it had at the start of the frame and ate
 	-- most of the steering: cars barely turned and slid sideways instead. Now it only keeps the car's
@@ -422,22 +528,23 @@ do
 		pl.Brightness = 1.4
 		pl.Parent = l
 	end
+	-- v10: 16 cars on 3 rows of turntables, parked sideways so they all fit
 	for i, spec in ipairs(CARS) do
-		local row = i <= 5 and 0 or 1
-		local col = (i - 1) % 5
-		local x, z = -44 + col * 22, row == 0 and -166 or -188
-		cyl(f, 0.5, 18, CF(x, 0.85, z), RGB(40, 42, 50), MAT.Metal, SOLIDP)
-		cyl(f, 0.1, 18.2, CF(x, 1.12, z), spec.gold and RGB(255, 200, 60) or RGB(255, 60, 60), MAT.Neon)
-		local model = C.buildCar(spec, CF(x, 1.1, z) * CFrame.Angles(0, math.rad(200 + col * 8), 0), "SHOWRM")
+		local row = math.floor((i - 1) / 6)
+		local col = (i - 1) % 6
+		local x, z = -45 + col * 18, -161 + row * -15
+		cyl(f, 0.5, 13.5, CF(x, 0.85, z), RGB(40, 42, 50), MAT.Metal, SOLIDP)
+		cyl(f, 0.1, 13.7, CF(x, 1.12, z), spec.gold and RGB(255, 200, 60) or RGB(255, 60, 60), MAT.Neon)
+		local model = C.buildCar(spec, CF(x, 1.1, z) * CFrame.Angles(0, math.rad(90 + (col % 2 == 0 and 12 or -12)), 0), "SHOWRM")
 		model.Parent = f
 		for _, p in ipairs(model:GetDescendants()) do
 			if p:IsA("BasePart") then p.Anchored = true end
 		end
-		local stand = P(f, V3(4, 3, 0.4), CF(x + 7, 1.8, z + 8), RGB(30, 30, 36), MAT.SmoothPlastic, SOLIDP)
+		local stand = P(f, V3(3, 2.4, 0.4), CF(x + 7, 1.8, z + 6), RGB(30, 30, 36), MAT.SmoothPlastic, SOLIDP)
 		local priceText = spec.pass and "🎟️ GAME PASS" or (spec.rebirths and ("👑 " .. spec.rebirths .. " REBIRTHS") or ("$" .. fmt(spec.price)))
 		billboard(stand, UDim2.fromOffset(190, 64), V3(0, 3.5, 0), {
 			{text = spec.name, h = 0.5}, {text = priceText, h = 0.3, color = RGB(120, 255, 150)},
-			{text = spec.speed .. " MPH top speed", h = 0.2, font = Enum.Font.GothamBold, color = RGB(200, 200, 210)}}, 60)
+			{text = (spec.class or "") .. "  •  " .. spec.speed .. " MPH", h = 0.2, font = Enum.Font.GothamBold, color = RGB(200, 200, 210)}}, 60)
 		C.prompt(stand, "Buy / Drive", spec.name, 10, 0.3, function(plr) F.buyOrDrive(plr, spec.key) end)
 	end
 	-- a few parked customer cars outside

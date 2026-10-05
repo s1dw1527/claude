@@ -161,6 +161,8 @@ H.main(function()
 		end
 		return T.lastRemote("Race", rr).args[1]
 	end
+	-- (no random city event during the lap: a Tax Season would take 10% of the racer's cash mid-test)
+	C.G.nextEvent = H.now() + 600
 	local c0 = drr.cash
 	local ok1 = lap(90)
 	H.check(ok1.state == "finished" and drr.cash > c0 - 1, "a lap at 90 studs/s finishes and pays out (" .. tostring(ok1.state) .. ", " .. tostring(ok1.time and math.floor(ok1.time) or "-") .. "s)")

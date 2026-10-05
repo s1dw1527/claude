@@ -107,6 +107,7 @@ local driftL = label({AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.
 local hintL = label({AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 1, 4), Size = UDim2.fromOffset(240, 14), TextSize = 11, TextColor3 = SUB, TextStrokeTransparency = 0.5, Text = ""}, gauge)
 
 -- ===== CAR CONTROLLER =====
+C.carInput = {}   -- what the driver is doing right now (the car details below read it)
 local driving = false
 local speed = 0
 local nitro = 1
@@ -132,6 +133,7 @@ RunService.Heartbeat:Connect(function(dt)
 	local hum = char and char:FindFirstChildOfClass("Humanoid")
 	local seat = hum and hum.SeatPart
 	if not (seat and seat:IsA("VehicleSeat") and seat:GetAttribute("CarOwner") == plr.UserId) then
+		C.carInput.car = nil
 		if driving then
 			driving = false
 			gauge.Visible = false
@@ -178,16 +180,23 @@ RunService.Heartbeat:Connect(function(dt)
 		nitro = math.min(1, nitro + dt * (drifting and 0.16 or 0.1))
 	end
 	drift.boostT = math.max(0, drift.boostT - dt)
-	local top = maxS * (boosting and 1.4 or 1) * (drift.boostT > 0 and 1.1 or 1)
+	-- v10: every car has its own acceleration, braking and nitro power
+	local accelK = seat:GetAttribute("Accel") or 1
+	local brakeK = seat:GetAttribute("Brake") or 1
+	local nitroK = seat:GetAttribute("NitroPower") or 1.4
+	local top = maxS * (boosting and nitroK or 1) * (drift.boostT > 0 and 1.1 or 1)
 	local target = throttle > 0 and top or (throttle < 0 and -maxS * 0.45 or 0)
 	local rate
 	if throttle == 0 then
 		rate = maxS * 0.55
 	elseif (target > 0 and speed < 0) or (target < 0 and speed > 0) then
-		rate = maxS * 2.2
+		rate = maxS * 2.2 * brakeK
 	else
-		rate = maxS * (boosting and 1.1 or 0.65)
+		rate = maxS * (boosting and 1.1 or 0.65) * accelK
 	end
+	local ci = C.carInput
+	ci.car, ci.throttle, ci.steer, ci.speed = car, throttle, steer, speed
+	ci.braking = (target > 0 and speed < 0) or (target < 0 and speed > 0) or (throttle < 0 and speed > 2)
 	speed = moveToward(speed, target, rate * dt)
 	local cf = root.CFrame
 	local look = V3(cf.LookVector.X, 0, cf.LookVector.Z)
@@ -333,6 +342,91 @@ do
 						end
 						if slipping then w.last = pos else w.last = nil end
 					end
+				end
+			end
+		end
+	end)
+end
+
+-- ===== CAR DETAILS (v10): brake lights, turn signals, the dash speed readout and a steering wheel that turns =====
+-- Every client works these out on its own from how each nearby car is moving (so everyone sees them, with no
+-- network traffic); your own car uses your actual inputs.
+do
+	local cars = {}   -- model -> {brake = {parts}, left = {}, right = {}, head = {}, dash, wheel, weld, c0, last, on = {}}
+	local BRAKE_ON, BRAKE_OFF = RGB(255, 30, 40), RGB(150, 20, 26)
+	local SIG_ON, SIG_OFF = RGB(255, 170, 40), RGB(150, 90, 20)
+	local function scan(m)
+		local e = {brake = {}, left = {}, right = {}, head = {}}
+		for _, p in ipairs(m:GetDescendants()) do
+			if p:IsA("BasePart") then
+				if p.Name == "BrakeLight" then table.insert(e.brake, p)
+				elseif p.Name == "SignalL" then table.insert(e.left, p)
+				elseif p.Name == "SignalR" then table.insert(e.right, p)
+				elseif p.Name == "Headlight" then table.insert(e.head, p)
+				elseif p.Name == "Dash" then e.dash = p:FindFirstChild("DashGui") and p.DashGui:FindFirstChild("Speed")
+				elseif p.Name == "SteeringWheel" then
+					e.weld = p:FindFirstChild("SteerWeld")
+					e.c0 = e.weld and e.weld.C0
+				end
+			end
+		end
+		e.on = {}
+		return e
+	end
+	local function setLights(list, on, onC, offC, key, e)
+		if e.on[key] == on then return end
+		e.on[key] = on
+		for _, p in ipairs(list) do
+			p.Color = on and onC or offC
+			p.Material = on and Enum.Material.Neon or Enum.Material.SmoothPlastic
+		end
+	end
+	C.carDetails = cars
+	local acc = 0
+	RunService.Heartbeat:Connect(function(dt)
+		acc += dt
+		if acc < 1 / 15 then return end
+		local step = acc
+		acc = 0
+		local folder = Workspace:FindFirstChild("Cars")
+		if not folder then return end
+		for m in pairs(cars) do if not m.Parent then cars[m] = nil end end
+		local me = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
+		local cam = Workspace.CurrentCamera
+		local camPos = me and me.Position or (cam and cam.CFrame.Position or V3())
+		local blink = (os.clock() * 2.5) % 1 < 0.5
+		local mine = C.carInput.car
+		for _, m in ipairs(folder:GetChildren()) do
+			local root = m.PrimaryPart
+			if root and (root.Position - camPos).Magnitude < 220 then
+				local e = cars[m]
+				if not e then
+					e = scan(m)
+					cars[m] = e
+				end
+				local vel = root.AssemblyLinearVelocity
+				local fwd = vel:Dot(root.CFrame.LookVector)
+				local spd = math.abs(fwd)
+				local braking, yaw
+				if m == mine then
+					braking = C.carInput.braking == true
+					yaw = -(C.carInput.steer or 0)
+				else
+					braking = e.last ~= nil and (e.last - spd) / step > 22 and spd > 3
+					yaw = root.AssemblyAngularVelocity.Y
+				end
+				e.last = spd
+				if root.Anchored then braking, yaw = false, 0 end
+				setLights(e.brake, braking, BRAKE_ON, BRAKE_OFF, "brake", e)
+				local turning = math.abs(yaw) > (m == mine and 0.3 or 0.45) and spd > 4
+				setLights(e.left, turning and yaw > 0 and blink, SIG_ON, SIG_OFF, "left", e)
+				setLights(e.right, turning and yaw < 0 and blink, SIG_ON, SIG_OFF, "right", e)
+				if m == mine then
+					if e.dash then
+						local mph = math.floor(spd + 0.5)
+						e.dash.Text = (C.settings.units == "KMH" and (math.floor(mph * 1.6) .. " KM/H") or (mph .. " MPH"))
+					end
+					if e.weld and e.c0 then e.weld.C0 = e.c0 * CFrame.Angles(-(C.carInput.steer or 0) * 1.4, 0, 0) end
 				end
 			end
 		end

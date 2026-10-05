@@ -83,62 +83,7 @@ do
 	end
 end
 
--- ===== GARAGE =====
-do
-	local m = modal("garage", "🚗  MY GARAGE", 620, 540)
-	local topRow = new("Frame", {Size = UDim2.new(1, -8, 0, 44), BackgroundTransparency = 1, LayoutOrder = 0}, m.body)
-	local tp = button({Size = UDim2.new(0.5, -5, 1, 0), Text = "📍 Go to Corner Motors", TextSize = 15, BackgroundColor3 = BLUE}, topRow)
-	local park = button({Position = UDim2.new(0.5, 5, 0, 0), Size = UDim2.new(0.5, -5, 1, 0), Text = "🅿 Put Car Away", TextSize = 15, BackgroundColor3 = GRAY}, topRow)
-	tp.MouseButton1Click:Connect(function() play(SND.click) act("tp", "dealer") m.frame.Visible = false end)
-	park.MouseButton1Click:Connect(function() play(SND.click) act("car", "despawn") end)
-	label({Size = UDim2.new(1, -8, 0, 34), TextSize = 12, TextColor3 = SUB, LayoutOrder = 1, Text = "Drive: WASD / arrows • Q or CTRL to drift • SHIFT for nitro (pass) • SPACE to hop out • Controller: Ⓧ drift, Ⓑ nitro • Phone: on-screen buttons", TextWrapped = true}, m.body)
-	local rows = {}
-	for i, c in ipairs(catalog.cars) do
-		local row = card(m.body, 62, i + 1)
-		local sw = new("Frame", {Position = UDim2.fromOffset(8, 8), Size = UDim2.fromOffset(46, 46), BackgroundColor3 = c.color, BorderSizePixel = 0}, row)
-		corner(sw, 23)
-		label({Size = UDim2.fromScale(1, 1), Text = c.delivery and "🚚" or (c.key == "moped" and "🛵" or "🚗"), TextSize = 24}, sw)
-		label({Position = UDim2.fromOffset(64, 8), Size = UDim2.new(1, -240, 0, 24), Text = c.name, TextSize = 17, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left}, row)
-		local price = c.pass and "Game Pass" or (c.rebirths and ("👑 " .. c.rebirths .. " rebirths") or ("$" .. fmt(c.price)))
-		label({Position = UDim2.fromOffset(64, 32), Size = UDim2.new(1, -240, 0, 20), TextSize = 12, TextColor3 = SUB, TextXAlignment = Enum.TextXAlignment.Left,
-			Text = "Top speed " .. c.speed .. "  •  " .. price .. (c.delivery and "  •  Deliveries x1.5" or "")}, row)
-		local r = {car = c, row = row}
-		r.btn = button({Position = UDim2.new(1, -168, 0.5, 0), AnchorPoint = Vector2.new(0, 0.5), Size = UDim2.fromOffset(160, 44), TextSize = 14, TextWrapped = true}, row)
-		r.btn.MouseButton1Click:Connect(function()
-			play(SND.click)
-			if r.mode == "drive" then
-				act("car", "spawn", c.key)
-				m.frame.Visible = false
-			elseif r.mode == "pass" then
-				act("pass", c.pass)
-			elseif r.mode == "tp" then
-				act("tp", "dealer")
-				m.frame.Visible = false
-			end
-		end)
-		rows[i] = r
-	end
-	m.update = function(s)
-		for _, r in ipairs(rows) do
-			local c = r.car
-			local owned = (c.pass and s.passes[c.pass]) or (c.rebirths and s.rebirthsOwned >= c.rebirths) or s.cars[c.key]
-			if s.activeCar == c.key then
-				r.mode, r.btn.Text, r.btn.BackgroundColor3 = "drive", "🔄 RESPAWN", BLUE
-			elseif owned then
-				r.mode, r.btn.Text, r.btn.BackgroundColor3 = "drive", "🔑 DRIVE", GREEN
-			elseif c.pass then
-				r.mode, r.btn.Text, r.btn.BackgroundColor3 = "pass", "🎫 GET PASS", RGB(235, 170, 30)
-			elseif c.rebirths then
-				r.mode, r.btn.Text, r.btn.BackgroundColor3 = nil, "👑 Rebirth " .. c.rebirths, GRAY
-			else
-				r.mode, r.btn.Text = "tp", "Buy at Dealer\n$" .. fmt(c.price)
-				r.btn.BackgroundColor3 = s.cash >= c.price and PURPLE or GRAY
-			end
-		end
-		park.BackgroundColor3 = s.activeCar and RED or GRAY
-	end
-end
-
+-- ===== GARAGE: see GarageUI (v10) =====
 -- ===== STAFF + candidates =====
 do
 	local m = modal("staff", "👥  STAFF", 640, 540)

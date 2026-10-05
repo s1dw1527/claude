@@ -1160,7 +1160,7 @@ do
 		end
 		local cars, passes, staff, ads, npcs, rentals, features = {}, {}, {}, {}, {}, {}, {}
 		for _, c in ipairs(CARS) do
-			table.insert(cars, {key = c.key, name = c.name, price = c.price or 0, speed = c.speed, pass = c.pass, rebirths = c.rebirths, color = c.color, delivery = c.delivery})
+			table.insert(cars, {key = c.key, name = c.name, class = c.class, price = c.price or 0, speed = c.speed, pass = c.pass, rebirths = c.rebirths, color = c.color, delivery = c.delivery})
 		end
 		for _, p in ipairs(PASSES) do table.insert(passes, {key = p.key, name = p.name, price = p.price, icon = p.icon, desc = p.desc}) end
 		for _, slot in ipairs(STAFF_ORDER) do
