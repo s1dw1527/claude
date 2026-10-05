@@ -448,7 +448,7 @@ do
 	local m = modal("home", "🏠  MY HOME", 620, 560)
 	local cur = card(m.body, 150, 1, RGB(40, 55, 50))
 	local hT = label({Position = UDim2.fromOffset(14, 8), Size = UDim2.new(1, -28, 0, 26), TextSize = 20, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left}, cur)
-	local hS = label({Position = UDim2.fromOffset(14, 36), Size = UDim2.new(1, -28, 0, 36), TextSize = 13, TextColor3 = SUB, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top}, cur)
+	local hS = label({Position = UDim2.fromOffset(14, 34), Size = UDim2.new(1, -28, 0, 44), TextSize = 12, TextColor3 = SUB, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top}, cur)
 	local pips = {}
 	for k = 1, 5 do
 		local pp = new("Frame", {Position = UDim2.fromOffset(14 + (k - 1) * 34, 78), Size = UDim2.fromOffset(28, 10), BackgroundColor3 = GRAY, BorderSizePixel = 0}, cur)
@@ -456,7 +456,9 @@ do
 		pips[k] = pp
 	end
 	local buildB = button({Position = UDim2.new(0, 14, 1, -52), Size = UDim2.new(0.6, -20, 0, 42), TextSize = 15, TextWrapped = true}, cur)
-	local goB = button({Position = UDim2.new(0.6, 0, 1, -52), Size = UDim2.new(0.4, -14, 0, 42), Text = "📍 Go Home", TextSize = 15, BackgroundColor3 = BLUE}, cur)
+	local goB = button({Position = UDim2.new(0.6, 0, 1, -52), Size = UDim2.new(0.2, -10, 0, 42), Text = "📍 Go", TextSize = 14, BackgroundColor3 = BLUE}, cur)
+	local inB = button({Position = UDim2.new(0.8, 0, 1, -52), Size = UDim2.new(0.2, -14, 0, 42), Text = "🛋️ Inside", TextSize = 13, BackgroundColor3 = RGB(200, 90, 160)}, cur)
+	inB.MouseButton1Click:Connect(function() play(SND.click) act("enterHome") m.frame.Visible = false end)
 	buildB.MouseButton1Click:Connect(function() play(SND.click) act("homeBuild") end)
 	goB.MouseButton1Click:Connect(function() play(SND.click) act("tp", "home") m.frame.Visible = false end)
 	header(m.body, "🗺️ Neighborhoods — visit a FOR SALE sign to buy land", 2)
@@ -467,7 +469,9 @@ do
 		if h then
 			hT.Text = h.icon .. " " .. h.levelName .. " in " .. h.hood
 			hT.TextColor3 = h.color
-			hS.Text = "Home income bonus: +" .. h.bonus .. "%\nPerk: " .. h.perk
+			hS.Text = "Home income bonus: +" .. h.bonus .. "%\nPerk: " .. h.perk .. "\n" .. (h.ratings and h.ratings > 0 and
+				(C.stars(h.rating) .. " " .. string.format("%.1f", h.rating) .. " from " .. fmt(h.ratings) .. " ratings") or "☆☆☆☆☆ not rated yet") ..
+				"  •  " .. fmt(h.visits or 0) .. " visits  •  ❤ " .. fmt(h.likes or 0)
 			for k, pp in ipairs(pips) do pp.BackgroundColor3 = k <= h.level and h.color or GRAY end
 			if h.cost then
 				buildB.Text = "🔨 Build: " .. h.nextName .. "  $" .. fmt(h.cost)

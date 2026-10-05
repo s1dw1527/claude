@@ -225,6 +225,9 @@ function F.satisfaction(d, key)
 	for _ in pairs(d.problems) do n += 1 end
 	if d.problems[key] then s -= 30 end
 	s += G.megaSatisfaction or 0
+	-- improvements and decorated interiors make customers happier (capped; reviews and reputation only)
+	if F.improveSatisfaction then s += F.improveSatisfaction(d, key) end
+	if F.interiorSatisfaction then s += F.interiorSatisfaction(d, key) end
 	s -= n * 4
 	s += stageOf(d.levels[key] or 0, d.chains[key] or 0) * 2
 	return math.clamp(s, 5, 100)
@@ -293,9 +296,12 @@ function F.spawnCustomer(plr, d, now)
 		local stars = math.clamp(math.floor((sat + math.random(-18, 18)) / 20 + 0.5), 1, 5)
 		local pool = REVIEWS[stars]
 		local text = string.gsub(pool[math.random(#pool)], "%%s", b.thing)
+		-- a bad review names a real reason (one of the business's improvement areas), so it can be won back
+		local attr
+		if stars <= 2 and F.reviewReason then attr, text = F.reviewReason(d, key, stars) end
 		local pr = d.problems[key]
 		if pr and stars <= 2 then text = PROBLEMS[pr.type].icon .. " " .. PROBLEMS[pr.type].text end
-		review = {stars = stars, text = text}
+		review = {stars = stars, text = text, attr = attr, who = NAMES[math.random(#NAMES)]}
 	end
 	-- from story chapter 3 on, some customers recognize you and shout something
 	local shout = F.storyShout and plr and F.storyShout(plr, d) or nil
@@ -310,6 +316,9 @@ function F.serveCustomer(plr, d, key, t, review)
 	if lvl <= 0 then return end
 	d.served += 1
 	d.war.customers += 1
+	d.bizServed = d.bizServed or {}
+	d.bizServed[key] = (d.bizServed[key] or 0) + 1
+	if F.revisitReviews then F.revisitReviews(plr, d, key) end
 	if F.countServed then F.countServed(d) end
 	if d.frozenUntil <= now then
 		local sale = BIZ[key].income * lvl * E.customerSale * F.bizMult(d, key) * F.globalMult(d, now) * (t.tip or 1)
@@ -326,6 +335,10 @@ function F.serveCustomer(plr, d, key, t, review)
 		d.war.starsN += 1
 		d.revSum += review.stars
 		d.revN += 1
+		d.bizStars = d.bizStars or {}
+		local bs = d.bizStars[key] or {0, 0}
+		d.bizStars[key] = {bs[1] + review.stars, bs[2] + 1}
+		if review.attr and F.bookReview then F.bookReview(plr, d, key, review, review.who) end
 		table.insert(d.reviews, 1, {stars = review.stars, text = review.text, biz = BIZ[key].tiers[math.max(1, stageOf(lvl, d.chains[key] or 0))]})
 		if #d.reviews > 8 then table.remove(d.reviews) end
 		if t.trendy and review.stars >= 4 and d.trendUntil < now then
@@ -393,6 +406,7 @@ function F.buyUpgrade(plr, d, key)
 		F.achieve(plr, "biz_" .. key)
 	end
 	if lvl == 0 and key ~= "lemonade" and F.storyEvent then F.storyEvent(plr, "newBusiness", key) end
+	if lvl == 0 and F.refreshDoors then F.refreshDoors(plr) end
 	F.checkCombos(plr, d)
 end
 function F.openChain(plr, d, key)

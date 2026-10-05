@@ -209,13 +209,50 @@ function F.buildHome(lot)
 		local top
 		top, mbPos = buildHouse(f, o, hood, level, lot.owner.Name, accent)
 	end
-	billboard(mbPos, UDim2.fromOffset(220, 52), V3(0, 4, 0), {
-		{text = "🏠 " .. lot.owner.Name, h = 0.55}, {text = level > 0 and (HOME_LEVELS[level] .. " • " .. hood.name) or "Empty lot — build it!", h = 0.45, color = hood.color, font = Enum.Font.GothamBold}}, 120)
+	-- the house's public sign: name, rating, ratings and visits (kept up to date by F.refreshHomeSign)
+	billboard(mbPos, UDim2.fromOffset(240, 78), V3(0, 4.6, 0), {
+		{text = "🏠 " .. string.upper(lot.owner.Name) .. "'S HOUSE", h = 0.36}, {text = "", h = 0.34, color = RGB(255, 210, 80)},
+		{text = "", h = 0.3, color = hood.color, font = Enum.Font.GothamBold}}, 140)
+	lot.signGui = mbPos:FindFirstChildOfClass("BillboardGui")
+	F.refreshHomeSign(lot)
 	C.prompt(mbPos, "Home Menu", hood.name, 12, 0.2, function(plr)
 		if plr == lot.owner then R.Menu:FireClient(plr, "open", "home") end
 	end)
 end
 
+-- "★★★★★ 4.8" / "1,247 ratings • 312 visits" on the sign over a player's house
+function F.homeRatingInfo(od)
+	local n = tonumber(od.homeRatingN) or 0
+	local avg = n > 0 and (tonumber(od.homeRatingSum) or 0) / n or 0
+	return avg, n, tonumber(od.homeVisits) or 0, tonumber(od.homeLikes) or 0
+end
+function F.refreshHomeSign(lot)
+	local bb = lot.signGui
+	local od = lot.owner and data[lot.owner]
+	if not (bb and bb.Parent and od) then return end
+	local avg, n, visits, likes = F.homeRatingInfo(od)
+	local full = math.floor(avg + 0.5)
+	local l2, l3 = bb:FindFirstChild("L2"), bb:FindFirstChild("L3")
+	local inside = F.interiorScore and F.interiorScore(od, "home") or 0
+	if l2 then l2.Text = (n > 0 and (string.rep("★", full) .. string.rep("☆", 5 - full) .. "  " .. string.format("%.1f", avg)) or "☆☆☆☆☆  not rated yet") ..
+		(inside > 0 and ("   🛋️ " .. inside) or "") end
+	if l3 then
+		local level = od.home and od.home.level or 0
+		l3.Text = (level > 0 and (HOME_LEVELS[level] .. " • ") or "Empty lot • ") .. fmt(n) .. " ratings • " .. fmt(visits) .. " visits • ❤ " .. fmt(likes)
+	end
+end
+-- a visitor counts once per house per day (touring it, or walking inside), never on your own house
+function F.countHomeVisit(visitor, owner)
+	local d, od = data[visitor], data[owner]
+	if not (d and od) or visitor == owner then return end
+	d.votes = d.votes or {}
+	local k = "v" .. os.date("!%Y%j") .. ":" .. owner.UserId
+	if d.votes[k] then return end
+	d.votes[k] = true
+	od.homeVisits = (tonumber(od.homeVisits) or 0) + 1
+	local lot = F.homeLot(od)
+	if lot then F.refreshHomeSign(lot) end
+end
 function F.homeLot(d)
 	return d.home and d.home.lot and C.HOME_LOTS[d.home.lot] or nil
 end
@@ -303,6 +340,7 @@ function F.buildHomeLevel(plr)
 	d.cash -= cost
 	d.home.level += 1
 	F.buildHome(lot)
+	if F.refreshDoors then F.refreshDoors(plr) end
 	if lot.folder then popIn(lot.folder) end
 	burst(lot.pos + V3(0, 10, 0), HOOD[lot.hood].color, 120)
 	shockwave(lot.pos + V3(0, 0.6, 0), HOOD[lot.hood].color, 30)

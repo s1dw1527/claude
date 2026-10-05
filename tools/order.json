@@ -12,6 +12,7 @@
     "Race",
     "Activities",
     "Social",
+    "Reviews",
     "Systems",
     "Mega",
     "Legacy",
@@ -19,6 +20,7 @@
     "Story",
     "Messages",
     "MapData",
+    "Interiors",
     "Updates",
     "Players"
   ],
@@ -35,6 +37,7 @@
     "PhotoMode",
     "Story",
     "MapApp",
+    "InteriorUI",
     "MainMenu"
   ]
 }

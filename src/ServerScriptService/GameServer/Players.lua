@@ -33,7 +33,7 @@ local SAVE_KEYS = {"cash", "levels", "chains", "staff", "combos", "rep", "ep", "
 	"marketing", "revSum", "revN", "contributed", "rebirths", "followers", "home", "raceBest", "tut", "earned", "rentEarned",
 	"tutPaid", "richClaimed", "eraContrib", "achievements", "shared", "found", "wentViral", "viralCount",
 	"mystery", "weekServed", "weeklyClaimed", "showcaseWeek", "votes", "favorites", "homeLikes", "homeRatingSum", "homeRatingN", "story", "storyEarned",
-	"mail", "msgSeq", "interiors", "improve", "reviewBook", "homeVisits", "homeRatings"}
+	"mail", "msgSeq", "interiors", "improve", "reviewBook", "reviewSeq", "homeVisits", "homeRatings"}
 -- everything this version writes itself; any OTHER field found in a save is kept as-is when saving
 local KNOWN_KEYS = {lots = true, props = true, SchemaVersion = true, saveSeq = true, gameVersion = true, savedAt = true}
 for _, k in ipairs(SAVE_KEYS) do KNOWN_KEYS[k] = true end
@@ -323,6 +323,8 @@ local function homeState(d)
 		home = {hood = h.name, icon = h.icon, level = d.home.level, levelName = d.home.level > 0 and HOME_LEVELS[d.home.level] or "Empty lot",
 			max = #HOME_LEVELS, cost = F.homeBuildCost(d), bonus = math.floor((F.homeMult(d) - 1) * 100 + 0.5), perk = h.perk, color = h.color,
 			nextName = HOME_LEVELS[d.home.level + 1]}
+		local avg, n, visits, likes = F.homeRatingInfo(d)
+		home.rating, home.ratings, home.visits, home.likes = avg, n, visits, likes
 	end
 	return {home = home, hoods = hoods}
 end
@@ -405,6 +407,23 @@ function F.sendState(plr, now)
 			problem = d.problems[b.key] ~= nil, staffStars = s and staffStars(s) or 0,
 			locked = tier < b.unlock, unlockName = REP_TIERS[b.unlock].name,
 		}
+		-- details for the business management card
+		local e = biz[b.index]
+		local bs = d.bizStars and d.bizStars[b.key]
+		e.staffName = s and s.name or nil
+		e.served = d.bizServed and d.bizServed[b.key] or 0
+		e.rating = bs and bs[2] > 0 and bs[1] / bs[2] or nil
+		e.ratingN = bs and bs[2] or 0
+		e.repair = d.problems[b.key] and d.problems[b.key].repair or nil
+		e.problemText = d.problems[b.key] and PROBLEMS[d.problems[b.key].type].text or nil
+		e.slot = b.index
+		if F.improveLevel and lvl > 0 then
+			e.improve = {}
+			for i, im in ipairs(C.IMPROVEMENTS) do
+				e.improve[i] = {key = im.key, name = im.name, icon = im.icon, level = F.improveLevel(d, b.key, im.key), cost = F.improveCost(d, b.key, im.key) or -1}
+			end
+			e.reviews = F.reviewsFor(d, b.key)
+		end
 	end
 	local standings = {}
 	for p, od in pairs(data) do
@@ -495,6 +514,7 @@ function F.sendState(plr, now)
 		homeInfo = homeState(d), props = propsState(plr, d),
 		rebirth = {count = d.rebirths, cost = F.rebirthCost(d), mult = math.floor((F.rebirthMult(d) - 1) * 100 + 0.5), perks = perks, unlocked = unlocks.rebirth},
 		map = F.mapState and F.mapState(plr, d) or nil,
+		interior = F.interiorState and F.interiorState(plr, d) or nil,
 		tut = tut, raceBest = d.raceBest, unread = F.unreadCount and F.unreadCount(d) or 0, story = F.storyState and F.storyState(plr, d) or nil,
 		showcase = F.showcasePoints(d), tours = F.toursList(), mysterySite = C.mysterySite and C.mysterySite() or nil,
 		mysteryPrice = C.mysterySite and C.mysterySite() and F.mysteryPrice(d) or nil,
@@ -660,6 +680,7 @@ function F.startGame(plr, slot, starterIdx)
 	if F.claimWeeklyRewards then task.spawn(F.claimWeeklyRewards, plr) end
 	-- story mode: chapter 1 for new saves; older saves pick up where their empire already is
 	if F.storyStart then F.storyStart(plr, d, isNew) end
+	if F.refreshDoors then F.refreshDoors(plr) end
 	-- leaderstats
 	local ls = plr:FindFirstChild("leaderstats")
 	if not ls then
@@ -731,6 +752,7 @@ function F.unload(plr, backToMenu)
 	F.clearFun(plr)
 	F.clearSocial(plr)
 	if F.storyLeave then F.storyLeave(plr) end
+	if F.clearInteriors then F.clearInteriors(plr) end
 	for _, lot in ipairs(LOTS) do
 		if lot.owner == plr then
 			lot.owner = nil
@@ -1115,7 +1137,8 @@ do
 		for i, t in ipairs(REP_TIERS) do tiers[i] = {name = t.name, rep = t.rep, unlocks = t.unlocks} end
 		return {cars = cars, passes = passes, staff = staff, ads = ads, npcs = npcs, chains = #CHAINS, rentals = rentals,
 			features = features, tiers = tiers, presets = C.PRESET_COUNT, minigames = MINIGAMES, homeLevels = HOME_LEVELS,
-			story = C.storyCatalog and C.storyCatalog() or nil, map = C.mapCatalog and C.mapCatalog() or nil, version = C.VERSION}
+			story = C.storyCatalog and C.storyCatalog() or nil, map = C.mapCatalog and C.mapCatalog() or nil, version = C.VERSION,
+			interiors = C.interiorCatalog and C.interiorCatalog() or nil}
 	end
 end
 

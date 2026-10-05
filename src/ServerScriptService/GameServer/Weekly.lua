@@ -277,6 +277,8 @@ function F.tourVisit(plr, targetId)
 		F.despawnCar(plr)
 		char:PivotTo(CF(lot.pos) * CFrame.Angles(0, lot.yaw, 0) * CF(0, 4, lot.size / 2 + 4) * CFrame.Angles(0, math.pi, 0))
 	end
+	-- one visit per visitor per house per day (saved with the owner's slot), never your own house
+	F.countHomeVisit(plr, owner)
 	notify(plr, "🏠 Welcome to " .. owner.Name .. "'s home! Like it, rate it, or add it to your favorites.")
 end
 local function houseScore(owner, delta)
@@ -293,6 +295,13 @@ function F.tourVote(plr, targetId, kind, stars)
 	end
 	local week = weekId()
 	d.votes = d.votes or {}
+	-- rate limit across all houses: one like or rating every few seconds
+	local now = os.clock()
+	if (kind == "like" or kind == "rate") and now < (d.nextHouseVote or 0) then
+		notify(plr, "⏳ Slow down! You can rate another house in a few seconds.")
+		return
+	end
+	if kind == "like" or kind == "rate" then d.nextHouseVote = now + 5 end
 	if kind == "like" then
 		local k = voteKey(week, "l", targetId)
 		if d.votes[k] then
@@ -304,6 +313,7 @@ function F.tourVote(plr, targetId, kind, stars)
 		houseScore(owner, 3)
 		notify(plr, "❤️ You liked " .. owner.Name .. "'s house!")
 		notify(owner, "❤️ " .. plr.Name .. " liked your house!")
+		F.refreshHomeSign(lot)
 	elseif kind == "rate" then
 		local k = voteKey(week, "r", targetId)
 		if d.votes[k] then
@@ -316,6 +326,7 @@ function F.tourVote(plr, targetId, kind, stars)
 		houseScore(owner, stars)
 		notify(plr, "⭐ You gave " .. owner.Name .. "'s house " .. string.rep("★", stars))
 		notify(owner, "⭐ " .. plr.Name .. " rated your house " .. string.rep("★", stars) .. "!")
+		F.refreshHomeSign(lot)
 	elseif kind == "fav" then
 		d.favorites = d.favorites or {}
 		for i, f in ipairs(d.favorites) do
