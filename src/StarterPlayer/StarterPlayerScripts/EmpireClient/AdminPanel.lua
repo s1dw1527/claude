@@ -15,7 +15,7 @@ local modal = C.makeModal
 if not modal then return end
 local AP = {role = nil, state = nil, tab = "OVERVIEW", target = nil}
 C.AdminPanel = AP
-local TABS = {"OVERVIEW", "PLAYERS", "ECONOMY", "ITEMS", "BUSINESSES", "PROPERTIES", "VEHICLES", "EVENTS", "TELEPORT", "MODERATION", "SERVER", "DEVELOPER"}
+local TABS = {"OVERVIEW", "PLAYERS", "ECONOMY", "ITEMS", "BUSINESSES", "PROPERTIES", "VEHICLES", "EVENTS", "HEISTS", "TELEPORT", "MODERATION", "SERVER", "DEVELOPER"}
 
 local m, built
 local area, tabBar, resultL, targetL
@@ -162,6 +162,26 @@ RENDER.EVENTS = function(s)
 	local r = row(7)
 	local post = box(r, "CityBuzz post", 320, 1)
 	btn(r, "📢 Post", function() adm("buzz", {text = post.Text}) end, BLUE, 100, 2)
+end
+RENDER.HEISTS = function(s)
+	line("Robbery testing. Target for bag tools: " .. targetName(), 0, GOLD)
+	for i, h in ipairs(s.heists or {}) do
+		local r = row(i, 38)
+		label({Size = UDim2.fromOffset(250, 34), Text = h.name .. " — " .. h.status, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left, LayoutOrder = 0}, r)
+		btn(r, "▶ Open", function() adm("heistOpen", {key = h.key}) end, GREEN, 80, 1)
+		btn(r, "■ End", function() adm("heistEnd", {key = h.key}) end, RED, 70, 2)
+		btn(r, "📍 Go", function() adm("tpHeist", {key = h.key}) end, BLUE, 70, 3)
+	end
+	local g = grid(30)
+	btn(g, "⛰️ Go: mountain HQ", function() adm("tpHeist", {key = "mountain"}) end, BLUE, nil, 1)
+	btn(g, "⛰️ Go: outside the door", function() adm("tpHeist", {key = "mountainOutside"}) end, BLUE, nil, 2)
+	btn(g, "🚪 Open secret door", function() adm("secretDoor", {key = "main", on = true}) end, PURPLE, nil, 3)
+	btn(g, "🚪 Close secret door", function() adm("secretDoor", {key = "main", on = false}) end, GRAY, nil, 4)
+	btn(g, "🎒 Give target a bag", function() local t = needTarget() if t then adm("giveBag", {target = t}) end end, PURPLE, nil, 5)
+	btn(g, "💰 Fill target's bag", function() local t = needTarget() if t then adm("fillBag", {target = t}) end end, PURPLE, nil, 6)
+	btn(g, "🚨 Test police alert", function() adm("policeAlert") end, BLUE, nil, 7)
+	btn(g, "🧹 Clear police alerts", function() adm("clearAlerts") end, GRAY, nil, 8)
+	btn(g, "♻️ Reset all robberies", function() adm("heistReset") end, RED, nil, 9)
 end
 RENDER.TELEPORT = function(s)
 	line("Target: " .. targetName(), 0, GOLD)

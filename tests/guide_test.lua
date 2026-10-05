@@ -24,7 +24,7 @@ H.main(function()
 	end
 
 	H.section("Tips")
-	H.check(#C.GUIDE_TIPS == 18, "18 contextual tips")
+	H.check(#C.GUIDE_TIPS == 27, "27 contextual tips (18 from v10 + 9 for the mountain and heists)")
 	local mk = #H.remoteLog
 	H.check(d.tut and d.tut > 0, "a new player starts in the opening tutorial")
 	F.guideTip(a, "claimProperty")
@@ -63,7 +63,7 @@ H.main(function()
 	H.check(not d.guide.off and next(d.guide.seen) == nil, "Settings → Show all again")
 
 	H.section("What's this?")
-	local topics = {"property", "chooseBusiness", "products", "hq", "manager", "computer", "furniture", "builder", "garage", "carCustom", "arcade"}
+	local topics = {"property", "chooseBusiness", "products", "hq", "manager", "computer", "furniture", "builder", "garage", "carCustom", "arcade", "heists", "police", "mountain"}
 	local missing = {}
 	for _, t in ipairs(topics) do if not (C.GUIDE_HELP[t] and #C.GUIDE_HELP[t].text > 40) then table.insert(missing, t) end end
 	H.check(#missing == 0, #topics .. " help topics written" .. (#missing > 0 and (" (missing: " .. table.concat(missing, ", ") .. ")") or ""))

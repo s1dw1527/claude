@@ -25,6 +25,16 @@ C.GUIDE_TIPS = {
 	{key = "customizeCar", icon = "🎨", title = "Customize", text = "Paint, wheels, tint, plates, decals, spoilers, bumpers and exhausts. Looks only: speed never changes, so races stay fair."},
 	{key = "funZone", icon = "🕹️", title = "Fun Zone", text = "2-player games! Stand at a booth and ask someone to join: Reaction Duel, Button Battle, Hoop Duel and Kart Sprint. Winners earn tickets."},
 	{key = "arcadePrize", icon = "🎟️", title = "Tickets", text = "You have enough tickets for a prize! Trade them at the Fun Zone prize counter for furniture."},
+	-- v11: the secret mountain base and heists (each appears the first time you run into it)
+	{key = "discoverBase", icon = "⛰️", title = "Something's off about this mountain", text = "Vents, lights, a drain in a ravine... and is that a lever? Pull it."},
+	{key = "mountainHQ", icon = "🌋", title = "The secret HQ", text = "The Blackrock Syndicate's hideout. Jobs come from the Job Board; the Fence turns loot into cash; the Quartermaster sells bigger bags."},
+	{key = "robberyJobs", icon = "📋", title = "Robbery jobs", text = "Targets open for a few minutes at a time. The 💰 Heists app shows what's open, the reward and how many people it needs."},
+	{key = "robberyBag", icon = "🎒", title = "Your robbery bag", text = "Crack the security panel, then grab loot into your bag. The bag has a limit — bigger bags come from the Quartermaster."},
+	{key = "collectLoot", icon = "💰", title = "Grab the loot", text = "Hold [Grab loot] at each station. Taking a lot (or tripping a laser) sets off the alarm."},
+	{key = "returnToMountain", icon = "🏃", title = "Get it home", text = "Loot is NOT money yet. Get out and back into the mountain HQ — arrested, gone or too slow and the loot is lost (nothing else is)."},
+	{key = "policeChase", icon = "🚓", title = "Police chases", text = "Police on duty get an alert and an approximate search area, never your exact spot. Use roads, the off-road paths and the back door."},
+	{key = "heistsApp", icon = "📱", title = "The Heists app", text = "Jobs, your current job, crew invites, gear and police duty — all in the 💰 Heists phone app."},
+	{key = "robberyTeam", icon = "🤝", title = "Crews", text = "Some jobs need 2+ people. Invite players from the Heists app; a crew shares one target, so bring friends because it's safer."},
 }
 C.GUIDE_TIP = {}
 for i, t in ipairs(C.GUIDE_TIPS) do
@@ -43,6 +53,9 @@ C.GUIDE_HELP = {
 	builder = {title = "🔨 Home builder", text = "Tap an item in storage, then a cell on the plan. Items can't block the doorway, stand on walls or overlap (rugs can go under things). Tap a placed item to move, rotate or pick it up. House styles: layout, ceiling, door and windows — once bought, a style is free to switch back to."},
 	garage = {title = "🚗 Garage", text = "OWNED shows how many of the 16 cars you have. Equip sets your main ride; favorites go to the top. Selling returns half the price (game-pass and rebirth cars can't be sold)."},
 	carCustom = {title = "🎨 Customizing cars", text = "Everything here is cosmetic. Changes show the next time the car spawns (or right away if it's parked)."},
+	heists = {title = "💰 Heists", text = "Find the hideout inside the mountain north of the race track (pull the lever by the drain). Targets open for about 3 minutes at a time. At a target: Start robbery → crack the security panel (a short puzzle) → grab loot into your bag → the alarm sounds → drive the loot back into the mountain, where the Fence pays you. Loot is never saved and never money until it's turned in. Rewards grow with your reputation tier; a crew shares one target's loot."},
+	police = {title = "🚓 Police duty", text = "Go on duty at the police station or in the Heists app. You get robbery alerts with an approximate area that updates as the suspect moves. Hold [Arrest] next to a robber carrying loot: they lose the loot and spend 20 s in a cell; the city pays you 30% of its value."},
+	mountain = {title = "⛰️ The secret HQ", text = "The drain's lever opens the door for everyone. It stays open while anyone is in the doorway and opens from the inside by itself, so nobody gets trapped. The Escape Garage (base level 2) brings out your car inside the base. Base upgrades add perks for you."},
 	arcade = {title = "🕹️ Arcade", text = "Two real players, decided by the server. Win = 12 tickets, play = 3. Against the same opponent only 5 games per 10 minutes pay, and 30 games per hour in total. Leaving or walking away forfeits. Tickets buy furniture, never cash."},
 }
 
@@ -105,6 +118,12 @@ function F.guideTasks(d)
 		{text = "Reach the Empire Estate (house tier 7)", done = d.home and (d.home.level or 0) >= 7},
 	}
 end
+-- a tip for everyone who can act on it (e.g. a new robbery opportunity, for players who found the base)
+function F.guideTipAll(key)
+	for plr, d in pairs(data) do
+		if type(d.heist) == "table" and d.heist.discovered then F.guideTip(plr, key) end
+	end
+end
 C.guideCatalog = function()
 	local tips = {}
 	for _, t in ipairs(C.GUIDE_TIPS) do table.insert(tips, {key = t.key, icon = t.icon, title = t.title}) end
@@ -145,6 +164,10 @@ task.spawn(function()
 				if not seen.funZone and C.FUN_ZONE_AT then
 					local root = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
 					if root and (root.Position - C.FUN_ZONE_AT.Position).Magnitude < 90 then F.guideTip(plr, "funZone") end
+				end
+				if not seen.discoverBase and C.MOUNTAIN and not (type(d.heist) == "table" and d.heist.discovered) then
+					local root = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
+					if root and (root.Position - C.MOUNTAIN.center).Magnitude < 200 then F.guideTip(plr, "discoverBase") end
 				end
 				if not seen.arcadePrize and type(d.arcade) == "table" and (tonumber(d.arcade.tickets) or 0) >= 40 then F.guideTip(plr, "arcadePrize") end
 			end)

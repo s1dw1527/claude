@@ -468,6 +468,55 @@ TOOLS.clearNpcs = {run = function()
 	npcs = {}
 	return true, "cleared NPCs"
 end}
+-- ----- heists (v11 testing) -----
+local function HA() return C.HEIST_ADMIN end
+TOOLS.heistOpen = {run = function(admin, a)
+	local key = str(a.key, 16)
+	if not (key and HA() and C.HEIST_SITE[key]) then return false, "Pick a target." end
+	return HA().open(key) == true, "opened " .. key
+end}
+TOOLS.heistEnd = {danger = true, run = function(admin, a)
+	local key = str(a.key, 16)
+	if not (key and HA()) then return false, "Pick a target." end
+	return HA().finish(key) == true, "ended " .. key
+end}
+TOOLS.heistReset = {danger = true, run = function() return HA() ~= nil and HA().reset(), "reset all robberies" end}
+TOOLS.giveBag = {run = function(admin, a)
+	local p = target(a)
+	if not (p and HA()) then return false, "Pick a player." end
+	local ok = HA().giveBag(p, str(a.key, 16))
+	return ok, ok and "temporary robbery bag" or "they're already on a job", p
+end}
+TOOLS.fillBag = {run = function(admin, a)
+	local p = target(a)
+	if not (p and HA()) then return false, "Pick a player." end
+	local ok = HA().fillBag(p)
+	return ok, ok and "bag filled (test loot)" or "they have no bag", p
+end}
+TOOLS.policeAlert = {run = function() return HA() ~= nil and HA().alert(), "test police alert" end}
+TOOLS.clearAlerts = {run = function() return HA() ~= nil and HA().clearAlerts(), "cleared police alerts" end}
+TOOLS.secretDoor = {run = function(admin, a)
+	local MC = C.MOUNTAIN
+	local id = a.key == "back" and "back" or "main"
+	if not MC then return false, "No mountain." end
+	if a.on == false then return MC.closeDoor(id), "closing " .. id .. " door" end
+	return MC.openDoor(id), "opening " .. id .. " door"
+end}
+TOOLS.tpHeist = {run = function(admin, a)
+	local key = str(a.key, 16)
+	local r = root(admin)
+	if not r then return false, "No character." end
+	local cf
+	if key == "mountain" and C.MOUNTAIN then cf = C.MOUNTAIN.hqSpawn
+	elseif key == "mountainOutside" and C.MOUNTAIN then cf = C.MOUNTAIN.outsideSpawn
+	elseif key and C.HEIST_STATE and C.HEIST_STATE.sites[key] then cf = CFrame.new(C.HEIST_STATE.sites[key].entrance + Vector3.new(0, 2, -6)) end
+	if not cf then return false, "Unknown place." end
+	F.despawnCar(admin)
+	if F.leaveInterior then F.leaveInterior(admin) end
+	admin.Character:PivotTo(cf)
+	return true, "teleported to " .. key
+end}
+
 -- ----- developer: admins (owners only) -----
 TOOLS.addAdmin = {owner = true, run = function(admin, a)
 	local name = str(a.text, 20)
@@ -534,7 +583,12 @@ function F.adminState(admin)
 	end
 	local denies = 0
 	for _, e in pairs(denied) do denies += e.count end
-	return {role = roles[admin], players = players, admins = list, log = {table.unpack(LOG, 1, math.min(#LOG, 60))}, events = events, megas = megas, cars = cars, items = items, places = places,
+	local heists = {}
+	for _, s in ipairs(C.HEIST_SITES or {}) do
+		local st = C.HEIST_STATE and C.HEIST_STATE.sites[s.key]
+		table.insert(heists, {key = s.key, name = s.icon .. " " .. s.name, status = st and (st.heist and ("IN PROGRESS (" .. st.heist.stage .. ")") or (st.open and "OPEN" or "closed")) or "?"})
+	end
+	return {role = roles[admin], players = players, heists = heists, admins = list, log = {table.unpack(LOG, 1, math.min(#LOG, 60))}, events = events, megas = megas, cars = cars, items = items, places = places,
 		server = {players = #Players:GetPlayers(), uptime = math.floor(os.clock() - STARTED), version = C.VERSION.VERSION, schema = C.VERSION.SCHEMA_VERSION,
 			studio = RunService:IsStudio(), denied = denies, place = game.PlaceId, jobId = string.sub(game.JobId, 1, 8)}}
 end
