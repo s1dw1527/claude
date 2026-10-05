@@ -1,0 +1,108 @@
+{
+  "name": "CornerEmpire",
+  "tree": {
+    "$className": "DataModel",
+    "ServerScriptService": {
+      "$className": "ServerScriptService",
+      "GameServer": {
+        "$path": "src/ServerScriptService/GameServer.server.lua",
+        "Config": {
+          "$path": "src/ServerScriptService/GameServer/Config.lua"
+        },
+        "StoryData": {
+          "$path": "src/ServerScriptService/GameServer/StoryData.lua"
+        },
+        "Util": {
+          "$path": "src/ServerScriptService/GameServer/Util.lua"
+        },
+        "World": {
+          "$path": "src/ServerScriptService/GameServer/World.lua"
+        },
+        "Buildings": {
+          "$path": "src/ServerScriptService/GameServer/Buildings.lua"
+        },
+        "Housing": {
+          "$path": "src/ServerScriptService/GameServer/Housing.lua"
+        },
+        "Rentals": {
+          "$path": "src/ServerScriptService/GameServer/Rentals.lua"
+        },
+        "Cars": {
+          "$path": "src/ServerScriptService/GameServer/Cars.lua"
+        },
+        "Race": {
+          "$path": "src/ServerScriptService/GameServer/Race.lua"
+        },
+        "Activities": {
+          "$path": "src/ServerScriptService/GameServer/Activities.lua"
+        },
+        "Social": {
+          "$path": "src/ServerScriptService/GameServer/Social.lua"
+        },
+        "Systems": {
+          "$path": "src/ServerScriptService/GameServer/Systems.lua"
+        },
+        "Mega": {
+          "$path": "src/ServerScriptService/GameServer/Mega.lua"
+        },
+        "Legacy": {
+          "$path": "src/ServerScriptService/GameServer/Legacy.lua"
+        },
+        "Weekly": {
+          "$path": "src/ServerScriptService/GameServer/Weekly.lua"
+        },
+        "Story": {
+          "$path": "src/ServerScriptService/GameServer/Story.lua"
+        },
+        "Players": {
+          "$path": "src/ServerScriptService/GameServer/Players.lua"
+        }
+      }
+    },
+    "StarterPlayer": {
+      "$className": "StarterPlayer",
+      "StarterPlayerScripts": {
+        "$className": "StarterPlayerScripts",
+        "EmpireClient": {
+          "$path": "src/StarterPlayer/StarterPlayerScripts/EmpireClient.client.lua",
+          "UI": {
+            "$path": "src/StarterPlayer/StarterPlayerScripts/EmpireClient/UI.lua"
+          },
+          "Audio": {
+            "$path": "src/StarterPlayer/StarterPlayerScripts/EmpireClient/Audio.lua"
+          },
+          "HUD": {
+            "$path": "src/StarterPlayer/StarterPlayerScripts/EmpireClient/HUD.lua"
+          },
+          "WorldFX": {
+            "$path": "src/StarterPlayer/StarterPlayerScripts/EmpireClient/WorldFX.lua"
+          },
+          "Workers": {
+            "$path": "src/StarterPlayer/StarterPlayerScripts/EmpireClient/Workers.lua"
+          },
+          "Menus": {
+            "$path": "src/StarterPlayer/StarterPlayerScripts/EmpireClient/Menus.lua"
+          },
+          "Phone": {
+            "$path": "src/StarterPlayer/StarterPlayerScripts/EmpireClient/Phone.lua"
+          },
+          "Driving": {
+            "$path": "src/StarterPlayer/StarterPlayerScripts/EmpireClient/Driving.lua"
+          },
+          "MiniGames": {
+            "$path": "src/StarterPlayer/StarterPlayerScripts/EmpireClient/MiniGames.lua"
+          },
+          "PhotoMode": {
+            "$path": "src/StarterPlayer/StarterPlayerScripts/EmpireClient/PhotoMode.lua"
+          },
+          "Story": {
+            "$path": "src/StarterPlayer/StarterPlayerScripts/EmpireClient/Story.lua"
+          },
+          "MainMenu": {
+            "$path": "src/StarterPlayer/StarterPlayerScripts/EmpireClient/MainMenu.lua"
+          }
+        }
+      }
+    }
+  }
+}

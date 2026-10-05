@@ -17,6 +17,32 @@ A 1–4 player Roblox business tycoon. **`CornerEmpire_v7.rbxlx` is the current 
   lifetime business earnings and milestones, never the cash in your pocket. The content is in
   `GameServer > StoryData`, the rules in `GameServer > Story`, and the cutscenes and phone app in `EmpireClient > Story`.
 
+## Updating the game in Studio (without replacing your place)
+
+The whole game is two scripts: `ServerScriptService > GameServer` and
+`StarterPlayer > StarterPlayerScripts > EmpireClient`, each with its modules. Anything you build or change
+yourself in Studio stays put, as long as you only swap those two scripts.
+
+**Option A: drop-in files (nothing to install).** `python3 tools/patch.py` writes `updates/GameServer.rbxmx` and
+`updates/EmpireClient.rbxmx`. In your place:
+1. Delete the old `GameServer` (in ServerScriptService) and the old `EmpireClient` (in StarterPlayerScripts).
+2. Right-click **ServerScriptService** → **Insert from File…** → `GameServer.rbxmx`.
+3. Right-click **StarterPlayer > StarterPlayerScripts** → **Insert from File…** → `EmpireClient.rbxmx`.
+4. If you changed anything in `GameServer > Config` (like game pass IDs), copy it back in. The new file has the
+   default Config.
+
+**Option B: live sync with Rojo (best if you update often).** `default.project.json` tells Rojo where each script
+lives (`python3 tools/rojo_project.py` regenerates it after adding a module).
+1. Install the **Rojo** plugin in Studio (Toolbox → Plugins), and the Rojo program on your computer (the
+   "Rojo" extension in VS Code is the easiest way).
+2. Download or `git clone` this repository, open the folder, and start Rojo (`rojo serve`, or "Start server" in VS Code).
+3. In Studio, open your place, click **Rojo → Connect**. The two scripts now mirror `src/`.
+4. To get an update later: pull the latest version of the repository (`git pull`). Studio updates by itself while
+   connected. Then **File → Publish to Roblox**.
+
+Rojo only manages those two scripts: your own parts, settings and other scripts aren't touched. Like Option A, it
+uses `Config.lua` from the repository, so put your pass IDs in `src/ServerScriptService/GameServer/Config.lua`.
+
 ## Layout
 
 - `src/` holds every script from the place, one file per script, mirroring the Explorer:
