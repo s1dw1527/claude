@@ -369,7 +369,8 @@ do
 		e.btn.MouseButton1Click:Connect(function()
 			play(SND.click)
 			if e.key then
-				act("tp", e.key)
+				-- (the "suburbs" district is Northside; "suburbs" on its own is the Maple Suburbs home neighborhood)
+				act("tp", e.key == "suburbs" and "northside" or e.key)
 				m.frame.Visible = false
 			end
 		end)

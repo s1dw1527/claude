@@ -688,7 +688,7 @@ function F.runAd(plr, d, key, now)
 end
 
 -- ===== CITY EVENTS =====
-function F.startEvent(now)
+function F.startEvent(now, forceKey)
 	-- small events wait while a mega event is running
 	if G.megaActive then
 		G.nextEvent = now + 20
@@ -701,6 +701,9 @@ function F.startEvent(now)
 		if not e.era or G.spire.era >= e.era then table.insert(pool, e) end
 	end
 	local ev = pool[math.random(#pool)]
+	if forceKey then
+		for _, e in ipairs(EVENTS) do if e.key == forceKey then ev = e end end
+	end
 	G.nextEvent = now + math.max(CFG.EVENT_INTERVAL, (ev.dur or 0) + 10)
 	local text = ev.text
 	if ev.viral then

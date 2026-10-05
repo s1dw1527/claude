@@ -1117,6 +1117,7 @@ rawget(game, "_p").GameId = 1
 rawget(game, "_p").JobId = "test-job"
 rawget(game, "_p").PlaceVersion = 1
 rawget(game, "_p").CreatorId = 1
+rawget(game, "_p").CreatorType = Enum.CreatorType.User
 
 local Workspace = service("Workspace")
 H.workspace = Workspace
@@ -1475,7 +1476,18 @@ function Inst.GetPlayerFromCharacter(ps, char)
 	return nil
 end
 function Inst.GetUserThumbnailAsync() return "rbxthumb://type=AvatarHeadShot&id=1&w=150&h=150", true end
-function Inst.GetNameFromUserIdAsync(ps, id) return "User" .. id end
+-- usernames <-> UserIds: players in the server, plus H.knownUsers[name] = id for accounts that aren't here
+H.knownUsers = {}
+function Inst.GetNameFromUserIdAsync(ps, id)
+	for _, p in ipairs(ps:GetPlayers()) do if p.UserId == id then return p.Name end end
+	for name, uid in pairs(H.knownUsers) do if uid == id then return name end end
+	return "User" .. id
+end
+function Inst.GetUserIdFromNameAsync(ps, name)
+	for _, p in ipairs(ps:GetPlayers()) do if string.lower(p.Name) == string.lower(name) then return p.UserId end end
+	for n, uid in pairs(H.knownUsers) do if string.lower(n) == string.lower(name) then return uid end end
+	error("HTTP 400 (Bad Request): user not found")
+end
 function H.addPlayer(name, userId)
 	local p = newInstance("Player")
 	rawget(p, "_p").Name = name

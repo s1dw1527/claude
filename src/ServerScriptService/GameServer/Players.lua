@@ -832,9 +832,16 @@ local TP = {
 	ocean = CFrame.lookAt(V3(300, 4, 345), V3(340, 4, 380)),
 	hills = CFrame.lookAt(V3(-230, 22, -212), V3(-230, 22, -180)),
 	rich = CFrame.lookAt(V3(345, 4, -215), V3(450, 4, -215)),
+	-- v10 districts (the City map's Visit buttons)
+	midtown = CFrame.lookAt(V3(335, 4, 205), V3(420, 4, 205)),
+	entertainment = CFrame.lookAt(V3(-480, 4, -126), V3(-480, 4, -200)),
+	northside = CFrame.lookAt(V3(-490, 4, -330), V3(-490, 4, -420)),
+	expansion = CFrame.lookAt(V3(470, 4, -330), V3(470, 4, -420)),
+	funzone = CFrame.lookAt(V3(-455, 4, -128), V3(-455, 4, -215)),
 }
 local function teleport(plr, d, key)
 	local cf = TP[key]
+	if not cf and not ({business = true, museum = true, mystery = true, home = true})[key] then return end
 	if key == "business" then cf = d.plot.spawn.CFrame + V3(0, 4, 0) end
 	if key == "museum" and C.MUSEUM_AT then cf = CFrame.lookAt(C.MUSEUM_AT + V3(0, 4, 60), C.MUSEUM_AT + V3(0, 4, 0)) end
 	if key == "mystery" then
@@ -859,6 +866,7 @@ local function teleport(plr, d, key)
 	end
 end
 
+C.teleport = teleport
 -- =====================================================================
 -- INPUT VALIDATION + RATE LIMIT: nothing a client sends is trusted
 -- =====================================================================
@@ -1052,6 +1060,10 @@ R.Action.OnServerEvent:Connect(function(plr, action, a, b, c)
 		local id = int(a, 1)
 		if id then F.like(plr, id) end
 	elseif action == "post" then
+		if F.isMuted and F.isMuted(plr) then
+			notify(plr, "🔇 You're muted on CityBuzz in this server.")
+			return
+		end
 		local preset = int(a, 1, 50)
 		local attach = str(c, 12) and C.POST_ATTACH[c] and c or nil
 		if preset then F.playerPost(plr, preset, nil, attach)
