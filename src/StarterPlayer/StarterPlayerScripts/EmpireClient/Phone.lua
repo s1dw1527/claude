@@ -121,7 +121,7 @@ do
 		{"🏢", "Properties", "modal", "properties", RGB(120, 150, 240), "properties"}, {"📈", "Stocks", "modal", "market", RGB(60, 160, 90), "market"}, {"📣", "Marketing", "modal", "marketing", RGB(235, 130, 40), "ads"},
 		{"🎡", "Fun & Race", "modal", "fun", RGB(255, 110, 190), "funpark"}, {"♻️", "Rebirth", "modal", "rebirth", RGB(200, 80, 220)}, {"🏙️", "City", "modal", "city", RGB(60, 150, 200)},
 		{"📖", "Archive", "modal", "archive", RGB(140, 90, 230)}, {"🛒", "Store", "modal", "passes", RGB(235, 170, 30)}, {"🏆", "Weekly", "modal", "weekly", RGB(230, 150, 40)},
-		{"🎬", "Story", "view", "story", RGB(200, 50, 120)}, {"🔥", "Viral", "view", "viral", RGB(255, 90, 60)}, {"🏛️", "HQ", "modal", "hq", RGB(90, 120, 200)},
+		{"🎬", "Story", "view", "story", RGB(200, 50, 120)}, {"🔥", "Viral", "view", "viral", RGB(255, 90, 60)}, {"🏛️", "HQ", "modal", "hq", RGB(90, 120, 200)}, {"🕹️", "Arcade", "modal", "arcadeInfo", RGB(150, 80, 255)},
 		{"⚙️", "Settings", "modal", "settings", RGB(100, 104, 124)},
 	}
 	local icons = {}

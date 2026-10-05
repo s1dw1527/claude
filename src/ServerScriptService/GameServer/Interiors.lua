@@ -715,6 +715,7 @@ local function buildRoom(room)
 		end
 	end
 	if key == "home" and C.buildHomeExtras then C.buildHomeExtras(m, o, L, d, owner, accent) end
+	if key == "arcade" and C.arcadeRoom then pcall(C.arcadeRoom, m, o, L, owner) end
 	room.spawn = o * CF(0, 3, L.d / 2 - 4)
 end
 
