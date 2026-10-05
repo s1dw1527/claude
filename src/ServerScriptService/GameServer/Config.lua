@@ -518,12 +518,12 @@ C.RACE = {fee = 20, par = 42, maxTime = 300}
 
 -- ===== TUTORIAL =====
 C.TUTORIAL = {
-	{text = "Welcome to Corner Empire! 🍋 Tap BUY on the Lemonade Stand in your business panel.", target = "plot"},
+	{text = "Welcome to Corner Empire! 🍋 Tap BUY on the Lemonade Stand in your business panel, then give it a name.", target = "plot"},
 	{text = "Nice! Upgrade the Lemonade Stand to Level 3 — watch it transform.", target = "plot"},
 	{text = "Buy the Ice Cream Cart. More businesses = more customers!", target = "plot"},
 	{text = "Open your 📱 Phone: press P, tap the 📱 button, or press Y on a controller. Everything lives in there.", target = nil},
 	{text = "Visit your home! Walk there, or use Phone → Map → My Home.", target = "home"},
-	{text = "Customers leave reviews. Reach LOCAL FAVORITE reputation to unlock Staff, Cars & Deliveries.", target = "plot"},
+	{text = "Customers leave reviews. Reach LOCAL FAVORITE reputation to unlock Staff, Cars, Deliveries and property plots around the city.", target = "plot"},
 	{text = "Go to Corner Motors, buy a car and hop in! (Phone → Map → Dealership)", target = "dealer"},
 }
 end

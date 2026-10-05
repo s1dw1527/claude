@@ -1189,7 +1189,7 @@ do
 			features = features, tiers = tiers, presets = C.PRESET_COUNT, minigames = MINIGAMES, homeLevels = HOME_LEVELS,
 			story = C.storyCatalog and C.storyCatalog() or nil, map = C.mapCatalog and C.mapCatalog() or nil, version = C.VERSION,
 			interiors = C.interiorCatalog and C.interiorCatalog() or nil, cast = C.CAST,
-			furniture = C.furnitureCatalog and C.furnitureCatalog() or nil}
+			furniture = C.furnitureCatalog and C.furnitureCatalog() or nil, guide = C.guideCatalog and C.guideCatalog() or nil}
 	end
 end
 
