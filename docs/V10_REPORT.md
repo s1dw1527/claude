@@ -178,7 +178,58 @@ New saved fields: `deeds`, `deedSeq`, `brands`, `products`, `stock`, `hq`, `mgr`
 - Unchanged rules: same DataStore and keys, `UpdateAsync` with a save counter, newer-schema saves load read-only,
   unknown fields are kept.
 
-__TESTS__
+## 11. Tests
+
+All results below are simulated, in the strict-API engine. Every suite was run on the final code.
+
+| Suite | Covers | Result |
+|---|---|---|
+| `estate_test` (new) | 8 districts and plot counts, no overlaps / no plots on roads, a FOR SALE sign per plot, the 4-player fairness rule, property limits, prices, buying through the card, can't buy someone else's plot, choosing/changing a business, location bonus, selling (confirm), names (filter, cooldown, fee), brand, products (slots, demand, rename, remove), supplies and restock rules, trending | **79/79** |
+| `hq_test` (new) | HQ locked below HOTSPOT, building floors through the card + confirm, the tower door, crew, elevator (only built floors; outsiders can't ride in), manager contracts (cost, no stacking, timed repairs, advanced problems at level 5, restocking), expiry message, auto-renew limit, computer (only at your computer, tiers, locked apps, remote restock, walking away closes it), all 6 floors, Empire Wall, office computer | **56/56** |
+| `home_test` (new) | 7 tiers (tiers 6–7 add parts), furniture shop (tier locks, no selling the computer, clamped quantities, 40% sell-back), placing through the grid UI, overlap / doorway / wall / fixture / bounds / fractional cells, rugs under furniture, move/rotate/pick up, item cap, score without income, styles (owned styles free), layout change returning items, the placed computer, PUBLIC/FRIENDS/INVITE/PRIVATE for house, business and HQ, kicked out on PRIVATE, invites only for players in the server | **64/64** |
+| `car_test` (new) | 16 cars, no real make/model names, 7 classes, full stats, detail parts on every car, all cars in the showroom, seat stats, steering Weld, client car details, garage (OWNED x/16, equip, favorites first, filtered rename), every customization slot, filtered plates, unknown parts refused, speed unchanged, selling (confirm, 50%, no pass/rebirth cars) | **36/36** |
+| `arcade_test` (new) | Fun Zone booths, all 4 games through the server, false starts, best of 3, tap/step rate caps, one shot at a time, tickets, the per-opponent cap, forfeits (walking away, disconnecting), prizes (no cash), leaderboard, home arcade machine (pick a game, a friend joins, leaving forfeits), Arcade business cabinet | **38/38** |
+| `admin_test` (new) | owner from server config, save-data fields and attributes grant nothing, non-admin requests refused, get no data and are logged, every tool group, filtered admin messages, mute blocking posts, forced events, teleports, moderation entry into private homes (privacy restored after), confirmation tokens (wrong / reused / expired / someone else's), the panel's confirm dialog, adding admins by username (resolved on the server; unknown/invalid names refused), admins can't manage admins, owners can't be kicked, removing an admin, kick | **55/55** |
+| `guide_test` (new) | 18 tips, none during the opening tutorial, one every 20 s, once only, context (Fun Zone), tips off / show again, help texts for 11 windows, "❓ What's this?" buttons, tasks | **17/17** |
+| `v10_data_test` (new) | v8 → v10 through the real join flow, v9 lots → deeds placed on join, broken v10 fields repaired, **disconnect right after a purchase** (deed and payment saved together), **switching servers** while someone takes your plot (the deed moves to another plot in the district), **two players buying the same plot in the same frame** (exactly one gets it and pays) | **15/15** |
+| `data` | save safety, migration self-test incl. v10 samples and a crashing v10 step | 26/26 |
+| `v9_test` | updated: menu boards now list real products; the current schema instead of "9" | 75/75 |
+| `viral_test` | | 86/86 |
+| `smoke` · `critical` · `features` | boot · earlier audit fixes · v6 systems | 5/5 · 45/45 · 156/156 |
+| `tutorial` · `story` · `phone` | | 46/46 · 70/70 · 39/39 |
+| `business` · `interior` | | 24/24 · 38/38 |
+| `perf` | 40 min, 4 players, everything running | 11/11 — world parts 26,146 → 26,794 over 40 min (stable); 14.9 DataStore writes/min (budget 100) |
+
+- **Total: 981 checks, 0 failing.**
+- **Static checks:** `tools/propcheck.py`: 0 unknown property names. `tools/check.sh`: only the known false positive at
+  `WorldFX.lua:59`, and the new unknown-global lint is clean.
+- **Economy sim** (casual bot, 12 simulated hours; the bot now buys plots and restocks):
+
+  | Milestone | v9 | v10 |
+  |---|---|---|
+  | $1M | 24 min | 23 min |
+  | $100M | 2h32m | 2h40m |
+  | $1B | 5h54m | 8h16m |
+
+  Early and mid game are unchanged. The late game is slower **by design of the brief**: in v9 one player could own all
+  four Luxury lots ($100K/s each); now prime land is capped per player (Luxury 1, Waterfront 1, Downtown 2), so it
+  can't be monopolized. Supplies cost the bot 1.3% of its earnings. If you want the late game faster again, raise
+  `income` of the Expansion district or the property capacity in `C.ESTATE` — both are single numbers in config.
+
+**Bugs found by the new tests and checks (fixed):**
+- **Business menu boards errored** (since v10 part 1): `FURN.menuText` was read inside the `FURN` table's own
+  constructor, where `FURN` is still nil. Every business interior's menu failed to build. A new unknown-global lint
+  in `check.sh` now catches this kind of bug.
+- **The City map's "Visit" buttons** did nothing for Midtown, Entertainment and Expansion, and sent "Northside
+  Suburbs" to the Maple Suburbs homes.
+- **Reaction Duel:** a tap between rounds (or after the match was decided) counted as a false start, and a timer from
+  an earlier round could fire into the next one.
+- **The garage card** used a misleading `and/or` that gave owned cars the "not owned" colour.
+- **Remote restock** could be requested by any client with an Executive computer, from anywhere; now only while
+  standing at your own computer.
+- **Damaged sub-fields** of v10 records (e.g. `homeBuild.items = "x"`) weren't repaired until first use.
+- A flaky critical test was caused by a random Tax Season event during a race lap (test fixed, game unchanged).
+
 
 ## 12. Known limitations
 
