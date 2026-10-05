@@ -71,6 +71,7 @@ C.BRANDING = {
 	priceMin = 0.5, priceMax = 2.0, multMin = 0.6, multMax = 1.35,
 	useStock = 0.08,          -- % of each supply one customer uses
 	lowStock = 20,            -- below this, sales start dropping
+	emptyMult = 0.75,         -- ...down to 75% when a supply is empty (a nudge to restock, not a punishment)
 	restockMinutes = 1,       -- a full restock costs about this many minutes of that business's income
 	remoteFee = 1.1,          -- restocking from the computer costs 10% more
 	trendChance = 0.03, trendTime = 90, trendCooldown = 1800, trendPlayerCooldown = 900, trendMinPop = 70, trendCustomers = 1.5,
@@ -363,7 +364,7 @@ function F.stockMult(d, key)
 	local s = d.stock and d.stock[key]
 	if type(s) ~= "table" then return 1 end
 	local low = math.min(tonumber(s[1]) or 100, tonumber(s[2]) or 100, tonumber(s[3]) or 100)
-	return 0.5 + 0.5 * math.min(1, low / B.lowStock)
+	return B.emptyMult + (1 - B.emptyMult) * math.min(1, low / B.lowStock)
 end
 function F.restockCost(d, key, remote)
 	local s = stockOf(d, key)

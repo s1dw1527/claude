@@ -1,10 +1,58 @@
 # Corner Empire
 
-A 1–4 player Roblox business tycoon. **`CornerEmpire_v9.rbxlx` is the current place file**; open it in Roblox Studio.
-`CornerEmpire_v8.rbxlx` … `CornerEmpire_v5.rbxlx` are earlier versions, kept for reference. The full v9 write-up is
-`docs/V9_REPORT.md`.
+A 1–4 player Roblox business tycoon. **`CornerEmpire_v10.rbxlx` is the current place file**; open it in Roblox Studio.
+`CornerEmpire_v9.rbxlx` … `CornerEmpire_v5.rbxlx` are earlier versions, kept for reference. The full v10 write-up is
+`docs/V10_REPORT.md` (v9: `docs/V9_REPORT.md`).
 
-## What's new in v9 — "Empire Life & Viral Moments"
+## What's new in v10 — "Ownership, HQ, Cars & Lifestyle"
+
+- **Real estate you keep.** 8 districts and ~100 plots: Downtown (8), Waterfront (5) and Luxury (4) are small and
+  valuable, so each player can own only 1–2 there. Midtown, Northside Suburbs and Expansion have 20 plots each;
+  Industrial has big ones; Entertainment surrounds the new Fun Zone. A plot is a **permanent deed**: it's saved, it
+  comes back on any server, and if someone else is standing on "your" spot it moves to another plot in the same
+  district. How many properties you can own grows with reputation (+1 per 10 rebirths). PROPERTY FOR SALE /
+  OWNED BY signs and a property card with View / Buy / Enter / Sell (selling asks to confirm).
+- **Your businesses, your brand.** Choose what each plot runs, give every business a name (checked by Roblox's text
+  filter on the server), and pick a logo, colours, uniforms, interior theme and menu style. Products have price,
+  quality, presentation, ingredients and popularity; more product slots unlock at levels 1/3/5/7/10; a product can
+  trend for a while (not farmable). Supplies run down with sales: restock at the business, or remotely from a computer.
+- **HQ.** The Empire Tower becomes a 6-floor headquarters you walk into: Reception, Management, Finance, Executive (the
+  **Empire Wall** map), Private Office and Rooftop, with an elevator and staff at their desks.
+- **General Manager.** Sign a 15–60 minute contract (only counts down while you play). Repairs take 90 s → 45 s by
+  level, level 3+ handles several at once, level 4+ prioritizes your best earners, level 5 handles outages and
+  theft. Contracts expire (**MANAGER CONTRACT EXPIRED**); auto-renew is optional and only works while you're active.
+- **Computer.** A real object at home and in your office: Basic / Gaming PC / Executive Workstation / Empire Command
+  Center unlock more apps (overview, finances, inventory, businesses with remote restock, stocks, vehicles, properties,
+  messages, tasks, events, product analytics). Computers never pay money.
+- **Home builder.** 7 house tiers up to the **Empire Estate**. A 9-category furniture shop; place items on a grid
+  inside your home (validated on the server), move, rotate, pick up; room layouts, ceilings, doors and windows.
+  Visitors: PUBLIC / FRIENDS / INVITE ONLY / PRIVATE for your house, businesses and HQ.
+- **16 original cars** (fictional makes, no real brands or designs) in 7 classes with speed, acceleration,
+  handling, braking, grip, drift and nitro. Brake lights, turn signals, a working dash and steering wheel. The garage
+  shows **OWNED: x / 16**: equip, favorite, rename, customize (paint, wheels, tint, interior, plate, decals, spoilers,
+  bumpers, exhaust; looks only) and sell.
+- **Fun Zone + 2-player arcade.** Reaction Duel, Button Battle, Hoop Duel and Kart Sprint against a real player, at
+  Fun Zone booths, a friend's Arcade business or an arcade machine at someone's home. The server runs the games,
+  caps impossible tap rates, forfeits players who leave, and pays tickets (for furniture, never cash) with
+  per-opponent and per-hour caps. Leaderboard at the Fun Zone.
+- **Admin panel** for authorized developers only (see below).
+- **Tutorial update.** 18 contextual tips appear the first time you reach each new system, and every new window has a
+  **❓ What's this?** button. Tips can be switched off in Settings.
+
+### Admins (developers only)
+
+Admin rights are decided **on the server**, never by the client and never from player save data:
+- **Owners:** the UserIds in `GameServer > Admin` → `C.ADMIN_CONFIG.owners`, the place's creator, or (group
+  places) members of `groupId` with at least `groupMinRank`. Owners can add and remove admins.
+- **Admins:** added by an owner in the panel (DEVELOPER tab) by username. The server looks the name up and stores the
+  UserId in its own DataStore, `CornerEmpire_Admins_v1` (separate from player saves; Studio playtests use a
+  `_StudioTest` copy, so testing never changes the live admin list).
+- In Studio every tester is an owner (`studioIsOwner`); live servers never.
+
+Dangerous tools (taking cash or cars away, kicking, removing an admin…) need a server-issued one-time confirmation.
+Every tool use is logged (names, UserIds, the action, the amount).
+
+## What was new in v9 — "Empire Life & Viral Moments"
 
 - **Walk-in business interiors.** Each of the 8 businesses has its own layout: lemonade machine and cups, ice cream
   case and toppings, ovens and display cases, espresso machines and couches, pizza ovens and a delivery pickup,
@@ -72,12 +120,12 @@ same saves and upgrades them in memory.
 **Rules that keep saves safe (already built in):**
 - Never rename `CFG.DATASTORE` in `GameServer > Config`, and never change the key format.
 - Saves carry `SchemaVersion`. On load, `GameServer > DataMigration` upgrades an old save one step at a time
-  (6 → 7 → 8 → 9), on a copy, then validates it. If anything fails, the player plays with saving **turned off** for that
+  (6 → 7 → 8 → 9 → 10), on a copy, then validates it. If anything fails, the player plays with saving **turned off** for that
   slot and sees a warning. The stored save is never overwritten with defaults.
 - Saves use `UpdateAsync` with a save counter, so an older server can't overwrite a newer save. A save written by a
   **newer** version than the server running it is loaded read-only and never saved over.
 - Fields the current version doesn't know are kept and written back unchanged.
-- New-feature data is never fatal: if a v9 record (like the viral record) is damaged, only that part is reset. The
+- New-feature data is never fatal: if a v9 or v10 record (the viral record, deeds, brands, the home builder...) is damaged, only that part is reset. The
   rest of the save loads, and the damaged original is kept in the save (`viralRecovered`).
 - A failed DataStore read never gives a fresh profile that later saves over the real one.
 
@@ -92,7 +140,7 @@ same saves and upgrades them in memory.
 **Testing in Studio never touches live data.** In Studio, every DataStore name gets `_StudioTest` on the end
 (`C.storeName`, controlled by `CFG.STUDIO_USES_LIVE_DATA = false`). Playtests read and write a separate test copy,
 never your players' saves. Leave that setting `false`. In a Studio playtest, open **Settings → 🧪 Update + data
-safety test**. It runs the migration self-test on v5–v9 sample saves (including a damaged v9 record) and the real
+safety test**. It runs the migration self-test on v5–v10 sample saves (including damaged v9 and v10 records) and the real
 save/load code against an in-memory store (fresh save, rejoin, conflicts, newer schema, failed load, failed migration), then prints the
 result to the Output.
 
@@ -127,10 +175,10 @@ uses `Config.lua` from the repository, so put your pass IDs in `src/ServerScript
 - `src/` holds every script from the place, one file per script, mirroring the Explorer:
   - `ServerScriptService/GameServer.server.lua` + `GameServer/*.lua` (server modules)
   - `StarterPlayer/StarterPlayerScripts/EmpireClient.client.lua` + `EmpireClient/*.lua` (client modules)
-- `tools/build.py` rebuilds the place file from `src/` (`python3 tools/build.py CornerEmpire_v8.rbxlx`).
+- `tools/build.py` rebuilds the place file from `src/` (`python3 tools/build.py CornerEmpire_v10.rbxlx`).
 - `tools/extract.py` pulls the scripts back out of a place file; `tools/compare.py` compares two place files.
 - `tools/propcheck.py <globalTypes.d.luau>` checks every property name the scripts set against the Roblox API.
-- `tools/check.sh` compiles every script and type-checks it against the Roblox API (needs the Luau tools).
+- `tools/check.sh` compiles every script, type-checks it against the Roblox API and flags unknown globals (needs the Luau tools).
 - `tests/` runs the real scripts in a small simulated Roblox engine (`tests/harness.lua`). There's no physics or
   rendering, but the game logic is real, DataStores live in memory and time is simulated.
   - `python3 tests/run.py tests/data_test.lua`: fresh/v6/v7/v8 saves, migration, rejoin, server switch, conflicts,
@@ -143,6 +191,11 @@ uses `Config.lua` from the repository, so put your pass IDs in `src/ServerScript
     customer life
   - `python3 tests/run.py tests/viral_test.lua`: Viral Moments, cooldowns, CityBuzz, capture, influencers, rare and
     funny events, the Viral app, weekly boards, achievements, NPC caps
+  - v10: `estate_test` (districts, plots, deeds, limits, names, brands, products, supplies, trends), `hq_test` (HQ,
+    elevator, manager contracts, computer), `home_test` (house tiers, furniture, grid, styles, visitors), `car_test`
+    (16 cars, details, garage), `arcade_test` (2-player games, anti-farm, forfeits, prizes), `admin_test` (admin
+    security and tools), `guide_test` (tips and help), `v10_data_test` (v8/v9 → v10, broken fields, disconnect
+    mid-purchase, server switching, simultaneous purchases)
   - `python3 tests/run.py tests/smoke_test.lua`: quick boot check
   - `python3 tests/run.py tests/tutorial_test.lua`: the whole tutorial through the real client, with extra focus on step 4
   - `python3 tests/run.py tests/story_test.lua`: story chapters, rewards paid once, cutscenes, multiplayer, old saves
@@ -171,3 +224,5 @@ starts at the first one it hasn't.
   outside Studio.
 - Animations: paste your own animation ids into `EmpireClient > AnimationConfig` (optional; safe fallbacks are built in).
 - To rename the rival, edit `C.STORY_RIVAL` and `C.STORY_CAST.rival` in `GameServer > StoryData`.
+- **Admins:** put your own Roblox UserId in `GameServer > Admin` → `C.ADMIN_CONFIG.owners` (or rely on being the
+  place's creator). Add other developers from the panel's DEVELOPER tab.

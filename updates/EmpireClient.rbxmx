@@ -1,8 +1,8 @@
 <roblox version="4">
-<Item class="LocalScript" referent="RBX29"><Properties><string name="Name">EmpireClient</string>
-<ProtectedString name="Source"><![CDATA[--// CORNER EMPIRE v9 — CLIENT. All the code lives in the ModuleScripts inside this LocalScript.
-local modules = {"UI", "Audio", "AnimationConfig", "Actors", "HUD", "WorldFX", "Workers", "Menus", "Phone", "Driving", "MiniGames", "PhotoMode", "Story", "Cinematics",
-	"MapApp", "InteriorUI", "InteriorLife", "CityLife", "ViralApp", "MainMenu"}
+<Item class="LocalScript" referent="RBX38"><Properties><string name="Name">EmpireClient</string>
+<ProtectedString name="Source"><![CDATA[--// CORNER EMPIRE v10 — CLIENT. All the code lives in the ModuleScripts inside this LocalScript.
+local modules = {"UI", "Audio", "AnimationConfig", "Actors", "HUD", "WorldFX", "Workers", "Menus", "BusinessUI", "HQUI", "ComputerUI", "GarageUI", "ArcadeUI", "AdminPanel", "GuideUI", "Phone", "Driving", "MiniGames", "PhotoMode", "Story", "Cinematics",
+	"MapApp", "InteriorUI", "InteriorLife", "BuilderUI", "CityLife", "ViralApp", "MainMenu"}
 local C = {}
 for _, name in ipairs(modules) do
 	local ok, err = pcall(function() require(script:WaitForChild(name))(C) end)
@@ -10,7 +10,7 @@ for _, name in ipairs(modules) do
 end
 -- the server leaves out big sections that didn't change; keep our last copy of those (same list as HEAVY in GameServer > Players)
 local HEAVY = {"archive", "homeInfo", "props", "districts", "market", "staff", "reviews", "tours", "shareable", "standings", "passes", "cars", "showcase", "biz", "warLeaders",
-	"rebirth", "unlocks", "fees", "spire", "map", "viral"}
+	"rebirth", "unlocks", "fees", "spire", "map", "viral", "estate"}
 local asked = 0
 C.R.State.OnClientEvent:Connect(function(s)
 	local prev = C.S
@@ -32,7 +32,7 @@ C.R.State.OnClientEvent:Connect(function(s)
 	end
 end)
 ]]></ProtectedString></Properties>
-<Item class="ModuleScript" referent="RBX30"><Properties><string name="Name">UI</string>
+<Item class="ModuleScript" referent="RBX39"><Properties><string name="Name">UI</string>
 <ProtectedString name="Source"><![CDATA[-- UI: theme, helper functions, sounds, the main ScreenGui. Everything else builds on this.
 return function(C)
 local Players = game:GetService("Players")
@@ -180,7 +180,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX31"><Properties><string name="Name">Audio</string>
+<Item class="ModuleScript" referent="RBX40"><Properties><string name="Name">Audio</string>
 <ProtectedString name="Source"><![CDATA[-- AUDIO: background music playlist + applying settings.
 -- ================================================================
 -- 🎵 ADD YOUR MUSIC HERE
@@ -230,7 +230,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX32"><Properties><string name="Name">AnimationConfig</string>
+<Item class="ModuleScript" referent="RBX41"><Properties><string name="Name">AnimationConfig</string>
 <ProtectedString name="Source"><![CDATA[-- ANIMATION CONFIG: every animation the game uses, in one place, with a safe fallback for each.
 --
 -- ✏️  TO USE YOUR OWN ANIMATIONS: upload them to Roblox (Animation Editor → Publish), copy the asset id and paste
@@ -353,7 +353,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX33"><Properties><string name="Name">Actors</string>
+<Item class="ModuleScript" referent="RBX42"><Properties><string name="Name">Actors</string>
 <ProtectedString name="Source"><![CDATA[-- ACTORS: the shared kit for every scripted character the client draws: the story cast, cinematic actors,
 -- the city's influencers, interior staff and customers, crowds and photographers.
 -- Actors are a handful of anchored, non-colliding parts posed every frame by a small procedural animation
@@ -734,7 +734,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX34"><Properties><string name="Name">HUD</string>
+<Item class="ModuleScript" referent="RBX43"><Properties><string name="Name">HUD</string>
 <ProtectedString name="Source"><![CDATA[-- HUD: top bar, events, toasts, splash, war results, collapsible business panel + leaderboard,
 -- problem card, delivery card, tutorial card.
 return function(C)
@@ -996,10 +996,10 @@ do
 	local intGo = button({AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -4, 0.5, 0), Size = UDim2.fromOffset(76, 24), Text = "🚪 Go inside", TextSize = 10, BackgroundColor3 = PURPLE}, intRow)
 	local TIER_COLOR = {EMPTY = SUB, BASIC = WHITE, DECENT = RGB(140, 220, 255), PROFESSIONAL = RGB(120, 255, 160), ELITE = GOLD, VIRAL = RGB(255, 110, 200)}
 	local impTitle = label({Size = UDim2.new(1, -6, 0, 18), Text = "IMPROVEMENTS (happier customers, better reviews)", TextSize = 10, TextColor3 = SUB, Font = Enum.Font.GothamBlack,
-		TextXAlignment = Enum.TextXAlignment.Left, LayoutOrder = 6}, cardF)
+		TextXAlignment = Enum.TextXAlignment.Left, LayoutOrder = 7}, cardF)
 	local impRows = {}
 	for i = 1, 5 do
-		local r = new("Frame", {Size = UDim2.new(1, -6, 0, 26), BackgroundColor3 = CARD, BorderSizePixel = 0, LayoutOrder = 6 + i}, cardF)
+		local r = new("Frame", {Size = UDim2.new(1, -6, 0, 26), BackgroundColor3 = CARD, BorderSizePixel = 0, LayoutOrder = 7 + i}, cardF)
 		corner(r, 6)
 		local l = label({Position = UDim2.fromOffset(6, 0), Size = UDim2.new(1, -96, 1, 0), TextSize = 11, TextXAlignment = Enum.TextXAlignment.Left}, r)
 		local b = button({AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -3, 0.5, 0), Size = UDim2.fromOffset(86, 22), TextSize = 10, BackgroundColor3 = BLUE}, r)
@@ -1009,6 +1009,8 @@ do
 	local revHolder = new("Frame", {Size = UDim2.new(1, -6, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, LayoutOrder = 21}, cardF)
 	vlist(revHolder, 4)
 	local cur = {}
+	C.bizCardFrame = cardF   -- (EmpireClient > BusinessUI adds the Products / Supplies / Brand buttons here)
+	C.bizCardCurrent = function() return cur.b and cur.b.level > 0 and cur.b.key or nil end
 	action.MouseButton1Click:Connect(function()
 		play(SND.click)
 		local b = cur.b
@@ -1032,7 +1034,7 @@ do
 	local function fillCard(s, b)
 		cur.b = b
 		hIcon.Text = b.icon
-		hName.Text = b.locked and ("🔒 " .. b.name) or (b.level > 0 and b.name or (b.name .. "  (not open)"))
+		hName.Text = b.locked and ("🔒 " .. b.name) or (b.level > 0 and (b.brand or b.name) or (b.name .. "  (not open)"))
 		hLvl.Text = "Lv " .. b.level .. "/" .. s.maxLevel
 		for k, pip in ipairs(pips) do pip.BackgroundColor3 = k <= b.level and (b.level >= s.maxLevel and GOLD or b.color) or GRAY end
 		if b.locked then
@@ -1501,7 +1503,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX35"><Properties><string name="Name">WorldFX</string>
+<Item class="ModuleScript" referent="RBX44"><Properties><string name="Name">WorldFX</string>
 <ProtectedString name="Source"><![CDATA[-- WORLD FX: customers, pedestrians, traffic, rides, traffic lights, marquees, weather, guide beams.
 return function(C)
 local RunService = game:GetService("RunService")
@@ -1971,7 +1973,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX36"><Properties><string name="Name">Workers</string>
+<Item class="ModuleScript" referent="RBX45"><Properties><string name="Name">Workers</string>
 <ProtectedString name="Source"><![CDATA[-- WORKERS: your hired staff, standing at their businesses in uniform and working.
 -- The server publishes a roster on each plot folder (attribute "Workers"); this module draws it.
 -- Everything here is client-only visuals: no physics, no collisions, capped count, frozen when far away.
@@ -2284,7 +2286,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX37"><Properties><string name="Name">Menus</string>
+<Item class="ModuleScript" referent="RBX46"><Properties><string name="Name">Menus</string>
 <ProtectedString name="Source"><![CDATA[-- MENUS: modal windows opened from the phone (and from world prompts).
 return function(C)
 local RGB = Color3.fromRGB
@@ -2312,6 +2314,7 @@ local function modal(key, title, w, h)
 	modals[key] = m
 	return m
 end
+C.makeModal = modal   -- (other modules build their windows the same way)
 function C.closeModals()
 	for _, o in pairs(modals) do o.frame.Visible = false end
 end
@@ -2327,8 +2330,13 @@ function C.openModal(key, extra)
 	if was and not extra then return end
 	m.extra = extra
 	m.frame.Visible = true
-	m.scale.Scale = 0.6
-	tween(m.scale, 0.3, {Scale = 1}, Enum.EasingStyle.Back)
+	-- small screens (phones): shrink the window to fit instead of running off the edges
+	local cam = game:GetService("Workspace").CurrentCamera
+	local vp = cam and cam.ViewportSize or Vector2.new(1280, 720)
+	local fs = m.frame.Size
+	local fit = math.clamp(math.min((vp.X - 16) / math.max(1, fs.X.Offset), (vp.Y - 16) / math.max(1, fs.Y.Offset)), 0.45, 1)
+	m.scale.Scale = 0.6 * fit
+	tween(m.scale, 0.3, {Scale = fit}, Enum.EasingStyle.Back)
 	if C.S and m.update then m.update(C.S) end
 end
 C.onState(function(s)
@@ -2364,62 +2372,7 @@ do
 	end
 end
 
--- ===== GARAGE =====
-do
-	local m = modal("garage", "🚗  MY GARAGE", 620, 540)
-	local topRow = new("Frame", {Size = UDim2.new(1, -8, 0, 44), BackgroundTransparency = 1, LayoutOrder = 0}, m.body)
-	local tp = button({Size = UDim2.new(0.5, -5, 1, 0), Text = "📍 Go to Corner Motors", TextSize = 15, BackgroundColor3 = BLUE}, topRow)
-	local park = button({Position = UDim2.new(0.5, 5, 0, 0), Size = UDim2.new(0.5, -5, 1, 0), Text = "🅿 Put Car Away", TextSize = 15, BackgroundColor3 = GRAY}, topRow)
-	tp.MouseButton1Click:Connect(function() play(SND.click) act("tp", "dealer") m.frame.Visible = false end)
-	park.MouseButton1Click:Connect(function() play(SND.click) act("car", "despawn") end)
-	label({Size = UDim2.new(1, -8, 0, 34), TextSize = 12, TextColor3 = SUB, LayoutOrder = 1, Text = "Drive: WASD / arrows • Q or CTRL to drift • SHIFT for nitro (pass) • SPACE to hop out • Controller: Ⓧ drift, Ⓑ nitro • Phone: on-screen buttons", TextWrapped = true}, m.body)
-	local rows = {}
-	for i, c in ipairs(catalog.cars) do
-		local row = card(m.body, 62, i + 1)
-		local sw = new("Frame", {Position = UDim2.fromOffset(8, 8), Size = UDim2.fromOffset(46, 46), BackgroundColor3 = c.color, BorderSizePixel = 0}, row)
-		corner(sw, 23)
-		label({Size = UDim2.fromScale(1, 1), Text = c.delivery and "🚚" or (c.key == "moped" and "🛵" or "🚗"), TextSize = 24}, sw)
-		label({Position = UDim2.fromOffset(64, 8), Size = UDim2.new(1, -240, 0, 24), Text = c.name, TextSize = 17, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left}, row)
-		local price = c.pass and "Game Pass" or (c.rebirths and ("👑 " .. c.rebirths .. " rebirths") or ("$" .. fmt(c.price)))
-		label({Position = UDim2.fromOffset(64, 32), Size = UDim2.new(1, -240, 0, 20), TextSize = 12, TextColor3 = SUB, TextXAlignment = Enum.TextXAlignment.Left,
-			Text = "Top speed " .. c.speed .. "  •  " .. price .. (c.delivery and "  •  Deliveries x1.5" or "")}, row)
-		local r = {car = c, row = row}
-		r.btn = button({Position = UDim2.new(1, -168, 0.5, 0), AnchorPoint = Vector2.new(0, 0.5), Size = UDim2.fromOffset(160, 44), TextSize = 14, TextWrapped = true}, row)
-		r.btn.MouseButton1Click:Connect(function()
-			play(SND.click)
-			if r.mode == "drive" then
-				act("car", "spawn", c.key)
-				m.frame.Visible = false
-			elseif r.mode == "pass" then
-				act("pass", c.pass)
-			elseif r.mode == "tp" then
-				act("tp", "dealer")
-				m.frame.Visible = false
-			end
-		end)
-		rows[i] = r
-	end
-	m.update = function(s)
-		for _, r in ipairs(rows) do
-			local c = r.car
-			local owned = (c.pass and s.passes[c.pass]) or (c.rebirths and s.rebirthsOwned >= c.rebirths) or s.cars[c.key]
-			if s.activeCar == c.key then
-				r.mode, r.btn.Text, r.btn.BackgroundColor3 = "drive", "🔄 RESPAWN", BLUE
-			elseif owned then
-				r.mode, r.btn.Text, r.btn.BackgroundColor3 = "drive", "🔑 DRIVE", GREEN
-			elseif c.pass then
-				r.mode, r.btn.Text, r.btn.BackgroundColor3 = "pass", "🎫 GET PASS", RGB(235, 170, 30)
-			elseif c.rebirths then
-				r.mode, r.btn.Text, r.btn.BackgroundColor3 = nil, "👑 Rebirth " .. c.rebirths, GRAY
-			else
-				r.mode, r.btn.Text = "tp", "Buy at Dealer\n$" .. fmt(c.price)
-				r.btn.BackgroundColor3 = s.cash >= c.price and PURPLE or GRAY
-			end
-		end
-		park.BackgroundColor3 = s.activeCar and RED or GRAY
-	end
-end
-
+-- ===== GARAGE: see GarageUI (v10) =====
 -- ===== STAFF + candidates =====
 do
 	local m = modal("staff", "👥  STAFF", 640, 540)
@@ -2694,7 +2647,7 @@ do
 	end
 	local ctrl = header(m.body, "", 2)
 	local cards = {}
-	for i = 1, 4 do
+	for i = 1, 8 do
 		local c = card(m.body, 84, 2 + i)
 		local e = {c = c}
 		e.t = label({Position = UDim2.fromOffset(12, 6), Size = UDim2.new(1, -150, 0, 22), TextSize = 16, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left}, c)
@@ -2705,7 +2658,8 @@ do
 		e.btn.MouseButton1Click:Connect(function()
 			play(SND.click)
 			if e.key then
-				act("tp", e.key)
+				-- (the "suburbs" district is Northside; "suburbs" on its own is the Maple Suburbs home neighborhood)
+				act("tp", e.key == "suburbs" and "northside" or e.key)
 				m.frame.Visible = false
 			end
 		end)
@@ -2716,15 +2670,19 @@ do
 		spT.Text = "🏙️ ERA " .. sp2.era .. " " .. (sp2.eraName or "") .. "  •  next: " .. sp2.name
 		spFill.Size = UDim2.fromScale(math.clamp(sp2.progress / sp2.goal, 0, 1), 1)
 		spP.Text = "$" .. fmt(sp2.progress) .. " / $" .. fmt(sp2.goal) .. "     Top builder: " .. sp2.top
-		ctrl.Text = "🗺️ Business Land — you control " .. s.lotsMine .. " lots (" .. math.floor(s.cityPct + 0.5) .. "% of the city)"
+		local es = s.estate
+		ctrl.Text = "🗺️ Real Estate — " .. (es and (es.used .. " / " .. es.capacity .. " properties (plots + rental buildings)") or (s.lotsMine .. " plots"))
+		for i, e in ipairs(cards) do e.c.Visible = s.districts[i] ~= nil end
 		for i, dd in ipairs(s.districts) do
 			local e = cards[i]
+			if not e then break end
 			e.key = dd.key
 			e.t.Text = dd.icon .. " " .. dd.name .. (dd.unlocked and "" or "   🔒")
 			e.t.TextColor3 = dd.color
-			e.a.Text = "Lot price $" .. fmt(dd.cost) .. "  •  +$" .. fmt(dd.income) .. "/s per lot  •  needs " .. dd.tierName
-			e.b.Text = "Bonus per lot: " .. dd.boost
-			e.l.Text = "You own " .. dd.mine .. "  •  " .. (dd.total - dd.sold) .. " of " .. dd.total .. " lots for sale"
+			local ed = es and es.districts and es.districts[i]
+			e.a.Text = "Plot price $" .. fmt(ed and ed.price or dd.cost) .. "  •  +$" .. fmt(dd.income) .. "/s per plot  •  needs " .. dd.tierName
+			e.b.Text = (ed and (ed.kind .. "  " .. string.rep("★", ed.stars) .. "  •  ") or "") .. "Bonus: " .. dd.boost
+			e.l.Text = "You own " .. dd.mine .. (ed and ("/" .. ed.cap) or "") .. "  •  " .. (dd.total - dd.sold) .. " of " .. dd.total .. " plots for sale"
 			e.btn.Text = "📍 Visit\n" .. dd.name
 		end
 	end
@@ -2737,8 +2695,8 @@ do
 	local hT = label({Position = UDim2.fromOffset(14, 8), Size = UDim2.new(1, -28, 0, 26), TextSize = 20, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left}, cur)
 	local hS = label({Position = UDim2.fromOffset(14, 34), Size = UDim2.new(1, -28, 0, 44), TextSize = 12, TextColor3 = SUB, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top}, cur)
 	local pips = {}
-	for k = 1, 5 do
-		local pp = new("Frame", {Position = UDim2.fromOffset(14 + (k - 1) * 34, 78), Size = UDim2.fromOffset(28, 10), BackgroundColor3 = GRAY, BorderSizePixel = 0}, cur)
+	for k = 1, 7 do
+		local pp = new("Frame", {Position = UDim2.fromOffset(14 + (k - 1) * 30, 78), Size = UDim2.fromOffset(25, 10), BackgroundColor3 = GRAY, BorderSizePixel = 0}, cur)
 		corner(pp, 3)
 		pips[k] = pp
 	end
@@ -2748,7 +2706,14 @@ do
 	inB.MouseButton1Click:Connect(function() play(SND.click) act("enterHome") m.frame.Visible = false end)
 	buildB.MouseButton1Click:Connect(function() play(SND.click) act("homeBuild") end)
 	goB.MouseButton1Click:Connect(function() play(SND.click) act("tp", "home") m.frame.Visible = false end)
-	header(m.body, "🗺️ Neighborhoods — visit a FOR SALE sign to buy land", 2)
+	-- v10: furniture, the home builder and visitor permissions
+	local tools = card(m.body, 50, 2, RGB(34, 38, 54))
+	for i, t in ipairs({{"🛒 Furniture shop", function() C.openModal("furniture", true) end}, {"🔨 Home builder", function() if C.BuilderUI then C.BuilderUI.open("place") end end},
+		{"🔐 Visitors", function() if C.BuilderUI then C.BuilderUI.open("visitors") end end}}) do
+		local b = button({Position = UDim2.new((i - 1) / 3, 6, 0, 6), Size = UDim2.new(1 / 3, -10, 0, 38), Text = t[1], TextSize = 13, BackgroundColor3 = i == 1 and GREEN or (i == 2 and RGB(230, 140, 40) or PURPLE)}, tools)
+		b.MouseButton1Click:Connect(function() play(SND.click) t[2]() end)
+	end
+	header(m.body, "🗺️ Neighborhoods — visit a FOR SALE sign to buy land", 3)
 	local rows = {}
 	m.update = function(s)
 		local hi = s.homeInfo
@@ -2764,7 +2729,7 @@ do
 				buildB.Text = "🔨 Build: " .. h.nextName .. "  $" .. fmt(h.cost)
 				buildB.BackgroundColor3 = s.cash >= h.cost and GREEN or GRAY
 			else
-				buildB.Text = "🌟 DREAM HOME COMPLETE"
+				buildB.Text = "🌟 EMPIRE ESTATE COMPLETE"
 				buildB.BackgroundColor3 = RGB(190, 145, 30)
 			end
 			goB.Visible = true
@@ -2780,7 +2745,7 @@ do
 		for i, hd in ipairs(hi.hoods) do
 			local r = rows[i]
 			if not r then
-				local c = card(m.body, 74, 2 + i)
+				local c = card(m.body, 74, 3 + i)
 				r = {c = c, key = hd.key}
 				r.t = label({Position = UDim2.fromOffset(12, 6), Size = UDim2.new(1, -150, 0, 22), TextSize = 16, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left}, c)
 				r.a = label({Position = UDim2.fromOffset(12, 28), Size = UDim2.new(1, -150, 0, 16), TextSize = 12, TextColor3 = SUB, TextXAlignment = Enum.TextXAlignment.Left}, c)
@@ -3182,7 +3147,1645 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX38"><Properties><string name="Name">Phone</string>
+<Item class="ModuleScript" referent="RBX47"><Properties><string name="Name">BusinessUI</string>
+<ProtectedString name="Source"><![CDATA[-- BUSINESS UI (v10): property cards, choosing a business for a plot, naming it, the brand editor, products and
+-- supplies. Everything here only ASKS the server; the server checks and applies (GameServer > RealEstate, Brands).
+return function(C)
+local Workspace = game:GetService("Workspace")
+local RGB = Color3.fromRGB
+local new, label, button, card, header, bar, clear, corner, stroke = C.new, C.label, C.button, C.card, C.header, C.bar, C.clear, C.corner, C.stroke
+local fmt, play, SND, act, gui, U, R = C.fmt, C.play, C.SND, C.act, C.gui, C.U, C.R
+local GOLD, GREEN, GRAY, RED, BLUE, PURPLE, WHITE, SUB, CARD = C.GOLD, C.GREEN, C.GRAY, C.RED, C.BLUE, C.PURPLE, C.WHITE, C.SUB, C.CARD
+local modal = C.makeModal
+if not modal then return end
+local BUI = {}
+C.BusinessUI = BUI
+local LOGOS = {"🍋", "⭐", "👑", "🔥", "💎", "🌈", "⚡", "🍀", "🌙", "☀️", "🎯", "🚀", "🍦", "🥐", "☕", "🍕", "🕹️", "💻", "🏭", "🐝"}
+local COLORS = {RGB(255, 214, 60), RGB(255, 120, 40), RGB(230, 60, 60), RGB(255, 110, 200), RGB(170, 90, 255), RGB(70, 120, 255),
+	RGB(60, 200, 230), RGB(60, 200, 120), RGB(140, 100, 60), RGB(245, 245, 245), RGB(40, 40, 46), RGB(210, 170, 60)}
+local THEMES = {"Classic", "Modern", "Retro", "Neon", "Luxury", "Cozy"}
+local MENUS = {"Chalkboard", "Neon", "Classic", "Minimal"}
+local function stars(n) return string.rep("★", n or 0) .. string.rep("☆", 5 - (n or 0)) end
+local function row(parent, h, order, color) return card(parent, h, order, color) end
+local function btn(parent, text, pos, size, color, fn)
+	local b = button({Position = pos, Size = size, Text = text, TextSize = 13, TextWrapped = true, BackgroundColor3 = color or BLUE}, parent)
+	b.MouseButton1Click:Connect(function()
+		play(SND.click)
+		fn(b)
+	end)
+	return b
+end
+local function txt(parent, text, pos, size, sizePx, color, bold)
+	return label({Position = pos, Size = size, Text = text, TextSize = sizePx or 13, TextColor3 = color or WHITE, TextWrapped = true,
+		Font = bold and Enum.Font.GothamBlack or Enum.Font.GothamBold, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top}, parent)
+end
+-- "What's this?" help button for a modal (the text comes from the guide)
+local function helpButton(m, topic)
+	local b = button({Position = UDim2.new(1, -150, 0, 10), Size = UDim2.fromOffset(96, 32), Text = "❓ What's this?", TextSize = 11, BackgroundColor3 = PURPLE}, m.frame)
+	b.MouseButton1Click:Connect(function()
+		play(SND.click)
+		if C.showHelp then C.showHelp(topic) end
+	end)
+end
+BUI.helpButton = helpButton
+
+-- =====================================================================
+-- CONFIRMATION DIALOG (shared: selling, admin actions...)
+-- =====================================================================
+do
+	local box = C.panel({AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(380, 170), BackgroundColor3 = RGB(30, 30, 44), Visible = false, ZIndex = 80}, gui)
+	stroke(box, GOLD, 2, 0.2)
+	local q = label({Position = UDim2.fromOffset(16, 14), Size = UDim2.new(1, -32, 0, 86), TextSize = 17, TextWrapped = true, Font = Enum.Font.GothamBlack, ZIndex = 81}, box)
+	local no = button({Position = UDim2.new(0, 16, 1, -58), Size = UDim2.new(0.5, -24, 0, 44), Text = "Cancel", TextSize = 16, BackgroundColor3 = GRAY, ZIndex = 81}, box)
+	local yes = button({Position = UDim2.new(0.5, 8, 1, -58), Size = UDim2.new(0.5, -24, 0, 44), Text = "Confirm", TextSize = 16, BackgroundColor3 = RED, ZIndex = 81}, box)
+	local pending
+	no.MouseButton1Click:Connect(function() play(SND.click) box.Visible = false pending = nil end)
+	yes.MouseButton1Click:Connect(function()
+		play(SND.click)
+		box.Visible = false
+		local fn = pending
+		pending = nil
+		if fn then fn() end
+	end)
+	-- dangerous actions never run from a single tap: they always go through this
+	function C.confirm(question, yesText, fn)
+		q.Text = question
+		yes.Text = yesText or "Confirm"
+		pending = fn
+		box.Visible = true
+	end
+	C.confirmBox = box
+end
+
+-- =====================================================================
+-- PROPERTY CARD
+-- =====================================================================
+local plotM = modal("plot", "🏙️  PROPERTY", 520, 470)
+helpButton(plotM, "property")
+local plotInfo
+local function renderPlot(info)
+	plotInfo = info
+	clear(plotM.body)
+	if not info then return end
+	local c = row(plotM.body, 150, 1, RGB(36, 40, 60))
+	stroke(c, info.color or WHITE, 2, 0.3)
+	if info.owner then
+		txt(c, info.mine and "🔑 YOUR PROPERTY" or ("OWNED BY: " .. info.owner), UDim2.fromOffset(14, 10), UDim2.new(1, -28, 0, 26), 20, info.mine and GOLD or WHITE, true)
+		txt(c, "Business: " .. (info.bizName or "— vacant —") .. (info.level and info.level > 0 and ("  (Lv " .. info.level .. ")") or ""), UDim2.fromOffset(14, 42), UDim2.new(1, -28, 0, 20), 15)
+	else
+		txt(c, "PROPERTY FOR SALE", UDim2.fromOffset(14, 10), UDim2.new(1, -28, 0, 26), 20, RGB(255, 110, 110), true)
+		txt(c, "Price: $" .. fmt(info.price or 0), UDim2.fromOffset(14, 42), UDim2.new(1, -28, 0, 20), 17, RGB(120, 255, 150), true)
+	end
+	txt(c, "District: " .. info.icon .. " " .. info.district .. "\nType: " .. info.kind .. "\nPotential: " .. stars(info.stars) .. "   •   +$" .. fmt(info.income) .. "/s", UDim2.fromOffset(14, 66), UDim2.new(1, -28, 0, 60), 13, SUB)
+	local d2 = row(plotM.body, 48, 2)
+	txt(d2, (info.blurb or "") .. "\nDistrict bonus: " .. tostring(info.boost), UDim2.fromOffset(12, 4), UDim2.new(1, -24, 1, -8), 12, SUB)
+	local acts = row(plotM.body, 64, 3, RGB(26, 28, 40))
+	if not info.owner then
+		local reason = info.canBuy and ("You own " .. info.used .. "/" .. info.capacity .. " properties • " .. info.mineHere .. "/" .. info.cap .. " here • " .. info.free .. "/" .. info.total .. " plots free")
+			or tostring(info.reason)
+		txt(acts, reason, UDim2.fromOffset(12, 6), UDim2.new(0.6, -12, 1, -12), 11, info.canBuy and SUB or RGB(255, 160, 140))
+		btn(acts, "BUY  $" .. fmt(info.price), UDim2.new(0.6, 6, 0, 10), UDim2.new(0.4, -16, 0, 44), info.canBuy and GREEN or GRAY, function()
+			act("plotBuy", info.lot)
+		end)
+	elseif info.mine then
+		local w = 1 / 3
+		btn(acts, info.biz and "🔄 Change business" or "🏪 Choose business", UDim2.new(0, 8, 0, 10), UDim2.new(w, -12, 0, 44), BLUE, function() BUI.openChooser(info) end)
+		btn(acts, "🚪 Enter", UDim2.new(w, 4, 0, 10), UDim2.new(w, -12, 0, 44), info.biz and PURPLE or GRAY, function()
+			if info.biz then act("enterBiz", info.biz) plotM.frame.Visible = false end
+		end)
+		btn(acts, "💼 Sell $" .. fmt(info.sellFor or 0), UDim2.new(2 * w, 0, 0, 10), UDim2.new(w, -8, 0, 44), RED, function()
+			C.confirm("Sell your " .. info.district .. " plot for $" .. fmt(info.sellFor or 0) .. "?\n(Half of what you paid.)", "Sell", function()
+				act("plotSell", info.deed, true)
+				plotM.frame.Visible = false
+			end)
+		end)
+	else
+		txt(acts, "You can't buy another player's property. You can visit their business if they allow visitors.", UDim2.fromOffset(12, 6), UDim2.new(0.6, -12, 1, -12), 11, SUB)
+		btn(acts, "👀 VIEW / VISIT", UDim2.new(0.6, 6, 0, 10), UDim2.new(0.4, -16, 0, 44), info.biz and PURPLE or GRAY, function()
+			if info.biz then act("visitBiz", info.ownerId, info.biz) plotM.frame.Visible = false end
+		end)
+	end
+end
+
+-- =====================================================================
+-- CHOOSE YOUR BUSINESS
+-- =====================================================================
+local chooseM = modal("chooseBiz", "🏪  CHOOSE YOUR BUSINESS", 560, 520)
+helpButton(chooseM, "chooseBusiness")
+function BUI.openChooser(info)
+	plotInfo = info
+	C.openModal("chooseBiz", true)
+	clear(chooseM.body)
+	header(chooseM.body, "What will this " .. info.district .. " plot run?", 0)
+	for i, o in ipairs(info.options or {}) do
+		local c = row(chooseM.body, 54, i)
+		label({Position = UDim2.fromOffset(8, 0), Size = UDim2.fromOffset(44, 54), Text = o.icon, TextSize = 30}, c)
+		local status
+		if o.locked then status = "🔒 Needs " .. o.need
+		elseif o.level > 0 then status = "Open (Lv " .. o.level .. ") → adds a new location of " .. (o.brand or o.name)
+		else status = "New business: opens here for $" .. fmt(o.cost) end
+		txt(c, o.name, UDim2.fromOffset(58, 6), UDim2.new(1, -200, 0, 20), 16, WHITE, true)
+		txt(c, status, UDim2.fromOffset(58, 28), UDim2.new(1, -200, 0, 20), 11, o.locked and RGB(255, 160, 140) or SUB)
+		btn(c, info.biz == o.key and "✔ Current" or "Choose", UDim2.new(1, -130, 0.5, -19), UDim2.fromOffset(120, 38), o.locked and GRAY or GREEN, function()
+			if o.locked or info.biz == o.key then return end
+			act("plotBiz", info.deed, o.key)
+			chooseM.frame.Visible = false
+		end)
+	end
+end
+R.Menu.OnClientEvent:Connect(function(kind, a)
+	if kind == "plot" and type(a) == "table" then
+		C.openModal("plot", true)
+		renderPlot(a)
+	elseif kind == "chooseBiz" and type(a) == "table" then
+		BUI.openChooser(a)
+	end
+end)
+
+-- =====================================================================
+-- NAME YOUR BUSINESS
+-- =====================================================================
+local nameM = modal("nameBiz", "🏷️  NAME YOUR BUSINESS", 480, 330)
+local nameKey
+local nameIntro = txt(nameM.body, "", UDim2.new(), UDim2.new(1, -8, 0, 48), 14, SUB)
+nameIntro.LayoutOrder = 1
+local nameBox = new("TextBox", {Size = UDim2.new(1, -8, 0, 46), BackgroundColor3 = RGB(18, 20, 30), TextColor3 = WHITE, PlaceholderText = "Your business name", Text = "",
+	Font = Enum.Font.GothamBlack, TextSize = 20, ClearTextOnFocus = false, LayoutOrder = 2}, nameM.body)
+corner(nameBox, 8)
+local nameMsg = txt(nameM.body, "", UDim2.new(), UDim2.new(1, -8, 0, 30), 12, RGB(255, 170, 150))
+nameMsg.LayoutOrder = 3
+local nameRow = C.autoFrame(nameM.body, 4)
+nameRow.Size = UDim2.new(1, -8, 0, 50)
+btn(nameRow, "Keep the default", UDim2.new(0, 0, 0, 4), UDim2.new(0.45, -6, 0, 42), GRAY, function() nameM.frame.Visible = false end)
+btn(nameRow, "✔ Save name", UDim2.new(0.45, 6, 0, 4), UDim2.new(0.55, -6, 0, 42), GREEN, function()
+	if nameKey then
+		nameMsg.Text = "Checking..."
+		act("bizName", nameKey, nameBox.Text)
+	end
+end)
+function BUI.askName(info)
+	nameKey = info.key
+	nameIntro.Text = info.first and (info.icon .. " Your new " .. info.biz .. " needs a name! It shows on the building, the map and CityBuzz.")
+		or (info.icon .. " Rename " .. info.biz .. (info.fee and info.fee > 0 and (" (costs $" .. fmt(info.fee) .. ")") or ""))
+	nameBox.Text = info.current or info.suggestion or ""
+	nameMsg.Text = "3-24 characters. Names are checked by Roblox's text filter."
+	C.openModal("nameBiz", true)
+end
+R.Menu.OnClientEvent:Connect(function(kind, a)
+	if kind == "nameBiz" and type(a) == "table" then
+		BUI.askName(a)
+	elseif kind == "nameResult" and type(a) == "table" and a.key == nameKey then
+		if a.ok then
+			nameM.frame.Visible = false
+			if U.toast then U.toast("🏷️ Say hello to " .. tostring(a.name) .. "!") end
+		else
+			nameMsg.Text = "❌ " .. tostring(a.why)
+		end
+	end
+end)
+
+-- =====================================================================
+-- MANAGE: brand, products, supplies (one window, three tabs)
+-- =====================================================================
+local manM = modal("bizManage", "🏪  MANAGE BUSINESS", 640, 580)
+helpButton(manM, "products")
+local manKey, manTab = nil, "products"
+local tabs = {}
+local tabBar = new("Frame", {Position = UDim2.fromOffset(12, 50), Size = UDim2.new(1, -24, 0, 34), BackgroundTransparency = 1}, manM.frame)
+new("UIListLayout", {FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 6)}, tabBar)
+manM.body.Position = UDim2.fromOffset(12, 90)
+manM.body.Size = UDim2.new(1, -24, 1, -102)
+local renderManage
+for _, t in ipairs({{"products", "🧪 Products"}, {"supplies", "📦 Supplies"}, {"brand", "🏷️ Brand"}}) do
+	local b = button({Size = UDim2.new(1 / 3, -4, 1, 0), Text = t[2], TextSize = 14, BackgroundColor3 = GRAY}, tabBar)
+	tabs[t[1]] = b
+	b.MouseButton1Click:Connect(function() play(SND.click) manTab = t[1] renderManage() end)
+end
+local function bizEntry(key)
+	for _, b in ipairs(C.S and C.S.biz or {}) do if b.key == key then return b end end
+end
+local function swatches(parent, order, title, field, current)
+	local c = row(parent, 74, order)
+	txt(c, title, UDim2.fromOffset(10, 4), UDim2.new(1, -20, 0, 18), 12, SUB, true)
+	for i, col in ipairs(COLORS) do
+		local s = button({Position = UDim2.fromOffset(10 + (i - 1) * 46, 26), Size = UDim2.fromOffset(40, 40), Text = current == i and "✔" or "", TextSize = 18, BackgroundColor3 = col}, c)
+		s.MouseButton1Click:Connect(function() play(SND.click) act("brand", manKey, field, i) end)
+	end
+end
+local function chooser(parent, order, title, field, list, current)
+	local c = row(parent, 58, order)
+	txt(c, title, UDim2.fromOffset(10, 4), UDim2.new(1, -20, 0, 18), 12, SUB, true)
+	for i, v in ipairs(list) do
+		btn(c, v, UDim2.new((i - 1) / #list, 6, 0, 22), UDim2.new(1 / #list, -10, 0, 30), current == v and GREEN or GRAY, function() act("brand", manKey, field, v) end)
+	end
+end
+function renderManage()
+	local b = manKey and bizEntry(manKey)
+	local v = b and b.v10
+	for k, t in pairs(tabs) do t.BackgroundColor3 = k == manTab and BLUE or GRAY end
+	clear(manM.body)
+	if not v then
+		header(manM.body, "Open this business first.", 1)
+		return
+	end
+	header(manM.body, (v.brand.logo or b.icon) .. "  " .. v.brand.name .. "   •   Lv " .. b.level .. (v.trending and ("   🔥 " .. v.trending .. " is TRENDING") or ""), 0)
+	if manTab == "products" then
+		local info = row(manM.body, 40, 1, RGB(30, 34, 50))
+		txt(info, "Products: " .. #v.products .. "/" .. v.slots .. " slots (more at Lv 3, 5, 7, 10)   •   Product effect on income: " .. v.productMult .. "%   •   Locations: +" .. v.locations .. "%",
+			UDim2.fromOffset(10, 4), UDim2.new(1, -20, 1, -8), 12, SUB)
+		for i, p in ipairs(v.products) do
+			local c = row(manM.body, 128, 1 + i)
+			label({Position = UDim2.fromOffset(6, 6), Size = UDim2.fromOffset(40, 40), Text = p.icon, TextSize = 28}, c)
+			txt(c, p.name, UDim2.fromOffset(50, 6), UDim2.new(1, -260, 0, 20), 16, WHITE, true)
+			txt(c, p.desc .. "\nSold " .. fmt(p.sold or 0) .. "  •  Popularity " .. p.pop .. "  •  Trend " .. p.trend .. "  •  Demand " .. p.demand .. "%", UDim2.fromOffset(50, 28), UDim2.new(1, -260, 0, 36), 11, SUB)
+			-- price
+			txt(c, "Price $" .. p.dollars .. "  (" .. math.floor(p.price * 100 + 0.5) .. "% of fair)", UDim2.new(1, -206, 0, 8), UDim2.fromOffset(200, 18), 12, GOLD, true)
+			btn(c, "−", UDim2.new(1, -206, 0, 30), UDim2.fromOffset(40, 30), GRAY, function() act("product", manKey, {"price", p.id, p.price - 0.1}) end)
+			btn(c, "+", UDim2.new(1, -160, 0, 30), UDim2.fromOffset(40, 30), GRAY, function() act("product", manKey, {"price", p.id, p.price + 0.1}) end)
+			btn(c, "✏️", UDim2.new(1, -114, 0, 30), UDim2.fromOffset(40, 30), GRAY, function()
+				BUI.askProductName(manKey, p.id, p.name)
+			end)
+			btn(c, "🗑", UDim2.new(1, -68, 0, 30), UDim2.fromOffset(40, 30), RED, function()
+				C.confirm("Remove " .. p.name .. " from the menu?", "Remove", function() act("product", manKey, {"remove", p.id}) end)
+			end)
+			-- upgrades
+			btn(c, "⭐ Quality " .. p.q .. "/5" .. (p.qCost >= 0 and ("  $" .. fmt(p.qCost)) or "  MAX"), UDim2.new(0, 8, 1, -54), UDim2.new(1 / 3, -12, 0, 44), p.qCost >= 0 and BLUE or GRAY, function()
+				act("product", manKey, {"q", p.id})
+			end)
+			btn(c, "🎁 Presentation " .. p.pres .. "/3" .. (p.presCost >= 0 and ("  $" .. fmt(p.presCost)) or "  MAX"), UDim2.new(1 / 3, 4, 1, -54), UDim2.new(1 / 3, -12, 0, 44), p.presCost >= 0 and BLUE or GRAY, function()
+				act("product", manKey, {"pres", p.id})
+			end)
+			local nextIng = ({std = "prem", prem = "art", art = "std"})[p.ing] or "std"
+			btn(c, "🧂 Ingredients: " .. ({std = "Standard", prem = "Premium", art = "Artisan"})[p.ing or "std"], UDim2.new(2 / 3, 0, 1, -54), UDim2.new(1 / 3, -8, 0, 44), PURPLE, function()
+				act("product", manKey, {"ing", p.id, nextIng})
+			end)
+		end
+		if #v.products < v.slots then
+			header(manM.body, "🆕 CREATE A PRODUCT ($" .. fmt(v.newCost) .. ")", 50)
+			for i, t in ipairs(v.templates) do
+				local c = row(manM.body, 48, 50 + i)
+				label({Position = UDim2.fromOffset(6, 4), Size = UDim2.fromOffset(40, 40), Text = t.icon, TextSize = 26}, c)
+				txt(c, t.name .. "\n" .. t.desc, UDim2.fromOffset(50, 4), UDim2.new(1, -190, 1, -8), 12)
+				btn(c, "Create", UDim2.new(1, -130, 0.5, -18), UDim2.fromOffset(120, 36), GREEN, function()
+					BUI.askProductName(manKey, nil, t.name, t.k)
+				end)
+			end
+		end
+	elseif manTab == "supplies" then
+		for i, s in ipairs(v.stock) do
+			local c = row(manM.body, 50, i)
+			txt(c, s.name .. ":  " .. s.v .. "%", UDim2.fromOffset(12, 6), UDim2.new(1, -24, 0, 18), 15, s.v < 20 and RGB(255, 140, 120) or WHITE, true)
+			local fill = bar(c, UDim2.fromOffset(12, 30), UDim2.new(1, -24, 0, 12), s.v < 20 and RED or GREEN)
+			fill.Size = UDim2.fromScale(s.v / 100, 1)
+		end
+		local c = row(manM.body, 120, 10, RGB(30, 34, 50))
+		txt(c, "Customers use up supplies. Below 20% sales drop (to half at 0%).\nRestock at the business, remotely with an Executive Workstation computer (+10%), or let your General Manager do it.",
+			UDim2.fromOffset(12, 6), UDim2.new(1, -24, 0, 56), 12, SUB)
+		btn(c, "📦 Restock here  $" .. fmt(v.restock), UDim2.new(0, 10, 1, -50), UDim2.new(0.5, -15, 0, 42), v.restock > 0 and GREEN or GRAY, function() act("restock", manKey) end)
+		btn(c, "💻 Restock remotely  $" .. fmt(v.restockRemote), UDim2.new(0.5, 5, 1, -50), UDim2.new(0.5, -15, 0, 42), v.restockRemote > 0 and BLUE or GRAY, function() act("restock", manKey, "remote") end)
+	else
+		local br = v.brand
+		local c = row(manM.body, 60, 1)
+		txt(c, "Name: " .. br.name .. (br.named and "" or "  (default)"), UDim2.fromOffset(12, 6), UDim2.new(1, -170, 0, 22), 16, WHITE, true)
+		txt(c, br.renameIn > 0 and ("Rename again in " .. math.ceil(br.renameIn / 60) .. " min") or (br.renameFee > 0 and ("Rename fee $" .. fmt(br.renameFee)) or "First name is free"),
+			UDim2.fromOffset(12, 32), UDim2.new(1, -170, 0, 18), 11, SUB)
+		btn(c, "✏️ Rename", UDim2.new(1, -150, 0.5, -20), UDim2.fromOffset(140, 40), BLUE, function()
+			local b2 = bizEntry(manKey)
+			BUI.askName({key = manKey, icon = b2.icon, biz = b2.brand or b2.name, current = br.name, fee = br.renameFee})
+		end)
+		local lc = row(manM.body, 112, 2)
+		txt(lc, "Logo", UDim2.fromOffset(10, 4), UDim2.new(1, -20, 0, 18), 12, SUB, true)
+		for i, lg in ipairs(LOGOS) do
+			local col, r2 = (i - 1) % 10, math.floor((i - 1) / 10)
+			local s = button({Position = UDim2.fromOffset(10 + col * 58, 24 + r2 * 44), Size = UDim2.fromOffset(52, 40), Text = lg, TextSize = 22, BackgroundColor3 = br.logo == lg and GREEN or GRAY}, lc)
+			s.MouseButton1Click:Connect(function() play(SND.click) act("brand", manKey, "logo", lg) end)
+		end
+		swatches(manM.body, 3, "Sign color", "sign", br.sign)
+		swatches(manM.body, 4, "Accent color (awning, trim, interior logo)", "accent", br.accent)
+		swatches(manM.body, 5, "Exterior color", "exterior", br.exterior)
+		swatches(manM.body, 6, "Employee uniforms", "uniform", br.uniform)
+		chooser(manM.body, 7, "Interior theme", "theme", THEMES, br.theme)
+		chooser(manM.body, 8, "Menu board style", "menu", MENUS, br.menu)
+	end
+end
+function BUI.openManage(key, tab)
+	manKey = key
+	manTab = tab or manTab
+	C.openModal("bizManage", true)
+	renderManage()
+end
+manM.update = function() if manM.frame.Visible then renderManage() end end
+-- product naming (create or rename)
+local pM = modal("productName", "🧪  NAME YOUR PRODUCT", 460, 280)
+local pBox = new("TextBox", {Size = UDim2.new(1, -8, 0, 46), BackgroundColor3 = RGB(18, 20, 30), TextColor3 = WHITE, Text = "", Font = Enum.Font.GothamBlack, TextSize = 18,
+	ClearTextOnFocus = false, LayoutOrder = 1}, pM.body)
+corner(pBox, 8)
+local pHint = txt(pM.body, "3-28 characters. Checked by Roblox's text filter.", UDim2.new(), UDim2.new(1, -8, 0, 30), 12, SUB)
+pHint.LayoutOrder = 2
+local pRow = C.autoFrame(pM.body, 3)
+pRow.Size = UDim2.new(1, -8, 0, 50)
+local pending = {}
+btn(pRow, "Cancel", UDim2.new(0, 0, 0, 4), UDim2.new(0.4, -6, 0, 42), GRAY, function() pM.frame.Visible = false end)
+btn(pRow, "✔ Save", UDim2.new(0.4, 6, 0, 4), UDim2.new(0.6, -6, 0, 42), GREEN, function()
+	if pending.template then act("product", pending.key, {"new", pending.template, pBox.Text})
+	else act("product", pending.key, {"rename", pending.id, pBox.Text}) end
+	pM.frame.Visible = false
+	task.delay(0.6, function() BUI.openManage(pending.key, "products") end)
+end)
+function BUI.askProductName(key, id, current, template)
+	pending = {key = key, id = id, template = template}
+	pBox.Text = current or ""
+	C.openModal("productName", true)
+end
+
+-- =====================================================================
+-- THE BUSINESS CARD (HUD) gets Products / Supplies / Brand buttons
+-- =====================================================================
+function C.bizManageButtons(parent, getKey)
+	local rowF = new("Frame", {Size = UDim2.new(1, -6, 0, 30), BackgroundTransparency = 1, LayoutOrder = 6}, parent)
+	new("UIListLayout", {FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 4)}, rowF)
+	for _, t in ipairs({{"🧪 Products", "products"}, {"📦 Supplies", "supplies"}, {"🏷️ Brand", "brand"}}) do
+		local b = button({Size = UDim2.new(1 / 3, -3, 1, 0), Text = t[1], TextSize = 11, BackgroundColor3 = RGB(80, 70, 140)}, rowF)
+		b.MouseButton1Click:Connect(function()
+			play(SND.click)
+			local k = getKey()
+			if k then BUI.openManage(k, t[2]) end
+		end)
+	end
+	return rowF
+end
+if C.bizCardFrame and C.bizCardCurrent then C.bizManageButtons(C.bizCardFrame, C.bizCardCurrent) end
+end
+]]></ProtectedString></Properties>
+</Item>
+<Item class="ModuleScript" referent="RBX48"><Properties><string name="Name">HQUI</string>
+<ProtectedString name="Source"><![CDATA[-- HQ UI (v10): the HQ card (floors to build), the elevator, and the General Manager's contract panel.
+-- Everything here only ASKS the server (GameServer > HQ); the server checks reputation, cash and where you are.
+return function(C)
+local RGB = Color3.fromRGB
+local label, button, card, header, clear, stroke = C.label, C.button, C.card, C.header, C.clear, C.stroke
+local fmt, play, SND, act, R = C.fmt, C.play, C.SND, C.act, C.R
+local GOLD, GREEN, GRAY, RED, BLUE, PURPLE, WHITE, SUB = C.GOLD, C.GREEN, C.GRAY, C.RED, C.BLUE, C.PURPLE, C.WHITE, C.SUB
+local modal = C.makeModal
+if not modal then return end
+local BUI = C.BusinessUI or {}
+local HQ = {}
+C.HQUI = HQ
+
+local function btn(parent, text, pos, size, color, fn)
+	local b = button({Position = pos, Size = size, Text = text, TextSize = 13, TextWrapped = true, BackgroundColor3 = color or BLUE}, parent)
+	b.MouseButton1Click:Connect(function()
+		play(SND.click)
+		fn(b)
+	end)
+	return b
+end
+local function txt(parent, text, pos, size, sizePx, color, bold)
+	return label({Position = pos, Size = size, Text = text, TextSize = sizePx or 13, TextColor3 = color or WHITE, TextWrapped = true,
+		Font = bold and Enum.Font.GothamBlack or Enum.Font.GothamBold, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top}, parent)
+end
+-- ask the server for fresh data each time a window is opened from the phone
+local function refreshOnOpen(m, action)
+	local asked = false
+	m.frame:GetPropertyChangedSignal("Visible"):Connect(function()
+		if not m.frame.Visible then asked = false end
+	end)
+	m.update = function()
+		if not asked then
+			asked = true
+			act(action)
+		end
+	end
+end
+local function mins(sec)
+	sec = math.max(0, math.floor(sec or 0))
+	return string.format("%d:%02d", math.floor(sec / 60), sec % 60)
+end
+
+-- =====================================================================
+-- GENERAL MANAGER
+-- =====================================================================
+local mgrM = modal("manager", "📋  GENERAL MANAGER", 520, 520)
+if BUI.helpButton then BUI.helpButton(mgrM, "manager") end
+local function renderManager(info)
+	clear(mgrM.body)
+	if type(info) ~= "table" then return end
+	local c = card(mgrM.body, 120, 1, RGB(36, 40, 60))
+	if not info.hired then
+		txt(c, "You haven't hired a Manager yet.", UDim2.fromOffset(14, 10), UDim2.new(1, -28, 0, 24), 18, GOLD, true)
+		txt(c, "Hire one in the 👥 Staff app. Then build your HQ's Management floor and sign a contract here.", UDim2.fromOffset(14, 40), UDim2.new(1, -28, 0, 60), 13, SUB)
+		return
+	end
+	txt(c, "👔 " .. tostring(info.name) .. "  •  Level " .. info.level .. " Manager", UDim2.fromOffset(14, 10), UDim2.new(1, -28, 0, 24), 18, GOLD, true)
+	local status = info.left > 0 and ("🟢 Under contract: " .. mins(info.left) .. " left") or "🔴 No contract — your manager is on a break"
+	txt(c, status, UDim2.fromOffset(14, 40), UDim2.new(1, -28, 0, 20), 14, info.left > 0 and GREEN or RGB(255, 160, 140), true)
+	txt(c, "Repairs take " .. tostring(info.repair or "?") .. " s  •  " .. info.parallel .. " at a time" .. (info.level >= 4 and "  •  biggest earners first" or "")
+		.. "\n" .. (info.advanced and "Handles advanced problems too (outages, theft, road works)" or "Advanced problems need a level 5 manager") .. "\nProblems handled: " .. tostring(info.handled),
+		UDim2.fromOffset(14, 64), UDim2.new(1, -28, 0, 54), 12, SUB)
+	local s = card(mgrM.body, 110, 2, RGB(26, 28, 40))
+	if info.hq < 2 then
+		txt(s, "🏢 Your HQ needs a Management floor before a manager can work from it.", UDim2.fromOffset(12, 10), UDim2.new(1, -24, 0, 40), 14, RGB(255, 200, 140), true)
+		btn(s, "Open HQ", UDim2.new(1, -150, 1, -50), UDim2.fromOffset(140, 40), BLUE, function() act("hqInfo") end)
+	else
+		txt(s, "Contract: " .. info.minutes .. " minutes for $" .. fmt(info.cost) .. "\nOnly counts down while you play. Repairs and restocks are paid at the normal price.",
+			UDim2.fromOffset(12, 8), UDim2.new(1, -24, 0, 50), 12, SUB)
+		btn(s, info.left > 60 and "Running..." or "✍️ Sign contract", UDim2.new(0, 12, 1, -50), UDim2.new(0.5, -18, 0, 40), info.left > 60 and GRAY or GREEN, function()
+			act("mgrSign")
+			task.delay(0.4, function() act("mgrInfo") end)
+		end)
+		btn(s, "Auto-renew: " .. (info.auto and "ON" or "OFF"), UDim2.new(0.5, 6, 1, -50), UDim2.new(0.5, -18, 0, 40), info.auto and PURPLE or GRAY, function()
+			act("mgrAuto", not info.auto)
+			task.delay(0.3, function() act("mgrInfo") end)
+		end)
+	end
+	local n = card(mgrM.body, 40, 3, RGB(26, 28, 40))
+	txt(n, "Auto-renew only works while you're actively playing, and at most 2 times in a row.", UDim2.fromOffset(12, 6), UDim2.new(1, -24, 1, -12), 11, SUB)
+	header(mgrM.body, "Working on", 4)
+	if #(info.jobs or {}) == 0 then
+		local j = card(mgrM.body, 34, 5)
+		txt(j, "Nothing right now.", UDim2.fromOffset(12, 8), UDim2.new(1, -24, 1, -10), 13, SUB)
+	end
+	for i, job in ipairs(info.jobs or {}) do
+		local j = card(mgrM.body, 34, 5 + i)
+		txt(j, (job.kind == "restock" and "📦 Restocking " or "🔧 Repairing ") .. tostring(job.biz) .. (job.left and ("  —  " .. job.left .. " s") or "  (queued)"),
+			UDim2.fromOffset(12, 8), UDim2.new(1, -24, 1, -10), 13, WHITE)
+	end
+end
+refreshOnOpen(mgrM, "mgrInfo")
+
+-- =====================================================================
+-- HQ CARD
+-- =====================================================================
+local hqM = modal("hq", "🏢  EMPIRE HQ", 560, 560)
+if BUI.helpButton then BUI.helpButton(hqM, "hq") end
+local function renderHQ(info)
+	clear(hqM.body)
+	if type(info) ~= "table" then return end
+	local top = card(hqM.body, 84, 1, RGB(36, 40, 60))
+	stroke(top, GOLD, 2, 0.4)
+	txt(top, info.level > 0 and ("Your HQ: " .. info.level .. " / " .. #info.floors .. " floors") or "Your HQ is an empty tower.", UDim2.fromOffset(14, 10), UDim2.new(1, -170, 0, 26), 19, GOLD, true)
+	txt(top, info.unlocked and "Build floors to unlock rooms, the General Manager and your office." or ("🔒 Unlocks at " .. tostring(info.needs) .. " reputation."),
+		UDim2.fromOffset(14, 42), UDim2.new(1, -170, 0, 36), 12, info.unlocked and SUB or RGB(255, 160, 140))
+	btn(top, "🚪 Enter HQ", UDim2.new(1, -150, 0.5, -20), UDim2.fromOffset(136, 40), info.level > 0 and PURPLE or GRAY, function()
+		if info.level > 0 then
+			act("hqEnter")
+			hqM.frame.Visible = false
+		end
+	end)
+	for i, f in ipairs(info.floors) do
+		local c = card(hqM.body, 58, 1 + i, f.built and RGB(30, 50, 40) or nil)
+		label({Position = UDim2.fromOffset(6, 0), Size = UDim2.fromOffset(44, 58), Text = f.icon, TextSize = 26}, c)
+		txt(c, "Floor " .. f.n .. ": " .. f.name, UDim2.fromOffset(54, 6), UDim2.new(1, -200, 0, 20), 15, WHITE, true)
+		txt(c, f.desc, UDim2.fromOffset(54, 28), UDim2.new(1, -200, 0, 28), 11, SUB)
+		if f.built then
+			txt(c, "✔ Built", UDim2.new(1, -130, 0, 18), UDim2.fromOffset(120, 22), 15, GREEN, true)
+		elseif f.n == info.level + 1 then
+			btn(c, "Build $" .. fmt(f.cost), UDim2.new(1, -140, 0.5, -19), UDim2.fromOffset(130, 38), info.unlocked and GREEN or GRAY, function()
+				if not info.unlocked then return end
+				C.confirm("Build the " .. f.name .. " floor for $" .. fmt(f.cost) .. "?", "Build", function()
+					act("hqBuy")
+					task.delay(0.4, function() act("hqInfo") end)
+				end)
+			end)
+		else
+			txt(c, "$" .. fmt(f.cost), UDim2.new(1, -130, 0, 18), UDim2.fromOffset(120, 22), 13, SUB)
+		end
+	end
+	local m = card(hqM.body, 50, 20, RGB(26, 28, 40))
+	local mi = info.manager or {}
+	txt(m, "📋 General Manager: " .. (mi.hired and (tostring(mi.name) .. (mi.left and mi.left > 0 and (" — " .. mins(mi.left) .. " left") or " — no contract")) or "not hired"),
+		UDim2.fromOffset(12, 14), UDim2.new(1, -170, 0, 24), 13, WHITE, true)
+	btn(m, "Manager", UDim2.new(1, -140, 0.5, -17), UDim2.fromOffset(130, 34), BLUE, function() act("mgrInfo") end)
+end
+refreshOnOpen(hqM, "hqInfo")
+
+-- =====================================================================
+-- ELEVATOR
+-- =====================================================================
+local elM = modal("elevator", "🛗  ELEVATOR", 380, 460)
+local function renderElevator(info)
+	clear(elM.body)
+	if type(info) ~= "table" then return end
+	header(elM.body, tostring(info.ownerName) .. "'s HQ", 0)
+	local here = C.plr:GetAttribute("Interior")
+	for i = #info.floors, 1, -1 do
+		local f = info.floors[i]
+		local c = card(elM.body, 50, #info.floors - i + 1)
+		local cur = here == ("hq" .. f.n)
+		btn(c, f.icon .. "  " .. f.n .. " — " .. f.name .. (cur and "  (you're here)" or ""), UDim2.fromOffset(6, 5), UDim2.new(1, -12, 1, -10), cur and GRAY or BLUE, function()
+			if cur then return end
+			act("hqFloor", f.n, info.owner)
+			elM.frame.Visible = false
+		end)
+	end
+	local out = card(elM.body, 50, 99)
+	btn(out, "🚪 Leave the HQ", UDim2.fromOffset(6, 5), UDim2.new(1, -12, 1, -10), RED, function()
+		act("leaveInterior")
+		elM.frame.Visible = false
+	end)
+end
+
+R.Menu.OnClientEvent:Connect(function(kind, a)
+	if kind == "hq" and type(a) == "table" then
+		if not hqM.frame.Visible then C.openModal("hq", true) end
+		renderHQ(a)
+	elseif kind == "manager" and type(a) == "table" then
+		if not mgrM.frame.Visible then C.openModal("manager", true) end
+		renderManager(a)
+	elseif kind == "elevator" and type(a) == "table" then
+		C.openModal("elevator", true)
+		renderElevator(a)
+	end
+end)
+-- keep the contract timer fresh while the window is open
+task.spawn(function()
+	while true do
+		task.wait(5)
+		if mgrM.frame.Visible then act("mgrInfo") end
+	end
+end)
+end
+]]></ProtectedString></Properties>
+</Item>
+<Item class="ModuleScript" referent="RBX49"><Properties><string name="Name">ComputerUI</string>
+<ProtectedString name="Source"><![CDATA[-- COMPUTER UI (v10): the desktop that opens when you use a computer you own (home or HQ office).
+-- The server sends the data (GameServer > Computer) only while you're standing at the computer; locked apps show
+-- which computer tier unlocks them. Actions (remote restock, manager contract) are checked again on the server.
+return function(C)
+local RGB = Color3.fromRGB
+local new, label, button, card, header, clear, corner = C.new, C.label, C.button, C.card, C.header, C.clear, C.corner
+local fmt, play, SND, act, R = C.fmt, C.play, C.SND, C.act, C.R
+local GOLD, GREEN, GRAY, RED, BLUE, PURPLE, WHITE, SUB = C.GOLD, C.GREEN, C.GRAY, C.RED, C.BLUE, C.PURPLE, C.WHITE, C.SUB
+local modal = C.makeModal
+if not modal then return end
+local CUI = {}
+C.ComputerUI = CUI
+local TIER_NAMES = {"Basic Computer", "Gaming PC", "Executive Workstation", "Empire Command Center"}
+
+local m = modal("computer", "💻  COMPUTER", 700, 560)
+if C.BusinessUI and C.BusinessUI.helpButton then C.BusinessUI.helpButton(m, "computer") end
+-- the desktop: an app bar on the left, the app on the right
+m.body.Visible = false
+local side = new("ScrollingFrame", {Position = UDim2.fromOffset(12, 54), Size = UDim2.new(0, 176, 1, -66), BackgroundColor3 = RGB(18, 22, 34), BorderSizePixel = 0,
+	ScrollBarThickness = 4, AutomaticCanvasSize = Enum.AutomaticSize.Y, CanvasSize = UDim2.new()}, m.frame)
+corner(side, 10)
+new("UIListLayout", {Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder}, side)
+new("UIPadding", {PaddingTop = UDim.new(0, 6), PaddingLeft = UDim.new(0, 6), PaddingRight = UDim.new(0, 6)}, side)
+local main = new("ScrollingFrame", {Position = UDim2.fromOffset(196, 54), Size = UDim2.new(1, -208, 1, -66), BackgroundTransparency = 1, BorderSizePixel = 0,
+	ScrollBarThickness = 6, AutomaticCanvasSize = Enum.AutomaticSize.Y, CanvasSize = UDim2.new()}, m.frame)
+new("UIListLayout", {Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder}, main)
+CUI.side, CUI.main = side, main
+
+local DATA, APP = nil, "overview"
+local function line(text, order, color, size, h)
+	local c = card(main, h or 34, order)
+	label({Position = UDim2.fromOffset(12, 0), Size = UDim2.new(1, -24, 1, 0), Text = text, TextSize = size or 13, TextColor3 = color or WHITE, TextWrapped = true,
+		TextXAlignment = Enum.TextXAlignment.Left, Font = Enum.Font.GothamBold}, c)
+	return c
+end
+local function locked(app)
+	clear(main)
+	header(main, app.icon .. " " .. app.name, 0)
+	line("🔒 Needs a " .. TIER_NAMES[app.need] .. " (or better).", 1, RGB(255, 170, 140), 15, 50)
+	line("Upgrade in the furniture shop → Tech, or the Home app.", 2, SUB, 12)
+end
+local RENDER = {}
+RENDER.overview = function(o)
+	line("👤 " .. o.name .. "  •  " .. o.tier .. "  (rep " .. fmt(o.rep) .. ")", 1, GOLD, 15, 40)
+	line("💵 Cash: $" .. fmt(o.cash) .. "    📈 Income: $" .. fmt(o.income) .. "/s", 2)
+	line("🏦 Lifetime earnings: $" .. fmt(o.earned) .. "    ♻️ Rebirths: " .. o.rebirths, 3)
+	line("🏪 Businesses: " .. o.businesses .. "    🏙️ Properties: " .. o.properties .. " / " .. o.capacity, 4)
+	line("🚗 Vehicles: " .. o.cars .. " / " .. o.carsTotal .. "    🏢 HQ floors: " .. o.hq, 5)
+	line("🔥 Viral score: " .. fmt(o.viral) .. "    👥 Followers: " .. fmt(o.followers), 6)
+	line("💎 Net worth (cash + property): $" .. fmt(o.netWorth), 7, GREEN, 15, 40)
+end
+RENDER.finances = function(f)
+	line("💵 Cash $" .. fmt(f.cash) .. "  •  Income $" .. fmt(f.income) .. "/s  •  Rent earned $" .. fmt(f.rent), 1, GOLD, 13, 40)
+	header(main, "Income by business", 2)
+	for i, r in ipairs(f.rows) do line(r.icon .. " " .. r.name .. "  —  $" .. fmt(r.income) .. "/s", 2 + i) end
+	header(main, "Costs", 40)
+	if #f.costs == 0 then line("No open costs.", 41, SUB) end
+	for i, r in ipairs(f.costs) do line(r.text .. "  —  $" .. fmt(r.amount), 41 + i, RGB(255, 190, 160)) end
+end
+RENDER.inventory = function(v)
+	header(main, "📦 Supplies", 1)
+	for i, s in ipairs(v.supplies) do
+		local t = {}
+		for _, it in ipairs(s.items) do table.insert(t, it[1] .. " " .. it[2] .. "%") end
+		line(s.icon .. " " .. s.biz .. ":  " .. table.concat(t, "  •  "), 1 + i, nil, 12)
+	end
+	header(main, "🍽️ Products", 30)
+	for i, p in ipairs(v.products) do if i <= 16 then line(p.name .. "  (" .. p.biz .. ")  —  " .. fmt(p.sold) .. " sold", 30 + i, nil, 12) end end
+	header(main, "🛋️ Furniture", 60)
+	local f = {}
+	for _, it in ipairs(v.furniture) do table.insert(f, it.key .. " ×" .. it.count) end
+	line((#f > 0 and table.concat(f, ", ") or "None in storage") .. "   •   placed: " .. v.placed, 61, nil, 12, 44)
+	line("🏺 Collectibles: " .. #v.collectibles .. "   •   🚗 customized vehicles: " .. v.vehicleItems .. "   •   🎟️ tickets: " .. v.special.tickets .. "   •   🎁 mystery: " .. v.special.mystery, 62, nil, 12, 44)
+end
+RENDER.businesses = function(list)
+	header(main, "Remote stock check", 0)
+	if #list == 0 then line("No businesses yet.", 1, SUB) end
+	for i, b in ipairs(list) do
+		local c = card(main, 64, i)
+		label({Position = UDim2.fromOffset(10, 4), Size = UDim2.new(1, -150, 0, 22), Text = b.icon .. " " .. b.name .. "  Lv " .. b.level .. "  •  $" .. fmt(b.income) .. "/s", TextSize = 14,
+			Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left}, c)
+		label({Position = UDim2.fromOffset(10, 30), Size = UDim2.new(1, -150, 0, 28), Text = "Stock " .. b.stock .. "%  •  " .. b.products .. " products" .. (b.problem and ("  •  ⚠️ " .. b.problem) or ""),
+			TextSize = 12, TextColor3 = b.stock < 25 and RGB(255, 160, 140) or SUB, TextXAlignment = Enum.TextXAlignment.Left, TextWrapped = true}, c)
+		local r = button({Position = UDim2.new(1, -138, 0.5, -18), Size = UDim2.fromOffset(128, 36), Text = b.restock > 0 and ("Restock $" .. fmt(b.restock)) or "Full", TextSize = 12,
+			BackgroundColor3 = b.restock > 0 and GREEN or GRAY}, c)
+		r.MouseButton1Click:Connect(function()
+			play(SND.click)
+			if b.restock > 0 then act("pcRestock", b.key) end
+		end)
+	end
+end
+RENDER.stocks = function()
+	line("📈 Trade shares in the 📈 Stocks app — opening it now.", 1, nil, 13, 44)
+	local b = button({Size = UDim2.new(1, -8, 0, 40), Text = "Open Stocks", TextSize = 14, BackgroundColor3 = BLUE, LayoutOrder = 2}, main)
+	b.MouseButton1Click:Connect(function() play(SND.click) C.openModal("market") end)
+end
+RENDER.vehicles = function(list)
+	header(main, #list .. " vehicles", 0)
+	for i, v in ipairs(list) do line("🚗 " .. v.name .. "  (" .. tostring(v.class) .. ")", i) end
+	local b = button({Size = UDim2.new(1, -8, 0, 40), Text = "Open Garage", TextSize = 14, BackgroundColor3 = BLUE, LayoutOrder = 99}, main)
+	b.MouseButton1Click:Connect(function() play(SND.click) C.openModal("garage") end)
+end
+RENDER.properties = function(p)
+	local e = p.estate or {}
+	line("🏙️ Properties: " .. tostring(e.used or 0) .. " / " .. tostring(e.capacity or 0) .. "   •   🏢 HQ floors: " .. p.hq, 1, GOLD, 14, 40)
+	for i, dd in ipairs(e.deeds or {}) do line((dd.icon or "📍") .. " " .. tostring(dd.district) .. "  —  " .. tostring(dd.bizName or "vacant"), 1 + i, nil, 12) end
+	line("🏠 Home: " .. tostring(p.home) .. (p.hood and ("  in " .. p.hood) or "") .. "   •   🏬 Rental buildings: " .. p.rentals, 50, nil, 12, 40)
+end
+RENDER.messages = function(msg)
+	line("📨 " .. msg.unread .. " unread message" .. (msg.unread == 1 and "" or "s"), 1, GOLD, 15, 44)
+	local b = button({Size = UDim2.new(1, -8, 0, 40), Text = "Open Messages", TextSize = 14, BackgroundColor3 = BLUE, LayoutOrder = 2}, main)
+	b.MouseButton1Click:Connect(function()
+		play(SND.click)
+		m.frame.Visible = false
+		if C.phoneView then C.phoneView("messages") end
+	end)
+end
+RENDER.tasks = function(list)
+	header(main, "📋 To do", 0)
+	if #list == 0 then line("All caught up!", 1, SUB) end
+	for i, t in ipairs(list) do line((t.done and "✅ " or "⬜ ") .. tostring(t.text), i, t.done and SUB or WHITE, 12, 40) end
+end
+RENDER.events = function(e)
+	line("📅 " .. tostring(e.event), 1, nil, 13, 44)
+	if e.mega then line("🌆 " .. e.mega, 2, GOLD, 13, 44) end
+	if e.beef then line("🥊 " .. e.beef, 3, RGB(255, 150, 120), 13, 44) end
+	if e.trending then line("🔥 Trending: " .. e.trending, 4, RGB(255, 150, 90)) end
+	for i, s in ipairs(e.sightings or {}) do line("👀 " .. s, 4 + i, PURPLE) end
+end
+RENDER.analytics = function(list)
+	header(main, "Best sellers", 0)
+	if #list == 0 then line("No products yet.", 1, SUB) end
+	for i, p in ipairs(list) do
+		if i <= 20 then
+			line(i .. ". " .. p.name .. " (" .. p.biz .. ")  •  sold " .. fmt(p.sold) .. "  •  pop " .. p.pop .. "  •  demand " .. p.demand .. "%  •  price " .. p.price .. "%"
+				.. (p.trend > 0 and "  🔥" or ""), i, i <= 3 and GOLD or WHITE, 12, 40)
+		end
+	end
+end
+
+local function render()
+	clear(side)
+	if not DATA then return end
+	local t = label({Size = UDim2.new(1, 0, 0, 34), Text = DATA.tierName, TextSize = 13, TextWrapped = true, Font = Enum.Font.GothamBlack, TextColor3 = GOLD, LayoutOrder = 0}, side)
+	t.BackgroundTransparency = 1
+	local cur
+	for i, a in ipairs(DATA.apps) do
+		if a.key == APP then cur = a end
+		local b = button({Size = UDim2.new(1, 0, 0, 34), Text = (a.locked and "🔒 " or a.icon .. " ") .. a.name, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left,
+			BackgroundColor3 = a.key == APP and BLUE or (a.locked and RGB(40, 40, 48) or RGB(34, 40, 58)), LayoutOrder = i}, side)
+		b.MouseButton1Click:Connect(function()
+			play(SND.click)
+			APP = a.key
+			render()
+		end)
+	end
+	clear(main)
+	if not cur then return end
+	if cur.locked then return locked(cur) end
+	header(main, cur.icon .. " " .. cur.name, -1)
+	local payload = DATA[cur.key]
+	if RENDER[cur.key] and payload ~= nil then RENDER[cur.key](payload) end
+	if cur.key == "overview" and DATA.tier >= 4 then
+		local b = button({Size = UDim2.new(1, -8, 0, 40), Text = "📋 Sign a manager contract (remote)", TextSize = 13, BackgroundColor3 = PURPLE, LayoutOrder = 90}, main)
+		b.MouseButton1Click:Connect(function() play(SND.click) act("pcManager") end)
+	end
+	local rf = button({Size = UDim2.new(1, -8, 0, 34), Text = "🔄 Refresh", TextSize = 12, BackgroundColor3 = GRAY, LayoutOrder = 999}, main)
+	rf.MouseButton1Click:Connect(function() play(SND.click) act("pcRefresh", APP) end)
+end
+CUI.render = render
+R.Menu.OnClientEvent:Connect(function(kind, a)
+	if kind == "computer" and type(a) == "table" then
+		DATA = a
+		if a.app then APP = a.app end
+		if not m.frame.Visible then C.openModal("computer", true) end
+		render()
+	end
+end)
+-- leaving the room closes the computer
+C.plr:GetAttributeChangedSignal("Interior"):Connect(function()
+	if m.frame.Visible then m.frame.Visible = false end
+end)
+end
+]]></ProtectedString></Properties>
+</Item>
+<Item class="ModuleScript" referent="RBX50"><Properties><string name="Name">GarageUI</string>
+<ProtectedString name="Source"><![CDATA[-- GARAGE UI (v10): "OWNED: 7 / 16" — every car with its class and stats; drive, equip, favorite, rename,
+-- customize and sell. The server (GameServer > Garage) checks ownership, prices and names.
+return function(C)
+local RGB = Color3.fromRGB
+local new, label, button, card, header, clear, corner = C.new, C.label, C.button, C.card, C.header, C.clear, C.corner
+local fmt, play, SND, act, R = C.fmt, C.play, C.SND, C.act, C.R
+local GOLD, GREEN, GRAY, RED, BLUE, PURPLE, WHITE, SUB = C.GOLD, C.GREEN, C.GRAY, C.RED, C.BLUE, C.PURPLE, C.WHITE, C.SUB
+local modal = C.makeModal
+if not modal then return end
+local G = {info = nil}
+C.GarageUI = G
+local CLASS_COLOR = {Economy = RGB(120, 200, 120), Sports = RGB(255, 140, 40), Luxury = RGB(200, 160, 255), SUV = RGB(120, 170, 120), Truck = RGB(180, 140, 90),
+	Supercar = RGB(255, 80, 80), Hypercar = RGB(255, 210, 70)}
+local STATS = {{"speed", "Speed"}, {"accel", "Accel"}, {"handling", "Handling"}, {"braking", "Braking"}, {"grip", "Grip"}, {"drift", "Drift"}, {"nitro", "Nitro"}}
+
+local function btn(parent, text, pos, size, color, fn, order)
+	local b = button({Position = pos, Size = size, Text = text, TextSize = 12, TextWrapped = true, BackgroundColor3 = color or BLUE, LayoutOrder = order}, parent)
+	b.MouseButton1Click:Connect(function()
+		play(SND.click)
+		fn(b)
+	end)
+	return b
+end
+local function txt(parent, text, pos, size, sizePx, color, bold)
+	return label({Position = pos, Size = size, Text = text, TextSize = sizePx or 13, TextColor3 = color or WHITE, TextWrapped = true,
+		Font = bold and Enum.Font.GothamBlack or Enum.Font.GothamBold, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top}, parent)
+end
+
+local m = modal("garage", "🚗  MY GARAGE", 700, 600)
+if C.BusinessUI and C.BusinessUI.helpButton then C.BusinessUI.helpButton(m, "garage") end
+local function render()
+	clear(m.body)
+	local info = G.info
+	if not info then return end
+	local top = card(m.body, 56, 0, RGB(36, 40, 60))
+	txt(top, "OWNED: " .. info.owned .. " / " .. info.total, UDim2.fromOffset(14, 14), UDim2.fromOffset(200, 30), 22, GOLD, true)
+	btn(top, "📍 Corner Motors", UDim2.new(1, -330, 0.5, -18), UDim2.fromOffset(150, 36), BLUE, function() act("tp", "dealer") m.frame.Visible = false end)
+	btn(top, "🅿 Put car away", UDim2.new(1, -170, 0.5, -18), UDim2.fromOffset(150, 36), GRAY, function() act("car", "despawn") end)
+	txt(m.body, "Drive: WASD / arrows • Q or CTRL drift • SHIFT nitro (pass) • SPACE hop out • Controller Ⓧ drift, Ⓑ nitro • Phone: on-screen buttons",
+		UDim2.new(), UDim2.new(1, -8, 0, 30), 11, SUB).LayoutOrder = 1
+	for i, c in ipairs(info.cars) do
+		local row = card(m.body, 104, 1 + i, if c.owned then nil else RGB(30, 30, 40))
+		local sw = new("Frame", {Position = UDim2.fromOffset(8, 10), Size = UDim2.fromOffset(46, 46), BackgroundColor3 = c.color, BorderSizePixel = 0}, row)
+		corner(sw, 23)
+		label({Size = UDim2.fromScale(1, 1), Text = c.delivery and "🚚" or (c.key == "moped" and "🛵" or "🚗"), TextSize = 24}, sw)
+		txt(row, (c.fav and "⭐ " or "") .. c.name .. (c.name ~= c.model and ("  (" .. c.model .. ")") or "") .. (c.equipped and "  🔑" or ""), UDim2.fromOffset(62, 6), UDim2.new(1, -260, 0, 22), 16, c.owned and WHITE or SUB, true)
+		local cl = label({Position = UDim2.fromOffset(62, 30), Size = UDim2.fromOffset(84, 18), Text = c.class, TextSize = 11, Font = Enum.Font.GothamBlack, BackgroundColor3 = CLASS_COLOR[c.class] or GRAY,
+			BackgroundTransparency = 0.2, TextColor3 = RGB(20, 20, 24)}, row)
+		corner(cl, 6)
+		local price = c.pass and "🎟️ Game Pass" or (c.rebirths and ("👑 " .. c.rebirths .. " rebirths") or ("$" .. fmt(c.price)))
+		txt(row, c.speed .. " MPH  •  " .. price, UDim2.fromOffset(152, 31), UDim2.new(1, -350, 0, 18), 11, SUB)
+		-- stat bars
+		for k, st in ipairs(STATS) do
+			local x = 62 + ((k - 1) % 4) * 112
+			local y = 54 + math.floor((k - 1) / 4) * 22
+			label({Position = UDim2.fromOffset(x, y), Size = UDim2.fromOffset(52, 16), Text = st[2], TextSize = 10, TextColor3 = SUB, TextXAlignment = Enum.TextXAlignment.Left}, row)
+			local bg = new("Frame", {Position = UDim2.fromOffset(x + 52, y + 5), Size = UDim2.fromOffset(52, 7), BackgroundColor3 = RGB(50, 54, 70), BorderSizePixel = 0}, row)
+			corner(bg, 3)
+			local v = c.stats[st[1]] or 1
+			local fill = new("Frame", {Size = UDim2.fromScale(v / 10, 1), BackgroundColor3 = v >= 8 and GOLD or (v >= 5 and GREEN or BLUE), BorderSizePixel = 0}, bg)
+			corner(fill, 3)
+		end
+		-- actions
+		if c.owned then
+			btn(row, c.active and "🔄 Respawn" or "🔑 Drive", UDim2.new(1, -184, 0, 8), UDim2.fromOffset(84, 30), GREEN, function()
+				act("car", "spawn", c.key)
+				m.frame.Visible = false
+			end)
+			btn(row, c.equipped and "Main ride" or "Equip", UDim2.new(1, -94, 0, 8), UDim2.fromOffset(84, 30), c.equipped and GRAY or BLUE, function() act("carEquip", c.key) end)
+			btn(row, c.fav and "★ Unfav" or "☆ Fav", UDim2.new(1, -184, 0, 40), UDim2.fromOffset(56, 26), PURPLE, function() act("carFav", c.key) end)
+			btn(row, "✏️", UDim2.new(1, -124, 0, 40), UDim2.fromOffset(34, 26), BLUE, function() G.rename(c) end)
+			btn(row, "🎨", UDim2.new(1, -86, 0, 40), UDim2.fromOffset(34, 26), RGB(230, 140, 40), function() G.customize(c) end)
+			if c.sellFor then
+				btn(row, "💰", UDim2.new(1, -48, 0, 40), UDim2.fromOffset(38, 26), RED, function()
+					C.confirm("Sell your " .. c.name .. " for $" .. fmt(c.sellFor) .. "?\n(Half of the price. Its paint and parts go with it.)", "Sell", function() act("carSell", c.key, true) end)
+				end)
+			end
+		elseif c.pass then
+			btn(row, "🎫 Get pass", UDim2.new(1, -150, 0, 8), UDim2.fromOffset(140, 34), RGB(235, 170, 30), function() act("pass", c.pass) end)
+		elseif c.rebirths then
+			btn(row, "👑 Rebirth " .. c.rebirths, UDim2.new(1, -150, 0, 8), UDim2.fromOffset(140, 34), GRAY, function() end)
+		else
+			btn(row, "Buy at Dealer\n$" .. fmt(c.price), UDim2.new(1, -150, 0, 8), UDim2.fromOffset(140, 40), (C.S and C.S.cash or 0) >= c.price and PURPLE or GRAY, function()
+				act("tp", "dealer")
+				m.frame.Visible = false
+			end)
+		end
+	end
+end
+G.render = render
+do
+	local asked = false
+	m.frame:GetPropertyChangedSignal("Visible"):Connect(function() if not m.frame.Visible then asked = false end end)
+	m.update = function()
+		if not asked then
+			asked = true
+			act("garageInfo")
+		end
+	end
+end
+
+-- ===== rename =====
+local nm = modal("carName", "✏️  NAME YOUR CAR", 440, 260)
+local nmCar
+local box = new("TextBox", {Size = UDim2.new(1, -8, 0, 46), BackgroundColor3 = RGB(18, 20, 30), TextColor3 = WHITE, PlaceholderText = "Car name", Text = "", Font = Enum.Font.GothamBlack,
+	TextSize = 20, ClearTextOnFocus = false, LayoutOrder = 1}, nm.body)
+corner(box, 8)
+txt(nm.body, "2-20 characters, checked by Roblox's text filter. Leave it empty to reset.", UDim2.new(), UDim2.new(1, -8, 0, 30), 11, SUB).LayoutOrder = 2
+btn(nm.body, "✔ Save", UDim2.new(), UDim2.new(1, -8, 0, 42), GREEN, function()
+	if nmCar then act("carName", nmCar.key, box.Text) end
+	nm.frame.Visible = false
+	C.openModal("garage", true)
+end, 3)
+function G.rename(c)
+	nmCar = c
+	box.Text = c.name ~= c.model and c.name or ""
+	C.openModal("carName", true)
+end
+
+-- ===== customize =====
+local cm = modal("carCustom", "🎨  CUSTOMIZE", 640, 580)
+if C.BusinessUI and C.BusinessUI.helpButton then C.BusinessUI.helpButton(cm, "carCustom") end
+local cmCar
+local KINDS = {{"paint", "🎨 Paint"}, {"wheels", "🛞 Wheels"}, {"tint", "🕶️ Window tint"}, {"interior", "💺 Interior"}, {"decal", "🏁 Decals"}, {"spoiler", "🪽 Spoiler"},
+	{"bumper", "🛡️ Bumpers"}, {"exhaust", "💨 Exhaust"}}
+local function renderCustom()
+	clear(cm.body)
+	local info, c = G.info, cmCar
+	if not (info and c) then return end
+	for _, car in ipairs(info.cars) do if car.key == c.key then c = car cmCar = car end end
+	local mods = c.mods or {}
+	txt(cm.body, c.name .. "  •  looks only: customizing never changes speed.", UDim2.new(), UDim2.new(1, -8, 0, 20), 13, GOLD, true).LayoutOrder = 0
+	local order = 1
+	for _, k in ipairs(KINDS) do
+		header(cm.body, k[2] .. (mods[k[1]] and ("  —  " .. mods[k[1]]) or "  —  stock"), order)
+		local rowF = new("Frame", {Size = UDim2.new(1, -8, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, LayoutOrder = order + 1}, cm.body)
+		new("UIGridLayout", {CellSize = UDim2.fromOffset(146, 40), CellPadding = UDim2.fromOffset(4, 4), SortOrder = Enum.SortOrder.LayoutOrder}, rowF)
+		order += 2
+		btn(rowF, "Stock", UDim2.new(), UDim2.new(), mods[k[1]] == nil and GREEN or GRAY, function() act("carMod", c.key, k[1], "stock") end, 0)
+		for i, o in ipairs(info.mods[k[1]] or {}) do
+			local cur = mods[k[1]] == o.key
+			local b = btn(rowF, o.name .. (cur and "\n✔" or (o.cost > 0 and ("\n$" .. fmt(o.cost)) or "")), UDim2.new(), UDim2.new(), cur and GREEN or (o.color or BLUE), function()
+				if not cur then act("carMod", c.key, k[1], o.key) end
+			end, i)
+			if o.color then b.TextStrokeTransparency = 0.3 end
+		end
+	end
+	header(cm.body, "🔤 License plate" .. (mods.plate and ("  —  " .. mods.plate) or ""), 90)
+	local plate = new("TextBox", {Size = UDim2.new(1, -8, 0, 40), BackgroundColor3 = RGB(240, 240, 240), TextColor3 = RGB(20, 40, 120), PlaceholderText = "PLATE ($500, 7 max)",
+		Text = mods.plate or "", Font = Enum.Font.GothamBlack, TextSize = 20, ClearTextOnFocus = false, LayoutOrder = 91}, cm.body)
+	corner(plate, 6)
+	btn(cm.body, "Save plate", UDim2.new(), UDim2.new(1, -8, 0, 36), GREEN, function() act("carMod", c.key, "plate", string.sub(plate.Text, 1, 7)) end, 92)
+end
+function G.customize(c)
+	cmCar = c
+	C.openModal("carCustom", true)
+	renderCustom()
+end
+G.renderCustom = renderCustom
+
+R.Menu.OnClientEvent:Connect(function(kind, a)
+	if kind == "garage" and type(a) == "table" then
+		G.info = a
+		if m.frame.Visible then render() end
+		if cm.frame.Visible then renderCustom() end
+	end
+end)
+end
+]]></ProtectedString></Properties>
+</Item>
+<Item class="ModuleScript" referent="RBX51"><Properties><string name="Name">ArcadeUI</string>
+<ProtectedString name="Source"><![CDATA[-- ARCADE UI (v10): the 2-player duel window (Reaction Duel, Button Battle, Hoop Duel, Kart Sprint), the game picker
+-- for arcade machines, and the prize counter. The server (GameServer > Arcade) runs the games: this window only
+-- sends taps and shots and shows what the server says.
+return function(C)
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local RGB = Color3.fromRGB
+local new, label, button, card, header, clear, corner, stroke, gradient, panel = C.new, C.label, C.button, C.card, C.header, C.clear, C.corner, C.stroke, C.gradient, C.panel
+local fmt, play, SND, act, gui, R, U = C.fmt, C.play, C.SND, C.act, C.gui, C.R, C.U
+local GOLD, GREEN, GRAY, RED, BLUE, PURPLE, WHITE, SUB = C.GOLD, C.GREEN, C.GRAY, C.RED, C.BLUE, C.PURPLE, C.WHITE, C.SUB
+local A = {state = nil}
+C.ArcadeUI = A
+local NAMES = {reaction = "⚡ REACTION DUEL", buttons = "👆 BUTTON BATTLE", hoops = "🏀 HOOP DUEL", sprint = "🏎️ KART SPRINT"}
+
+local win = panel({AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.52), Size = UDim2.fromOffset(560, 440), Visible = false, ZIndex = 45}, gui)
+gradient(win, RGB(40, 30, 80), RGB(16, 14, 30))
+stroke(win, GOLD, 3, 0)
+new("UIScale", {}, win)
+local title = label({Size = UDim2.new(1, -60, 0, 44), Position = UDim2.fromOffset(10, 0), TextSize = 22, Font = Enum.Font.GothamBlack, TextColor3 = GOLD, ZIndex = 46}, win)
+local sub = label({Position = UDim2.fromOffset(10, 40), Size = UDim2.new(1, -20, 0, 22), TextSize = 14, TextColor3 = SUB, ZIndex = 46}, win)
+local quit = button({Position = UDim2.new(1, -96, 0, 8), Size = UDim2.fromOffset(86, 30), Text = "Leave", TextSize = 13, BackgroundColor3 = RED, ZIndex = 47}, win)
+local area = new("Frame", {Position = UDim2.fromOffset(14, 68), Size = UDim2.new(1, -28, 1, -82), BackgroundColor3 = RGB(16, 16, 28), BorderSizePixel = 0, ZIndex = 46, ClipsDescendants = true}, win)
+corner(area, 12)
+A.win, A.area, A.title, A.sub = win, area, title, sub
+local function z(o, n) o.ZIndex = n or 47 return o end
+local function big(text, color, y)
+	return z(label({AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, 0, 0, y or 120), Size = UDim2.new(1, -20, 0, 60), Text = text, TextSize = 40, Font = Enum.Font.GothamBlack,
+		TextColor3 = color or WHITE}, area))
+end
+local function bigButton(text, color, y, fn)
+	local b = z(button({AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, y), Size = UDim2.fromOffset(300, 70), Text = text, TextSize = 26, BackgroundColor3 = color}, area))
+	b.MouseButton1Click:Connect(fn)
+	return b
+end
+quit.MouseButton1Click:Connect(function()
+	play(SND.click)
+	C.confirm("Leave the game? Leaving a match counts as a loss.", "Leave", function()
+		act("arcLeave")
+		win.Visible = false
+	end)
+end)
+
+-- one connection per screen, cleaned up between screens
+local conns = {}
+local function reset()
+	for _, c in ipairs(conns) do c:Disconnect() end
+	conns = {}
+	clear(area)
+end
+local function scoreBar(names, scores, goal, y)
+	for i = 1, 2 do
+		local yy = y + (i - 1) * 38
+		z(label({Position = UDim2.fromOffset(12, yy), Size = UDim2.fromOffset(120, 30), Text = tostring(names[i]), TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left,
+			TextColor3 = names[i] == C.plr.Name and GOLD or WHITE}, area))
+		local bg = z(new("Frame", {Position = UDim2.fromOffset(136, yy + 8), Size = UDim2.new(1, -210, 0, 14), BackgroundColor3 = RGB(50, 50, 70), BorderSizePixel = 0}, area))
+		corner(bg, 6)
+		local fill = z(new("Frame", {Size = UDim2.fromScale(math.clamp((scores[i] or 0) / math.max(1, goal), 0, 1), 1), BackgroundColor3 = i == 1 and RGB(255, 120, 60) or RGB(80, 200, 255), BorderSizePixel = 0}, bg), 48)
+		corner(fill, 6)
+		z(label({Position = UDim2.new(1, -66, 0, yy), Size = UDim2.fromOffset(60, 30), Text = tostring(scores[i] or 0), TextSize = 18, Font = Enum.Font.GothamBlack}, area))
+	end
+end
+
+-- ===== each game's screen =====
+local SCREEN = {}
+SCREEN.reaction = function(e)
+	reset()
+	local wins = e.wins or {0, 0}
+	big("WAIT...", RGB(255, 120, 120), 110)
+	z(label({Position = UDim2.fromOffset(0, 10), Size = UDim2.new(1, 0, 0, 24), Text = (A.names and A.names[1] or "") .. "  " .. wins[1] .. "  —  " .. wins[2] .. "  " .. (A.names and A.names[2] or ""), TextSize = 18,
+		Font = Enum.Font.GothamBlack}, area))
+	bigButton("TAP!", RGB(200, 60, 60), 220, function() act("arcPress") end)
+	table.insert(conns, UserInputService.InputBegan:Connect(function(input, gp)
+		if not gp and input.KeyCode == Enum.KeyCode.Space then act("arcPress") end
+	end))
+end
+SCREEN.buttons = function(e)
+	reset()
+	A.taps = 0
+	local t0 = os.clock()
+	local timeL = big(tostring(e.seconds or 10), WHITE, 40)
+	A.scoreY = 90
+	scoreBar(A.names or {"", ""}, {0, 0}, 140, 90)
+	bigButton("👆 TAP TAP TAP!", RGB(255, 90, 160), 190, function() A.taps += 1 end)
+	table.insert(conns, UserInputService.InputBegan:Connect(function(input, gp)
+		if not gp and input.KeyCode == Enum.KeyCode.Space then A.taps += 1 end
+	end))
+	-- taps go to the server in small batches (the server caps the rate)
+	table.insert(conns, RunService.Heartbeat:Connect(function()
+		timeL.Text = tostring(math.max(0, math.ceil((e.seconds or 10) - (os.clock() - t0))))
+	end))
+	task.spawn(function()
+		while win.Visible and A.game == "buttons" and not A.over do
+			task.wait(0.25)
+			if A.taps > 0 then
+				local n = math.min(8, A.taps)
+				A.taps -= n
+				act("arcTap", n)
+			end
+		end
+	end)
+end
+SCREEN.hoops = function(e)
+	reset()
+	local t0 = os.clock()
+	z(label({Position = UDim2.fromOffset(0, 8), Size = UDim2.new(1, 0, 0, 24), Text = "Shoot when the ball is over the hoop!", TextSize = 15}, area))
+	local barBg = z(new("Frame", {AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 60), Size = UDim2.new(0.9, 0, 0, 30), BackgroundColor3 = RGB(40, 40, 60), BorderSizePixel = 0}, area))
+	corner(barBg, 8)
+	z(new("Frame", {Position = UDim2.fromScale((e.center or 0.5) - 0.06, 0), Size = UDim2.fromScale(0.12, 1), BackgroundColor3 = GREEN, BorderSizePixel = 0}, barBg), 48)
+	z(new("Frame", {Position = UDim2.fromScale((e.center or 0.5) - 0.13, 0), Size = UDim2.fromScale(0.26, 1), BackgroundColor3 = RGB(230, 200, 60), BackgroundTransparency = 0.5, BorderSizePixel = 0}, barBg), 47)
+	local ball = z(label({AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0, 0.5), Size = UDim2.fromOffset(36, 36), Text = "🏀", TextSize = 30}, barBg), 49)
+	A.scoreY = 110
+	scoreBar(A.names or {"", ""}, {0, 0}, 10, 110)
+	A.shotL = z(label({Position = UDim2.fromOffset(0, 190), Size = UDim2.new(1, 0, 0, 24), Text = (e.shots or 5) .. " shots left", TextSize = 15, TextColor3 = SUB}, area))
+	bigButton("🏀 SHOOT!", RGB(255, 130, 40), 230, function() act("arcShoot") end)
+	table.insert(conns, UserInputService.InputBegan:Connect(function(input, gp)
+		if not gp and input.KeyCode == Enum.KeyCode.Space then act("arcShoot") end
+	end))
+	table.insert(conns, RunService.RenderStepped:Connect(function()
+		local v = (math.sin((os.clock() - t0) * (e.speed or 2) * 2) + 1) / 2
+		ball.Position = UDim2.fromScale(v, 0.5)
+	end))
+end
+SCREEN.sprint = function(e)
+	reset()
+	A.steps, A.lastSide = 0, nil
+	A.goal = e.goal or 60
+	z(label({Position = UDim2.fromOffset(0, 8), Size = UDim2.new(1, 0, 0, 24), Text = "Alternate LEFT ⬅ and RIGHT ➡ (A / D, arrows or the buttons)", TextSize = 14}, area))
+	A.scoreY = 50
+	scoreBar(A.names or {"", ""}, {0, 0}, A.goal, 50)
+	local function step(side)
+		if A.lastSide ~= side then
+			A.lastSide = side
+			A.steps += 1
+		end
+	end
+	local l = z(button({Position = UDim2.new(0, 20, 0, 170), Size = UDim2.new(0.5, -30, 0, 110), Text = "⬅", TextSize = 48, BackgroundColor3 = BLUE}, area))
+	local r = z(button({Position = UDim2.new(0.5, 10, 0, 170), Size = UDim2.new(0.5, -30, 0, 110), Text = "➡", TextSize = 48, BackgroundColor3 = PURPLE}, area))
+	l.MouseButton1Click:Connect(function() step("L") end)
+	r.MouseButton1Click:Connect(function() step("R") end)
+	table.insert(conns, UserInputService.InputBegan:Connect(function(input, gp)
+		if gp then return end
+		local k = input.KeyCode
+		if k == Enum.KeyCode.A or k == Enum.KeyCode.Left or k == Enum.KeyCode.ButtonL1 then step("L")
+		elseif k == Enum.KeyCode.D or k == Enum.KeyCode.Right or k == Enum.KeyCode.ButtonR1 then step("R") end
+	end))
+	task.spawn(function()
+		while win.Visible and A.game == "sprint" and not A.over do
+			task.wait(0.25)
+			if A.steps > 0 then
+				local n = math.min(6, A.steps)
+				A.steps -= n
+				act("arcStep", n)
+			end
+		end
+	end)
+end
+local function redrawScores(e)
+	if not (e.scores and A.scoreY) then return end
+	-- drop the old bars and draw fresh ones
+	for _, ch in ipairs(area:GetChildren()) do
+		if ch:GetAttribute("Bar") then ch:Destroy() end
+	end
+	local before = {}
+	for _, ch in ipairs(area:GetChildren()) do before[ch] = true end
+	scoreBar(A.names or {"", ""}, e.scores, A.game == "sprint" and (A.goal or 60) or (A.game == "hoops" and 10 or 140), A.scoreY)
+	for _, ch in ipairs(area:GetChildren()) do if not before[ch] then ch:SetAttribute("Bar", true) end end
+	A.lastScores = e.scores
+end
+
+local function open()
+	if not win.Visible then
+		C.closeModals()
+		win.Visible = true
+	end
+end
+R.Menu.OnClientEvent:Connect(function(kind, e)
+	if kind == "arcadePick" and type(e) == "table" then
+		A.pick = e
+		C.openModal("arcadePick", true)
+		A.renderPick()
+		return
+	elseif kind == "arcadeInfo" and type(e) == "table" then
+		A.info = e
+		C.openModal("arcadeInfo", true)
+		A.renderInfo()
+		return
+	end
+	if kind ~= "arcade" or type(e) ~= "table" then return end
+	A.state = e.state
+	if e.state == "waiting" then
+		open()
+		A.game, A.over = e.game, false
+		reset()
+		title.Text = NAMES[e.game] or "ARCADE"
+		sub.Text = "Waiting for a second player... (ask a friend to join this game)"
+		big("⏳", WHITE, 120)
+	elseif e.state == "left" then
+		win.Visible = false
+	elseif e.state == "matched" then
+		open()
+		A.game, A.over, A.names = e.game, false, e.names
+		reset()
+		title.Text = NAMES[e.game] or "ARCADE"
+		sub.Text = tostring(e.names[1]) .. "  vs  " .. tostring(e.names[2])
+		big("GET READY!", GOLD, 120)
+		play(SND.event)
+	elseif e.state == "round" then
+		A.names = e.names or A.names
+		SCREEN.reaction(e)
+		sub.Text = "Round " .. e.round .. " — wait for GO, then tap!"
+	elseif e.state == "go" then
+		for _, ch in ipairs(area:GetChildren()) do
+			if ch:IsA("TextLabel") and ch.Text == "WAIT..." then ch.Text = "GO!" ch.TextColor3 = GREEN end
+		end
+		play(SND.buy)
+	elseif e.state == "roundEnd" then
+		for _, ch in ipairs(area:GetChildren()) do
+			if ch:IsA("TextLabel") and (ch.Text == "GO!" or ch.Text == "WAIT...") then ch.Text = tostring(e.winner) .. " wins the round!" ch.TextSize = 26 ch.TextColor3 = GOLD end
+		end
+		sub.Text = tostring(e.why)
+	elseif e.state == "start" then
+		A.names = e.names or A.names
+		if SCREEN[e.game] then SCREEN[e.game](e) end
+		sub.Text = tostring(e.names and e.names[1] or "") .. "  vs  " .. tostring(e.names and e.names[2] or "")
+	elseif e.state == "update" then
+		redrawScores(e)
+		if e.shotsLeft and A.shotL then
+			local me = (A.names and A.names[1] == C.plr.Name) and 1 or 2
+			A.shotL.Text = e.shotsLeft[me] .. " shots left"
+		end
+	elseif e.state == "shot" then
+		U.toast(e.pts == 2 and "🏀 SWISH! +2" or (e.pts == 1 and "🏀 In! +1" or "🧱 Miss!"))
+	elseif e.state == "end" then
+		A.over = true
+		reset()
+		big(e.draw and "🤝 DRAW" or (e.won and "🏆 YOU WIN!" or "😵 YOU LOSE"), e.won and GOLD or (e.draw and WHITE or RGB(255, 140, 140)), 90)
+		z(label({Position = UDim2.fromOffset(0, 150), Size = UDim2.new(1, 0, 0, 30), Text = tostring(e.score or 0) .. " — " .. tostring(e.opp or 0), TextSize = 22, Font = Enum.Font.GothamBlack}, area))
+		z(label({Position = UDim2.fromOffset(0, 190), Size = UDim2.new(1, 0, 0, 30), TextSize = 16, TextColor3 = SUB,
+			Text = e.tickets > 0 and ("🎟️ +" .. e.tickets .. " tickets (you have " .. e.total .. ")") or (e.capped and "No tickets: you've played this opponent a lot lately. Try someone new!" or "No tickets this time.")}, area))
+		bigButton("OK", BLUE, 250, function() win.Visible = false end)
+		play(e.won and SND.event or SND.click)
+	elseif e.state == "forfeit" then
+		A.over = true
+		win.Visible = false
+	end
+end)
+
+-- ===== machine game picker =====
+local modal = C.makeModal
+local pickM = modal("arcadePick", "🕹️  PICK A GAME", 420, 380)
+function A.renderPick()
+	clear(pickM.body)
+	local e = A.pick
+	if not e then return end
+	for i, key in ipairs(e.games) do
+		local b = button({Size = UDim2.new(1, -8, 0, 54), Text = NAMES[key] or key, TextSize = 18, BackgroundColor3 = BLUE, LayoutOrder = i}, pickM.body)
+		b.MouseButton1Click:Connect(function()
+			play(SND.click)
+			act("arcPick", e.station, key)
+			pickM.frame.Visible = false
+		end)
+	end
+end
+-- ===== prize counter =====
+local infoM = modal("arcadeInfo", "🎟️  ARCADE PRIZES", 520, 520)
+if C.BusinessUI and C.BusinessUI.helpButton then C.BusinessUI.helpButton(infoM, "arcade") end
+do
+	local asked = false
+	infoM.frame:GetPropertyChangedSignal("Visible"):Connect(function() if not infoM.frame.Visible then asked = false end end)
+	infoM.update = function()
+		if not asked then
+			asked = true
+			act("arcInfo")
+		end
+	end
+end
+function A.renderInfo()
+	clear(infoM.body)
+	local e = A.info
+	if not e then return end
+	local top = card(infoM.body, 54, 0, RGB(40, 34, 70))
+	label({Position = UDim2.fromOffset(12, 8), Size = UDim2.new(1, -24, 0, 38), Text = "🎟️ " .. e.tickets .. " tickets   •   🏆 " .. e.wins .. " wins   •   " .. e.played .. " games",
+		TextSize = 18, Font = Enum.Font.GothamBlack, TextColor3 = GOLD}, top)
+	header(infoM.body, "Prizes (go into your furniture storage)", 1)
+	for i, p in ipairs(e.prizes) do
+		local c = card(infoM.body, 46, 1 + i)
+		label({Position = UDim2.fromOffset(12, 0), Size = UDim2.new(1, -160, 1, 0), Text = p.icon .. " " .. p.name, TextSize = 15, TextXAlignment = Enum.TextXAlignment.Left}, c)
+		local b = button({Position = UDim2.new(1, -140, 0.5, -16), Size = UDim2.fromOffset(130, 32), Text = "🎟️ " .. p.tickets, TextSize = 14, BackgroundColor3 = e.tickets >= p.tickets and GREEN or GRAY}, c)
+		b.MouseButton1Click:Connect(function()
+			play(SND.click)
+			if e.tickets >= p.tickets then act("arcPrize", p.key) end
+		end)
+	end
+	header(infoM.body, "🏆 Top players in this server", 40)
+	for i, b in ipairs(e.board) do label({Size = UDim2.new(1, -8, 0, 22), Text = i .. ". " .. b.name .. " — " .. b.wins .. " wins", TextSize = 14, LayoutOrder = 40 + i}, infoM.body) end
+	header(infoM.body, "Games", 60)
+	for i, g in ipairs(e.games) do label({Size = UDim2.new(1, -8, 0, 22), Text = g.icon .. " " .. g.name .. " — " .. g.desc, TextSize = 12, TextColor3 = SUB, TextWrapped = true, LayoutOrder = 60 + i}, infoM.body) end
+end
+end
+]]></ProtectedString></Properties>
+</Item>
+<Item class="ModuleScript" referent="RBX52"><Properties><string name="Name">AdminPanel</string>
+<ProtectedString name="Source"><![CDATA[-- ADMIN PANEL (v10): only built after the server says you're an admin ("adminHello"). Every button just ASKS the
+-- server (GameServer > Admin), which checks your role again on every request. Dangerous tools come back with a
+-- confirmation the server issued; nothing dangerous happens from one tap. Fly / noclip only work while the
+-- server has switched them on for you.
+return function(C)
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
+local RGB, V3 = Color3.fromRGB, Vector3.new
+local new, label, button, card, header, clear, corner = C.new, C.label, C.button, C.card, C.header, C.clear, C.corner
+local fmt, play, SND, act, R, U, gui, plr = C.fmt, C.play, C.SND, C.act, C.R, C.U, C.gui, C.plr
+local GOLD, GREEN, GRAY, RED, BLUE, PURPLE, WHITE, SUB = C.GOLD, C.GREEN, C.GRAY, C.RED, C.BLUE, C.PURPLE, C.WHITE, C.SUB
+local modal = C.makeModal
+if not modal then return end
+local AP = {role = nil, state = nil, tab = "OVERVIEW", target = nil}
+C.AdminPanel = AP
+local TABS = {"OVERVIEW", "PLAYERS", "ECONOMY", "ITEMS", "BUSINESSES", "PROPERTIES", "VEHICLES", "EVENTS", "TELEPORT", "MODERATION", "SERVER", "DEVELOPER"}
+
+local m, built
+local area, tabBar, resultL, targetL
+local function adm(tool, args) act("adm", tool, args or {}) end
+local function btn(parent, text, fn, color, w, order)
+	local b = button({Size = UDim2.fromOffset(w or 150, 34), Text = text, TextSize = 12, TextWrapped = true, BackgroundColor3 = color or BLUE, LayoutOrder = order}, parent)
+	b.MouseButton1Click:Connect(function()
+		play(SND.click)
+		fn(b)
+	end)
+	return b
+end
+local function row(order, h)
+	local f = new("Frame", {Size = UDim2.new(1, -8, 0, h or 38), BackgroundTransparency = 1, LayoutOrder = order}, area)
+	new("UIListLayout", {FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder, VerticalAlignment = Enum.VerticalAlignment.Center}, f)
+	return f
+end
+local function grid(order)
+	local f = new("Frame", {Size = UDim2.new(1, -8, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, LayoutOrder = order}, area)
+	new("UIGridLayout", {CellSize = UDim2.fromOffset(150, 34), CellPadding = UDim2.fromOffset(6, 6), SortOrder = Enum.SortOrder.LayoutOrder}, f)
+	return f
+end
+local function box(parent, placeholder, w, order)
+	local t = new("TextBox", {Size = UDim2.fromOffset(w or 150, 34), BackgroundColor3 = RGB(18, 20, 30), TextColor3 = WHITE, PlaceholderText = placeholder, Text = "", Font = Enum.Font.GothamBold,
+		TextSize = 13, ClearTextOnFocus = false, LayoutOrder = order}, parent)
+	corner(t, 6)
+	return t
+end
+local function line(text, order, color)
+	return label({Size = UDim2.new(1, -8, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, Text = text, TextSize = 12, TextColor3 = color or WHITE, TextWrapped = true,
+		TextXAlignment = Enum.TextXAlignment.Left, LayoutOrder = order}, area)
+end
+local function num(t) return tonumber((string.gsub(t.Text, "[,%s%$]", ""))) end
+local function needTarget()
+	if not AP.target then U.toast("🛡️ Pick a player in the PLAYERS tab first.") return nil end
+	return AP.target
+end
+local function targetName()
+	if not AP.target or not AP.state then return "nobody" end
+	for _, p in ipairs(AP.state.players) do if p.id == AP.target then return p.name end end
+	return "nobody"
+end
+-- pick a value from a list
+local function picker(order, list, cur, onPick, fmtItem)
+	local g = grid(order)
+	for i, it in ipairs(list) do
+		local key = type(it) == "table" and it.key or it
+		btn(g, fmtItem and fmtItem(it) or tostring(key), function() onPick(key) end, key == cur and GREEN or RGB(52, 58, 80), nil, i)
+	end
+	return g
+end
+
+local RENDER = {}
+RENDER.OVERVIEW = function(s)
+	local sv = s.server
+	line("🛡️ You are: " .. string.upper(s.role) .. (sv.studio and "   (Studio test session)" or ""), 1, GOLD)
+	line("Version " .. sv.version .. " • schema " .. sv.schema .. " • " .. sv.players .. " players • up " .. math.floor(sv.uptime / 60) .. " min • server " .. sv.jobId, 2, SUB)
+	line("Blocked admin requests from non-admins this server: " .. sv.denied, 3, sv.denied > 0 and RGB(255, 170, 140) or SUB)
+	header(area, "Recent admin actions", 4)
+	for i, e in ipairs(s.log) do
+		if i > 25 then break end
+		line(os.date("!%H:%M", e.t) .. "  " .. e.admin .. " → " .. e.tool .. (e.target and (" • " .. e.target) or "") .. (e.detail and (" • " .. e.detail) or ""), 4 + i, e.tool == "DENIED" and RGB(255, 140, 140) or WHITE)
+	end
+end
+RENDER.PLAYERS = function(s)
+	line("Pick a player: the tools in the other tabs act on them. Selected: " .. targetName(), 0, GOLD)
+	for i, p in ipairs(s.players) do
+		local c = card(area, 46, i)
+		label({Position = UDim2.fromOffset(10, 4), Size = UDim2.new(1, -330, 0, 20), Text = p.name .. (p.role and ("  🛡️ " .. p.role) or "") .. (p.muted and "  🔇" or "") .. (p.frozen and "  🧊" or ""),
+			TextSize = 14, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left}, c)
+		label({Position = UDim2.fromOffset(10, 24), Size = UDim2.new(1, -330, 0, 18), Text = "$" .. fmt(p.cash) .. " • $" .. fmt(p.income) .. "/s • rep " .. fmt(p.rep), TextSize = 11, TextColor3 = SUB,
+			TextXAlignment = Enum.TextXAlignment.Left}, c)
+		local b = button({Position = UDim2.new(1, -320, 0.5, -15), Size = UDim2.fromOffset(90, 30), Text = AP.target == p.id and "✔ Selected" or "Select", TextSize = 12, BackgroundColor3 = AP.target == p.id and GREEN or BLUE}, c)
+		b.MouseButton1Click:Connect(function() play(SND.click) AP.target = p.id AP.render() end)
+		local v = button({Position = UDim2.new(1, -224, 0.5, -15), Size = UDim2.fromOffset(70, 30), Text = "View", TextSize = 12, BackgroundColor3 = PURPLE}, c)
+		v.MouseButton1Click:Connect(function() play(SND.click) AP.target = p.id adm("inspect", {target = p.id}) end)
+		local h = button({Position = UDim2.new(1, -148, 0.5, -15), Size = UDim2.fromOffset(66, 30), Text = "Heal", TextSize = 12, BackgroundColor3 = GREEN}, c)
+		h.MouseButton1Click:Connect(function() play(SND.click) adm("heal", {target = p.id}) end)
+		local r = button({Position = UDim2.new(1, -76, 0.5, -15), Size = UDim2.fromOffset(66, 30), Text = "Respawn", TextSize = 11, BackgroundColor3 = GRAY}, c)
+		r.MouseButton1Click:Connect(function() play(SND.click) adm("respawn", {target = p.id}) end)
+	end
+end
+RENDER.ECONOMY = function(s)
+	line("Target: " .. targetName(), 0, GOLD)
+	local r1 = row(1)
+	local amt = box(r1, "Amount (e.g. 1000000)", 200, 1)
+	btn(r1, "➕ Give cash", function() local t = needTarget() if t then adm("giveCash", {target = t, amount = num(amt)}) end end, GREEN, 120, 2)
+	btn(r1, "➖ Remove cash", function() local t = needTarget() if t then adm("removeCash", {target = t, amount = num(amt)}) end end, RED, 120, 3)
+	local r2 = row(2)
+	local rep = box(r2, "Reputation", 200, 1)
+	btn(r2, "⭐ Give rep", function() local t = needTarget() if t then adm("giveRep", {target = t, amount = num(rep)}) end end, GREEN, 120, 2)
+	header(area, "City economy events", 3)
+	picker(4, {"boom", "recession", "tourists", "investor"}, nil, function(k) adm("cityEvent", {key = k}) end)
+end
+RENDER.ITEMS = function(s)
+	line("Target: " .. targetName() .. "  •  give furniture (goes into their storage) or arcade tickets", 0, GOLD)
+	local r1 = row(1)
+	local qty = box(r1, "Qty / tickets", 120, 1)
+	btn(r1, "🎟️ Give tickets", function() local t = needTarget() if t then adm("giveTickets", {target = t, amount = num(qty)}) end end, PURPLE, 130, 2)
+	picker(2, s.items, nil, function(k) local t = needTarget() if t then adm("giveItem", {target = t, key = k, amount = num(qty) or 1}) end end, function(it) return it.name end)
+	header(area, "Remove an item from storage (asks to confirm)", 3)
+	picker(4, s.items, nil, function(k) local t = needTarget() if t then adm("removeItem", {target = t, key = k}) end end, function(it) return "✖ " .. it.name end)
+end
+RENDER.BUSINESSES = function(s)
+	line("Target: " .. targetName(), 0, GOLD)
+	local r1 = row(1)
+	local lvl = box(r1, "Level", 80, 1)
+	btn(r1, "🔧 Fix problems + restock", function() local t = needTarget() if t then adm("fixAll", {target = t}) end end, GREEN, 200, 2)
+	header(area, "Set a business level (up only)", 2)
+	local list = {}
+	for _, b in ipairs(C.catalog.businesses or {}) do table.insert(list, {key = b.key, name = (b.icon or "") .. " " .. (b.name or b.key)}) end
+	if #list == 0 then for _, k in ipairs({"lemonade", "icecream", "bakery", "coffee", "pizza", "arcade", "tech", "factory"}) do table.insert(list, {key = k, name = k}) end end
+	picker(3, list, nil, function(k) local t = needTarget() if t then adm("bizLevel", {target = t, key = k, amount = num(lvl)}) end end, function(it) return it.name end)
+end
+RENDER.PROPERTIES = function(s)
+	line("Target: " .. targetName(), 0, GOLD)
+	local r1 = row(1)
+	local lvl = box(r1, "Level", 80, 1)
+	btn(r1, "🏢 Set HQ floors (0-6)", function() local t = needTarget() if t then adm("hqLevel", {target = t, amount = num(lvl)}) end end, BLUE, 180, 2)
+	btn(r1, "🏠 Set house tier (1-7)", function() local t = needTarget() if t then adm("homeLevel", {target = t, amount = num(lvl)}) end end, BLUE, 180, 3)
+	header(area, "Enter their places (moderation; logged)", 2)
+	picker(3, {"home", "hq1", "lemonade", "pizza", "arcade", "tech"}, nil, function(k) local t = needTarget() if t then adm("enterInterior", {target = t, key = k}) end end)
+end
+RENDER.VEHICLES = function(s)
+	line("Target: " .. targetName(), 0, GOLD)
+	header(area, "Give a car", 1)
+	picker(2, s.cars, nil, function(k) local t = needTarget() if t then adm("giveCar", {target = t, key = k}) end end, function(it) return "🚗 " .. it.name end)
+	header(area, "Take a car away (asks to confirm)", 3)
+	picker(4, s.cars, nil, function(k) local t = needTarget() if t then adm("removeCar", {target = t, key = k}) end end, function(it) return "✖ " .. it.name end)
+end
+RENDER.EVENTS = function(s)
+	header(area, "City events", 1)
+	picker(2, s.events, nil, function(k) adm("cityEvent", {key = k}) end, function(e) return e.key end)
+	header(area, "Mega events", 3)
+	picker(4, s.megas, nil, function(k) adm("megaEvent", {key = k}) end, function(e) return e.text end)
+	header(area, "Fun", 5)
+	local g = grid(6)
+	btn(g, "🏃 Customer rush", function() adm("rush") end, PURPLE, nil, 1)
+	btn(g, "🌟 Influencer visit", function() adm("influencer") end, PURPLE, nil, 2)
+	btn(g, "🎲 Rare event", function() adm("rareEvent") end, PURPLE, nil, 3)
+	btn(g, "😂 Funny event", function() adm("funny") end, PURPLE, nil, 4)
+	btn(g, "🎬 Grand opening cinematic", function() adm("cinematic", {key = "opening"}) end, PURPLE, nil, 5)
+	btn(g, "🎬 Eviction cinematic", function() adm("cinematic", {key = "evict"}) end, PURPLE, nil, 6)
+	local r = row(7)
+	local post = box(r, "CityBuzz post", 320, 1)
+	btn(r, "📢 Post", function() adm("buzz", {text = post.Text}) end, BLUE, 100, 2)
+end
+RENDER.TELEPORT = function(s)
+	line("Target: " .. targetName(), 0, GOLD)
+	local r = row(1)
+	btn(r, "➡ Go to target", function() local t = needTarget() if t then adm("gotoPlayer", {target = t}) end end, BLUE, 150, 1)
+	btn(r, "⬅ Bring target", function() local t = needTarget() if t then adm("bring", {target = t}) end end, BLUE, 150, 2)
+	header(area, "Places", 2)
+	picker(3, s.places, nil, function(k) adm("place", {key = k}) end)
+end
+RENDER.MODERATION = function(s)
+	line("Target: " .. targetName(), 0, GOLD)
+	local r1 = row(1)
+	btn(r1, "🧊 Freeze", function() local t = needTarget() if t then adm("freeze", {target = t, on = true}) end end, BLUE, 110, 1)
+	btn(r1, "Unfreeze", function() local t = needTarget() if t then adm("freeze", {target = t, on = false}) end end, GRAY, 100, 2)
+	btn(r1, "🔇 Mute", function() local t = needTarget() if t then adm("mute", {target = t, on = true}) end end, BLUE, 100, 3)
+	btn(r1, "Unmute", function() local t = needTarget() if t then adm("mute", {target = t, on = false}) end end, GRAY, 100, 4)
+	local r2 = row(2)
+	local msg = box(r2, "Warning / kick reason", 320, 1)
+	btn(r2, "⚠️ Warn", function() local t = needTarget() if t then adm("warn", {target = t, text = msg.Text}) end end, RGB(230, 150, 40), 90, 2)
+	btn(r2, "👢 Kick", function() local t = needTarget() if t then adm("kick", {target = t, text = msg.Text}) end end, RED, 90, 3)
+	line("Kicking asks for confirmation. Mutes last for this server only.", 3, SUB)
+end
+RENDER.SERVER = function(s)
+	local r1 = row(1)
+	local msg = box(r1, "Announcement to everyone", 360, 1)
+	btn(r1, "📢 Announce", function() adm("announce", {text = msg.Text}) end, BLUE, 120, 2)
+	header(area, "Time of day", 2)
+	picker(3, {"6", "9", "12", "15", "18", "21", "0"}, nil, function(k) adm("time", {amount = tonumber(k)}) end, function(k) return k .. ":00" end)
+end
+RENDER.DEVELOPER = function(s)
+	header(area, "Your tools (only work for admins)", 1)
+	local g = grid(2)
+	btn(g, plr:GetAttribute("AdminFly") and "🕊️ Fly: ON" or "🕊️ Fly: off", function() adm("fly", {on = not plr:GetAttribute("AdminFly")}) end, PURPLE, nil, 1)
+	btn(g, plr:GetAttribute("AdminNoclip") and "👻 Noclip: ON" or "👻 Noclip: off", function() adm("noclip", {on = not plr:GetAttribute("AdminNoclip")}) end, PURPLE, nil, 2)
+	btn(g, plr:GetAttribute("AdminInvisible") and "🫥 Invisible: ON" or "🫥 Invisible: off", function() adm("invisible", {on = not plr:GetAttribute("AdminInvisible")}) end, PURPLE, nil, 3)
+	btn(g, "🧍 Spawn test NPC", function() adm("npc") end, PURPLE, nil, 4)
+	btn(g, "🧹 Clear NPCs", function() adm("clearNpcs") end, GRAY, nil, 5)
+	local r = row(3)
+	local v = box(r, "Value", 90, 1)
+	btn(r, "🏃 Walk speed", function() adm("speed", {amount = num(v)}) end, BLUE, 120, 2)
+	btn(r, "🦘 Jump power", function() adm("jump", {amount = num(v)}) end, BLUE, 120, 3)
+	header(area, "Admins" .. (s.role == "owner" and "" or "  (only owners can change this)"), 4)
+	for i, e in ipairs(s.admins) do
+		local c = card(area, 40, 4 + i)
+		label({Position = UDim2.fromOffset(10, 0), Size = UDim2.new(1, -140, 1, 0), Text = e.name .. "  (" .. e.id .. ")  • added by " .. e.by, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left}, c)
+		if s.role == "owner" then
+			local b = button({Position = UDim2.new(1, -120, 0.5, -14), Size = UDim2.fromOffset(110, 28), Text = "Remove", TextSize = 12, BackgroundColor3 = RED}, c)
+			b.MouseButton1Click:Connect(function() play(SND.click) adm("removeAdmin", {target = e.id}) end)
+		end
+	end
+	if #s.admins == 0 then line("No added admins (owners come from the server config).", 30, SUB) end
+	if s.role == "owner" then
+		local r2 = row(40)
+		local name = box(r2, "Roblox username", 220, 1)
+		btn(r2, "➕ Add admin", function() adm("addAdmin", {text = name.Text}) end, GREEN, 130, 2)
+		line("The server looks the username up and stores the account's UserId in the admin list (not in player saves).", 41, SUB)
+	end
+end
+
+local function build()
+	if built then return end
+	built = true
+	m = modal("admin", "🛡️  ADMIN PANEL", 820, 600)
+	tabBar = new("ScrollingFrame", {Position = UDim2.fromOffset(12, 52), Size = UDim2.new(1, -24, 0, 40), BackgroundTransparency = 1, BorderSizePixel = 0, ScrollBarThickness = 3,
+		AutomaticCanvasSize = Enum.AutomaticSize.X, CanvasSize = UDim2.new(), ScrollingDirection = Enum.ScrollingDirection.X}, m.frame)
+	new("UIListLayout", {FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder}, tabBar)
+	AP.tabButtons = {}
+	for i, t in ipairs(TABS) do
+		local b = button({Size = UDim2.fromOffset(104, 32), Text = t, TextSize = 11, BackgroundColor3 = GRAY, LayoutOrder = i}, tabBar)
+		b.MouseButton1Click:Connect(function()
+			play(SND.click)
+			AP.tab = t
+			AP.render()
+		end)
+		AP.tabButtons[t] = b
+	end
+	resultL = label({Position = UDim2.new(0, 12, 1, -28), Size = UDim2.new(1, -24, 0, 22), Text = "", TextSize = 12, TextColor3 = SUB, TextXAlignment = Enum.TextXAlignment.Left}, m.frame)
+	m.body.Position = UDim2.fromOffset(12, 96)
+	m.body.Size = UDim2.new(1, -24, 1, -128)
+	area = m.body
+	AP.area = area
+	do
+		local asked = false
+		m.frame:GetPropertyChangedSignal("Visible"):Connect(function() if not m.frame.Visible then asked = false end end)
+		m.update = function()
+			if not asked then
+				asked = true
+				adm("state")
+			end
+		end
+	end
+	-- a small shield button on the screen (only admins ever get it)
+	local fb = button({AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 12, 1, -220), Size = UDim2.fromOffset(46, 46), Text = "🛡️", TextSize = 24, BackgroundColor3 = RGB(60, 40, 90)}, gui)
+	corner(fb, 23)
+	fb.MouseButton1Click:Connect(function() play(SND.click) C.openModal("admin") end)
+	AP.floatButton = fb
+end
+function AP.render()
+	if not (built and AP.state) then return end
+	for t, b in pairs(AP.tabButtons) do b.BackgroundColor3 = t == AP.tab and PURPLE or GRAY end
+	clear(area)
+	local fn = RENDER[AP.tab]
+	if fn then
+		local ok, err = pcall(fn, AP.state)
+		if not ok then warn("[CornerEmpire] admin panel: " .. tostring(err)) end
+	end
+end
+
+R.Menu.OnClientEvent:Connect(function(kind, a)
+	if kind == "adminHello" and type(a) == "table" then
+		AP.role = a.role
+		build()
+		AP.floatButton.Visible = true
+	elseif kind == "adminBye" then
+		AP.role = nil
+		if built then
+			m.frame.Visible = false
+			AP.floatButton.Visible = false
+		end
+	elseif kind == "adminState" and type(a) == "table" and built then
+		AP.state = a
+		AP.render()
+	elseif kind == "adminResult" and type(a) == "table" and built then
+		resultL.Text = (a.ok and "✅ " or "❌ ") .. tostring(a.tool) .. ": " .. tostring(a.text)
+		resultL.TextColor3 = a.ok and GREEN or RGB(255, 150, 140)
+		if a.tool == "inspect" and a.ok then U.splash("🔎 " .. targetName(), tostring(a.text), BLUE) end
+	elseif kind == "adminConfirm" and type(a) == "table" and built then
+		-- the server issued a one-time token for this dangerous action: ask, then send it back
+		C.confirm("⚠️ Confirm: " .. tostring(a.text) .. "?", "Yes, do it", function() act("adm", "confirm", a.token) end)
+	end
+end)
+
+-- ===== fly + noclip (only while the server has switched them on for you) =====
+do
+	local flyVel
+	RunService.Heartbeat:Connect(function()
+		local char = plr.Character
+		local root = char and char:FindFirstChild("HumanoidRootPart")
+		local hum = char and char:FindFirstChildOfClass("Humanoid")
+		if not (root and hum) then return end
+		if plr:GetAttribute("AdminNoclip") then
+			for _, p in ipairs(char:GetDescendants()) do if p:IsA("BasePart") then p.CanCollide = false end end
+		end
+		if plr:GetAttribute("AdminFly") then
+			if not flyVel then
+				local att = root:FindFirstChild("AdminFlyAtt") or Instance.new("Attachment")
+				att.Name = "AdminFlyAtt"
+				att.Parent = root
+				flyVel = Instance.new("LinearVelocity")
+				flyVel.Attachment0 = att
+				flyVel.MaxForce = 1e6
+				flyVel.Parent = root
+				hum.PlatformStand = true
+			end
+			local cam = Workspace.CurrentCamera
+			local dir = hum.MoveDirection
+			local up = (UserInputService:IsKeyDown(Enum.KeyCode.Space) and 1 or 0) - (UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) and 1 or 0)
+			local look = cam and cam.CFrame.LookVector or V3(0, 0, -1)
+			local v = dir * 60 + V3(0, up * 40 + (dir.Magnitude > 0 and look.Y * 40 or 0), 0)
+			flyVel.VectorVelocity = v
+		elseif flyVel then
+			flyVel:Destroy()
+			flyVel = nil
+			hum.PlatformStand = false
+		end
+	end)
+end
+end
+]]></ProtectedString></Properties>
+</Item>
+<Item class="ModuleScript" referent="RBX53"><Properties><string name="Name">GuideUI</string>
+<ProtectedString name="Source"><![CDATA[-- GUIDE UI (v10): contextual tip cards (from GameServer > Guide), the "What's this?" help window every big
+-- window can open (C.showHelp), and a Tips on/off switch in Settings.
+return function(C)
+local RGB = Color3.fromRGB
+local new, label, button, card, clear, corner, stroke, panel, tween = C.new, C.label, C.button, C.card, C.clear, C.corner, C.stroke, C.panel, C.tween
+local play, SND, act, R, gui = C.play, C.SND, C.act, C.R, C.gui
+local GOLD, GREEN, GRAY, BLUE, WHITE, SUB = C.GOLD, C.GREEN, C.GRAY, C.BLUE, C.WHITE, C.SUB
+local cat = C.catalog.guide or {help = {}, tips = {}}
+local GU = {shown = {}}
+C.GuideUI = GU
+
+-- ===== tip card (bottom-left, out of the way of the HUD) =====
+local tip = panel({AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 16, 1, -110), Size = UDim2.fromOffset(340, 150), BackgroundColor3 = RGB(30, 34, 56), Visible = false, ZIndex = 30}, gui)
+stroke(tip, GOLD, 2, 0.2)
+local tipIcon = label({Position = UDim2.fromOffset(10, 8), Size = UDim2.fromOffset(36, 36), TextSize = 28, ZIndex = 31}, tip)
+local tipTitle = label({Position = UDim2.fromOffset(52, 8), Size = UDim2.new(1, -60, 0, 22), TextSize = 16, Font = Enum.Font.GothamBlack, TextColor3 = GOLD, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 31}, tip)
+local tipCount = label({Position = UDim2.fromOffset(52, 28), Size = UDim2.new(1, -60, 0, 14), TextSize = 10, TextColor3 = SUB, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 31}, tip)
+local tipText = label({Position = UDim2.fromOffset(12, 48), Size = UDim2.new(1, -24, 0, 56), TextSize = 12, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left,
+	TextYAlignment = Enum.TextYAlignment.Top, ZIndex = 31}, tip)
+local ok = button({Position = UDim2.new(1, -110, 1, -40), Size = UDim2.fromOffset(100, 30), Text = "Got it", TextSize = 13, BackgroundColor3 = GREEN, ZIndex = 31}, tip)
+local off = button({Position = UDim2.new(0, 10, 1, -40), Size = UDim2.fromOffset(120, 30), Text = "Turn off tips", TextSize = 11, BackgroundColor3 = GRAY, ZIndex = 31}, tip)
+ok.MouseButton1Click:Connect(function() play(SND.click) tip.Visible = false end)
+off.MouseButton1Click:Connect(function()
+	play(SND.click)
+	tip.Visible = false
+	act("guideOff", true)
+	GU.off = true
+end)
+GU.tip = tip
+local token = 0
+R.Menu.OnClientEvent:Connect(function(kind, a)
+	if kind ~= "guideTip" or type(a) ~= "table" then return end
+	token += 1
+	local my = token
+	tipIcon.Text = tostring(a.icon)
+	tipTitle.Text = tostring(a.title)
+	tipText.Text = tostring(a.text)
+	tipCount.Text = "Tip " .. tostring(a.n) .. " of " .. tostring(a.total)
+	tip.Visible = true
+	table.insert(GU.shown, a.key)
+	play(SND.event)
+	-- tips step aside on their own after a while
+	task.delay(22, function() if my == token then tip.Visible = false end end)
+end)
+
+-- ===== "What's this?" =====
+local helpM = C.makeModal and C.makeModal("help", "❓  WHAT'S THIS?", 480, 380)
+function C.showHelp(topic)
+	if not helpM then return end
+	local h = cat.help and cat.help[topic]
+	clear(helpM.body)
+	label({Size = UDim2.new(1, -8, 0, 30), Text = h and h.title or "Help", TextSize = 18, Font = Enum.Font.GothamBlack, TextColor3 = GOLD, TextXAlignment = Enum.TextXAlignment.Left, LayoutOrder = 1}, helpM.body)
+	label({Size = UDim2.new(1, -8, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, Text = h and h.text or "No help for this yet.", TextSize = 14, TextWrapped = true,
+		TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top, LayoutOrder = 2}, helpM.body)
+	local back = button({Size = UDim2.new(1, -8, 0, 40), Text = "OK", TextSize = 15, BackgroundColor3 = BLUE, LayoutOrder = 3}, helpM.body)
+	back.MouseButton1Click:Connect(function() play(SND.click) helpM.frame.Visible = false end)
+	-- (opened on top of the window that asked, without closing it)
+	helpM.frame.Visible = true
+	helpM.frame.ZIndex = 60
+	GU.lastHelp = topic
+end
+
+-- ===== Settings: tips on/off + show them again =====
+local settings = C.modals and C.modals.settings
+if settings then
+	local c = card(settings.body, 52, 90)
+	label({Position = UDim2.fromOffset(14, 0), Size = UDim2.new(1, -330, 1, 0), TextSize = 15, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left, Text = "💡 Tips"}, c)
+	local t = button({Position = UDim2.new(1, -320, 0.5, -19), Size = UDim2.fromOffset(150, 38), Text = "On / Off", TextSize = 14, BackgroundColor3 = BLUE}, c)
+	t.MouseButton1Click:Connect(function()
+		play(SND.click)
+		GU.off = not GU.off
+		act("guideOff", GU.off == true)
+	end)
+	local r = button({Position = UDim2.new(1, -160, 0.5, -19), Size = UDim2.fromOffset(150, 38), Text = "Show all again", TextSize = 13, BackgroundColor3 = GRAY}, c)
+	r.MouseButton1Click:Connect(function()
+		play(SND.click)
+		GU.off = false
+		act("guideReset")
+	end)
+end
+end
+]]></ProtectedString></Properties>
+</Item>
+<Item class="ModuleScript" referent="RBX54"><Properties><string name="Name">Phone</string>
 <ProtectedString name="Source"><![CDATA[-- PHONE: app launcher + CityBuzz social media + Messages + Map (press P).
 return function(C)
 local UserInputService = game:GetService("UserInputService")
@@ -3299,14 +4902,15 @@ do
 	label({Position = UDim2.fromOffset(0, 8), Size = UDim2.new(1, 0, 0, 44), TextSize = 40, Font = Enum.Font.GothamBlack, Text = "12:00", ZIndex = 23, Name = "BigClock"}, v)
 	label({Position = UDim2.fromOffset(0, 54), Size = UDim2.new(1, 0, 0, 16), TextSize = 12, TextColor3 = SUB, Text = "Corner Empire OS", ZIndex = 23}, v)
 	local grid = new("Frame", {Position = UDim2.fromOffset(10, 84), Size = UDim2.new(1, -20, 1, -94), BackgroundTransparency = 1, ZIndex = 22}, v)
-	new("UIGridLayout", {CellSize = UDim2.fromOffset(62, 78), CellPadding = UDim2.fromOffset(8, 6), SortOrder = Enum.SortOrder.LayoutOrder}, grid)
+	new("UIGridLayout", {CellSize = UDim2.fromOffset(62, 74), CellPadding = UDim2.fromOffset(8, 4), SortOrder = Enum.SortOrder.LayoutOrder}, grid)
 	local APPS = {
 		{"📱", "Buzz", "view", "buzz", RGB(230, 70, 150)}, {"💬", "Messages", "view", "messages", RGB(60, 190, 90)}, {"🗺️", "Map", "view", "map", RGB(60, 140, 230)},
 		{"🏠", "Home", "modal", "home", RGB(110, 180, 110)}, {"🚗", "Garage", "modal", "garage", RGB(60, 130, 230), "cars"}, {"👥", "Staff", "modal", "staff", RGB(70, 170, 120), "staff"},
 		{"🏢", "Properties", "modal", "properties", RGB(120, 150, 240), "properties"}, {"📈", "Stocks", "modal", "market", RGB(60, 160, 90), "market"}, {"📣", "Marketing", "modal", "marketing", RGB(235, 130, 40), "ads"},
 		{"🎡", "Fun & Race", "modal", "fun", RGB(255, 110, 190), "funpark"}, {"♻️", "Rebirth", "modal", "rebirth", RGB(200, 80, 220)}, {"🏙️", "City", "modal", "city", RGB(60, 150, 200)},
 		{"📖", "Archive", "modal", "archive", RGB(140, 90, 230)}, {"🛒", "Store", "modal", "passes", RGB(235, 170, 30)}, {"🏆", "Weekly", "modal", "weekly", RGB(230, 150, 40)},
-		{"🎬", "Story", "view", "story", RGB(200, 50, 120)}, {"🔥", "Viral", "view", "viral", RGB(255, 90, 60)}, {"⚙️", "Settings", "modal", "settings", RGB(100, 104, 124)},
+		{"🎬", "Story", "view", "story", RGB(200, 50, 120)}, {"🔥", "Viral", "view", "viral", RGB(255, 90, 60)}, {"🏛️", "HQ", "modal", "hq", RGB(90, 120, 200)}, {"🕹️", "Arcade", "modal", "arcadeInfo", RGB(150, 80, 255)},
+		{"⚙️", "Settings", "modal", "settings", RGB(100, 104, 124)},
 	}
 	local icons = {}
 	for i, a in ipairs(APPS) do
@@ -3714,7 +5318,7 @@ C.phoneView("home")
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX39"><Properties><string name="Name">Driving</string>
+<Item class="ModuleScript" referent="RBX55"><Properties><string name="Name">Driving</string>
 <ProtectedString name="Source"><![CDATA[-- DRIVING: smooth client-side car physics (you own your car's physics), speedometer, race HUD.
 return function(C)
 local RunService = game:GetService("RunService")
@@ -3824,6 +5428,7 @@ local driftL = label({AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.
 local hintL = label({AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 1, 4), Size = UDim2.fromOffset(240, 14), TextSize = 11, TextColor3 = SUB, TextStrokeTransparency = 0.5, Text = ""}, gauge)
 
 -- ===== CAR CONTROLLER =====
+C.carInput = {}   -- what the driver is doing right now (the car details below read it)
 local driving = false
 local speed = 0
 local nitro = 1
@@ -3849,6 +5454,7 @@ RunService.Heartbeat:Connect(function(dt)
 	local hum = char and char:FindFirstChildOfClass("Humanoid")
 	local seat = hum and hum.SeatPart
 	if not (seat and seat:IsA("VehicleSeat") and seat:GetAttribute("CarOwner") == plr.UserId) then
+		C.carInput.car = nil
 		if driving then
 			driving = false
 			gauge.Visible = false
@@ -3895,16 +5501,23 @@ RunService.Heartbeat:Connect(function(dt)
 		nitro = math.min(1, nitro + dt * (drifting and 0.16 or 0.1))
 	end
 	drift.boostT = math.max(0, drift.boostT - dt)
-	local top = maxS * (boosting and 1.4 or 1) * (drift.boostT > 0 and 1.1 or 1)
+	-- v10: every car has its own acceleration, braking and nitro power
+	local accelK = seat:GetAttribute("Accel") or 1
+	local brakeK = seat:GetAttribute("Brake") or 1
+	local nitroK = seat:GetAttribute("NitroPower") or 1.4
+	local top = maxS * (boosting and nitroK or 1) * (drift.boostT > 0 and 1.1 or 1)
 	local target = throttle > 0 and top or (throttle < 0 and -maxS * 0.45 or 0)
 	local rate
 	if throttle == 0 then
 		rate = maxS * 0.55
 	elseif (target > 0 and speed < 0) or (target < 0 and speed > 0) then
-		rate = maxS * 2.2
+		rate = maxS * 2.2 * brakeK
 	else
-		rate = maxS * (boosting and 1.1 or 0.65)
+		rate = maxS * (boosting and 1.1 or 0.65) * accelK
 	end
+	local ci = C.carInput
+	ci.car, ci.throttle, ci.steer, ci.speed = car, throttle, steer, speed
+	ci.braking = (target > 0 and speed < 0) or (target < 0 and speed > 0) or (throttle < 0 and speed > 2)
 	speed = moveToward(speed, target, rate * dt)
 	local cf = root.CFrame
 	local look = V3(cf.LookVector.X, 0, cf.LookVector.Z)
@@ -4056,6 +5669,91 @@ do
 	end)
 end
 
+-- ===== CAR DETAILS (v10): brake lights, turn signals, the dash speed readout and a steering wheel that turns =====
+-- Every client works these out on its own from how each nearby car is moving (so everyone sees them, with no
+-- network traffic); your own car uses your actual inputs.
+do
+	local cars = {}   -- model -> {brake = {parts}, left = {}, right = {}, head = {}, dash, wheel, weld, c0, last, on = {}}
+	local BRAKE_ON, BRAKE_OFF = RGB(255, 30, 40), RGB(150, 20, 26)
+	local SIG_ON, SIG_OFF = RGB(255, 170, 40), RGB(150, 90, 20)
+	local function scan(m)
+		local e = {brake = {}, left = {}, right = {}, head = {}}
+		for _, p in ipairs(m:GetDescendants()) do
+			if p:IsA("BasePart") then
+				if p.Name == "BrakeLight" then table.insert(e.brake, p)
+				elseif p.Name == "SignalL" then table.insert(e.left, p)
+				elseif p.Name == "SignalR" then table.insert(e.right, p)
+				elseif p.Name == "Headlight" then table.insert(e.head, p)
+				elseif p.Name == "Dash" then e.dash = p:FindFirstChild("DashGui") and p.DashGui:FindFirstChild("Speed")
+				elseif p.Name == "SteeringWheel" then
+					e.weld = p:FindFirstChild("SteerWeld")
+					e.c0 = e.weld and e.weld.C0
+				end
+			end
+		end
+		e.on = {}
+		return e
+	end
+	local function setLights(list, on, onC, offC, key, e)
+		if e.on[key] == on then return end
+		e.on[key] = on
+		for _, p in ipairs(list) do
+			p.Color = on and onC or offC
+			p.Material = on and Enum.Material.Neon or Enum.Material.SmoothPlastic
+		end
+	end
+	C.carDetails = cars
+	local acc = 0
+	RunService.Heartbeat:Connect(function(dt)
+		acc += dt
+		if acc < 1 / 15 then return end
+		local step = acc
+		acc = 0
+		local folder = Workspace:FindFirstChild("Cars")
+		if not folder then return end
+		for m in pairs(cars) do if not m.Parent then cars[m] = nil end end
+		local me = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
+		local cam = Workspace.CurrentCamera
+		local camPos = me and me.Position or (cam and cam.CFrame.Position or V3())
+		local blink = (os.clock() * 2.5) % 1 < 0.5
+		local mine = C.carInput.car
+		for _, m in ipairs(folder:GetChildren()) do
+			local root = m.PrimaryPart
+			if root and (root.Position - camPos).Magnitude < 220 then
+				local e = cars[m]
+				if not e then
+					e = scan(m)
+					cars[m] = e
+				end
+				local vel = root.AssemblyLinearVelocity
+				local fwd = vel:Dot(root.CFrame.LookVector)
+				local spd = math.abs(fwd)
+				local braking, yaw
+				if m == mine then
+					braking = C.carInput.braking == true
+					yaw = -(C.carInput.steer or 0)
+				else
+					braking = e.last ~= nil and (e.last - spd) / step > 22 and spd > 3
+					yaw = root.AssemblyAngularVelocity.Y
+				end
+				e.last = spd
+				if root.Anchored then braking, yaw = false, 0 end
+				setLights(e.brake, braking, BRAKE_ON, BRAKE_OFF, "brake", e)
+				local turning = math.abs(yaw) > (m == mine and 0.3 or 0.45) and spd > 4
+				setLights(e.left, turning and yaw > 0 and blink, SIG_ON, SIG_OFF, "left", e)
+				setLights(e.right, turning and yaw < 0 and blink, SIG_ON, SIG_OFF, "right", e)
+				if m == mine then
+					if e.dash then
+						local mph = math.floor(spd + 0.5)
+						e.dash.Text = (C.settings.units == "KMH" and (math.floor(mph * 1.6) .. " KM/H") or (mph .. " MPH"))
+					end
+					if e.weld and e.c0 then e.weld.C0 = e.c0 * CFrame.Angles(-(C.carInput.steer or 0) * 1.4, 0, 0) end
+				end
+			end
+		end
+	end)
+end
+
 -- ===== RACE HUD =====
 do
 	local rp = panel({AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 266), Size = UDim2.fromOffset(380, 78), BackgroundColor3 = RGB(30, 30, 36), Visible = false}, gui)
@@ -4105,7 +5803,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX40"><Properties><string name="Name">MiniGames</string>
+<Item class="ModuleScript" referent="RBX56"><Properties><string name="Name">MiniGames</string>
 <ProtectedString name="Source"><![CDATA[-- MINI-GAMES: Hoop Shot, Lemonade Rush, Memory Match + the Ferris wheel camera ride.
 return function(C)
 local RunService = game:GetService("RunService")
@@ -4383,7 +6081,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX41"><Properties><string name="Name">PhotoMode</string>
+<Item class="ModuleScript" referent="RBX57"><Properties><string name="Name">PhotoMode</string>
 <ProtectedString name="Source"><![CDATA[-- PHOTO MODE ("Empire Flex"): hide the UI, fly a free camera, cinematic orbits, poses and framing guides.
 -- Open with V, the 📸 button, or D-pad Up on a controller. Everything here is local to this player.
 return function(C)
@@ -4707,7 +6405,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX42"><Properties><string name="Name">Story</string>
+<Item class="ModuleScript" referent="RBX58"><Properties><string name="Name">Story</string>
 <ProtectedString name="Source"><![CDATA[-- STORY: cutscenes with the rival (Lil Clipz), his speech bubbles, the on-screen story tracker and the
 -- phone's Story app. Everything here is local to this player: other players never get pulled into
 -- your cutscene, and all the parts are client-side (cleaned up when the scene ends).
@@ -5325,7 +7023,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX43"><Properties><string name="Name">Cinematics</string>
+<Item class="ModuleScript" referent="RBX59"><Properties><string name="Name">Cinematics</string>
 <ProtectedString name="Source"><![CDATA[-- CINEMATIC CONTROLLER: plays the short interaction cinematics the server sends (GameServer > Cinematics):
 -- evictions, grand openings, hires, inspections, influencer visits...
 --
@@ -6024,7 +7722,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX44"><Properties><string name="Name">MapApp</string>
+<Item class="ModuleScript" referent="RBX60"><Properties><string name="Name">MapApp</string>
 <ProtectedString name="Source"><![CDATA[-- MAP APP: a real city map in the phone. Roads and districts are drawn from the server's world data; markers show
 -- your businesses, home, properties and land, other players' empires, attractions, the Mystery Lot, your delivery
 -- and the tutorial objective. You are the arrow. Tap a marker (or a place in the list) to see what it is, whether
@@ -6253,7 +7951,7 @@ C.openMap = function() if C.togglePhone then C.togglePhone(true) C.phoneView("ma
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX45"><Properties><string name="Name">InteriorUI</string>
+<Item class="ModuleScript" referent="RBX61"><Properties><string name="Name">InteriorUI</string>
 <ProtectedString name="Source"><![CDATA[-- INTERIOR UI: while you're inside a business or a home: a small bar (whose place, interior score, Leave) and,
 -- in your own rooms, the Decorate panel: numbered spots for furniture and decorations, walls, floors and lighting.
 -- Every change is a request; the server checks the price, the spot and the unlocks.
@@ -6272,6 +7970,7 @@ local barL = label({Position = UDim2.fromOffset(10, 0), Size = UDim2.new(1, -220
 local decoB = button({AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -96, 0.5, 0), Size = UDim2.fromOffset(110, 32), Text = "🛋️ Decorate", TextSize = 13, BackgroundColor3 = RGB(200, 90, 160)}, bar)
 local leaveB = button({AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -6, 0.5, 0), Size = UDim2.fromOffset(84, 32), Text = "🚪 Leave", TextSize = 13, BackgroundColor3 = GRAY}, bar)
 leaveB.MouseButton1Click:Connect(function() play(SND.click) act("leaveInterior") end)
+C.interiorBar, C.interiorBarLabel = bar, barL   -- (BuilderUI adds its Build button here)
 
 -- the decorate panel
 local panel = C.panel({AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -16, 0.5, 0), Size = UDim2.fromOffset(330, 470), BackgroundColor3 = RGB(28, 26, 40), Visible = false, ZIndex = 5}, gui)
@@ -6450,7 +8149,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX46"><Properties><string name="Name">InteriorLife</string>
+<Item class="ModuleScript" referent="RBX62"><Properties><string name="Name">InteriorLife</string>
 <ProtectedString name="Source"><![CDATA[-- INTERIOR LIFE: staff at work and customers living their lives inside the business you're standing in.
 --
 -- Staff (by business level): a cashier at the register, a cook at the prep area / ovens, a cleaner from level 5,
@@ -6525,6 +8224,9 @@ local function fillThing(r, text) return (string.gsub(text, "{thing}", THINGS[r.
 local function addStaff(r, role, name)
 	if #r.staff >= MAX_STAFF then return end
 	local u = UNI[r.key] or UNI.lemonade
+	-- v10: the owner's brand uniform colour (Brand tab) replaces the default shirt
+	local brand = r.model:GetAttribute("Uniform")
+	if typeof(brand) == "Color3" then u = {shirt = brand, pants = u.pants, work = u.work} end
 	local look = {shirt = role == "manager" and RGB(30, 36, 62) or u.shirt, pants = role == "manager" and RGB(30, 36, 62) or u.pants, skin = A.SKIN[(#r.staff % #A.SKIN) + 1],
 		apron = (role == "cook" or role == "cashier") and Color3.new(1, 1, 1) or nil, tie = role == "manager" and RGB(200, 40, 50) or nil,
 		hat = role == "cook" and Color3.new(1, 1, 1) or (r.key == "factory" and RGB(255, 205, 40) or nil), hatKind = role == "cook" and "beanie" or "cap"}
@@ -6547,7 +8249,12 @@ local function staffThink(r, a, now)
 			if c.state == "ordering" and not c.servedBy then
 				c.servedBy = a
 				A.play(a, "show", now)
-				bubble(a, ({"What can I get you?", "Next!", "Welcome in!", "Coming right up!"})[math.random(4)], 2)
+				local menu = r.menu or {}
+				if #menu > 0 and math.random() < 0.5 then
+					bubble(a, ({"One %s, coming up!", "Try the %s!", "%s? Great choice."})[math.random(3)]:format(menu[math.random(#menu)]), 2)
+				else
+					bubble(a, ({"What can I get you?", "Next!", "Welcome in!", "Coming right up!"})[math.random(4)], 2)
+				end
 				a.wait = now + 1.6
 				return
 			end
@@ -6592,6 +8299,21 @@ local function staffThink(r, a, now)
 			a.wait = now + 2.5 + math.random() * 2
 			a.state = "go"
 			if math.random() < 0.15 then bubble(a, ({"Numbers look good.", "Who moved my stapler?", "Great work, team!", "Checking the register..."})[math.random(4)]) end
+		end
+	elseif a.role == "reception" or a.role == "desk" or a.role == "hqmanager" then
+		-- v10 HQ crew: they stay at their desks (the server says where) and get on with their day
+		if a.role == "desk" then
+			A.play(a, "type", now)
+			a.wait = now + 3 + math.random() * 3
+			if math.random() < 0.06 then bubble(a, ({"Quarterly numbers: up.", "Who took my stapler?", "Approved.", "Meeting in 5!"})[math.random(4)]) end
+		elseif a.role == "reception" then
+			A.play(a, math.random() < 0.3 and "wave" or "idle", now)
+			a.wait = now + 2.5 + math.random() * 2
+			if math.random() < 0.12 then bubble(a, ({"Welcome to the HQ!", "The boss is upstairs.", "Elevator's to your right.", "Please sign in!"})[math.random(4)]) end
+		else
+			A.play(a, math.random() < 0.5 and "clipboard" or "type", now)
+			a.wait = now + 3 + math.random() * 2
+			if math.random() < 0.08 then bubble(a, ({"Everything's under control.", "Contract's looking good.", "On it, boss.", "I'll handle the repairs."})[math.random(4)]) end
 		end
 	elseif a.role == "worker" then
 		-- factory floor: a station, a machine, the loading dock
@@ -6756,6 +8478,29 @@ local function start(model)
 	if typeof(origin) ~= "Vector3" then origin = model:GetPivot().Position end
 	room = {model = model, key = key, origin = origin, wps = wpList(model), staff = {}, customers = {}, seatsUsed = {}, nextCustomer = os.clock() + 1.5}
 	IL.stats.rooms += 1
+	local menu = model:GetAttribute("Menu")
+	room.menu = type(menu) == "string" and menu ~= "" and string.split(menu, "|") or {}
+	-- v10 HQ floors: the server lists the crew as "role,x,z;..." in room coordinates
+	local crew = model:GetAttribute("Crew")
+	if type(crew) == "string" then
+		local seed = tonumber(model:GetAttribute("OwnerId")) or 1
+		local roles = {receptionist = "reception", worker = "desk", manager = "hqmanager"}
+		for i, entry in ipairs(string.split(crew, ";")) do
+			local role, x, z = string.match(entry, "^(%a+),([%-%d%.]+),([%-%d%.]+)$")
+			if role and roles[role] then
+				local pos = origin + V3(tonumber(x), 0, tonumber(z))
+				local name = role == "manager" and model:GetAttribute("Manager") or NAMES[(seed + i * 5) % #NAMES + 1]
+				addStaff(room, roles[role], name ~= "" and name or nil)
+				local a = room.staff[#room.staff]
+				if a then
+					-- desks face the screens (-Z); the receptionist faces the lobby (+Z)
+					a.base = A.faceTowards(pos, pos + V3(0, 0, role == "receptionist" and 1 or -1))
+					a.state = "seat"
+				end
+			end
+		end
+		return
+	end
 	if key == "home" or not UNI[key] then return end
 	local lvl = model:GetAttribute("Level") or 1
 	local staffName = model:GetAttribute("Staff")
@@ -6866,7 +8611,316 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX47"><Properties><string name="Name">CityLife</string>
+<Item class="ModuleScript" referent="RBX63"><Properties><string name="Name">BuilderUI</string>
+<ProtectedString name="Source"><![CDATA[-- BUILDER UI (v10): the furniture shop, the home builder (a top-down grid of your home: tap a cell to place,
+-- move or pick up furniture), house styles and who may visit you. The server (GameServer > HomeBuilder)
+-- validates every placement; this only shows the plan and asks.
+return function(C)
+local Players = game:GetService("Players")
+local RGB = Color3.fromRGB
+local new, label, button, card, header, clear, corner, stroke = C.new, C.label, C.button, C.card, C.header, C.clear, C.corner, C.stroke
+local fmt, play, SND, act, R, U = C.fmt, C.play, C.SND, C.act, C.R, C.U
+local GOLD, GREEN, GRAY, RED, BLUE, PURPLE, WHITE, SUB = C.GOLD, C.GREEN, C.GRAY, C.RED, C.BLUE, C.PURPLE, C.WHITE, C.SUB
+local modal = C.makeModal
+local cat = C.catalog.furniture
+if not (modal and cat) then return end
+local BUI = C.BusinessUI or {}
+local B = {state = nil, tab = "place", shopCat = cat.cats[1]}
+C.BuilderUI = B
+-- names for the house tiers
+C.HOME_LEVELS_NAMES = {"Starter Home", "Expanded Home", "Luxury Home", "Modern Estate", "Mansion", "Mega Mansion", "Empire Estate"}
+local ITEM = {}
+for _, it in ipairs(cat.items) do ITEM[it.key] = it end
+
+local function btn(parent, text, pos, size, color, fn, order)
+	local b = button({Position = pos, Size = size, Text = text, TextSize = 12, TextWrapped = true, BackgroundColor3 = color or BLUE, LayoutOrder = order}, parent)
+	b.MouseButton1Click:Connect(function()
+		play(SND.click)
+		fn(b)
+	end)
+	return b
+end
+local function txt(parent, text, pos, size, sizePx, color, bold, order)
+	return label({Position = pos, Size = size, Text = text, TextSize = sizePx or 13, TextColor3 = color or WHITE, TextWrapped = true, LayoutOrder = order,
+		Font = bold and Enum.Font.GothamBlack or Enum.Font.GothamBold, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top}, parent)
+end
+local function row(parent, order, h)
+	local f = new("Frame", {Size = UDim2.new(1, -8, 0, h or 36), BackgroundTransparency = 1, LayoutOrder = order}, parent)
+	new("UIListLayout", {FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder}, f)
+	return f
+end
+
+-- =====================================================================
+-- FURNITURE SHOP
+-- =====================================================================
+local shopM = modal("furniture", "🛋️  FURNITURE SHOP", 620, 560)
+if BUI.helpButton then BUI.helpButton(shopM, "furniture") end
+local function renderShop()
+	clear(shopM.body)
+	local st = B.state
+	local level = st and st.level or 0
+	local owned = {}
+	for _, e in ipairs(st and st.inventory or {}) do owned[e.k] = e.n end
+	local tabs = new("Frame", {Size = UDim2.new(1, -8, 0, 64), BackgroundTransparency = 1, LayoutOrder = 0}, shopM.body)
+	new("UIGridLayout", {CellSize = UDim2.fromOffset(112, 28), CellPadding = UDim2.fromOffset(4, 4), SortOrder = Enum.SortOrder.LayoutOrder}, tabs)
+	for i, c in ipairs(cat.cats) do
+		local b = button({Text = c, TextSize = 11, BackgroundColor3 = c == B.shopCat and PURPLE or GRAY, LayoutOrder = i}, tabs)
+		b.MouseButton1Click:Connect(function()
+			play(SND.click)
+			B.shopCat = c
+			renderShop()
+		end)
+	end
+	txt(shopM.body, "Bought furniture goes into your storage. Place it with 🔨 Build inside your home.", UDim2.new(), UDim2.new(1, -8, 0, 18), 11, SUB, false, 1)
+	local n = 1
+	for _, it in ipairs(cat.items) do
+		if it.cat == B.shopCat then
+			n += 1
+			local c = card(shopM.body, 52, n)
+			label({Position = UDim2.fromOffset(6, 0), Size = UDim2.fromOffset(40, 52), Text = it.icon, TextSize = 26}, c)
+			txt(c, it.name .. (owned[it.key] and ("   (" .. owned[it.key] .. " in storage)") or ""), UDim2.fromOffset(50, 6), UDim2.new(1, -190, 0, 20), 14, WHITE, true)
+			local locked = level < it.tier
+			txt(c, it.w .. "×" .. it.d .. " cells  •  +" .. it.score .. " style" .. (locked and ("  •  🔒 needs " .. C.HOME_LEVELS_NAMES[it.tier]) or ""), UDim2.fromOffset(50, 28), UDim2.new(1, -190, 0, 20), 11, locked and RGB(255, 160, 140) or SUB)
+			btn(c, "Buy $" .. fmt(it.cost), UDim2.new(1, -130, 0.5, -17), UDim2.fromOffset(120, 34), locked and GRAY or GREEN, function()
+				if not locked then act("hbBuy", it.key, 1) end
+			end)
+		end
+	end
+end
+B.renderShop = renderShop
+do
+	local asked = false
+	shopM.frame:GetPropertyChangedSignal("Visible"):Connect(function() if not shopM.frame.Visible then asked = false end end)
+	shopM.update = function()
+		if not asked then
+			asked = true
+			act("hbState")
+			renderShop()
+		end
+	end
+end
+
+-- =====================================================================
+-- HOME BUILDER
+-- =====================================================================
+local bM = modal("builder", "🔨  HOME BUILDER", 780, 580)
+if BUI.helpButton then BUI.helpButton(bM, "builder") end
+bM.body.Visible = false
+local tabBar = new("Frame", {Position = UDim2.fromOffset(12, 52), Size = UDim2.new(1, -24, 0, 32), BackgroundTransparency = 1}, bM.frame)
+new("UIListLayout", {FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 6)}, tabBar)
+local area = new("Frame", {Position = UDim2.fromOffset(12, 90), Size = UDim2.new(1, -24, 1, -100), BackgroundTransparency = 1}, bM.frame)
+B.area = area
+local TABS = {{"place", "🔨 Furniture"}, {"styles", "🎨 House style"}, {"visitors", "🔐 Visitors"}}
+local tabBtns = {}
+for i, t in ipairs(TABS) do
+	tabBtns[t[1]] = btn(tabBar, t[2], UDim2.new(), UDim2.fromOffset(150, 32), GRAY, function()
+		B.tab = t[1]
+		B.render()
+	end, i)
+end
+local sel = {inv = nil, item = nil, r = 0}   -- picked from storage / picked a placed item / rotation
+B.sel = sel
+
+local CELL = 30
+local function renderPlace(st)
+	local gw, gh = st.cols * CELL, st.rows * CELL
+	local gridF = new("Frame", {Position = UDim2.fromOffset(0, 26), Size = UDim2.fromOffset(gw, gh), BackgroundColor3 = RGB(26, 28, 38), BorderSizePixel = 0}, area)
+	corner(gridF, 6)
+	B.grid = gridF
+	txt(area, "🏠 " .. tostring(st.levelName) .. "  •  " .. #st.items .. " / " .. st.cap .. " items  •  interior score " .. st.score .. (st.inside and "" or "   (go inside your home to place things)"),
+		UDim2.fromOffset(0, 2), UDim2.fromOffset(gw + 300, 20), 12, st.inside and GOLD or RGB(255, 170, 140), true)
+	-- the door is at the bottom of the plan
+	txt(area, "⬇ front door", UDim2.fromOffset(gw / 2 - 40, gh + 28), UDim2.fromOffset(120, 16), 11, SUB)
+	local blocked = {}
+	for _, b in ipairs(st.blocked) do blocked[b[1]] = b[2] end
+	local occ = {}
+	for _, it in ipairs(st.items) do
+		local w, d = it.w, it.d
+		if it.r % 2 == 1 then w, d = d, w end
+		for cx = it.x, it.x + w - 1 do for cz = it.z, it.z + d - 1 do if not it.flat or not occ[cx .. "," .. cz] then occ[cx .. "," .. cz] = it end end end
+	end
+	B.cells = {}
+	for cz = 1, st.rows do
+		for cx = 1, st.cols do
+			local k = cx .. "," .. cz
+			local it = occ[k]
+			local color = blocked[k] and RGB(70, 40, 44) or (it and (sel.item == it.i and RGB(255, 90, 170) or (it.flat and RGB(90, 70, 120) or RGB(70, 110, 170))) or RGB(44, 48, 64))
+			local c = button({Position = UDim2.fromOffset((cx - 1) * CELL + 1, (cz - 1) * CELL + 1), Size = UDim2.fromOffset(CELL - 2, CELL - 2), BackgroundColor3 = color, AutoButtonColor = true,
+				Text = (it and it.x == cx and it.z == cz) and it.icon or (blocked[k] == "door" and "🚪" or ""), TextSize = 16}, gridF)
+			B.cells[k] = c
+			c.MouseButton1Click:Connect(function()
+				play(SND.click)
+				if sel.inv then
+					act("hbPlace", sel.inv, {cx, cz, sel.r})
+				elseif sel.item and sel.moving then
+					act("hbMove", sel.item, {cx, cz, sel.r})
+					sel.moving = false
+				elseif it then
+					sel.item, sel.r, sel.moving = it.i, it.r, false
+					B.render()
+				else
+					sel.item = nil
+					B.render()
+				end
+			end)
+		end
+	end
+	-- side panel: storage, or the selected item
+	local side = new("ScrollingFrame", {Position = UDim2.fromOffset(gw + 12, 26), Size = UDim2.new(1, -(gw + 12), 1, -30), BackgroundTransparency = 1, BorderSizePixel = 0,
+		ScrollBarThickness = 4, AutomaticCanvasSize = Enum.AutomaticSize.Y, CanvasSize = UDim2.new()}, area)
+	new("UIListLayout", {Padding = UDim.new(0, 5), SortOrder = Enum.SortOrder.LayoutOrder}, side)
+	B.side = side
+	local picked
+	for _, it in ipairs(st.items) do if it.i == sel.item then picked = it end end
+	if picked then
+		txt(side, picked.icon .. " " .. picked.name, UDim2.new(), UDim2.new(1, -4, 0, 22), 15, GOLD, true, 1)
+		btn(side, sel.moving and "Tap a cell to move it…" or "✋ Move", UDim2.new(), UDim2.new(1, -4, 0, 34), sel.moving and PURPLE or BLUE, function()
+			sel.moving = true
+			B.render()
+		end, 2)
+		btn(side, "🔄 Rotate", UDim2.new(), UDim2.new(1, -4, 0, 34), BLUE, function()
+			act("hbMove", picked.i, {picked.x, picked.z, (picked.r + 1) % 4})
+		end, 3)
+		btn(side, "📦 Pick up (back to storage)", UDim2.new(), UDim2.new(1, -4, 0, 34), RED, function()
+			act("hbPick", picked.i)
+			sel.item = nil
+		end, 4)
+		btn(side, "Done", UDim2.new(), UDim2.new(1, -4, 0, 30), GRAY, function()
+			sel.item, sel.moving = nil, false
+			B.render()
+		end, 5)
+		return
+	end
+	txt(side, sel.inv and ("Placing: " .. (ITEM[sel.inv] and ITEM[sel.inv].name or sel.inv) .. " — tap a cell") or "📦 Storage — pick an item, then tap the plan", UDim2.new(), UDim2.new(1, -4, 0, 34), 12, sel.inv and GOLD or SUB, true, 1)
+	if sel.inv then
+		btn(side, "🔄 Rotation: " .. (sel.r * 90) .. "°", UDim2.new(), UDim2.new(1, -4, 0, 30), BLUE, function()
+			sel.r = (sel.r + 1) % 4
+			B.render()
+		end, 2)
+		btn(side, "Cancel", UDim2.new(), UDim2.new(1, -4, 0, 30), GRAY, function()
+			sel.inv = nil
+			B.render()
+		end, 3)
+	end
+	if #st.inventory == 0 then txt(side, "Storage is empty. Buy furniture in the shop.", UDim2.new(), UDim2.new(1, -4, 0, 34), 12, SUB, false, 10) end
+	for i, e in ipairs(st.inventory) do
+		local b = btn(side, e.icon .. " " .. e.name .. "  ×" .. e.n .. "  (" .. e.w .. "×" .. e.d .. ")", UDim2.new(), UDim2.new(1, -4, 0, 32), sel.inv == e.k and PURPLE or RGB(52, 58, 80), function()
+			sel.inv = sel.inv ~= e.k and e.k or nil
+			sel.item = nil
+			B.render()
+		end, 10 + i)
+		b.TextXAlignment = Enum.TextXAlignment.Left
+	end
+	btn(side, "🛒 Furniture shop", UDim2.new(), UDim2.new(1, -4, 0, 34), GREEN, function() C.openModal("furniture", true) end, 999)
+end
+local KIND_NAMES = {layout = "🏠 Room layout", ceiling = "⬜ Ceiling", door = "🚪 Door", window = "🪟 Windows"}
+local function renderStyles(st)
+	local list = new("ScrollingFrame", {Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, BorderSizePixel = 0, ScrollBarThickness = 5, AutomaticCanvasSize = Enum.AutomaticSize.Y, CanvasSize = UDim2.new()}, area)
+	new("UIListLayout", {Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder}, list)
+	txt(list, st.inside and "Pick a style — a style you bought once is free to switch back to." or "Go inside your home to restyle it.", UDim2.new(), UDim2.new(1, -8, 0, 18), 12, st.inside and SUB or RGB(255, 170, 140), false, 0)
+	local order = 1
+	for _, kind in ipairs({"layout", "ceiling", "door", "window"}) do
+		local s = st.styles[kind]
+		header(list, KIND_NAMES[kind], order)
+		order += 1
+		local r = row(list, order, 58)
+		order += 1
+		for i, o in ipairs(s.list) do
+			local locked = st.level < o.tier
+			local cur = s.current == o.key
+			local b = btn(r, o.icon .. " " .. o.name .. "\n" .. (cur and "✔ current" or (locked and ("🔒 " .. C.HOME_LEVELS_NAMES[o.tier]) or (o.owned and "owned" or ("$" .. fmt(o.cost))))),
+				UDim2.new(), UDim2.fromOffset(176, 56), cur and GREEN or (locked and GRAY or BLUE), function()
+					if cur or locked then return end
+					if kind == "layout" then
+						C.confirm("Switch to " .. o.name .. "?" .. (o.owned and "" or (" ($" .. fmt(o.cost) .. ")")) .. "\nFurniture that doesn't fit goes back into storage.", "Switch", function() act("hbStyle", kind, o.key) end)
+					else
+						act("hbStyle", kind, o.key)
+					end
+				end, i)
+			b.TextSize = 11
+		end
+	end
+end
+local MODES = {{"public", "🌍 Public"}, {"friends", "👥 Friends"}, {"invite", "💌 Invite only"}, {"private", "🔒 Private"}}
+local function renderVisitors(st)
+	local list = new("ScrollingFrame", {Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, BorderSizePixel = 0, ScrollBarThickness = 5, AutomaticCanvasSize = Enum.AutomaticSize.Y, CanvasSize = UDim2.new()}, area)
+	new("UIListLayout", {Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder}, list)
+	txt(list, "Who may walk into your places. Visitors who aren't allowed any more are shown out.", UDim2.new(), UDim2.new(1, -8, 0, 18), 12, SUB, false, 0)
+	local order = 1
+	for _, kind in ipairs({{"house", "🏠 House"}, {"business", "🏪 Businesses"}, {"hq", "🏢 HQ"}}) do
+		header(list, kind[2], order)
+		local r = row(list, order + 1, 36)
+		order += 2
+		for i, mo in ipairs(MODES) do
+			local cur = st.perms[kind[1]] == mo[1]
+			btn(r, mo[2], UDim2.new(), UDim2.fromOffset(170, 34), cur and GREEN or GRAY, function()
+				if not cur then act("perm", kind[1], mo[1]) end
+			end, i)
+		end
+	end
+	header(list, "💌 Invites (players in this server)", 50)
+	local invited = {}
+	for _, e in ipairs(st.perms.invites or {}) do invited[e.id] = true end
+	local n = 0
+	for _, p in ipairs(Players:GetPlayers()) do
+		if p ~= C.plr then
+			n += 1
+			local c = card(list, 40, 50 + n)
+			txt(c, p.Name .. (invited[p.UserId] and "   ✔ invited" or ""), UDim2.fromOffset(12, 10), UDim2.new(1, -160, 0, 20), 13, invited[p.UserId] and GREEN or WHITE, true)
+			btn(c, invited[p.UserId] and "Uninvite" or "Invite", UDim2.new(1, -130, 0.5, -15), UDim2.fromOffset(120, 30), invited[p.UserId] and RED or PURPLE, function()
+				act("invite", p.UserId, not invited[p.UserId])
+			end)
+		end
+	end
+	if n == 0 then txt(list, "Nobody else is in this server right now.", UDim2.new(), UDim2.new(1, -8, 0, 18), 12, SUB, false, 51) end
+end
+function B.render()
+	for k, b in pairs(tabBtns) do b.BackgroundColor3 = k == B.tab and PURPLE or GRAY end
+	clear(area)
+	local st = B.state
+	if not st then return end
+	if B.tab == "styles" then renderStyles(st)
+	elseif B.tab == "visitors" then renderVisitors(st)
+	else renderPlace(st) end
+end
+R.Menu.OnClientEvent:Connect(function(kind, a)
+	if kind == "builder" and type(a) == "table" then
+		B.state = a
+		-- forget a selection that no longer exists
+		if sel.inv then
+			local still = false
+			for _, e in ipairs(a.inventory) do if e.k == sel.inv then still = true end end
+			if not still then sel.inv = nil end
+		end
+		if sel.item and not a.items[sel.item] then sel.item = nil end
+		if bM.frame.Visible then B.render() end
+		if shopM.frame.Visible then renderShop() end
+	end
+end)
+function B.open(tab)
+	B.tab = tab or B.tab
+	act("hbState")
+	C.openModal("builder", true)
+	B.render()
+end
+-- the inside bar gets a Build button in your own home
+local bar, barL = C.interiorBar, C.interiorBarLabel
+if bar then
+	local bb = button({AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -212, 0.5, 0), Size = UDim2.fromOffset(96, 32), Text = "🔨 Build", TextSize = 13, BackgroundColor3 = RGB(230, 140, 40), Visible = false}, bar)
+	bb.MouseButton1Click:Connect(function() play(SND.click) B.open("place") end)
+	B.barButton = bb
+	C.onState(function(s)
+		local st = s.interior
+		local show = st ~= nil and st.mine == true and st.key == "home"
+		bb.Visible = show
+		bar.Size = UDim2.fromOffset(show and 570 or 470, 44)
+		if barL then barL.Size = UDim2.new(1, show and -320 or -220, 1, 0) end
+	end)
+end
+end
+]]></ProtectedString></Properties>
+</Item>
+<Item class="ModuleScript" referent="RBX64"><Properties><string name="Name">CityLife</string>
 <ProtectedString name="Source"><![CDATA[-- CITY LIFE: what the whole server sees when something happens in the city.
 --   influencer sightings (the influencer standing there, a 🚨 marker you can find from anywhere)
 --   THE CROWD outside a business, PAPARAZZI following a player, EVERYONE KNOWS YOU passers-by
@@ -7237,7 +9291,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX48"><Properties><string name="Name">ViralApp</string>
+<Item class="ModuleScript" referent="RBX65"><Properties><string name="Name">ViralApp</string>
 <ProtectedString name="Source"><![CDATA[-- VIRAL APP (phone): your Viral Score, your moments, the city's trending moments, influencer sightings,
 -- the funniest recent events, top CityBuzz posts and the weekly Most Viral leaderboards.
 return function(C)
@@ -7354,7 +9408,7 @@ C.viralRender = render
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX49"><Properties><string name="Name">MainMenu</string>
+<Item class="ModuleScript" referent="RBX66"><Properties><string name="Name">MainMenu</string>
 <ProtectedString name="Source"><![CDATA[-- MAIN MENU: cinematic camera, 3 save slots, new game (pick a starter home), delete.
 return function(C)
 local RunService = game:GetService("RunService")

@@ -30,8 +30,17 @@
         "Rentals": {
           "$path": "src/ServerScriptService/GameServer/Rentals.lua"
         },
+        "RealEstate": {
+          "$path": "src/ServerScriptService/GameServer/RealEstate.lua"
+        },
+        "Brands": {
+          "$path": "src/ServerScriptService/GameServer/Brands.lua"
+        },
         "Cars": {
           "$path": "src/ServerScriptService/GameServer/Cars.lua"
+        },
+        "Garage": {
+          "$path": "src/ServerScriptService/GameServer/Garage.lua"
         },
         "Race": {
           "$path": "src/ServerScriptService/GameServer/Race.lua"
@@ -68,6 +77,24 @@
         },
         "Interiors": {
           "$path": "src/ServerScriptService/GameServer/Interiors.lua"
+        },
+        "HQ": {
+          "$path": "src/ServerScriptService/GameServer/HQ.lua"
+        },
+        "Computer": {
+          "$path": "src/ServerScriptService/GameServer/Computer.lua"
+        },
+        "HomeBuilder": {
+          "$path": "src/ServerScriptService/GameServer/HomeBuilder.lua"
+        },
+        "Arcade": {
+          "$path": "src/ServerScriptService/GameServer/Arcade.lua"
+        },
+        "Admin": {
+          "$path": "src/ServerScriptService/GameServer/Admin.lua"
+        },
+        "Guide": {
+          "$path": "src/ServerScriptService/GameServer/Guide.lua"
         },
         "Cinematics": {
           "$path": "src/ServerScriptService/GameServer/Cinematics.lua"
@@ -119,6 +146,27 @@
           "Menus": {
             "$path": "src/StarterPlayer/StarterPlayerScripts/EmpireClient/Menus.lua"
           },
+          "BusinessUI": {
+            "$path": "src/StarterPlayer/StarterPlayerScripts/EmpireClient/BusinessUI.lua"
+          },
+          "HQUI": {
+            "$path": "src/StarterPlayer/StarterPlayerScripts/EmpireClient/HQUI.lua"
+          },
+          "ComputerUI": {
+            "$path": "src/StarterPlayer/StarterPlayerScripts/EmpireClient/ComputerUI.lua"
+          },
+          "GarageUI": {
+            "$path": "src/StarterPlayer/StarterPlayerScripts/EmpireClient/GarageUI.lua"
+          },
+          "ArcadeUI": {
+            "$path": "src/StarterPlayer/StarterPlayerScripts/EmpireClient/ArcadeUI.lua"
+          },
+          "AdminPanel": {
+            "$path": "src/StarterPlayer/StarterPlayerScripts/EmpireClient/AdminPanel.lua"
+          },
+          "GuideUI": {
+            "$path": "src/StarterPlayer/StarterPlayerScripts/EmpireClient/GuideUI.lua"
+          },
           "Phone": {
             "$path": "src/StarterPlayer/StarterPlayerScripts/EmpireClient/Phone.lua"
           },
@@ -145,6 +193,9 @@
           },
           "InteriorLife": {
             "$path": "src/StarterPlayer/StarterPlayerScripts/EmpireClient/InteriorLife.lua"
+          },
+          "BuilderUI": {
+            "$path": "src/StarterPlayer/StarterPlayerScripts/EmpireClient/BuilderUI.lua"
           },
           "CityLife": {
             "$path": "src/StarterPlayer/StarterPlayerScripts/EmpireClient/CityLife.lua"

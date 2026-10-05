@@ -42,7 +42,8 @@ local STARTED = os.clock()
 -- =====================================================================
 local store
 do
-	local ok, s = pcall(function() return DataStoreService:GetDataStore(CFG.storeName) end)
+	-- (Studio playtests get their own copy, like every other store: see C.storeName)
+	local ok, s = pcall(function() return DataStoreService:GetDataStore(C.storeName(CFG.storeName)) end)
 	store = ok and s or nil
 end
 local admins = {}        -- [userId] = {name, by, at}  (loaded from the admin DataStore)

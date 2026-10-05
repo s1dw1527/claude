@@ -24,7 +24,7 @@ H.main(function()
 	F.save(a)
 	H.task.wait(0.5)
 	local s1 = db0["u101_s1"]
-	H.check(s1.SchemaVersion == 9 and s1.saveSeq == 5 and s1.cash >= 777777 and s1.achievements.million and type(s1.viral) == "table", "saved back as schema 9 without losing anything")
+	H.check(s1.SchemaVersion == C.VERSION.SCHEMA_VERSION and s1.saveSeq == 5 and s1.cash >= 777777 and s1.achievements.million and type(s1.viral) == "table", "saved back as the current schema (" .. C.VERSION.SCHEMA_VERSION .. ") without losing anything")
 	local cc = H.clientC
 	local pg = a:FindFirstChild("PlayerGui")
 	local function findLike(pat, cls)
@@ -192,7 +192,7 @@ H.main(function()
 	op = op and op.args[1]
 	H.check(op and op.kind == "opening" and op.ctx.key == "bakery" and op.result[1] == "🎉 GRAND OPENING!", "a grand-opening scene for the bakery (" .. tostring(op and op.mode) .. ", crowd: " .. tostring(op and op.ctx.crowd) .. ")")
 	local posted = false
-	for _, p in ipairs(C.FEED) do if p.id > feed0 and (p.text:find("just opened") or p.text:find("crowd")) then posted = true end end
+	for _, p in ipairs(C.FEED) do if p.id > feed0 and (p.text:find("just opened") or p.text:find("crowd") or p.text:find("in town")) then posted = true end end
 	H.check(posted, "CityBuzz: \"New business just opened!\"")
 	local v0 = d.viral.score
 	H.task.wait(1)
@@ -303,6 +303,8 @@ H.main(function()
 	F.refreshDoors(a)
 	local folder = H.workspace:FindFirstChild("Interiors")
 	local expect = {lemonade = "CLASSIC", icecream = "SCOOP", bakery = "CROISSANT", coffee = "STAFF ONLY", pizza = "DELIVERY PICKUP", arcade = "HIGH SCORES", tech = "REPAIRS", factory = "LOADING DOCK"}
+	-- v10: menu boards list the business's own products
+	for _, k in ipairs({"lemonade", "icecream", "bakery"}) do expect[k] = F.productsOf(d, k)[1].name end
 	local sizes = {}
 	for _, bz in ipairs(C.BUSINESSES) do
 		T.act(a, "enterBiz", bz.key)

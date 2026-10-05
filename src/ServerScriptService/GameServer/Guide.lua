@@ -12,7 +12,7 @@ C.GUIDE_TIPS = {
 	{key = "chooseBusiness", icon = "🏪", title = "Choose a business", text = "Each plot runs one business. A new location of a business you already own adds its district bonus to that business."},
 	{key = "nameBusiness", icon = "🏷️", title = "Name it", text = "Your business needs a name! It shows on the sign, the map and CityBuzz. The first rename is free."},
 	{key = "createProduct", icon = "🍽️", title = "Products", text = "Price, quality and presentation decide demand. Cheap and great sells more; too pricey and customers walk away."},
-	{key = "restock", icon = "📦", title = "Supplies", text = "Customers use up supplies. Below 20% sales drop — restock at the business (🏪 Manage → Supplies), or remotely from an Executive computer."},
+	{key = "restock", icon = "📦", title = "Supplies", text = "Customers use up supplies. Below 20% sales drop (to 75% when empty) — restock at the business (🏪 Manage → Supplies), or remotely from an Executive computer."},
 	{key = "brand", icon = "🎨", title = "Your brand", text = "Pick a logo, colours, uniforms and a menu style in 🏪 Manage → Brand. It's all over your buildings and staff."},
 	{key = "buildHQ", icon = "🏢", title = "Your HQ", text = "Your Empire Tower can become a real HQ. Build the Reception floor from the 🏛️ HQ app, then walk in through the tower door."},
 	{key = "visitHQ", icon = "🛎️", title = "Welcome to your HQ", text = "Each floor adds rooms. The elevator moves you between floors; the Management floor unlocks the General Manager."},

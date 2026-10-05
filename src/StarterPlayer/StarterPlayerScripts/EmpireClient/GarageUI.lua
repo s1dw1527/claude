@@ -39,7 +39,7 @@ local function render()
 	txt(m.body, "Drive: WASD / arrows • Q or CTRL drift • SHIFT nitro (pass) • SPACE hop out • Controller Ⓧ drift, Ⓑ nitro • Phone: on-screen buttons",
 		UDim2.new(), UDim2.new(1, -8, 0, 30), 11, SUB).LayoutOrder = 1
 	for i, c in ipairs(info.cars) do
-		local row = card(m.body, 104, 1 + i, c.owned and nil or RGB(30, 30, 40))
+		local row = card(m.body, 104, 1 + i, if c.owned then nil else RGB(30, 30, 40))
 		local sw = new("Frame", {Position = UDim2.fromOffset(8, 10), Size = UDim2.fromOffset(46, 46), BackgroundColor3 = c.color, BorderSizePixel = 0}, row)
 		corner(sw, 23)
 		label({Size = UDim2.fromScale(1, 1), Text = c.delivery and "🚚" or (c.key == "moped" and "🛵" or "🚗"), TextSize = 24}, sw)

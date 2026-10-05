@@ -124,6 +124,7 @@ F.arcadeFinish = finish
 -- THE GAMES (server-side rules)
 -- =====================================================================
 local RUN = {}
+local READY, GO, BETWEEN = 1, 2, 3   -- reaction duel round phases
 RUN.reaction = function(m)
 	m.round, m.wins = 0, {[m.p[1]] = 0, [m.p[2]] = 0}
 	m.score = m.wins
@@ -132,23 +133,27 @@ RUN.reaction = function(m)
 		m.round += 1
 		m.goAt, m.roundWinner = nil, nil
 		m.early = {}
+		m.phase = READY   -- READY (tapping now is a false start) → GO → BETWEEN (taps ignored)
 		both(m, {state = "round", game = "reaction", round = m.round, wins = {m.wins[m.p[1]], m.wins[m.p[2]]}, names = {m.p[1].Name, m.p[2].Name}})
 		local wait = 2 + math.random() * 3
+		local thisRound = m.round   -- (timers from an earlier round must never fire into this one)
 		task.delay(wait, function()
-			if m.over then return end
+			if m.over or m.round ~= thisRound or m.phase ~= READY then return end
 			m.goAt = os.clock()
+			m.phase = GO
 			both(m, {state = "go", game = "reaction"})
 			-- nobody tapped within 3 s: a draw round
 			task.delay(3, function()
-				if m.over or m.roundWinner or m.goAt == nil then return end
+				if m.over or m.round ~= thisRound or m.roundWinner or m.phase ~= GO then return end
 				m.goAt = nil
+				m.phase = BETWEEN
 				task.delay(1, round)
 			end)
 		end)
 	end
 	m.press = function(plr)
-		if m.over then return end
-		if not m.goAt then
+		if m.over or m.phase == BETWEEN then return end
+		if m.phase == READY then
 			-- tapped before GO: false start, the other player takes the round
 			if m.early[plr] then return end
 			m.early[plr] = true
@@ -156,7 +161,7 @@ RUN.reaction = function(m)
 			m.wins[o] += 1
 			m.roundWinner = o
 			both(m, {state = "roundEnd", game = "reaction", winner = o.Name, why = plr.Name .. " jumped the gun!", wins = {m.wins[m.p[1]], m.wins[m.p[2]]}})
-		elseif not m.roundWinner then
+		elseif m.phase == GO and not m.roundWinner then
 			m.roundWinner = plr
 			m.wins[plr] += 1
 			local ms = math.floor((os.clock() - m.goAt) * 1000)
@@ -165,6 +170,7 @@ RUN.reaction = function(m)
 			return
 		end
 		m.goAt = nil
+		m.phase = BETWEEN
 		if m.wins[plr] >= 2 or m.wins[other(m, plr)] >= 2 then
 			task.delay(1.5, function() finish(m, m.wins[m.p[1]] >= 2 and m.p[1] or m.p[2], "won") end)
 		else

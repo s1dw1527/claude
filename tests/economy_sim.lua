@@ -84,13 +84,21 @@ H.main(function()
 				end
 			end
 		end
-		-- district lots (land that pays income and boosts businesses)
+		-- v10 property plots: a permanent deed that pays flat income, running the bot's best business (location bonus)
+		local topKey, topInc = nil, -1
+		do
+			local _, per = F.income(d, os.clock())
+			for _, b in ipairs(C.BUSINESSES) do if (d.levels[b.key] or 0) > 0 and (per[b.key] or 0) > topInc then topKey, topInc = b.key, per[b.key] or 0 end end
+		end
+		local seenDistrict = {}
 		for _, lot in ipairs(C.LOTS) do
-			local dd = C.DISTRICT[lot.dkey]
-			if not lot.owner and F.tierIndex(d.rep) >= dd.tier then
-				local v = incomeWith(function() d.lots[lot.id] = true end, function() d.lots[lot.id] = nil end) - base
-				table.insert(list, {kind = "lot", lot = lot, cost = dd.cost, gain = v})
-				break
+			if not lot.owner and not seenDistrict[lot.dkey] and topKey and F.canBuyPlot(d, lot) then
+				seenDistrict[lot.dkey] = true
+				local fake = {id = "simfake", district = lot.dkey, plot = lot.id, biz = topKey, paid = 0}
+				local v = incomeWith(function() table.insert(d.deeds, fake) end, function()
+					for i = #d.deeds, 1, -1 do if d.deeds[i] == fake then table.remove(d.deeds, i) end end
+				end) - base
+				table.insert(list, {kind = "lot", lot = lot, cost = F.plotPrice(d, lot.dkey), gain = v, biz = topKey})
 			end
 		end
 		-- staff: +4% per star on that business (managers: +2% per star on everything)
@@ -132,7 +140,9 @@ H.main(function()
 	local function doBuy(c)
 		if c.kind == "buy" then T.act(plr, "buy", c.key)
 		elseif c.kind == "chain" then T.act(plr, "chain", c.key)
-		elseif c.kind == "lot" then F.buyLot(plr, c.lot)
+		elseif c.kind == "lot" then
+			local deed = F.buyPlot(plr, c.lot)
+			if deed and c.biz then F.setDeedBiz(plr, deed.id, c.biz) end
 		elseif c.kind == "hire" then
 			T.act(plr, "candidates", c.key)
 			-- pick the best of the three candidates
@@ -174,6 +184,7 @@ H.main(function()
 	local lastSpireAt, lastFun, lastAd = 0, -1e9, -1e9
 	local nextCheck = 0
 	local ticks = 0
+	local restockSpent = 0
 	local rebirthAt
 	-- where the money comes from: wrap the real functions and add up what each one pays
 	local src = {}
@@ -305,6 +316,19 @@ H.main(function()
 					plr.Character.HumanoidRootPart.CFrame = CFrame.new(C.DESTS[dl.dest].pos + Vector3.new(0, 3, 0))
 				end
 			end
+			-- v10: supplies run down with every customer; restock anything under 30% (as if walking over to it)
+			if F.stockOf then
+				for _, b in ipairs(C.BUSINESSES) do
+					if (d.levels[b.key] or 0) > 0 then
+						local st = F.stockOf(d, b.key)
+						if math.min(st[1], st[2], st[3]) < 30 then
+							local c0 = d.cash
+							F.restock(plr, b.key, "manager")
+							if d.cash < c0 then restockSpent += c0 - d.cash end
+						end
+					end
+				end
+			end
 			if ACTIVE then
 				-- the Fun Park: play memory match (perfect score) until the 10-minute cap pays nothing more
 				if F.unlocked(d, "funpark") and H.now() - lastFun > 600 then
@@ -349,11 +373,11 @@ H.main(function()
 			local inc, per, g = F.income(d, now)
 			print(string.format("DEBUG t=%dmin cash=%s inc=%s global=%.2f pass=%.2f rep=%d home=%.2f followers=%d", ticks / 60, C.fmt(d.cash), C.fmt(inc), g, F.passMult(d), d.rep, F.homeMult(d), d.followers or 0))
 			for _, b in ipairs(C.BUSINESSES) do
-				if (d.levels[b.key] or 0) > 0 then print(string.format("   %-9s lvl %2d chains %d bizMult %.2f per %s", b.key, d.levels[b.key], d.chains[b.key] or 0, F.bizMult(d, b.key), C.fmt(per[b.key]))) end
+				if (d.levels[b.key] or 0) > 0 then print(string.format("   %-9s lvl %2d chains %d bizMult %.2f per %s loc %.2f prod %.2f stock %.2f (%d%%)", b.key, d.levels[b.key], d.chains[b.key] or 0, F.bizMult(d, b.key), C.fmt(per[b.key]), F.locationMult(d, b.key), F.productMult(d, b.key), F.stockMult(d, b.key), math.floor(math.min(table.unpack(F.stockOf(d, b.key)))))) end
 			end
 			for k in pairs(d.combos) do print("   combo " .. k) end
 			for k, st in pairs(d.staff) do print("   staff " .. k .. " stars " .. (st.service + st.speed + st.exp)) end
-			print("   lots " .. F.countLots(d) .. "  era " .. C.G.spire.era .. " event " .. tostring(C.G.event and C.G.event.key) .. " mega " .. tostring(C.G.megaBiz ~= nil))
+			print("   plots " .. F.countLots(d) .. "  era " .. C.G.spire.era .. " event " .. tostring(C.G.event and C.G.event.key) .. " mega " .. tostring(C.G.megaBiz ~= nil))
 			for k, v in pairs(src) do print(string.format("   src %-16s %s", k, C.fmt(v))) end
 			print("   earned " .. C.fmt(d.earned))
 		end
@@ -377,6 +401,7 @@ H.main(function()
 	for k in pairs(src) do table.insert(keys, k) end
 	table.sort(keys, function(a, b) return src[a] > src[b] end)
 	for _, k in ipairs(keys) do print(string.format("    %-16s %5.1f%%", k, src[k] / tot * 100)) end
+	print(string.format("  spent on supplies (v10 restocking): $%s (%.1f%% of earnings)  •  property plots owned: %d", C.fmt(restockSpent), restockSpent / math.max(1, d.earned) * 100, #(d.deeds or {})))
 	if ARGS.repDebug then
 		print("\n  reputation sources:")
 		local rk = {}

@@ -135,6 +135,25 @@ function M.repairV10(t, fixes)
 			table.insert(fixes, k .. " repaired")
 		end
 	end
+	-- one level deeper: a field inside a v10 record with the wrong type (e.g. homeBuild.items = "x") goes back
+	-- to its default; numbers must be real, non-negative numbers
+	for k, def in pairs(M.v10Defaults()) do
+		local cur = t[k]
+		if type(cur) == "table" then
+			for sub, dv in pairs(def) do
+				local v = cur[sub]
+				local bad
+				if type(dv) == "number" then bad = v ~= nil and (type(v) ~= "number" or v ~= v or v == math.huge or v == -math.huge or v < 0)
+				elseif type(dv) == "table" then bad = v ~= nil and type(v) ~= "table"
+				elseif type(dv) == "boolean" then bad = v ~= nil and type(v) ~= "boolean"
+				elseif type(dv) == "string" then bad = v ~= nil and type(v) ~= "string" end
+				if bad then
+					cur[sub] = type(dv) == "table" and {} or dv
+					table.insert(fixes, k .. "." .. sub .. " repaired")
+				end
+			end
+		end
+	end
 	if t.deeds ~= nil then
 		if type(t.deeds) ~= "table" then
 			t.deedsRecovered = t.deeds
