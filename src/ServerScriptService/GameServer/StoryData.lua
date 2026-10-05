@@ -30,6 +30,7 @@ C.STORY_CAST = {
 C.STORY = {
 	{
 		key = "broke", title = "BROKE LEGEND", icon = "🍋", stage = "plot",
+		dm = "Yo. I'm watching your 'business' on stream right now. Chat says you're cooked. Prove them wrong. 🍋",
 		blurb = "You, a folding table, and a dream. A loud streamer thinks this is hilarious.",
 		intro = {
 			{"rival", "YO CHAT, WE'RE LIVE! Today we're visiting the BROKEST business owner in the whole city!", "entrance"},
@@ -58,6 +59,7 @@ C.STORY = {
 	},
 	{
 		key = "pocket", title = "POCKET CHANGE CEO", icon = "🪙", stage = "plot",
+		dm = "Heard you're about to hire someone. Don't embarrass yourself. And pay them in more than lemonade.",
 		blurb = "A small business that actually works. Time to hire people and act like a boss.",
 		intro = {
 			{"rival", "Congratulations. You can ALMOST afford lunch! 🥪", "clap"},
@@ -80,6 +82,7 @@ C.STORY = {
 	},
 	{
 		key = "menace", title = "LOCAL MENACE", icon = "😈", stage = "plot", copycat = true,
+		dm = "Yo. I heard you're opening another location. Don't embarrass yourself. Also my cousin Kevin says hi. And 'I'm coming for you.'",
 		blurb = "The neighborhood knows your name. So does Lil Clipz's cousin, who is copying you.",
 		intro = {
 			{"gazette", "📰 CORNER GAZETTE: \"LOCAL ENTREPRENEUR OPENS THREE BUSINESSES. STILL PARKS LIKE A BOT.\""},
@@ -104,6 +107,7 @@ C.STORY = {
 	},
 	{
 		key = "money", title = "ACTUALLY GETTING MONEY", icon = "💵", stage = "plot", inspection = true,
+		dm = "A health inspector asked me where your shop is. I MAY have told him. Good luck. 😇",
 		blurb = "A real business operation, a rival who undercuts everything, and an inspector with a clipboard.",
 		intro = {
 			{"rival", "Okay so you're ACTUALLY getting money now. I hate this. I hate it here.", "shrug"},
@@ -132,6 +136,7 @@ C.STORY = {
 	},
 	{
 		key = "famous", title = "THE CITY KNOWS YOUR NAME", icon = "🌆", stage = "spotlight",
+		dm = "Bestie!!! I've been telling everyone we're best friends since day one. Please don't fact-check that.",
 		blurb = "Fans, rival executives with ridiculous egos, and a citywide showdown.",
 		intro = {
 			{"rival", "LADIES AND GENTLEMEN... my BEST FRIEND. My BROTHER. I ALWAYS believed in this one!", "hype"},
@@ -157,6 +162,7 @@ C.STORY = {
 	},
 	{
 		key = "billionaire", title = "BILLIONAIRE BEHAVIOR", icon = "💎", stage = "limo",
+		dm = "So... about that small loan of a million dollars. Hypothetically. For content.",
 		blurb = "Golden limos, paparazzi, a final showdown, and one very nervous streamer.",
 		intro = {
 			{"narrator", "A golden limo pulls up. The paparazzi go absolutely feral. 📸📸📸"},

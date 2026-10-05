@@ -567,6 +567,31 @@ local function signalOf(o, k)
 end
 H.signalOf = signalOf
 
+-- like real Roblox: reading or writing a member a class doesn't have is an error ("X is not a valid member of Y").
+-- (Scripts can't hang their own fields on Instances; that's what attributes or Lua tables are for.)
+H.strict = true
+local API = ROBLOX_API or {}
+local memberSets = {}
+local function isMember(cls, k)
+	local set = memberSets[cls]
+	if not set then
+		set = {}
+		local c = cls
+		while c and API[c] do
+			for _, m in ipairs(API[c][2]) do set[m] = true end
+			c = API[c][1]
+		end
+		memberSets[cls] = set
+	end
+	return set[k] == true
+end
+local function strictFail(o, k, verb)
+	local p = rawget(o, "_p")
+	local cls = p.ClassName
+	if H.strict and API[cls] and not isMember(cls, k) then
+		error(tostring(k) .. " is not a valid member of " .. cls .. ' "' .. tostring(p.Name or cls) .. '"' .. (verb and " (" .. verb .. ")" or ""), 3)
+	end
+end
 instmt.__index = function(o, k)
 	local p = rawget(o, "_p")
 	local v = p[k]
@@ -582,6 +607,7 @@ instmt.__index = function(o, k)
 	if isEventName(k) then return signalOf(o, k) end
 	local custom = rawget(o, "_custom")
 	if custom and custom[k] ~= nil then return custom[k] end
+	if type(k) == "string" then strictFail(o, k, "read") end
 	return nil
 end
 instmt.__newindex = function(o, k, v)
@@ -615,6 +641,7 @@ instmt.__newindex = function(o, k, v)
 		p.CFrame = CFraw(v, table.clone(cf.r))
 		return
 	end
+	if type(k) == "string" and not rawget(o, "_custom") then strictFail(o, k, "write") end
 	if type(v) == "number" and v ~= v and (k == "Value" or k == "Transparency") then
 		table.insert(H.warnings, "NaN assigned to " .. tostring(p.ClassName) .. "." .. k)
 	end

@@ -1,6 +1,7 @@
 {
   "/ServerScriptService/GameServer": [
     "Config",
+    "DataMigration",
     "StoryData",
     "Util",
     "World",
@@ -16,6 +17,9 @@
     "Legacy",
     "Weekly",
     "Story",
+    "Messages",
+    "MapData",
+    "Updates",
     "Players"
   ],
   "/StarterPlayer/StarterPlayerScripts/EmpireClient": [
@@ -30,6 +34,7 @@
     "MiniGames",
     "PhotoMode",
     "Story",
+    "MapApp",
     "MainMenu"
   ]
 }

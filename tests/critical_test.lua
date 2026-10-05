@@ -56,7 +56,7 @@ H.main(function()
 	-- save/load keeps tutPaid; old saves without it load safely
 	F.save(c)
 	H.task.wait(1)
-	local store = H.stores["CornerEmpire_v5/global"]
+	local store = T.slotStore()
 	local saved = rawget(store, "_data")["u303_s1"]
 	H.check(saved and saved.tutPaid == 4, "tutPaid is written to the save")
 	saved.tutPaid = nil

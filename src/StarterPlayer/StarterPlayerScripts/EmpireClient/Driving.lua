@@ -227,11 +227,7 @@ RunService.Heartbeat:Connect(function(dt)
 	root.AssemblyLinearVelocity = look * speed + right * lat + V3(0, vy, 0)
 	local gripF = math.clamp(math.abs(speed) / 16, 0, 1)
 	root.AssemblyAngularVelocity = V3(0, -steer * turn * gripF * yawK * (speed >= 0 and 1 or -1), 0)
-	local ao = root:FindFirstChild("Upright")
-	if ao then
-		local _, yaw = cf:ToOrientation()
-		ao.CFrame = CFrame.Angles(0, yaw, 0)
-	end
+	-- (the "Upright" constraint only holds the car level now, so steering no longer has to fight it)
 	-- drift combo meter (just for fun: the only drift money comes from the race track's Drift Zone, scored by the server)
 	local angle = math.deg(math.atan2(math.abs(lat), math.max(1, math.abs(speed))))
 	if drifting and angle > 8 then

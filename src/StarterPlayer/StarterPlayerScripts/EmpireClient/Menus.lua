@@ -723,7 +723,8 @@ do
 	if game:GetService("RunService"):IsStudio() then
 		-- 🧪 Studio-only helpers for playtesting (the server ignores these in a live game)
 		local tools = {{"🧪 +$1M", "cash"}, {"🧪 Next reputation tier", "rep"}, {"🧪 Start a mega event", "mega"}, {"🧪 Spawn a Mystery Lot", "mystery"},
-			{"🧪 Finish a Spire stage", "spire"}, {"🧪 Go viral now", "viral"}, {"🧪 Save now", "save"}}
+			{"🧪 Finish a Spire stage", "spire"}, {"🧪 Go viral now", "viral"}, {"🧪 Save now", "save"},
+			{"🧪 Update + data safety test", "dataTest"}}
 		for i, t in ipairs(tools) do
 			row(100 + i, t[1], function() return "Run" end, function() act("debug", t[2]) end)
 		end

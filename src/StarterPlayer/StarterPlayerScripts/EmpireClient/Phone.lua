@@ -30,6 +30,10 @@ new("Frame", {AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0,
 local sc = new("UIScale", {}, phone)
 
 local views = {}
+-- what to run when a view opens. (Kept in a Lua table: Roblox doesn't allow custom fields on Instances, so
+-- "frame.refresh = fn" throws an error in a real game. Until v8 that error stopped this whole module halfway,
+-- which is why Messages, the Map and new CityBuzz posts never worked in Studio.)
+local refreshers = {}
 local current = "home"
 local function makeView(name)
 	local v = new("Frame", {Position = UDim2.fromOffset(0, 30), Size = UDim2.new(1, 0, 1, -30), BackgroundTransparency = 1, Visible = false, ZIndex = 22}, screen)
@@ -54,15 +58,11 @@ local function scroller(v, top)
 	return s
 end
 -- other modules (Story) add their own apps with these
-C.phoneKit = {makeView = makeView, topBar = topBar, scroller = scroller}
+C.phoneKit = {makeView = makeView, topBar = topBar, scroller = scroller, onOpen = function(name, fn) refreshers[name] = fn end}
 function C.phoneView(name)
 	current = name
 	for n, v in pairs(views) do v.Visible = n == name end
-	if name == "messages" then
-		C.unread = 0
-		badge.Visible = false
-	end
-	if views[name] and views[name].refresh then views[name].refresh() end
+	if refreshers[name] then refreshers[name]() end
 end
 -- the phone is 600px tall: shrink it on short screens (phones in landscape) so it always fits
 local function fitScale()
@@ -244,7 +244,7 @@ do
 			cards[p.id] = lk
 		end
 	end
-	v.refresh = render
+	refreshers.buzz = render
 	R.Buzz.OnClientEvent:Connect(function(p)
 		table.insert(posts, 1, p)
 		if #posts > 40 then table.remove(posts) end
@@ -265,96 +265,153 @@ do
 end
 
 -- ===== MESSAGES =====
+-- an inbox (newest first, unread dot, time) and a message view; opening a message marks it read on the server
 do
 	local v = makeView("messages")
-	topBar(v, "💬 Messages", RGB(40, 150, 70))
+	local bar = topBar(v, "💬 Messages", RGB(40, 150, 70))
+	local allRead = button({AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -6, 0.5, 0), Size = UDim2.fromOffset(84, 26), Text = "✓ All read", TextSize = 11,
+		BackgroundColor3 = RGB(30, 110, 50), ZIndex = 24}, bar)
 	local list = scroller(v, 44)
+	-- the open message
+	local detail = new("Frame", {Position = UDim2.fromOffset(0, 40), Size = UDim2.new(1, 0, 1, -40), BackgroundColor3 = RGB(24, 28, 44), BorderSizePixel = 0, Visible = false, ZIndex = 30}, v)
+	local dBack = button({Position = UDim2.fromOffset(6, 6), Size = UDim2.fromOffset(70, 26), Text = "‹ Inbox", TextSize = 12, BackgroundColor3 = GRAY, ZIndex = 31}, detail)
+	local dFrom = label({Position = UDim2.fromOffset(10, 38), Size = UDim2.new(1, -20, 0, 20), TextSize = 14, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 31}, detail)
+	local dTime = label({Position = UDim2.fromOffset(10, 58), Size = UDim2.new(1, -20, 0, 14), TextSize = 11, TextColor3 = SUB, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 31}, detail)
+	local dScroll = new("ScrollingFrame", {Position = UDim2.fromOffset(6, 78), Size = UDim2.new(1, -12, 1, -84), BackgroundTransparency = 1, BorderSizePixel = 0, ScrollBarThickness = 3,
+		AutomaticCanvasSize = Enum.AutomaticSize.Y, CanvasSize = UDim2.new(), ZIndex = 31}, detail)
+	local dLay = vlist(dScroll, 8)
+	dLay.HorizontalAlignment = Enum.HorizontalAlignment.Left
 	local msgs = {}
+	local openId
 	C.unread = 0
-	local function render()
-		clear(list)
-		if #msgs == 0 then
-			label({Size = UDim2.new(1, 0, 0, 40), Text = "No messages yet.", TextSize = 13, TextColor3 = SUB, ZIndex = 23}, list)
-		end
-		for i, m in ipairs(msgs) do
-			local c = new("Frame", {Size = UDim2.new(1, -6, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundColor3 = m.choices and not m.resolved and RGB(70, 40, 40) or CARD, BorderSizePixel = 0, LayoutOrder = i, ZIndex = 22}, list)
-			corner(c, 10)
-			new("UIPadding", {PaddingTop = UDim.new(0, 6), PaddingBottom = UDim.new(0, 6), PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8)}, c)
-			local lay = vlist(c, 4)
-			lay.HorizontalAlignment = Enum.HorizontalAlignment.Left
-			label({Size = UDim2.new(1, 0, 0, 16), Text = m.icon .. "  " .. m.from, TextSize = 12, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 23, LayoutOrder = 1}, c)
-			local body = label({Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, Text = m.text, TextSize = 12, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 23, LayoutOrder = 2}, c)
-			body.Font = Enum.Font.GothamMedium
-			if m.resolved then
-				label({Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, Text = "➡️ " .. m.resolved, TextSize = 12, TextWrapped = true, TextColor3 = GOLD, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 23, LayoutOrder = 3}, c)
-			elseif m.choices then
-				local row = new("Frame", {Size = UDim2.new(1, 0, 0, 30), BackgroundTransparency = 1, ZIndex = 23, LayoutOrder = 3}, c)
-				local n = #m.choices
-				local cols = {GRAY, RGB(235, 160, 30), RED}
-				for k, ch in ipairs(m.choices) do
-					local b = button({Position = UDim2.new((k - 1) / n, 2, 0, 0), Size = UDim2.new(1 / n, -4, 1, 0), Text = ch, TextSize = 10, TextWrapped = true, BackgroundColor3 = cols[k] or BLUE, ZIndex = 24}, row)
-					b.MouseButton1Click:Connect(function()
-						play(SND.click)
-						act("msgChoice", m.id, k)
-					end)
-				end
+	local CAT_COLOR = {staff = RGB(70, 170, 120), customer = RGB(230, 150, 60), tenant = RGB(120, 150, 240), rival = RGB(220, 70, 80), story = RGB(255, 70, 140),
+		cityhall = RGB(255, 205, 70), event = RGB(255, 110, 200), investor = RGB(90, 200, 120), business = RGB(110, 120, 150), system = RGB(120, 220, 255)}
+	local function ago(t)
+		if not t or t == 0 then return "" end
+		local s = math.max(0, os.time() - t)
+		if s < 60 then return "just now" end
+		if s < 3600 then return math.floor(s / 60) .. "m ago" end
+		if s < 86400 then return math.floor(s / 3600) .. "h ago" end
+		return math.floor(s / 86400) .. "d ago"
+	end
+	local function setBadge(n)
+		C.unread = n or 0
+		badge.Visible = C.unread > 0
+		badgeL.Text = tostring(math.min(99, C.unread))
+	end
+	local render
+	local function openMsg(m)
+		openId = m.id
+		detail.Visible = true
+		clear(dScroll)
+		dFrom.Text = (m.icon or "💬") .. "  " .. (m.from or "")
+		dFrom.TextColor3 = CAT_COLOR[m.cat] or WHITE
+		dTime.Text = ago(m.t) .. (m.important and "  •  ⭐ saved" or "")
+		local body = label({Size = UDim2.new(1, -8, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, Text = m.text or "", TextSize = 14, TextWrapped = true,
+			TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top, ZIndex = 32, LayoutOrder = 1}, dScroll)
+		body.Font = Enum.Font.GothamMedium
+		if m.resolved then
+			label({Size = UDim2.new(1, -8, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, Text = "➡️ " .. m.resolved, TextSize = 13, TextWrapped = true, TextColor3 = GOLD,
+				TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 32, LayoutOrder = 2}, dScroll)
+		elseif m.choices then
+			local cols = {GRAY, RGB(235, 160, 30), RED}
+			for k, ch in ipairs(m.choices) do
+				local b = button({Size = UDim2.new(1, -8, 0, 32), Text = ch, TextSize = 12, TextWrapped = true, BackgroundColor3 = cols[k] or BLUE, ZIndex = 32, LayoutOrder = 2 + k}, dScroll)
+				b.MouseButton1Click:Connect(function()
+					play(SND.click)
+					act("msgChoice", m.id, k)
+				end)
 			end
 		end
+		if not m.read then
+			m.read = true
+			act("msgRead", m.id)
+			render()
+		end
 	end
-	v.refresh = render
+	dBack.MouseButton1Click:Connect(function()
+		play(SND.click)
+		detail.Visible = false
+		openId = nil
+	end)
+	allRead.MouseButton1Click:Connect(function()
+		play(SND.click)
+		for _, m in ipairs(msgs) do m.read = true end
+		act("msgRead", "all")
+		render()
+	end)
+	render = function()
+		clear(list)
+		if #msgs == 0 then
+			label({Size = UDim2.new(1, 0, 0, 60), Text = "No messages yet.\nYour staff, tenants, customers and rivals will text you here.", TextSize = 12, TextWrapped = true, TextColor3 = SUB, ZIndex = 23}, list)
+		end
+		for i, m in ipairs(msgs) do
+			local c = new("TextButton", {Size = UDim2.new(1, -6, 0, 54), BackgroundColor3 = m.read and CARD or RGB(44, 52, 76), BorderSizePixel = 0, LayoutOrder = i, ZIndex = 22,
+				Text = "", AutoButtonColor = true}, list)
+			corner(c, 10)
+			new("Frame", {Position = UDim2.fromOffset(0, 8), Size = UDim2.new(0, 4, 1, -16), BackgroundColor3 = CAT_COLOR[m.cat] or GRAY, BorderSizePixel = 0, ZIndex = 23}, c)
+			label({Position = UDim2.fromOffset(10, 4), Size = UDim2.fromOffset(30, 46), Text = m.icon or "💬", TextSize = 22, ZIndex = 23}, c)
+			label({Position = UDim2.fromOffset(44, 4), Size = UDim2.new(1, -110, 0, 18), Text = m.from or "", TextSize = 12, Font = m.read and Enum.Font.GothamBold or Enum.Font.GothamBlack,
+				TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd, TextColor3 = CAT_COLOR[m.cat] or WHITE, ZIndex = 23}, c)
+			label({Position = UDim2.new(1, -66, 0, 4), Size = UDim2.fromOffset(58, 18), Text = ago(m.t), TextSize = 10, TextColor3 = SUB, TextXAlignment = Enum.TextXAlignment.Right, ZIndex = 23}, c)
+			label({Position = UDim2.fromOffset(44, 24), Size = UDim2.new(1, -60, 0, 26), Text = m.text or "", TextSize = 11, TextWrapped = true, TextTruncate = Enum.TextTruncate.AtEnd,
+				TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top, TextColor3 = m.read and SUB or WHITE, ZIndex = 23}, c)
+			if not m.read then
+				local dot = new("Frame", {AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -8, 0.6, 0), Size = UDim2.fromOffset(10, 10), BackgroundColor3 = RGB(80, 160, 255), BorderSizePixel = 0, ZIndex = 24}, c)
+				corner(dot, 5)
+			end
+			if m.choices and not m.resolved then
+				label({AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -20, 1, -2), Size = UDim2.fromOffset(90, 14), Text = "needs an answer", TextSize = 9, TextColor3 = GOLD,
+					TextXAlignment = Enum.TextXAlignment.Right, ZIndex = 24}, c)
+			end
+			c.MouseButton1Click:Connect(function()
+				play(SND.click)
+				openMsg(m)
+			end)
+		end
+	end
+	refreshers.messages = function()
+		detail.Visible = false
+		openId = nil
+		render()
+	end
+	C.openMessages = function() if C.togglePhone then C.togglePhone(true) C.phoneView("messages") end end
 	local function load()
 		local ok, list2 = pcall(function() return C.GetCatalog:InvokeServer("inbox") end)
 		if ok and type(list2) == "table" then msgs = list2 end
+		local n = 0
+		for _, m in ipairs(msgs) do if not m.read then n += 1 end end
+		setBadge(n)
 	end
-	C.reloadInbox = function()
-		load()
-		C.unread = 0
-		badge.Visible = false
-	end
-	R.Msg.OnClientEvent:Connect(function(kind, a, b)
+	C.reloadInbox = load
+	R.Msg.OnClientEvent:Connect(function(kind, a, b, c2)
 		if kind == "add" then
 			table.insert(msgs, 1, a)
-			if #msgs > 40 then table.remove(msgs) end
+			if #msgs > 50 then table.remove(msgs) end
+			setBadge(b or C.unread + 1)
+			-- a subtle nudge: the phone button wiggles, and a short toast if the phone is closed
 			if not (phone.Visible and current == "messages") then
-				C.unread += 1
-				badge.Visible = true
-				badgeL.Text = tostring(math.min(99, C.unread))
 				tween(pbtn, 0.1, {Rotation = 12})
 				task.delay(0.1, function() tween(pbtn, 0.2, {Rotation = 0}, Enum.EasingStyle.Back) end)
+				if U.toast and not (C.storyCutscene and C.storyCutscene()) then U.toast("💬 " .. (a.from or "New message")) end
 			end
 			play(SND.msg)
 		elseif kind == "resolve" then
 			for _, m in ipairs(msgs) do
-				if m.id == a then m.resolved = b end
+				if m.id == a then m.resolved, m.choices, m.read = b, nil, true end
 			end
+			if c2 then setBadge(c2) end
+			if openId == a then
+				for _, m in ipairs(msgs) do if m.id == a then openMsg(m) end end
+			end
+		elseif kind == "unread" then
+			setBadge(a)
 		end
-		if phone.Visible and current == "messages" then render() end
+		if phone.Visible and current == "messages" and not detail.Visible then render() end
 	end)
 end
 
--- ===== MAP =====
-do
-	local v = makeView("map")
-	topBar(v, "🗺️ Map", RGB(40, 110, 200))
-	local list = scroller(v, 44)
-	local PLACES = {
-		{"🏢 My Business", "business"}, {"🏠 My Home", "home"}, {"🏙️ Empire Spire", "spire"}, {"🚗 Corner Motors", "dealer"},
-		{"🏁 Race Track", "race"}, {"🎡 Fun Park", "funpark"}, {"🏢 Rental Row", "rental"}, {"🏙️ Downtown", "downtown"},
-		{"🏭 Industrial Zone", "industrial"}, {"🏖️ Beach District", "beach"}, {"💎 Luxury Hills", "luxury"},
-		{"🏚️ Old Town", "oldtown"}, {"🏡 Maple Suburbs", "suburbs"}, {"🌊 Oceanfront", "ocean"}, {"⛰️ Hillside", "hills"}, {"💎 Millionaire Row", "rich"},
-		{"🏛️ Legacy Museum", "museum"}, {"❓ Mystery Lot", "mystery"},
-	}
-	for i, p in ipairs(PLACES) do
-		local b = button({Size = UDim2.new(1, -8, 0, 36), Text = p[1], TextSize = 14, BackgroundColor3 = i <= 2 and RGB(60, 150, 90) or RGB(50, 90, 160), LayoutOrder = i, ZIndex = 23}, list)
-		b.TextXAlignment = Enum.TextXAlignment.Left
-		new("UIPadding", {PaddingLeft = UDim.new(0, 12)}, b)
-		b.MouseButton1Click:Connect(function()
-			play(SND.click)
-			act("tp", p[2])
-			phone.Visible = false
-		end)
-	end
-end
+-- (the Map app lives in its own module: MapApp)
 C.phoneFrame = phone
 C.phoneView("home")
 end

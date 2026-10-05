@@ -2,6 +2,24 @@
 return function(C)
 local RGB = Color3.fromRGB
 
+-- ===== VERSION (bump these with every published update; see README "How to update Corner Empire") =====
+C.VERSION = {
+	VERSION = "8.0.0",
+	UPDATE_NAME = "The Empire Expansion",
+	SCHEMA_VERSION = 8,         -- the shape of a player's save. Raise it only together with a new step in DataMigration.
+	MIN_SUPPORTED_SCHEMA = 6,   -- saves older than v6 (no version field, no tutorial-reward tracking) are treated as v6
+	-- shown once to every returning player after an update (Messages app)
+	NOTES = {
+		"🚗 Cars steer properly now (left, right, U-turns)",
+		"🗺️ A real city map with your businesses, home and properties",
+		"💬 Messages from your staff, tenants, customers, rivals and City Hall",
+		"🏢 A compact business selector and smaller upgrade cards",
+		"⭐ Reviews can be won back by improving your business",
+		"🛋️ Interiors you can decorate, and visible house ratings",
+		"📸 Better CityBuzz posts with photos of your empire",
+	},
+}
+
 C.CFG = {
 	MAX_PLAYERS = 4,
 	SAVE_SLOTS = 3,
@@ -12,7 +30,10 @@ C.CFG = {
 	SABOTAGE_TIME = 10, SABOTAGE_COOLDOWN = 45,
 	DAY_SPEED = 0.01,
 	SAVE_ENABLED = true,
-	DATASTORE = "CornerEmpire_v5",   -- keep this name: it's where everyone's existing saves live
+	DATASTORE = "CornerEmpire_v5",   -- keep this name FOREVER: it's where everyone's existing saves live
+	-- Studio playtests use separate copies of every DataStore ("..._StudioTest"), so testing can never touch live
+	-- player data. Set this to true only if you really mean to read/write the live saves from Studio.
+	STUDIO_USES_LIVE_DATA = false,
 	RICH_START_BONUS = 5000,
 	RENT_INTERVAL = 30,
 	STOCK_SELL_FEE = 0.10,       -- 10% fee on every share sale, so buy/sell loops can't create money
@@ -22,6 +43,13 @@ C.CFG = {
 	LOAD_RETRIES = 3,            -- DataStore read attempts before a save is treated as unavailable
 	TUTORIAL_DEBUG = true,       -- Studio only: print why a tutorial step hasn't advanced yet (Output window)
 }
+
+-- the real DataStore name to use: the live name in published games, a separate test copy in Studio
+function C.storeName(name)
+	local ok, studio = pcall(function() return game:GetService("RunService"):IsStudio() end)
+	if ok and studio and not C.CFG.STUDIO_USES_LIVE_DATA then return name .. "_StudioTest" end
+	return name
+end
 
 -- ===== ECONOMY SETTINGS (v7) =====
 -- Every balance knob in one place. Prices and incomes of individual businesses, homes, cars, land and

@@ -25,13 +25,18 @@ local session = {}
 -- =====================================================================
 local store = nil
 if CFG.SAVE_ENABLED then
-	local ok, s = pcall(function() return DataStoreService:GetDataStore(CFG.DATASTORE) end)
+	-- the live store name never changes between versions (players' saves live there); Studio uses a test copy
+	local ok, s = pcall(function() return DataStoreService:GetDataStore(C.storeName(CFG.DATASTORE)) end)
 	if ok then store = s end
 end
 local SAVE_KEYS = {"cash", "levels", "chains", "staff", "combos", "rep", "ep", "trophies", "skin", "cars", "seen", "served", "deliveries",
 	"marketing", "revSum", "revN", "contributed", "rebirths", "followers", "home", "raceBest", "tut", "earned", "rentEarned",
 	"tutPaid", "richClaimed", "eraContrib", "achievements", "shared", "found", "wentViral", "viralCount",
-	"mystery", "weekServed", "weeklyClaimed", "showcaseWeek", "votes", "favorites", "homeLikes", "homeRatingSum", "homeRatingN", "story", "storyEarned"}
+	"mystery", "weekServed", "weeklyClaimed", "showcaseWeek", "votes", "favorites", "homeLikes", "homeRatingSum", "homeRatingN", "story", "storyEarned",
+	"mail", "msgSeq", "interiors", "improve", "reviewBook", "homeVisits", "homeRatings"}
+-- everything this version writes itself; any OTHER field found in a save is kept as-is when saving
+local KNOWN_KEYS = {lots = true, props = true, SchemaVersion = true, saveSeq = true, gameVersion = true, savedAt = true}
+for _, k in ipairs(SAVE_KEYS) do KNOWN_KEYS[k] = true end
 local function metaKey(plr) return "u" .. plr.UserId .. "_meta" end
 local function slotKey(plr, slot) return "u" .. plr.UserId .. "_s" .. slot end
 local DEFAULT_SETTINGS = {music = true, musicVol = 5, sfx = true, crowd = "high", weather = true, units = "MPH", spawnAt = "business"}
@@ -74,13 +79,27 @@ local function loadMeta(plr)
 	if type(saved) == "table" then
 		meta.slots = type(saved.slots) == "table" and saved.slots or {}
 		applySettings(meta.settings, saved.settings)
+		meta.lastVersion = type(saved.lastVersion) == "string" and saved.lastVersion or nil
 	end
 	return meta, false
 end
 local function saveMeta(plr)
 	local s = session[plr]
 	if not store or not s or s.metaFail then return end
-	pcall(function() store:SetAsync(metaKey(plr), {slots = s.meta.slots, settings = s.meta.settings}) end)
+	-- UpdateAsync: merge with what's stored, so slots another server wrote meanwhile aren't lost
+	pcall(function()
+		store:UpdateAsync(metaKey(plr), function(old)
+			local out = type(old) == "table" and old or {}
+			out.slots = type(out.slots) == "table" and out.slots or {}
+			for k, v in pairs(s.meta.slots) do out.slots[k] = v end
+			for k in pairs(out.slots) do
+				if s.meta.deleted and s.meta.deleted[k] then out.slots[k] = nil end
+			end
+			out.settings = s.meta.settings
+			out.lastVersion = s.meta.lastVersion or out.lastVersion
+			return out
+		end)
+	end)
 end
 local function serializeProps(d)
 	local out = {}
@@ -91,38 +110,112 @@ local function serializeProps(d)
 	end
 	return out
 end
+-- Saving uses UpdateAsync and a save counter (saveSeq): if the stored save is newer than the one this server
+-- loaded (another server saved it since, or a newer version of the game did), this server stops saving
+-- instead of overwriting newer progress.
+local function buildPayload(d)
+	local payload = {lots = {}, props = serializeProps(d)}
+	for k, v in pairs(d.saveExtras or {}) do payload[k] = v end   -- fields from other versions, untouched
+	for _, k in ipairs(SAVE_KEYS) do payload[k] = d[k] end
+	payload.cash = math.floor(d.cash)
+	if F.mailForSave then payload.mail = F.mailForSave(d) end
+	payload.SchemaVersion = C.VERSION.SCHEMA_VERSION
+	payload.gameVersion = C.VERSION.VERSION
+	payload.savedAt = os.time()
+	for id in pairs(d.lots) do table.insert(payload.lots, id) end
+	return payload
+end
+-- returns "ok", "conflict" (with a reason) or "error" (with the error). s.seq/s.fresh track this session's save counter.
+local function writeSave(st, key, d, s)
+	local payload = buildPayload(d)
+	local conflict, newSeq
+	local ok, err = pcall(function()
+		st:UpdateAsync(key, function(old)
+			conflict = nil
+			if type(old) == "table" then
+				if (tonumber(old.SchemaVersion) or 0) > C.VERSION.SCHEMA_VERSION then
+					conflict = "a newer version of the game saved this slot"
+					return nil
+				end
+				if not s.fresh and (tonumber(old.saveSeq) or 0) > (s.seq or 0) then
+					conflict = "this slot was saved by another server since you joined"
+					return nil
+				end
+			end
+			newSeq = (s.fresh and type(old) == "table" and (tonumber(old.saveSeq) or 0) or (s.seq or 0)) + 1
+			payload.saveSeq = newSeq
+			return payload
+		end)
+	end)
+	if not ok then return "error", tostring(err) end
+	if conflict then return "conflict", conflict end
+	s.seq, s.fresh = newSeq, false
+	return "ok"
+end
+C.writeSave = writeSave
 function F.save(plr)
 	local d = data[plr]
 	local s = session[plr]
-	if not store or not d or not s or d.noSave then return end
+	if not store or not d or not s or d.noSave then return false end
 	if F.publishWeekly then pcall(F.publishWeekly, plr, d) end
-	local payload = {lots = {}, props = serializeProps(d)}
-	for _, k in ipairs(SAVE_KEYS) do payload[k] = d[k] end
-	payload.cash = math.floor(d.cash)
-	for id in pairs(d.lots) do table.insert(payload.lots, id) end
-	pcall(function() store:SetAsync(slotKey(plr, s.slot), payload) end)
+	local result, why = writeSave(store, slotKey(plr, s.slot), d, s)
+	if result == "error" then
+		warn("[CornerEmpire] save failed for " .. plr.Name .. ": " .. why)
+		return false
+	end
+	if result == "conflict" then
+		d.noSave = true
+		warn("[CornerEmpire] not saving " .. plr.Name .. ": " .. why)
+		notify(plr, "⚠️ Your save was updated somewhere else (" .. why .. "). To protect it, this server won't save. Please rejoin.")
+		return false
+	end
 	local hood = F.homeHood(d)
+	if s.meta.deleted then s.meta.deleted["s" .. s.slot] = nil end
 	s.meta.slots["s" .. s.slot] = {cash = math.floor(d.cash), tier = REP_TIERS[F.tierIndex(d.rep)].name, rebirths = d.rebirths,
 		income = math.floor(F.incomePerSec(d)), home = hood and HOOD[hood].name or "Homeless", played = os.time()}
 	saveMeta(plr)
+	return true
 end
-local function loadSlot(plr, d, slot)
-	if not store then return end
-	local saved, failed = readKey(slotKey(plr, slot))
+local function loadSlot(plr, d, slot, readOverride, sOverride)
+	if not store and not readOverride then return end
+	local s = sOverride or session[plr]
+	local saved, failed
+	if readOverride then saved, failed = readOverride() else saved, failed = readKey(slotKey(plr, slot)) end
 	if failed then
 		-- never overwrite a save we couldn't read: this whole session stays unsaved
 		d.noSave = true
+		d.loadProblem = "load"
 		return
 	end
-	if type(saved) ~= "table" then return end
+	if s then s.seq, s.fresh = 0, false end
+	if type(saved) ~= "table" then
+		if s then s.fresh = true end   -- an empty slot: the first save creates it
+		return
+	end
+	-- bring older saves up to date one version at a time (DataMigration), validate, and only then use it
+	local ok, t, log, err, status = C.DataMigration.migrate(saved)
+	if not ok then
+		d.noSave = true
+		d.loadProblem = "migration"
+		warn("[CornerEmpire] couldn't migrate " .. plr.Name .. "'s save (slot " .. slot .. "): " .. tostring(err) .. " | " .. table.concat(log or {}, " | "))
+		return
+	end
+	if #log > 0 and RunService:IsStudio() then print("[CornerEmpire] save migrated for " .. plr.Name .. ": " .. table.concat(log, " | ")) end
+	if status == "newer" then
+		d.noSave = true
+		d.loadProblem = "newer"
+	end
+	if s then s.seq = tonumber(saved.saveSeq) or 0 end
+	-- keep any field this version doesn't know about, so saving never drops data from another version
+	d.saveExtras = {}
+	for k, v in pairs(t) do
+		if not KNOWN_KEYS[k] then d.saveExtras[k] = v end
+	end
+	saved = t
 	for _, k in ipairs(SAVE_KEYS) do
 		if saved[k] ~= nil then d[k] = saved[k] end
 	end
-	-- saves from before tutorial rewards were tracked: treat the steps already walked as paid
-	if saved.tutPaid == nil then
-		local tut = tonumber(saved.tut) or 1
-		d.tutPaid = (tut == 0) and #TUTORIAL or math.max(0, tut - 1)
-	end
+	if F.restoreMail then F.restoreMail(d) end
 	d.seen.stages = d.seen.stages or {}
 	d.seen.events = d.seen.events or {}
 	d.seen.roles = d.seen.roles or {}
@@ -155,6 +248,7 @@ local function newData(plot)
 		frozenUntil = 0, sabCooldown = 0, buffUntil = 0, buffWins = 0, adUntil = 0, adKey = "small", trendUntil = 0, relaxedUntil = 0,
 		marketing = false, custAcc = 0, nextProblem = now + 90, nextDelivery = now + 45,
 		rebirths = 0, followers = 0, home = nil, props = {}, inbox = {}, raceBest = nil, tut = 1, rentEarned = 0,
+		mail = {}, interiors = {}, improve = {}, reviewBook = {}, homeVisits = 0,
 		plot = plot,
 	}
 end
@@ -265,7 +359,7 @@ end
 -- Big, slow-changing parts of the state are only sent when they change (the client keeps the last copy).
 -- Keep this list in sync with HEAVY in EmpireClient.
 local HEAVY = {"archive", "homeInfo", "props", "districts", "market", "staff", "reviews", "tours", "shareable", "standings", "passes", "cars", "showcase", "biz", "warLeaders",
-	"rebirth", "unlocks", "fees", "spire"}
+	"rebirth", "unlocks", "fees", "spire", "map"}
 local function sig(v)
 	local t = type(v)
 	if t == "table" then
@@ -400,7 +494,8 @@ function F.sendState(plr, now)
 		maxLevel = CFG.MAX_LEVEL, unlocks = unlocks, followers = d.followers,
 		homeInfo = homeState(d), props = propsState(plr, d),
 		rebirth = {count = d.rebirths, cost = F.rebirthCost(d), mult = math.floor((F.rebirthMult(d) - 1) * 100 + 0.5), perks = perks, unlocked = unlocks.rebirth},
-		tut = tut, raceBest = d.raceBest, story = F.storyState and F.storyState(plr, d) or nil,
+		map = F.mapState and F.mapState(plr, d) or nil,
+		tut = tut, raceBest = d.raceBest, unread = F.unreadCount and F.unreadCount(d) or 0, story = F.storyState and F.storyState(plr, d) or nil,
 		showcase = F.showcasePoints(d), tours = F.toursList(), mysterySite = C.mysterySite and C.mysterySite() or nil,
 		mysteryPrice = C.mysterySite and C.mysterySite() and F.mysteryPrice(d) or nil,
 		shareable = C.shareableList(d), viralLeft = math.max(0, math.ceil((d.viralUntil or 0) - now)),
@@ -508,7 +603,11 @@ function F.startGame(plr, slot, starterIdx)
 	s.slot = slot
 	local d = newData(plot)
 	local isNew = starterIdx ~= nil
-	if not isNew then loadSlot(plr, d, slot) end
+	if isNew then
+		s.seq, s.fresh = 0, true   -- a brand-new game may replace whatever was in this slot
+	else
+		loadSlot(plr, d, slot)
+	end
 	-- if the save list itself couldn't load we can't know what's in this slot, so don't save over it
 	if s.metaFail then d.noSave = true end
 	if not plr.Parent then
@@ -576,9 +675,24 @@ function F.startGame(plr, slot, starterIdx)
 	end
 	F.pushMsg(plr, {icon = "👋", from = "Corner Empire", text = isNew and "Welcome! Follow the tutorial card at the bottom of your screen to get started." or "Welcome back! Your empire missed you."})
 	R.Menu:FireClient(plr, "play")
+	-- returning players see what's new once per version (Messages + a splash)
+	if s.meta.lastVersion ~= C.VERSION.VERSION then
+		if s.meta.lastVersion or not isNew then
+			F.pushMsg(plr, {icon = "🆕", from = "Corner Empire", important = true, text = "UPDATE " .. C.VERSION.VERSION .. ": " .. C.VERSION.UPDATE_NAME .. "\n\n" .. table.concat(C.VERSION.NOTES, "\n")})
+			task.delay(4, function()
+				if data[plr] == d then R.Splash:FireClient(plr, "🆕 CORNER EMPIRE UPDATE", "Version " .. C.VERSION.VERSION .. ": " .. C.VERSION.UPDATE_NAME .. " is here! See Messages for what's new.", RGB(120, 220, 255)) end
+			end)
+		end
+		s.meta.lastVersion = C.VERSION.VERSION
+	end
 	s.sent = {}   -- the next state packet after "play" is a full one
 	if d.noSave then
 		local warnText = "⚠️ Couldn't load your save. This session won't be saved — rejoin to try again."
+		if d.loadProblem == "newer" then
+			warnText = "⚠️ This server is running an older version of Corner Empire. To protect your progress it won't save here — rejoin to get the update."
+		elseif d.loadProblem == "migration" then
+			warnText = "⚠️ Your save couldn't be updated to " .. C.VERSION.VERSION .. ". It's safe and untouched; this session won't be saved. Please report this!"
+		end
 		notify(plr, warnText)
 		F.pushMsg(plr, {icon = "⚠️", from = "Save System", text = warnText .. " Your real save is safe and untouched."})
 		task.delay(1.5, function()
@@ -748,6 +862,8 @@ R.Action.OnServerEvent:Connect(function(plr, action, a, b, c)
 		local slot = int(a, 1, CFG.SAVE_SLOTS)
 		if not slot or data[plr] or s.metaFail then return end
 		s.meta.slots["s" .. slot] = nil
+		s.meta.deleted = s.meta.deleted or {}
+		s.meta.deleted["s" .. slot] = true
 		if store then pcall(function() store:RemoveAsync(slotKey(plr, slot)) end) end
 		saveMeta(plr)
 		sendMenu(plr)
@@ -882,6 +998,12 @@ R.Action.OnServerEvent:Connect(function(plr, action, a, b, c)
 		local preset = int(a, 1, 50)
 		if preset then F.playerPost(plr, preset, nil)
 		elseif str(b, 200) then F.playerPost(plr, nil, b) end
+	elseif action == "msgRead" then
+		if a == "all" then F.markRead(plr, "all")
+		else
+			local id = int(a, 1)
+			if id then F.markRead(plr, id) end
+		end
 	elseif action == "msgChoice" then
 		local id, choice = int(a, 1), int(b, 1, 3)
 		if id and choice then F.msgChoice(plr, id, choice) end
@@ -927,6 +1049,14 @@ R.Action.OnServerEvent:Connect(function(plr, action, a, b, c)
 		elseif a == "save" then
 			F.save(plr)
 			notify(plr, "💾 Saved.")
+		elseif a == "dataTest" then
+			-- Studio: update + data safety tests, results into the Messages app and the Output window
+			local report = F.dataSafetyTest()
+			print("[CornerEmpire] Data safety test (" .. C.VERSION.VERSION .. ", schema " .. C.VERSION.SCHEMA_VERSION .. "):\n  " .. table.concat(report, "\n  "))
+			local passed = 0
+			for _, l in ipairs(report) do if l:sub(1, 3) == "✅" then passed += 1 end end
+			F.pushMsg(plr, {icon = "🧪", from = "Update Test", text = "Version " .. C.VERSION.VERSION .. " • schema " .. C.VERSION.SCHEMA_VERSION ..
+				" (oldest supported " .. C.VERSION.MIN_SUPPORTED_SCHEMA .. ") • DataStore \"" .. C.storeName(CFG.DATASTORE) .. "\"\n" .. passed .. "/" .. #report .. " checks passed:\n" .. table.concat(report, "\n")})
 		elseif a == "story" then
 			local ch = int(b, 1, 7)
 			if ch and F.storyDebugJump then F.storyDebugJump(plr, d, ch) end
@@ -980,7 +1110,7 @@ do
 		for i, t in ipairs(REP_TIERS) do tiers[i] = {name = t.name, rep = t.rep, unlocks = t.unlocks} end
 		return {cars = cars, passes = passes, staff = staff, ads = ads, npcs = npcs, chains = #CHAINS, rentals = rentals,
 			features = features, tiers = tiers, presets = C.PRESET_COUNT, minigames = MINIGAMES, homeLevels = HOME_LEVELS,
-			story = C.storyCatalog and C.storyCatalog() or nil}
+			story = C.storyCatalog and C.storyCatalog() or nil, map = C.mapCatalog and C.mapCatalog() or nil, version = C.VERSION}
 	end
 end
 
@@ -1035,10 +1165,93 @@ F.scatterTrees()
 Workspace:SetAttribute("Weather", "none")
 
 game:BindToClose(function()
+	-- the server is closing (often: restarting for a new update). Say so, then save everyone.
+	pcall(function() C.announceAll("🔄 This server is restarting for an update. Saving your progress...") end)
 	for p in pairs(data) do F.save(p) end
 	for p in pairs(session) do saveMeta(p) end
 	task.wait(2)
 end)
+
+-- =====================================================================
+-- DATA SAFETY SELF-TEST (Studio tools): the real load + save code, pointed at a fake in-memory store
+-- =====================================================================
+function F.dataSafetyTest()
+	local report = {}
+	local function add(ok, text) table.insert(report, (ok and "✅ " or "❌ ") .. text) end
+	for _, line in ipairs(C.DataMigration.selfTest()) do table.insert(report, line) end
+	local fake = {data = {}, fail = false}
+	function fake:GetAsync(key)
+		if self.fail then error("simulated DataStore outage") end
+		return C.DataMigration.copy(self.data[key])
+	end
+	function fake:UpdateAsync(key, fn)
+		if self.fail then error("simulated DataStore outage") end
+		local new = fn(C.DataMigration.copy(self.data[key]))
+		if new ~= nil then self.data[key] = C.DataMigration.copy(new) end
+		return new
+	end
+	local who = {Name = "SafetyTest", UserId = 0}
+	local function load(key, sess)
+		local d = newData({})
+		loadSlot(who, d, 1, function()
+			local ok, v = pcall(function() return fake:GetAsync(key) end)
+			if not ok then return nil, true end
+			return v, false
+		end, sess)
+		return d
+	end
+	-- normal save of a new game
+	local s1 = {seq = 0, fresh = true}
+	local d1 = newData({})
+	d1.cash = 1234
+	local r = writeSave(fake, "k1", d1, s1)
+	add(r == "ok" and fake.data.k1.SchemaVersion == C.VERSION.SCHEMA_VERSION and fake.data.k1.saveSeq == 1, "a normal save writes schema " .. C.VERSION.SCHEMA_VERSION .. " with save counter 1")
+	-- failed save: the stored save is untouched
+	fake.fail = true
+	d1.cash = 999999
+	r = writeSave(fake, "k1", d1, s1)
+	fake.fail = false
+	add(r == "error" and fake.data.k1.cash == 1234, "a failed save leaves the stored save untouched")
+	-- failed load: the session is unsafe to save, and a save attempt is refused
+	fake.fail = true
+	local d2 = load("k1", {})
+	fake.fail = false
+	add(d2.noSave == true and d2.cash == CFG.START_CASH, "a failed load marks the session unsafe (it never becomes a fresh save)")
+	-- two servers with the same save: the stale one can't overwrite the newer progress
+	local sa, sb = {}, {}
+	local da, db = load("k1", sa), load("k1", sb)
+	da.cash = 5000
+	local ra = writeSave(fake, "k1", da, sa)
+	db.cash = 1
+	local rb, why = writeSave(fake, "k1", db, sb)
+	add(ra == "ok" and rb == "conflict" and fake.data.k1.cash == 5000, "a second server with an older copy can't overwrite newer progress (" .. tostring(why) .. ")")
+	-- old saves load, migrate and save back with every field kept
+	for _, name in ipairs({"v6", "v7"}) do
+		local sample = C.DataMigration.sampleSaves()[name]
+		sample.someFieldFromTheFuture = "keep me"
+		fake.data[name] = sample
+		local sess = {}
+		local d = load(name, sess)
+		local saved = d.noSave ~= true and writeSave(fake, name, d, sess) == "ok"
+		local after = fake.data[name]
+		add(saved and after.SchemaVersion == C.VERSION.SCHEMA_VERSION and after.cash == math.floor(sample.cash) and after.earned == sample.earned
+			and after.someFieldFromTheFuture == "keep me" and after.mail ~= nil,
+			"an existing " .. name .. " save loads, migrates and saves back with all its progress (and unknown fields) kept")
+	end
+	-- a save written by a newer version: playable, but never overwritten
+	fake.data.future = C.DataMigration.sampleSaves().future
+	local sf = {}
+	local df = load("future", sf)
+	add(df.noSave == true and df.loadProblem == "newer" and fake.data.future.SchemaVersion == 99, "a save from a newer version is never overwritten by this server")
+	-- a broken migration: unsafe session, stored save untouched
+	local real = C.DataMigration.steps[7]
+	C.DataMigration.steps[7] = function() error("simulated half-finished migration") end
+	fake.data.half = C.DataMigration.sampleSaves().v7
+	local dh = load("half", {})
+	C.DataMigration.steps[7] = real
+	add(dh.noSave == true and dh.loadProblem == "migration" and fake.data.half.SchemaVersion == nil, "a migration that fails halfway leaves the real save untouched and the session unsaved")
+	return report
+end
 
 -- =====================================================================
 -- MAIN LOOPS

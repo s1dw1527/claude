@@ -26,7 +26,7 @@ H.main(function()
 	local d
 	if ARGS.fromSave then
 		-- an existing v6 save, the way a regular player's empire looked after an hour or two of v6
-		local store = H.stores["CornerEmpire_v5/global"]
+		local store = T.slotStore()
 		rawget(store, "_data")["u4242_s1"] = {cash = 3e7, earned = 5e8, rep = 2100, served = 3000, deliveries = 5, followers = 1500, tut = 0, tutPaid = 7,
 			levels = {lemonade = 10, icecream = 10, bakery = 10, coffee = 10, pizza = 8, arcade = 5, tech = 2},
 			staff = {lemonade = {name = "Sam", service = 3, speed = 2, exp = 1}, icecream = {name = "Ivy", service = 2, speed = 3, exp = 1}, bakery = {name = "Leo", service = 3, speed = 3, exp = 1}},

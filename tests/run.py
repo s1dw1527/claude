@@ -18,7 +18,9 @@ def longstr(s):
 def main():
     test = sys.argv[1]
     src = sys.argv[2] if len(sys.argv) > 2 else os.path.join(ROOT, "src")
-    parts = ["local H = (function()\n", open(os.path.join(ROOT, "tests", "harness.lua")).read(), "\nend)()\n", "local SOURCES = {}\n"]
+    # the real Roblox API member list: the harness uses it to reject members that don't exist, like Roblox does
+    api = open(os.path.join(ROOT, "tests", "roblox_api.lua"), encoding="utf-8").read()
+    parts = ["ROBLOX_API = (function()\n", api, "\nend)()\n", "local H = (function()\n", open(os.path.join(ROOT, "tests", "harness.lua")).read(), "\nend)()\n", "local SOURCES = {}\n"]
     for dirpath, _, files in os.walk(src):
         for fn in sorted(files):
             if not fn.endswith(".lua"):

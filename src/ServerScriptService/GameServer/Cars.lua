@@ -275,15 +275,22 @@ function F.spawnCar(plr, key, at)
 	seat:SetAttribute("Half", root.Size.Y / 2)
 	seat:SetAttribute("Nitro", F.hasPass(plr, "nitro"))
 	seat:SetAttribute("Delivery", spec.delivery == true)
+	-- keep the car upright WITHOUT locking its heading. (Before v8 this constraint held all three axes, so
+	-- every physics step it pulled the car back to the heading it had at the start of the frame and ate
+	-- most of the steering: cars barely turned and slid sideways instead. Now it only keeps the car's
+	-- up axis pointing up, and turning is left entirely to the driving controller.)
 	local att = Instance.new("Attachment")
+	att.Name = "UprightAxis"
+	att.CFrame = CFrame.Angles(0, 0, math.pi / 2)   -- this attachment's primary (X) axis points up
 	att.Parent = root
 	local ao = Instance.new("AlignOrientation")
 	ao.Name = "Upright"
 	ao.Mode = Enum.OrientationAlignmentMode.OneAttachment
+	ao.AlignType = Enum.AlignType.PrimaryAxisParallel
+	ao.PrimaryAxis = Vector3.new(0, 1, 0)
 	ao.Attachment0 = att
 	ao.MaxTorque = 4e6
 	ao.Responsiveness = 35
-	ao.CFrame = CFrame.Angles(0, select(2, cf:ToOrientation()), 0)
 	ao.Parent = root
 	m:SetAttribute("Owner", plr.UserId)
 	m.Parent = CARS_FOLDER

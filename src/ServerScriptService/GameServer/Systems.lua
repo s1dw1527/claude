@@ -172,7 +172,7 @@ function F.addRep(plr, amount)
 		if new > old then
 			R.Splash:FireClient(plr, "⭐ " .. REP_TIERS[new].name .. " ⭐", "UNLOCKED: " .. table.concat(REP_TIERS[new].unlocks, " • "), RGB(255, 215, 80))
 			F.buzz("⭐", plr.Name .. "'s empire reached " .. REP_TIERS[new].name .. "!", RGB(255, 215, 80))
-			F.pushMsg(plr, {icon = "🔓", from = "City Hall", text = "You reached " .. REP_TIERS[new].name .. "! New unlocks: " .. table.concat(REP_TIERS[new].unlocks, ", ") .. "."})
+			F.pushMsg(plr, {icon = "🔓", from = "City Hall", important = true, text = "You reached " .. REP_TIERS[new].name .. "! New unlocks: " .. table.concat(REP_TIERS[new].unlocks, ", ") .. "."})
 			burst(d.plot.center + V3(0, 15, 0), RGB(255, 215, 80), 100)
 		end
 		F.refreshTower(plr)

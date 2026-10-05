@@ -158,13 +158,17 @@ H.main(function()
 	-- Bob sits in Alice's car: that must not finish Alice's tutorial
 	local cheap = C.CAR.moped
 	H.check(waitFor(function() return d.cash >= cheap.price end, 900), "the cheapest car becomes affordable")
-	T.act(a, "car", "spawn", "moped")
+	-- spawn it parked (no automatic seating), so who sits in it first is up to the test
+	d.cash -= cheap.price
+	d.cars.moped = true
+	local root = a.Character.HumanoidRootPart
+	F.spawnCar(a, "moped", root.CFrame * CFrame.new(0, 0, -10))
 	H.task.wait(0.5)
 	local car = F.activeCar(a)
 	H.check(car ~= nil, "Alice's moped spawned")
 	if car then
 		car.seat.Occupant = b.Character and b.Character:FindFirstChildOfClass("Humanoid")
-		H.task.wait(2)
+		H.task.wait(2.5)
 		H.check(d.tut == 7, "Bob sitting in Alice's car doesn't finish her step 7")
 		car.seat.Occupant = a.Character:FindFirstChildOfClass("Humanoid")
 	end

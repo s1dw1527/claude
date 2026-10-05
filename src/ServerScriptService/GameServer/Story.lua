@@ -202,6 +202,7 @@ local function sendIntro(plr, d)
 	if not ch or s.intro["c" .. s.ch] then return end
 	s.intro["c" .. s.ch] = true
 	cutscene(plr, d, "intro", ch.intro, s.ch)
+	if F.storyMessage then F.storyMessage(plr, s.ch) end
 	if s.ch >= 2 and C.STORY_HEADLINES[s.ch] then
 		F.buzz("📰", string.format(pick(C.STORY_HEADLINES[s.ch]), plr.Name), RGB(230, 230, 230), "Corner Gazette")
 	end
@@ -371,7 +372,7 @@ function F.storyStart(plr, d, isNew)
 		end
 		s.ch = skipped + 1
 		if skipped > 0 then
-			F.pushMsg(plr, {icon = "📖", from = "Story Mode", text = "STORY MODE is here! Your empire already beat " .. (skipped == 1 and "Chapter 1" or ("Chapters 1-" .. skipped)) ..
+			F.pushMsg(plr, {icon = "📖", from = "Story Mode", important = true, text = "STORY MODE is here! Your empire already beat " .. (skipped == 1 and "Chapter 1" or ("Chapters 1-" .. skipped)) ..
 				". " .. (s.ch <= #STORY and ("Picking up at Chapter " .. s.ch .. ": " .. STORY[s.ch].title .. ".") or "You're a LEGEND already.") .. " Open Phone → Story."})
 		end
 	end

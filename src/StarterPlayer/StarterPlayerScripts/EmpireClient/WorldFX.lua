@@ -228,10 +228,10 @@ do
 	if plr.Character then task.spawn(hookChar, plr.Character) end
 	plr.CharacterAdded:Connect(hookChar)
 	local targets = {}
-	local COLORS = {race = RGB(255, 210, 60), delivery = RGB(80, 255, 140), tut = RGB(90, 170, 255)}
+	local COLORS = {race = RGB(255, 210, 60), delivery = RGB(80, 255, 140), tut = RGB(90, 170, 255), map = RGB(255, 120, 220)}
 	local function refresh()
 		local kind, pos
-		for _, k in ipairs({"race", "delivery", "tut"}) do
+		for _, k in ipairs({"race", "delivery", "tut", "map"}) do
 			if targets[k] then
 				kind, pos = k, targets[k]
 				break

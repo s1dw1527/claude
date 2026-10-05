@@ -271,7 +271,7 @@ H.main(function()
 
 	H.section("Saves from before story mode")
 	local c = T.join("Cara", 303)
-	local store = H.stores["CornerEmpire_v5/global"]
+	local store = T.slotStore()
 	rawget(store, "_data")["u303_s1"] = {cash = 5e7, earned = 3e8, rep = 1500, levels = {lemonade = 10, icecream = 10, bakery = 10, coffee = 8, pizza = 3},
 		staff = {lemonade = {name = "Sam", service = 2, speed = 2, exp = 1}}, served = 5000, deliveries = 10, tut = 0, tutPaid = 7, followers = 200, contributed = 0,
 		combos = {frozenlemon = true, dessert = true, cafebakery = true}}

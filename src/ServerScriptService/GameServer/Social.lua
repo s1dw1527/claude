@@ -197,9 +197,21 @@ function F.followerMult(d) return 1 + math.min(0.5, (d.followers or 0) / 2000) e
 function F.clearSocial(plr) postCool[plr] = nil end
 
 -- ===== MESSAGES INBOX =====
+-- d.inbox holds this session's messages (newest first). Saved with the slot as d.mail: plain text only, the
+-- important ones (story, City Hall, updates, investors) kept longest. Each player only ever sees their own.
+local MAIL_KEEP_IMPORTANT, MAIL_KEEP_OTHER, INBOX_MAX = 25, 15, 50
+local CATEGORY_OF = {["City Hall"] = "cityhall", ["Story Mode"] = "story", ["Realtor"] = "business", ["Corner Empire"] = "system", ["Rebirth"] = "system",
+	["Save System"] = "system", ["Raceway"] = "event", ["Update Test"] = "system"}
 local function msgOut(m)
-	return {id = m.id, icon = m.icon, from = m.from, text = m.text, choices = m.choices, resolved = m.resolved, t = m.t}
+	return {id = m.id, icon = m.icon, from = m.from, text = m.text, choices = (not m.resolved) and m.choices or nil, resolved = m.resolved, t = m.t,
+		read = m.read == true, important = m.important == true, cat = m.cat}
 end
+local function unreadCount(d)
+	local n = 0
+	for _, m in ipairs(d.inbox) do if not m.read then n += 1 end end
+	return n
+end
+F.unreadCount = unreadCount
 function F.pushMsg(plr, msg)
 	local d = data[plr]
 	if not d then return end
@@ -207,14 +219,61 @@ function F.pushMsg(plr, msg)
 	msg.id = d.msgSeq
 	msg.t = os.time()
 	msg.from = msg.from or "City"
+	msg.read = false
+	msg.cat = msg.cat or CATEGORY_OF[msg.from] or (msg.kind == "tenant" and "tenant") or "business"
 	table.insert(d.inbox, 1, msg)
-	while #d.inbox > 40 do table.remove(d.inbox) end
-	R.Msg:FireClient(plr, "add", msgOut(msg))
+	-- trim: drop the oldest ordinary messages first, important ones last
+	while #d.inbox > INBOX_MAX do
+		local drop = #d.inbox
+		for i = #d.inbox, 1, -1 do
+			if not d.inbox[i].important then drop = i break end
+		end
+		table.remove(d.inbox, drop)
+	end
+	R.Msg:FireClient(plr, "add", msgOut(msg), unreadCount(d))
 end
 function F.inboxList(d)
 	local out = {}
 	for i, m in ipairs(d.inbox) do out[i] = msgOut(m) end
 	return out
+end
+function F.markRead(plr, id)
+	local d = data[plr]
+	if not d then return end
+	for _, m in ipairs(d.inbox) do
+		if id == "all" or m.id == id then m.read = true end
+	end
+	R.Msg:FireClient(plr, "unread", unreadCount(d))
+end
+-- what goes into the save: plain fields only (messages with live choices, like tenant applications, are saved as text)
+function F.mailForSave(d)
+	local important, other = {}, {}
+	for _, m in ipairs(d.inbox) do
+		local e = {id = m.id, icon = m.icon, from = m.from, text = m.text, t = m.t, read = m.read == true, important = m.important == true, cat = m.cat,
+			resolved = m.resolved or (m.choices and "(this needed an answer in an earlier session)") or nil}
+		if m.important then
+			if #important < MAIL_KEEP_IMPORTANT then table.insert(important, e) end
+		elseif #other < MAIL_KEEP_OTHER then
+			table.insert(other, e)
+		end
+	end
+	local out = {}
+	for _, e in ipairs(important) do table.insert(out, e) end
+	for _, e in ipairs(other) do table.insert(out, e) end
+	table.sort(out, function(a, b) return (a.id or 0) > (b.id or 0) end)
+	return out
+end
+-- loading: saved mail becomes this session's inbox
+function F.restoreMail(d)
+	d.inbox = {}
+	if type(d.mail) ~= "table" then return end
+	for _, m in ipairs(d.mail) do
+		if type(m) == "table" and type(m.text) == "string" then
+			table.insert(d.inbox, {id = tonumber(m.id) or 0, icon = m.icon or "💬", from = m.from or "City", text = m.text, t = tonumber(m.t) or 0,
+				read = m.read == true, important = m.important == true, cat = m.cat, resolved = m.resolved})
+			d.msgSeq = math.max(d.msgSeq or 0, tonumber(m.id) or 0)
+		end
+	end
 end
 function F.msgChoice(plr, id, choice)
 	local d = data[plr]
@@ -225,7 +284,8 @@ function F.msgChoice(plr, id, choice)
 			local result = "Done."
 			if m.kind == "tenant" then result = F.tenantChoice(plr, m, choice) end
 			m.resolved = result
-			R.Msg:FireClient(plr, "resolve", id, result)
+			m.read = true
+			R.Msg:FireClient(plr, "resolve", id, result, unreadCount(d))
 			return
 		end
 	end

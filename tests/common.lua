@@ -29,6 +29,10 @@ function T.startServer()
 	T.F = T.C.F
 	return T.C
 end
+-- the slot DataStore the server really uses (in "Studio" that's the _StudioTest copy of the live store)
+function T.slotStore()
+	return H.stores[T.C.storeName(T.C.CFG.DATASTORE) .. "/global"]
+end
 function T.join(name, id)
 	local p = H.addPlayer(name, id)
 	H.task.wait(1.5)
@@ -66,7 +70,7 @@ end
 -- the latest state as the client sees it: heavy sections are only sent when they change, so those are
 -- taken from the newest packet that had them (exactly what EmpireClient does)
 local HEAVY = {"archive", "homeInfo", "props", "districts", "market", "staff", "reviews", "tours", "shareable", "standings", "passes", "cars", "showcase", "biz", "warLeaders",
-	"rebirth", "unlocks", "fees", "spire"}
+	"rebirth", "unlocks", "fees", "spire", "map"}
 function T.state(plr)
 	local latest
 	local out = {}

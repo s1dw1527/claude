@@ -27,7 +27,7 @@ local function board(name, week)
 		memory[key] = b.mem
 	end
 	if enabled then
-		local ok, st = pcall(function() return DataStoreService:GetOrderedDataStore("CE_" .. name, "w" .. week) end)
+		local ok, st = pcall(function() return DataStoreService:GetOrderedDataStore(C.storeName("CE_" .. name), "w" .. week) end)
 		if ok then b.store = st end
 	end
 	return b
@@ -146,7 +146,7 @@ local function refresh()
 		local id = tonumber(e.key)
 		local info = entries[id]
 		if not info and enabled then
-			local ok, v = pcall(function() return DataStoreService:GetDataStore("CE_Showcase", "w" .. week):GetAsync("u" .. id) end)
+			local ok, v = pcall(function() return DataStoreService:GetDataStore(C.storeName("CE_Showcase"), "w" .. week):GetAsync("u" .. id) end)
 			if ok and type(v) == "table" then info = v end
 			entries[id] = info
 		end
@@ -201,7 +201,7 @@ function F.showcaseSubmit(plr)
 	entries[plr.UserId] = info
 	if enabled then
 		task.spawn(function()
-			pcall(function() DataStoreService:GetDataStore("CE_Showcase", "w" .. week):SetAsync("u" .. plr.UserId, info) end)
+			pcall(function() DataStoreService:GetDataStore(C.storeName("CE_Showcase"), "w" .. week):SetAsync("u" .. plr.UserId, info) end)
 		end)
 	end
 	local b = board("ShowcaseLikes", week)

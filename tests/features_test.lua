@@ -249,12 +249,12 @@ section("property", function(ctx)
 	t.mood = 33
 	F.save(a)
 	H.task.wait(0.5)
-	local saved = rawget(H.stores["CornerEmpire_v5/global"], "_data")["u101_s1"]
+	local saved = rawget(T.slotStore(), "_data")["u101_s1"]
 	H.check(saved.props[1].level == 5 and #saved.props[1].units == 8 and saved.props[1].units[1].mood == 33, "level, units and mood are saved")
 	-- old saves (no level) still load as level 1
 	local old = H.deepCopy(saved)
 	old.props[1].level, old.props[1].invested = nil, nil
-	rawget(H.stores["CornerEmpire_v5/global"], "_data")["u101_s3"] = old
+	rawget(T.slotStore(), "_data")["u101_s3"] = old
 	-- tenant choices: warn / fine / evict have different effects
 	local function place(credit, trait, strikes, mood)
 		for i = 1, #b.units do b.units[i] = false end
@@ -675,13 +675,13 @@ section("legacy", function(ctx)
 	H.check(type(info.featured) == "string" and info.endsIn > 0 and info.endsIn <= 604800, "there's a featured board and a reset countdown")
 	-- last week's winners collect trophies once
 	local lastWeek = C.weekId() - 1
-	local st = H.stores["ordered:CE_Weekly_followers/w" .. lastWeek]
+	local st = H.stores["ordered:" .. T.C.storeName("CE_Weekly_followers") .. "/w" .. lastWeek]
 	if not st then
-		H.service("DataStoreService"):GetOrderedDataStore("CE_Weekly_followers", "w" .. lastWeek):SetAsync("101", 5000)
+		H.service("DataStoreService"):GetOrderedDataStore(T.C.storeName("CE_Weekly_followers"), "w" .. lastWeek):SetAsync("101", 5000)
 	else
 		st:SetAsync("101", 5000)
 	end
-	H.service("DataStoreService"):GetOrderedDataStore("CE_Weekly_followers", "w" .. lastWeek):SetAsync("202", 10)
+	H.service("DataStoreService"):GetOrderedDataStore(T.C.storeName("CE_Weekly_followers"), "w" .. lastWeek):SetAsync("202", 10)
 	da.weeklyClaimed = nil
 	hold(da)
 	hold(db)

@@ -593,7 +593,7 @@ local function renderApp(s, force)
 		end
 	end
 end
-if view then view.refresh = function() renderApp(C.S and C.S.story, true) end end
+if view then kit.onOpen("story", function() renderApp(C.S and C.S.story, true) end) end
 
 -- =====================================================================
 -- STATE: tracker, app refresh, Kevin's stand while the showdown runs
