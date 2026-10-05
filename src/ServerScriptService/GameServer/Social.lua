@@ -9,13 +9,16 @@ local BIZ, BUSINESSES, HOOD, REP_TIERS, fmt, notify = C.BIZ, C.BUSINESSES, C.HOO
 local FEED, likedBy = {}, {}
 local nextId = 0
 C.FEED = FEED
+local REACTIONS = {fire = true, laugh = true, wow = true}
 local function send(post)
-	return {id = post.id, icon = post.icon, text = post.text, color = post.color, author = post.author, authorId = post.authorId, likes = post.likes, t = post.t, achievement = post.achievement}
+	return {id = post.id, icon = post.icon, text = post.text, color = post.color, author = post.author, authorId = post.authorId, likes = post.likes, t = post.t,
+		achievement = post.achievement, card = post.card, views = post.views or 0, reactions = post.reactions, empire = post.empire}
 end
-function F.buzz(icon, text, color, author, authorPlr, achievement)
+function F.buzz(icon, text, color, author, authorPlr, achievement, card)
 	nextId += 1
 	local post = {id = nextId, icon = icon, text = text, color = color or RGB(255, 255, 255), author = author or "CityBuzz", authorId = authorPlr and authorPlr.UserId or 0, likes = 0, t = os.time(),
-		achievement = achievement == true}
+		achievement = achievement == true, card = card, views = 0, viewedBy = {}, reactions = {fire = 0, laugh = 0, wow = 0}, reactedBy = {},
+		empire = authorPlr and (authorPlr.Name .. "'s Empire") or nil}
 	table.insert(FEED, 1, post)
 	likedBy[post.id] = {}
 	while #FEED > 40 do
@@ -25,10 +28,36 @@ function F.buzz(icon, text, color, author, authorPlr, achievement)
 	R.Buzz:FireAllClients(send(post))
 	return post
 end
-function F.feedList()
+local function broadcastCounts(post)
+	R.BuzzUpdate:FireAllClients(post.id, post.likes, post.reactions, post.views)
+end
+-- reading the feed counts as one view per player per post (never your own)
+function F.feedList(plr)
 	local out = {}
-	for i, p in ipairs(FEED) do out[i] = send(p) end
+	for i, p in ipairs(FEED) do
+		if plr and p.authorId ~= 0 and p.authorId ~= plr.UserId and not p.viewedBy[plr.UserId] and i <= 25 then
+			p.viewedBy[plr.UserId] = true
+			p.views += 1
+		end
+		out[i] = send(p)
+	end
 	return out
+end
+-- reactions: one of each per player per post, never on your own post
+function F.react(plr, id, kind)
+	if not REACTIONS[kind] then return end
+	for _, p in ipairs(FEED) do
+		if p.id == id then
+			if p.authorId == plr.UserId then return end
+			local mine = p.reactedBy[plr.UserId] or {}
+			p.reactedBy[plr.UserId] = mine
+			if mine[kind] then return end
+			mine[kind] = true
+			p.reactions[kind] += 1
+			broadcastCounts(p)
+			return
+		end
+	end
 end
 -- popular posts pay off: likes from real players count 5x. Trending = +25% customers, viral = +50% and new followers.
 local function checkPopular(post)
@@ -55,7 +84,7 @@ end
 local function addLike(post, fromUserId)
 	post.likes += 1
 	post.playerLikes = (post.playerLikes or 0) + 1
-	R.BuzzUpdate:FireAllClients(post.id, post.likes)
+	broadcastCounts(post)
 	local author = post.authorId ~= 0 and Players:GetPlayerByUserId(post.authorId)
 	local d = author and data[author]
 	if d and author.UserId ~= fromUserId then
@@ -72,7 +101,8 @@ local function rollLikes(plr, post, bonus)
 		task.delay(math.random() * 20, function()
 			if likedBy[post.id] then
 				post.likes += 1
-				R.BuzzUpdate:FireAllClients(post.id, post.likes)
+				if math.random() < 0.6 then post.views += math.random(1, 3) end   -- NPC readers
+				broadcastCounts(post)
 				if math.random() < 0.35 and data[plr] then data[plr].followers += 1 end
 				checkPopular(post)
 			end
@@ -113,8 +143,68 @@ local PRESETS = {
 	function(plr, d) return "Who's coming to the Fun Park? 🎡" end,
 }
 C.PRESET_COUNT = #PRESETS
+-- what a post can show off, built from the player's REAL data on the server (the client only picks which one)
+local function bestBusiness(d)
+	local best, bl = nil, 0
+	for _, b in ipairs(BUSINESSES) do
+		if (d.levels[b.key] or 0) > bl then best, bl = b, d.levels[b.key] end
+	end
+	return best, bl
+end
+local ATTACH = {
+	business = function(plr, d)
+		local b, lvl = bestBusiness(d)
+		if not b then return nil end
+		local stars = d.revN > 0 and d.revSum / d.revN or 0
+		return {kind = "business", icon = b.icon, title = b.tiers[C.stageOf(lvl, d.chains[b.key] or 0)], sub = "Level " .. lvl .. "  •  " .. string.format("%.1f", stars) .. "★ from " .. d.revN .. " reviews", stars = stars}
+	end,
+	house = function(plr, d)
+		local lot = F.homeLot(d)
+		if not (lot and d.home) then return nil end
+		local hood = HOOD[lot.hood]
+		local n = d.homeRatingN or 0
+		local avg = n > 0 and (d.homeRatingSum or 0) / n or 0
+		return {kind = "house", icon = hood.icon, title = plr.Name .. "'s House", sub = hood.name .. "  •  " .. (C.HOME_LEVELS[d.home.level] or "Lot") ..
+			(n > 0 and ("  •  " .. string.format("%.1f", avg) .. "★ (" .. n .. " ratings)") or ""), stars = avg}
+	end,
+	car = function(plr, d)
+		local best
+		for _, c in ipairs(C.CARS) do
+			if d.cars[c.key] or (c.pass and d.passes[c.pass]) then best = c end
+		end
+		if not best then return nil end
+		return {kind = "car", icon = "🚗", title = best.name, sub = "Top speed " .. best.speed .. " • parked at " .. plr.Name .. "'s empire"}
+	end,
+	empire = function(plr, d)
+		local n = 0
+		for _, b in ipairs(BUSINESSES) do if (d.levels[b.key] or 0) > 0 then n += 1 end end
+		return {kind = "empire", icon = "👑", title = plr.Name .. "'s Empire", sub = "$" .. fmt(F.incomePerSec(d)) .. "/s  •  " .. n .. " businesses  •  " .. REP_TIERS[F.tierIndex(d.rep)].name}
+	end,
+	-- a Photo Mode shot: what's near the player when they post it (the server checks, the client can't make it up)
+	photo = function(plr, d)
+		local root = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
+		if not root then return nil end
+		local pos = root.Position
+		local best, bestD = "the city", 150
+		local function near(name, p)
+			local dist = (Vector3.new(p.X, pos.Y, p.Z) - pos).Magnitude
+			if dist < bestD then best, bestD = name, dist end
+		end
+		local b = bestBusiness(d)
+		if b then near("my " .. b.tiers[C.stageOf(d.levels[b.key], d.chains[b.key] or 0)], d.plot.center) end
+		local lot = F.homeLot(d)
+		if lot then near("my house", lot.pos) end
+		near("the Empire Spire", Vector3.new(0, 0, 0))
+		if C.MUSEUM_AT then near("the Legacy Museum", C.MUSEUM_AT) end
+		near("the Race Track", Vector3.new(0, 0, -360))
+		near("the Fun Park", Vector3.new(-470, 0, 12))
+		near("the beach", Vector3.new(0, 0, 360))
+		return {kind = "photo", icon = "📸", title = "Photo at " .. best, sub = os.date("!%b %d") .. "  •  #CornerEmpire"}
+	end,
+}
+C.POST_ATTACH = ATTACH
 local postCool = {}
-function F.playerPost(plr, preset, text)
+function F.playerPost(plr, preset, text, attach)
 	local d = data[plr]
 	if not d then return end
 	if postCool[plr] and os.clock() < postCool[plr] then
@@ -122,8 +212,15 @@ function F.playerPost(plr, preset, text)
 		return
 	end
 	local body
+	local card = (type(attach) == "string" and ATTACH[attach]) and ATTACH[attach](plr, d) or nil
+	if type(attach) == "string" and ATTACH[attach] and not card then
+		notify(plr, "📱 Nothing to show for that yet!")
+		return
+	end
 	if type(preset) == "number" and PRESETS[preset] then
 		body = PRESETS[preset](plr, d)
+	elseif type(text) == "string" and #text:gsub("%s", "") == 0 and card then
+		body = ""   -- a picture is worth a thousand words
 	elseif type(text) == "string" then
 		text = string.sub(text, 1, 120)
 		if #text:gsub("%s", "") == 0 then return end
@@ -140,7 +237,7 @@ function F.playerPost(plr, preset, text)
 		return
 	end
 	postCool[plr] = os.clock() + 20
-	local post = F.buzz("💬", body, d.plot.color, plr.Name, plr)
+	local post = F.buzz(card and card.icon or "💬", body, d.plot.color, plr.Name, plr, nil, card)
 	rollLikes(plr, post)
 	F.tutorialEvent(plr, "post")
 end

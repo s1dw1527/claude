@@ -996,8 +996,13 @@ R.Action.OnServerEvent:Connect(function(plr, action, a, b, c)
 		if id then F.like(plr, id) end
 	elseif action == "post" then
 		local preset = int(a, 1, 50)
-		if preset then F.playerPost(plr, preset, nil)
-		elseif str(b, 200) then F.playerPost(plr, nil, b) end
+		local attach = str(c, 12) and C.POST_ATTACH[c] and c or nil
+		if preset then F.playerPost(plr, preset, nil, attach)
+		elseif str(b, 200) then F.playerPost(plr, nil, b, attach)
+		elseif attach then F.playerPost(plr, nil, "", attach) end
+	elseif action == "react" then
+		local id = int(a, 1)
+		if id and str(b, 8) then F.react(plr, id, b) end
 	elseif action == "msgRead" then
 		if a == "all" then F.markRead(plr, "all")
 		else
@@ -1087,7 +1092,7 @@ do
 	GetCatalog.Parent = ReplicatedStorage
 	GetCatalog.OnServerInvoke = function(plr, what)
 		if not allow(plr, 3) then return nil end
-		if what == "feed" then return F.feedList() end
+		if what == "feed" then return F.feedList(plr) end
 		if what == "weekly" then return F.weeklyInfo(plr) end
 		if what == "inbox" then
 			local d = data[plr]

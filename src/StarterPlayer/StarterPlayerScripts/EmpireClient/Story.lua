@@ -368,8 +368,11 @@ local function play1(sc)
 	gui.Enabled = guiWas ~= false
 	playing = false
 end
+local pumping = false
 local function pump()
-	if playing then return end
+	-- one queue runner at a time (two would race for the same scene)
+	if pumping then return end
+	pumping = true
 	task.spawn(function()
 		while #queue > 0 do
 			-- wait for a calm moment: in the game (not the menu), not in photo mode, not driving
@@ -395,6 +398,7 @@ local function pump()
 				end
 			end
 		end
+		pumping = false
 	end)
 end
 
@@ -472,8 +476,29 @@ remote.OnClientEvent:Connect(function(msg)
 		play(SND.msg)
 	elseif msg.kind == "bubble" then
 		worldBubble(msg.pos, msg.who, msg.text)
+	elseif msg.kind == "event" then
+		C.storyEventPill(msg.text)
 	end
 end)
+
+-- "NEW STORY EVENT": a small pill under the top bar; tap it to open the Story app
+do
+	local pill = button({AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 148), Size = UDim2.fromOffset(360, 34), Text = "", TextSize = 13, TextWrapped = true,
+		BackgroundColor3 = RGB(200, 50, 130), Visible = false, ZIndex = 40}, gui)
+	local id = 0
+	function C.storyEventPill(text)
+		id += 1
+		local my = id
+		pill.Text = "📖 NEW STORY EVENT: " .. text .. "  ›"
+		pill.Visible = true
+		task.delay(6, function() if id == my then pill.Visible = false end end)
+	end
+	pill.MouseButton1Click:Connect(function()
+		play(SND.click)
+		pill.Visible = false
+		if C.togglePhone then C.togglePhone(true) C.phoneView("story") end
+	end)
+end
 
 -- =====================================================================
 -- STORY TRACKER (top-left: chapter + the next objective; tap to open the Story app)
@@ -515,6 +540,7 @@ local function renderApp(s, force)
 	local sig = s.ch .. "|" .. tostring(s.title) .. "|" .. tostring(s.paid) .. "|" .. tostring(s.reward)
 	for _, o in ipairs(s.obj or {}) do sig ..= "|" .. tostring(o.done) .. tostring(o.p) .. tostring(o.act) end
 	for _, v in ipairs(s.done or {}) do sig ..= v and "1" or "0" end
+	for _, v in ipairs(s.claimed or {}) do sig ..= "|" .. tostring(v) end
 	if sig == lastSig and not force then return end
 	lastSig = sig
 	clear(list)
@@ -539,6 +565,21 @@ local function renderApp(s, force)
 		local info = cat.chapters[s.ch]
 		label({Position = UDim2.fromOffset(8, 46), Size = UDim2.new(1, -16, 0, 30), Text = info and info.blurb or "", TextSize = 11, TextWrapped = true, TextColor3 = SUB,
 			TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top, ZIndex = 23}, f)
+		-- the current objective, big
+		local cur
+		for _, o in ipairs(s.obj or {}) do if not o.done then cur = o break end end
+		if cur then
+			local co = row(62, RGB(80, 30, 70))
+			label({Position = UDim2.fromOffset(8, 4), Size = UDim2.new(1, -16, 0, 14), Text = "CURRENT OBJECTIVE", TextSize = 10, TextColor3 = RGB(255, 160, 210), Font = Enum.Font.GothamBlack,
+				TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 23}, co)
+			label({Position = UDim2.fromOffset(8, 18), Size = UDim2.new(1, -16, 0, 18), Text = cur.t, TextSize = 14, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left,
+				TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 23}, co)
+			local cf = C.bar(co, UDim2.fromOffset(8, 40), UDim2.new(1, -16, 0, 10), RGB(255, 90, 160))
+			cf.Size = UDim2.fromScale(math.clamp(cur.f or 0, 0, 1), 1)
+			cf.ZIndex = 24
+			label({Position = UDim2.fromOffset(8, 50), Size = UDim2.new(1, -16, 0, 12), Text = cur.p or "", TextSize = 10, TextColor3 = SUB, TextXAlignment = Enum.TextXAlignment.Left,
+				TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 23}, co)
+		end
 		for _, o in ipairs(s.obj or {}) do
 			local extra = 0
 			if o.act == "clapback" or o.act == "choice" then extra = 40 * #(o.options or {}) elseif o.act then extra = 40 end
@@ -576,19 +617,64 @@ local function renderApp(s, force)
 		local tr = row(28, RGB(40, 30, 60))
 		label({Size = UDim2.fromScale(1, 1), Text = "Your title: \"" .. s.title .. "\"", TextSize = 13, Font = Enum.Font.GothamBlack, TextColor3 = RGB(255, 170, 220), ZIndex = 23}, tr)
 	end
-	-- the chapter list (replay intros you've reached)
+	-- characters and how they feel about you right now
+	local function section(text)
+		label({Size = UDim2.new(1, -8, 0, 22), Text = text, TextSize = 13, Font = Enum.Font.GothamBlack, TextColor3 = RGB(255, 160, 210), TextXAlignment = Enum.TextXAlignment.Left,
+			LayoutOrder = nextOrder(), ZIndex = 23}, list)
+	end
+	section("👥 CHARACTERS")
+	for _, rel in ipairs(cat.relations or {}) do
+		if s.ch >= rel.meet then
+			local who = CAST[rel.who] or {name = rel.who, icon = "💬"}
+			local status
+			if rel.by then
+				status = s.ch > #cat.chapters and rel.after or rel.by[s.ch]
+			else
+				status = (s.done and s.done[rel.meet]) and rel.after or rel.now
+			end
+			local r = row(40, RGB(36, 30, 48))
+			label({Position = UDim2.fromOffset(6, 0), Size = UDim2.fromOffset(32, 40), Text = who.icon or "💬", TextSize = 20, ZIndex = 23}, r)
+			label({Position = UDim2.fromOffset(40, 3), Size = UDim2.new(1, -46, 0, 16), Text = who.name or "", TextSize = 12, Font = Enum.Font.GothamBlack, TextColor3 = who.color or WHITE,
+				TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 23}, r)
+			label({Position = UDim2.fromOffset(40, 20), Size = UDim2.new(1, -46, 0, 16), Text = status or "", TextSize = 11, TextColor3 = SUB, TextXAlignment = Enum.TextXAlignment.Left,
+				TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 23}, r)
+		end
+	end
+	-- rewards you've already collected
+	local anyClaimed = false
+	for i, txt in ipairs(s.claimed or {}) do
+		if txt ~= "" then
+			if not anyClaimed then section("🎁 REWARDS COLLECTED") anyClaimed = true end
+			local info = cat.chapters[i] or {}
+			local r = row(30, RGB(30, 44, 34))
+			label({Position = UDim2.fromOffset(8, 0), Size = UDim2.new(1, -16, 1, 0), Text = "Ch " .. i .. " " .. (info.icon or "") .. "  " .. txt, TextSize = 11, TextColor3 = GOLD,
+				TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 23}, r)
+		end
+	end
+	section("📚 CHAPTERS")
+	-- the chapter list: replay intros you've reached and endings you've finished (replays never pay or advance anything)
 	for i, info in ipairs(cat.chapters) do
 		local reached = i <= s.ch
 		local r = row(44, (s.done and s.done[i]) and RGB(30, 60, 40) or (i == s.ch and RGB(60, 26, 70) or RGB(30, 30, 40)))
-		local status = (s.done and s.done[i]) and "✅" or (i == s.ch and "▶" or "🔒")
-		label({Position = UDim2.fromOffset(8, 0), Size = UDim2.new(1, -90, 1, 0), Text = status .. " " .. i .. ". " .. (reached and (info.icon .. " " .. info.title) or "???"),
+		local done = s.done and s.done[i]
+		local status = done and "✅ Complete" or (i == s.ch and "▶ In progress" or "🔒 Locked")
+		label({Position = UDim2.fromOffset(8, 2), Size = UDim2.new(1, -130, 0, 20), Text = i .. ". " .. (reached and (info.icon .. " " .. info.title) or "???"),
 			TextSize = 12, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 23}, r)
+		label({Position = UDim2.fromOffset(8, 22), Size = UDim2.new(1, -130, 0, 16), Text = status, TextSize = 10, TextColor3 = done and GREEN or SUB, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 23}, r)
 		if reached then
-			local b = button({AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -6, 0.5, 0), Size = UDim2.fromOffset(74, 28), Text = "▶ Replay", TextSize = 11, BackgroundColor3 = GRAY, ZIndex = 24}, r)
+			local b = button({AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, done and -66 or -6, 0.5, 0), Size = UDim2.fromOffset(58, 28), Text = "▶ Intro", TextSize = 10, BackgroundColor3 = GRAY, ZIndex = 24}, r)
 			b.MouseButton1Click:Connect(function()
 				play(SND.click)
 				if C.togglePhone then C.togglePhone(false) end
 				act("story", "replay", i)
+			end)
+		end
+		if done then
+			local b = button({AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -6, 0.5, 0), Size = UDim2.fromOffset(58, 28), Text = "▶ Ending", TextSize = 10, BackgroundColor3 = GRAY, ZIndex = 24}, r)
+			b.MouseButton1Click:Connect(function()
+				play(SND.click)
+				if C.togglePhone then C.togglePhone(false) end
+				act("story", "replay", i, "ending")
 			end)
 		end
 	end

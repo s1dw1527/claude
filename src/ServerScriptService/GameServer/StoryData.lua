@@ -193,6 +193,17 @@ C.STORY = {
 	},
 }
 
+-- the Characters section of the Story app: how each character feels about you, chapter by chapter
+-- meet = the chapter they show up in, now = their status during it (the rival: by = one per chapter), after = once it's done
+C.STORY_RELATIONS = {
+	{who = "rival", meet = 1, by = {"Roasting you live 🔴", "Still roasting you", "Low-key impressed (won't admit it)", "Jealous of your money", "Claims you're best friends", "Asking for a small loan"},
+		after = "Your loudest fan 📣"},
+	{who = "kevin", meet = 3, now = "Copying your stand across the street", after = "Back in school 📚"},
+	{who = "ulysses", meet = 4, now = "Undercutting your prices by one cent", after = "Closed DISCOUNT EVERYTHING"},
+	{who = "brenda", meet = 5, now = "Wants you to lose (synergistically)", after = "Moved to another city"},
+	{who = "reginald", meet = 5, now = "Old money. Very unimpressed.", after = "Handed over the Executive Cup 🏆"},
+}
+
 -- what fans shout when they walk up to your businesses (from chapter 3 on)
 C.STORY_SHOUTS = {
 	[3] = {"Yo, it's the Local Menace!", "My cousin says your lemonade is illegal levels of good", "Are you the one who bankrupted Kevin?", "Can I get a selfie? For my mom."},

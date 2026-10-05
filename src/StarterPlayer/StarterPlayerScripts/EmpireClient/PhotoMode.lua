@@ -172,6 +172,11 @@ for _, e in ipairs(EMOTES) do
 	end)
 end
 pbtn(row2, "# Grid", 60, GRAY, function() grid.Visible = not grid.Visible end)
+-- post this moment to CityBuzz (the post card says where you were; the screenshot itself is Roblox's Capture button)
+pbtn(row2, "📤 Post to CityBuzz", 130, RGB(230, 70, 150), function()
+	C.setPhoto(false)
+	if C.composePost then C.composePost("photo") end
+end)
 pbtn(row2, "▭ Bars", 60, GRAY, function() bars.Visible = not bars.Visible end)
 pbtn(row2, "🔍 −", 44, GRAY, function() P.fov = math.clamp(P.fov + 10, 20, 100) end)
 pbtn(row2, "🔍 +", 44, GRAY, function() P.fov = math.clamp(P.fov - 10, 20, 100) end)

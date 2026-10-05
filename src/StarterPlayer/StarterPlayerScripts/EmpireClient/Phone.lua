@@ -165,35 +165,62 @@ do
 end
 
 -- ===== CITYBUZZ =====
+-- post text and/or a card built from your real empire (business, house, car, empire, or a Photo Mode shot);
+-- like and react to other people's posts; Latest / Trending tabs
 do
 	local v = makeView("buzz")
 	topBar(v, "📱 CityBuzz", RGB(200, 50, 130))
-	local prof = new("Frame", {Position = UDim2.fromOffset(6, 44), Size = UDim2.new(1, -12, 0, 156), BackgroundColor3 = CARD, BorderSizePixel = 0, ZIndex = 22}, v)
+	local prof = new("Frame", {Position = UDim2.fromOffset(6, 44), Size = UDim2.new(1, -12, 0, 192), BackgroundColor3 = CARD, BorderSizePixel = 0, ZIndex = 22}, v)
 	corner(prof, 12)
-	local pName = label({Position = UDim2.fromOffset(10, 4), Size = UDim2.new(1, -20, 0, 20), TextSize = 14, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 23, Text = "@" .. plr.Name}, prof)
+	label({Position = UDim2.fromOffset(10, 4), Size = UDim2.new(1, -20, 0, 20), TextSize = 14, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 23, Text = "@" .. plr.Name}, prof)
 	local pStats = label({Position = UDim2.fromOffset(10, 22), Size = UDim2.new(1, -20, 0, 16), TextSize = 11, TextColor3 = SUB, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 23}, prof)
 	local box = new("TextBox", {Position = UDim2.fromOffset(8, 42), Size = UDim2.new(1, -76, 0, 32), BackgroundColor3 = RGB(18, 20, 30), TextColor3 = WHITE, PlaceholderText = "What's happening in your empire?",
 		PlaceholderColor3 = SUB, Text = "", TextSize = 12, Font = Enum.Font.Gotham, ClearTextOnFocus = false, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 23, BorderSizePixel = 0}, prof)
 	corner(box, 8)
 	new("UIPadding", {PaddingLeft = UDim.new(0, 6)}, box)
 	local send = button({Position = UDim2.new(1, -64, 0, 42), Size = UDim2.fromOffset(56, 32), Text = "Post", TextSize = 13, BackgroundColor3 = RGB(230, 70, 150), ZIndex = 23}, prof)
-	send.MouseButton1Click:Connect(function()
-		if #box.Text > 0 then
+	-- attach a card: one at a time, tap again to remove
+	local ATTACH = {{"business", "🏪 Business"}, {"house", "🏠 House"}, {"car", "🚗 Car"}, {"empire", "👑 Empire"}, {"photo", "📸 Photo"}}
+	local attach
+	local attachRow = new("Frame", {Position = UDim2.fromOffset(8, 78), Size = UDim2.new(1, -16, 0, 26), BackgroundTransparency = 1, ZIndex = 23}, prof)
+	new("UIListLayout", {FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 3)}, attachRow)
+	local chips = {}
+	local function paintChips()
+		for key, b in pairs(chips) do b.BackgroundColor3 = attach == key and RGB(230, 70, 150) or RGB(60, 64, 84) end
+	end
+	for _, a in ipairs(ATTACH) do
+		local b = button({Size = UDim2.fromOffset(54, 26), Text = a[2], TextSize = 9, TextWrapped = true, BackgroundColor3 = RGB(60, 64, 84), ZIndex = 24}, attachRow)
+		chips[a[1]] = b
+		b.MouseButton1Click:Connect(function()
 			play(SND.click)
-			act("post", nil, box.Text)
+			attach = attach ~= a[1] and a[1] or nil
+			paintChips()
+		end)
+	end
+	C.composePost = function(kind)
+		attach = kind
+		paintChips()
+		if C.togglePhone then C.togglePhone(true) C.phoneView("buzz") end
+	end
+	send.MouseButton1Click:Connect(function()
+		if #box.Text > 0 or attach then
+			play(SND.click)
+			act("post", nil, box.Text, attach)
 			box.Text = ""
+			attach = nil
+			paintChips()
 		end
 	end)
 	local PRESETS = {"📣 Promote", "⭐ Rep", "📈 Income", "🏁 Race me", "🏠 My home", "🧑‍🍳 Hiring", "🎡 Fun Park"}
-	local pr = new("ScrollingFrame", {Position = UDim2.fromOffset(8, 80), Size = UDim2.new(1, -16, 0, 34), BackgroundTransparency = 1, BorderSizePixel = 0, ScrollBarThickness = 2,
+	local pr = new("ScrollingFrame", {Position = UDim2.fromOffset(8, 108), Size = UDim2.new(1, -16, 0, 34), BackgroundTransparency = 1, BorderSizePixel = 0, ScrollBarThickness = 2,
 		AutomaticCanvasSize = Enum.AutomaticSize.X, CanvasSize = UDim2.new(), ScrollingDirection = Enum.ScrollingDirection.X, ZIndex = 23}, prof)
 	new("UIListLayout", {FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 4)}, pr)
 	for i = 1, math.min(#PRESETS, catalog.presets or #PRESETS) do
 		local b = button({Size = UDim2.fromOffset(78, 28), Text = PRESETS[i], TextSize = 10, BackgroundColor3 = RGB(90, 60, 140), ZIndex = 24}, pr)
-		b.MouseButton1Click:Connect(function() play(SND.click) act("post", i) end)
+		b.MouseButton1Click:Connect(function() play(SND.click) act("post", i, nil, attach) end)
 	end
 	-- achievements waiting to be shared
-	local shareRow = new("ScrollingFrame", {Position = UDim2.fromOffset(8, 118), Size = UDim2.new(1, -16, 0, 32), BackgroundTransparency = 1, BorderSizePixel = 0, ScrollBarThickness = 2,
+	local shareRow = new("ScrollingFrame", {Position = UDim2.fromOffset(8, 152), Size = UDim2.new(1, -16, 0, 32), BackgroundTransparency = 1, BorderSizePixel = 0, ScrollBarThickness = 2,
 		AutomaticCanvasSize = Enum.AutomaticSize.X, CanvasSize = UDim2.new(), ScrollingDirection = Enum.ScrollingDirection.X, ZIndex = 23}, prof)
 	new("UIListLayout", {FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 4)}, shareRow)
 	local shareKey = ""
@@ -213,50 +240,128 @@ do
 			b.MouseButton1Click:Connect(function() play(SND.click) act("shareAch", a.key) end)
 		end
 	end)
-	local feed = scroller(v, 206)
+	-- Latest / Trending
+	local tabRow = new("Frame", {Position = UDim2.fromOffset(6, 240), Size = UDim2.new(1, -12, 0, 26), BackgroundTransparency = 1, ZIndex = 22}, v)
+	local mode = "latest"
+	local tabs = {}
+	local feed = scroller(v, 270)
 	local posts = {}
 	local liked = {}
-	local ok, list = pcall(function() return C.GetCatalog:InvokeServer("feed") end)
-	if ok and type(list) == "table" then posts = list end
+	local reacted = {}
 	local cards = {}
+	local function ago(t)
+		local sec = math.max(0, os.time() - (t or os.time()))
+		if sec < 60 then return "now" end
+		if sec < 3600 then return math.floor(sec / 60) .. "m" end
+		return math.floor(sec / 3600) .. "h"
+	end
+	local function score(p)
+		local r = p.reactions or {}
+		return (p.likes or 0) + 2 * ((r.fire or 0) + (r.laugh or 0) + (r.wow or 0)) + (p.views or 0) * 0.2
+	end
 	local function render()
 		clear(feed)
 		cards = {}
-		for i = 1, math.min(25, #posts) do
-			local p = posts[i]
+		local list = posts
+		if mode == "trending" then
+			list = {}
+			for _, p in ipairs(posts) do
+				if p.authorId ~= 0 and os.time() - (p.t or 0) < 1800 then table.insert(list, p) end
+			end
+			table.sort(list, function(a, b) return score(a) > score(b) end)
+		end
+		if #list == 0 then
+			label({Size = UDim2.new(1, 0, 0, 40), Text = mode == "trending" and "Nothing trending yet. Post something!" or "No posts yet.", TextSize = 12, TextColor3 = SUB, ZIndex = 23}, feed)
+		end
+		for i = 1, math.min(25, #list) do
+			local p = list[i]
 			local c = new("Frame", {Size = UDim2.new(1, -6, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundColor3 = CARD, BorderSizePixel = 0, LayoutOrder = i, ZIndex = 22}, feed)
 			corner(c, 10)
-			new("UIPadding", {PaddingTop = UDim.new(0, 6), PaddingBottom = UDim.new(0, 30), PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8)}, c)
-			local author = p.author == "CityBuzz" and "📰 CityBuzz News" or ((p.achievement and "🏆 @" or "👤 @") .. p.author)
-			label({Size = UDim2.new(1, 0, 0, 16), Text = author, TextSize = 11, TextColor3 = SUB, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 23}, c)
-			local body = label({Position = UDim2.fromOffset(0, 18), Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, Text = p.icon .. " " .. p.text, TextSize = 13,
-				TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, TextColor3 = p.color, ZIndex = 23}, c)
-			body.Font = Enum.Font.GothamMedium
-			local lk = button({AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 0, 1, 26), Size = UDim2.fromOffset(78, 22), TextSize = 12, ZIndex = 24,
-				BackgroundColor3 = liked[p.id] and RGB(230, 70, 120) or RGB(60, 64, 84), Text = "❤ " .. fmt(p.likes)}, c)
+			new("UIPadding", {PaddingTop = UDim.new(0, 6), PaddingBottom = UDim.new(0, 6), PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8)}, c)
+			local lay = vlist(c, 4)
+			lay.HorizontalAlignment = Enum.HorizontalAlignment.Left
+			local author = p.author == "CityBuzz" and "📰 CityBuzz News" or ((p.achievement and "🏆 " or "👤 ") .. p.author .. (p.empire and ("  •  " .. p.empire) or ""))
+			if p.author ~= "CityBuzz" and p.author ~= "Corner Gazette" and not p.empire then author = "📰 " .. p.author end
+			label({Size = UDim2.new(1, 0, 0, 16), Text = author .. "  •  " .. ago(p.t), TextSize = 10, TextColor3 = SUB, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left,
+				TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 23, LayoutOrder = 1}, c)
+			if p.text and p.text ~= "" then
+				local body = label({Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, Text = (p.card and "" or (p.icon .. " ")) .. p.text, TextSize = 13,
+					TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, TextColor3 = p.color, ZIndex = 23, LayoutOrder = 2}, c)
+				body.Font = Enum.Font.GothamMedium
+			end
+			if p.card then
+				local cd = new("Frame", {Size = UDim2.new(1, 0, 0, 52), BackgroundColor3 = RGB(24, 26, 38), BorderSizePixel = 0, ZIndex = 23, LayoutOrder = 3}, c)
+				corner(cd, 8)
+				label({Position = UDim2.fromOffset(6, 4), Size = UDim2.fromOffset(40, 44), Text = p.card.icon or "📸", TextSize = 28, ZIndex = 24}, cd)
+				label({Position = UDim2.fromOffset(50, 6), Size = UDim2.new(1, -56, 0, 18), Text = p.card.title or "", TextSize = 13, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left,
+					TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 24}, cd)
+				label({Position = UDim2.fromOffset(50, 26), Size = UDim2.new(1, -56, 0, 20), Text = (p.card.stars and p.card.stars > 0 and (C.stars(p.card.stars) .. "  ") or "") .. (p.card.sub or ""),
+					TextSize = 10, TextWrapped = true, TextColor3 = GOLD, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 24}, cd)
+			end
+			local row = new("Frame", {Size = UDim2.new(1, 0, 0, 24), BackgroundTransparency = 1, ZIndex = 23, LayoutOrder = 4}, c)
+			new("UIListLayout", {FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 4)}, row)
+			local mine = p.authorId == plr.UserId
+			local lk = button({Size = UDim2.fromOffset(62, 22), TextSize = 11, ZIndex = 24, BackgroundColor3 = liked[p.id] and RGB(230, 70, 120) or RGB(60, 64, 84), Text = "❤ " .. fmt(p.likes)}, row)
 			lk.MouseButton1Click:Connect(function()
-				if liked[p.id] then return end
+				if liked[p.id] or mine then return end
 				liked[p.id] = true
 				play(SND.click)
 				act("like", p.id)
 				lk.BackgroundColor3 = RGB(230, 70, 120)
 			end)
-			cards[p.id] = lk
+			local rb = {}
+			for _, rk in ipairs({{"fire", "🔥"}, {"laugh", "😂"}, {"wow", "😮"}}) do
+				local key = p.id .. rk[1]
+				local b = button({Size = UDim2.fromOffset(42, 22), TextSize = 11, ZIndex = 24, BackgroundColor3 = reacted[key] and RGB(230, 120, 40) or RGB(60, 64, 84),
+					Text = rk[2] .. " " .. ((p.reactions and p.reactions[rk[1]]) or 0)}, row)
+				b.MouseButton1Click:Connect(function()
+					if reacted[key] or mine then return end
+					reacted[key] = true
+					play(SND.click)
+					act("react", p.id, rk[1])
+					b.BackgroundColor3 = RGB(230, 120, 40)
+				end)
+				rb[rk[1]] = {b = b, icon = rk[2]}
+			end
+			local vw = label({Size = UDim2.fromOffset(46, 22), TextSize = 10, TextColor3 = SUB, Text = "👁 " .. fmt(p.views or 0), ZIndex = 24}, row)
+			cards[p.id] = {lk = lk, rb = rb, vw = vw}
 		end
 	end
-	refreshers.buzz = render
+	for i, t in ipairs({{"latest", "🆕 Latest"}, {"trending", "🔥 Trending"}}) do
+		local b = button({Position = UDim2.new((i - 1) / 2, 2, 0, 0), Size = UDim2.new(0.5, -4, 1, 0), Text = t[2], TextSize = 12, BackgroundColor3 = i == 1 and RGB(200, 50, 130) or RGB(60, 64, 84), ZIndex = 23}, tabRow)
+		tabs[t[1]] = b
+		b.MouseButton1Click:Connect(function()
+			play(SND.click)
+			mode = t[1]
+			for k, tb in pairs(tabs) do tb.BackgroundColor3 = k == mode and RGB(200, 50, 130) or RGB(60, 64, 84) end
+			render()
+		end)
+	end
+	local function fetch()
+		local ok, list = pcall(function() return C.GetCatalog:InvokeServer("feed") end)
+		if ok and type(list) == "table" then posts = list end
+	end
+	fetch()
+	refreshers.buzz = function()
+		fetch()
+		render()
+	end
 	R.Buzz.OnClientEvent:Connect(function(p)
 		table.insert(posts, 1, p)
 		if #posts > 40 then table.remove(posts) end
 		if U.ticker then U.ticker.Text = "📱 CITYBUZZ: " .. p.icon .. " " .. p.text end
 		if phone.Visible and current == "buzz" then render() end
 	end)
-	R.BuzzUpdate.OnClientEvent:Connect(function(id, likes)
+	R.BuzzUpdate.OnClientEvent:Connect(function(id, likes, reactions, views)
 		for _, p in ipairs(posts) do
-			if p.id == id then p.likes = likes end
+			if p.id == id then p.likes, p.reactions, p.views = likes, reactions or p.reactions, views or p.views end
 		end
-		local lk = cards[id]
-		if lk then lk.Text = "❤ " .. fmt(likes) end
+		local cd = cards[id]
+		if cd then
+			cd.lk.Text = "❤ " .. fmt(likes)
+			for k, e in pairs(cd.rb) do e.b.Text = e.icon .. " " .. ((reactions and reactions[k]) or 0) end
+			if views then cd.vw.Text = "👁 " .. fmt(views) end
+		end
 	end)
 	if posts[1] and U.ticker then U.ticker.Text = "📱 CITYBUZZ: " .. posts[1].icon .. " " .. posts[1].text end
 	C.onState(function(s)
@@ -378,7 +483,14 @@ do
 	C.openMessages = function() if C.togglePhone then C.togglePhone(true) C.phoneView("messages") end end
 	local function load()
 		local ok, list2 = pcall(function() return C.GetCatalog:InvokeServer("inbox") end)
-		if ok and type(list2) == "table" then msgs = list2 end
+		if ok and type(list2) == "table" then
+			-- merge: a message that arrived while this request was on its way must not be dropped
+			local have = {}
+			for _, m in ipairs(list2) do have[m.id] = true end
+			for _, m in ipairs(msgs) do if not have[m.id] then table.insert(list2, m) end end
+			table.sort(list2, function(x, y) return (x.id or 0) > (y.id or 0) end)
+			msgs = list2
+		end
 		local n = 0
 		for _, m in ipairs(msgs) do if not m.read then n += 1 end end
 		setBadge(n)

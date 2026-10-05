@@ -227,6 +227,8 @@ local function complete(plr, d)
 		if rw.rep then F.addRep(plr, rw.rep) rewardText ..= "  +" .. rw.rep .. " rep" end
 		if rw.trophies then d.trophies += rw.trophies rewardText ..= "  +" .. rw.trophies .. " 🏆" end
 		if rw.title then s.title = rw.title rewardText ..= "  Title: \"" .. rw.title .. "\"" end
+		s.rewards = type(s.rewards) == "table" and s.rewards or {}
+		s.rewards["c" .. i] = rewardText ~= "" and rewardText or "collected"
 	end
 	-- the cutscene: your comeback / the finale first, then the chapter's ending
 	local lines = {}
@@ -237,6 +239,7 @@ local function complete(plr, d)
 	for _, l in ipairs(ch.outro) do table.insert(lines, l) end
 	cutscene(plr, d, ch.finale and "finale" or "outro", lines, i)
 	remote:FireClient(plr, {kind = "chapterDone", ch = i, title = ch.title, icon = ch.icon, reward = rewardText})
+	remote:FireClient(plr, {kind = "event", text = "Chapter " .. i .. " complete: " .. ch.title, ch = i})
 	F.buzz(ch.icon, plr.Name .. " finished Story Chapter " .. i .. ": " .. ch.title .. "!", RGB(255, 120, 200))
 	s.ch = i + 1
 	R_(plr).challenge = nil
@@ -265,6 +268,7 @@ function F.storyTick(plr, d, now)
 				if done then
 					s.obj[key] = true
 					notify(plr, "📖 Story: " .. o.text .. " ✅")
+					remote:FireClient(plr, {kind = "event", text = o.text .. " ✅", ch = s.ch})
 				else
 					all = false
 				end
@@ -387,8 +391,12 @@ function F.storyLeave(plr) run[plr] = nil end
 function F.storyState(plr, d)
 	local s = S(d)
 	local ch = STORY[s.ch]
-	local out = {ch = s.ch, total = #STORY, title = s.title, legacy = s.legacy == true, done = {}}
-	for i = 1, #STORY do out.done[i] = s.done["c" .. i] == true end
+	local out = {ch = s.ch, total = #STORY, title = s.title, legacy = s.legacy == true, done = {}, claimed = {}}
+	for i = 1, #STORY do
+		out.done[i] = s.done["c" .. i] == true
+		-- rewards already collected (chapters skipped by an old save say so)
+		out.claimed[i] = (type(s.rewards) == "table" and s.rewards["c" .. i]) or (s.paid["c" .. i] and (s.legacy and "skipped (already beaten)" or "collected")) or ""
+	end
 	if not ch then return out end
 	out.name, out.icon = ch.title, ch.icon
 	out.obj = {}
@@ -421,14 +429,14 @@ function F.storyState(plr, d)
 	return out
 end
 function C.storyCatalog()
-	local out = {rival = C.STORY_RIVAL, cast = C.STORY_CAST, chapters = {}}
+	local out = {rival = C.STORY_RIVAL, cast = C.STORY_CAST, chapters = {}, relations = C.STORY_RELATIONS}
 	for i, ch in ipairs(STORY) do out.chapters[i] = {title = ch.title, icon = ch.icon, blurb = ch.blurb} end
 	return out
 end
 
 -- ===== buttons from the Story app =====
 C.ACTIONS = C.ACTIONS or {}
-C.ACTIONS.story = function(plr, d, a, b)
+C.ACTIONS.story = function(plr, d, a, b, c)
 	local s = S(d)
 	local ch = STORY[s.ch]
 	local function objIndex(kind)
@@ -458,9 +466,14 @@ C.ACTIONS.story = function(plr, d, a, b)
 			notify(plr, "📖 Big move: " .. choiceOf(ch, b).label .. " — " .. choiceOf(ch, b).text)
 		end
 	elseif a == "replay" then
-		-- watch a chapter's intro again (only ones you've reached)
+		-- watch a chapter's intro (any chapter you've reached) or its ending (finished chapters) again.
+		-- A replay is only a cutscene: no rewards, no objectives, no story progress.
 		local i = C.int(b, 1, #STORY)
-		if i and i <= s.ch then cutscene(plr, d, "intro", STORY[i].intro, i) end
+		if i and c == "ending" and s.done["c" .. i] then
+			cutscene(plr, d, "outro", STORY[i].outro, i)
+		elseif i and i <= s.ch then
+			cutscene(plr, d, "intro", STORY[i].intro, i)
+		end
 	end
 end
 
