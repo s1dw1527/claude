@@ -295,13 +295,13 @@ function F.tourVote(plr, targetId, kind, stars)
 	end
 	local week = weekId()
 	d.votes = d.votes or {}
-	-- rate limit across all houses: one like or rating every few seconds
+	-- rate limit across all houses: one like and one rating every few seconds (a like + a rating on the same house is fine)
 	local now = os.clock()
-	if (kind == "like" or kind == "rate") and now < (d.nextHouseVote or 0) then
-		notify(plr, "⏳ Slow down! You can rate another house in a few seconds.")
+	if type(d.nextHouseVote) ~= "table" then d.nextHouseVote = {} end
+	if (kind == "like" or kind == "rate") and now < (d.nextHouseVote[kind] or 0) then
+		notify(plr, "⏳ Slow down! You can " .. kind .. " another house in a few seconds.")
 		return
 	end
-	if kind == "like" or kind == "rate" then d.nextHouseVote = now + 5 end
 	if kind == "like" then
 		local k = voteKey(week, "l", targetId)
 		if d.votes[k] then
@@ -309,6 +309,7 @@ function F.tourVote(plr, targetId, kind, stars)
 			return
 		end
 		d.votes[k] = true
+		d.nextHouseVote.like = now + 5
 		od.homeLikes = (od.homeLikes or 0) + 1
 		houseScore(owner, 3)
 		notify(plr, "❤️ You liked " .. owner.Name .. "'s house!")
@@ -321,6 +322,7 @@ function F.tourVote(plr, targetId, kind, stars)
 			return
 		end
 		d.votes[k] = true
+		d.nextHouseVote.rate = now + 5
 		od.homeRatingSum = (od.homeRatingSum or 0) + stars
 		od.homeRatingN = (od.homeRatingN or 0) + 1
 		houseScore(owner, stars)

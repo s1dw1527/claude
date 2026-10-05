@@ -235,7 +235,7 @@ H.main(function()
 	local legend = find(pg, function(x) return x.ClassName == "TextLabel" and x.Text == "👑 LEGEND MODE" end)
 	H.check(legend ~= nil, "the Story app shows Legend Mode")
 	local replays = 0
-	for _, x in ipairs(pg:GetDescendants()) do if x.ClassName == "TextButton" and x.Text == "▶ Replay" then replays += 1 end end
+	for _, x in ipairs(pg:GetDescendants()) do if x.ClassName == "TextButton" and x.Text == "▶ Intro" then replays += 1 end end
 	H.check(replays == 6, "every reached chapter can be replayed (" .. replays .. ")")
 	cc.togglePhone(false)
 	H.signalOf(H.service("ReplicatedStorage"):FindFirstChild("Story"), "OnClientEvent"):Fire({kind = "roast", who = "rival", text = "test roast"})

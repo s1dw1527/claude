@@ -9,6 +9,9 @@
         "Config": {
           "$path": "src/ServerScriptService/GameServer/Config.lua"
         },
+        "DataMigration": {
+          "$path": "src/ServerScriptService/GameServer/DataMigration.lua"
+        },
         "StoryData": {
           "$path": "src/ServerScriptService/GameServer/StoryData.lua"
         },
@@ -39,6 +42,9 @@
         "Social": {
           "$path": "src/ServerScriptService/GameServer/Social.lua"
         },
+        "Reviews": {
+          "$path": "src/ServerScriptService/GameServer/Reviews.lua"
+        },
         "Systems": {
           "$path": "src/ServerScriptService/GameServer/Systems.lua"
         },
@@ -53,6 +59,18 @@
         },
         "Story": {
           "$path": "src/ServerScriptService/GameServer/Story.lua"
+        },
+        "Messages": {
+          "$path": "src/ServerScriptService/GameServer/Messages.lua"
+        },
+        "MapData": {
+          "$path": "src/ServerScriptService/GameServer/MapData.lua"
+        },
+        "Interiors": {
+          "$path": "src/ServerScriptService/GameServer/Interiors.lua"
+        },
+        "Updates": {
+          "$path": "src/ServerScriptService/GameServer/Updates.lua"
         },
         "Players": {
           "$path": "src/ServerScriptService/GameServer/Players.lua"
@@ -97,6 +115,12 @@
           },
           "Story": {
             "$path": "src/StarterPlayer/StarterPlayerScripts/EmpireClient/Story.lua"
+          },
+          "MapApp": {
+            "$path": "src/StarterPlayer/StarterPlayerScripts/EmpireClient/MapApp.lua"
+          },
+          "InteriorUI": {
+            "$path": "src/StarterPlayer/StarterPlayerScripts/EmpireClient/InteriorUI.lua"
           },
           "MainMenu": {
             "$path": "src/StarterPlayer/StarterPlayerScripts/EmpireClient/MainMenu.lua"

@@ -1,21 +1,69 @@
 # Corner Empire
 
-A 1–4 player Roblox business tycoon. **`CornerEmpire_v7.rbxlx` is the current place file**; open it in Roblox Studio.
-`CornerEmpire_v6.rbxlx` and `CornerEmpire_v5.rbxlx` are the earlier versions, kept for reference.
+A 1–4 player Roblox business tycoon. **`CornerEmpire_v8.rbxlx` is the current place file**; open it in Roblox Studio.
+`CornerEmpire_v7.rbxlx`, `CornerEmpire_v6.rbxlx` and `CornerEmpire_v5.rbxlx` are earlier versions, kept for reference.
 
-## What's new in v7
+## What's new in v8 — "The Empire Expansion"
 
-- **Tutorial step 4 fixed.** "Open your phone" was the only step finished by a one-time message from the client, and the
-  server ignored it unless it arrived while already on step 4. Opening the phone a moment early, or having it open when
-  the step began, left the tutorial stuck for good. The client now reports whether the phone is open, and the server
-  checks that every second like any other step. Step 4 also has an on-card **📱 Open Phone** button, a controller
-  button (Y), and a phone button that sits above the mobile jump button. Every step shows live progress, and Studio's
-  Output explains why a step is waiting (`[Tutorial] ...`).
-- **A harder, earned economy.** All balance settings are in `GameServer > Config > C.ECONOMY`, and prices sit in the
-  tables below it. See `tests/results/SUMMARY.md` for how long each milestone takes.
-- **Story mode.** Six comedic chapters with **Lil Clipz**, an original streamer-parody rival. Progress follows your
-  lifetime business earnings and milestones, never the cash in your pocket. The content is in
-  `GameServer > StoryData`, the rules in `GameServer > Story`, and the cutscenes and phone app in `EmpireClient > Story`.
+- **Phone apps fixed at the root.** Since v5 the phone stored a function on a Frame (`v.refresh = ...`). Real Roblox
+  rejects custom fields on Instances, so the error stopped the Phone module partway through. Messages, the Map and the
+  live CityBuzz listener were never built, and the Story module failed the same way. The test engine now enforces
+  Roblox's real member list (`tests/roblox_api.lua`), so this kind of bug fails the tests.
+- **Steering.** The car's upright stabilizer (AlignOrientation) held all three axes, so it fought every turn. It now
+  only keeps the car upright (`PrimaryAxisParallel`), and yaw is free.
+- **Map app**, **Messages** (real senders, unread badge, important mail saved), a **Story app** (objective,
+  characters, rewards, safe replays), and **CityBuzz posts** with business/house/car/empire/photo cards, reactions,
+  views and Trending. CityBuzz is in-game only and never posts to real social media.
+- **Business selector + management card**, which scales down on phones.
+- **Improvements and reviews you can win back.** Upgrade the weakness a customer complained about. When they come
+  back, they may add an update to their review; their original words are never edited.
+- **Interiors.** Step inside any business or home and decorate it: walls, floors, lighting, furniture and decor.
+  This raises satisfaction and ratings, never income.
+- **Visible house ratings**: average stars, rating count, visits and likes on a sign over each house, in the house
+  info panel and in the tour list. Ratings are rate limited, server validated, and you can't rate your own house.
+- **Data safety**: save schema versions, step-by-step migration, `UpdateAsync` saves, and an update notice. See the
+  next section.
+
+## HOW TO UPDATE CORNER EMPIRE WITHOUT LOSING PLAYER DATA
+
+Player progress lives in the DataStore **`CornerEmpire_v5`**, keyed `u<UserId>_s<slot>` (plus `u<UserId>_meta`). That
+name and key format are the same in every version since v5 and must never change. Every update keeps reading the
+same saves and upgrades them in memory.
+
+**Normal update (every time):**
+1. Back up first: in Studio, **File → Save to File As…** (or keep the previous `CornerEmpire_vN.rbxlx`).
+2. Put the new scripts into your **existing** place: the drop-in files or Rojo (next section), or open the new
+   `.rbxlx` and publish it over the same place.
+3. **File → Publish to Roblox** onto the **same place**. Never use *Publish As* to a new experience: a new
+   experience has its own empty DataStores, so every player would start over.
+4. Restart the old servers: on the Creator Dashboard, open the experience and use **Restart servers** (Roblox's
+   "restart servers for updates"). Servers still running the old version see the new version announced: they save
+   everyone and show "🆕 NEW UPDATE READY". Shutdown saves again (`BindToClose`).
+
+**Rules that keep saves safe (already built in):**
+- Never rename `CFG.DATASTORE` in `GameServer > Config`, and never change the key format.
+- Saves carry `SchemaVersion`. On load, `GameServer > DataMigration` upgrades an old save one step at a time
+  (6 → 7 → 8), on a copy, then validates it. If anything fails, the player plays with saving **turned off** for that
+  slot and sees a warning. The stored save is never overwritten with defaults.
+- Saves use `UpdateAsync` with a save counter, so an older server can't overwrite a newer save. A save written by a
+  **newer** version than the server running it is loaded read-only and never saved over.
+- Fields the current version doesn't know are kept and written back unchanged.
+- A failed DataStore read never gives a fresh profile that later saves over the real one.
+
+**Major update that changes the save shape:**
+1. In `GameServer > Config`, raise `C.VERSION.SCHEMA_VERSION` by one (and bump `VERSION`, `UPDATE_NAME`, `NOTES`).
+2. In `GameServer > DataMigration`, add `M.steps[<old schema>] = function(t, log) ... end`. It should only **add**
+   or convert fields and never delete progress. Add a sample of the old save to `M.sampleSaves`.
+3. If the step adds a saved field, add it to `SAVE_KEYS` in `GameServer > Players`.
+4. Run the Studio test below and `tests/data_test.lua` before publishing. Write down what changed (like
+   `DATA_MIGRATION_REPORT.md`).
+
+**Testing in Studio never touches live data.** In Studio, every DataStore name gets `_StudioTest` on the end
+(`C.storeName`, controlled by `CFG.STUDIO_USES_LIVE_DATA = false`). Playtests read and write a separate test copy,
+never your players' saves. Leave that setting `false`. In a Studio playtest, open **Settings → 🧪 Update + data
+safety test**. It runs the migration self-test on v6/v7/v8 sample saves and the real save/load code against an
+in-memory store (fresh save, rejoin, conflicts, newer schema, failed load, failed migration), then prints the
+result to the Output.
 
 ## Updating the game in Studio (without replacing your place)
 
@@ -48,11 +96,18 @@ uses `Config.lua` from the repository, so put your pass IDs in `src/ServerScript
 - `src/` holds every script from the place, one file per script, mirroring the Explorer:
   - `ServerScriptService/GameServer.server.lua` + `GameServer/*.lua` (server modules)
   - `StarterPlayer/StarterPlayerScripts/EmpireClient.client.lua` + `EmpireClient/*.lua` (client modules)
-- `tools/build.py` rebuilds the place file from `src/` (`python3 tools/build.py CornerEmpire_v7.rbxlx`).
+- `tools/build.py` rebuilds the place file from `src/` (`python3 tools/build.py CornerEmpire_v8.rbxlx`).
 - `tools/extract.py` pulls the scripts back out of a place file; `tools/compare.py` compares two place files.
+- `tools/propcheck.py <globalTypes.d.luau>` checks every property name the scripts set against the Roblox API.
 - `tools/check.sh` compiles every script and type-checks it against the Roblox API (needs the Luau tools).
 - `tests/` runs the real scripts in a small simulated Roblox engine (`tests/harness.lua`). There's no physics or
   rendering, but the game logic is real, DataStores live in memory and time is simulated.
+  - `python3 tests/run.py tests/data_test.lua`: fresh/v6/v7/v8 saves, migration, rejoin, server switch, conflicts,
+    failed loads and migrations, and a newer-schema save
+  - `python3 tests/run.py tests/phone_test.lua`: Messages, Map, Story app and CityBuzz posts through the real client
+  - `python3 tests/run.py tests/business_test.lua`: business selector, improvements and reviews that can be won back
+  - `python3 tests/run.py tests/interior_test.lua`: interiors, decorating, house ratings and visits
+  - `python3 tests/run.py tests/smoke_test.lua`: quick boot check
   - `python3 tests/run.py tests/tutorial_test.lua`: the whole tutorial through the real client, with extra focus on step 4
   - `python3 tests/run.py tests/story_test.lua`: story chapters, rewards paid once, cutscenes, multiplayer, old saves
   - `python3 tests/run.py tests/critical_test.lua`: the earlier audit fixes
@@ -63,8 +118,8 @@ uses `Config.lua` from the repository, so put your pass IDs in `src/ServerScript
     `passes="x4,vip"` to see paid passes, or `fromSave=true` to continue an existing v6 save. `python3 tools/sim_table.py`
     turns the saved runs in `tests/results/` into `SUMMARY.md`.
 
-The DataStore name is still `CornerEmpire_v5`, so existing saves carry over. Old saves load with their levels, homes and
-cars. Story mode marks chapters an old empire has clearly already beaten as done (without paying those rewards) and
+The DataStore name is still `CornerEmpire_v5`, so existing saves carry over (see the update section above). Old saves
+load with their levels, homes and cars. Story mode marks chapters an old empire has clearly already beaten as done (without paying those rewards) and
 starts at the first one it hasn't.
 
 ## Still on the owner's side
@@ -74,5 +129,5 @@ starts at the first one it hasn't.
   Update the pass descriptions on the Roblox website to match.
 - Publish, turn on **Enable Studio Access to API Services**, and set the place's Max Players to 4.
 - In Studio, Settings shows 🧪 test tools: money, reputation, mega events, mystery lots, Spire, viral, and
-  **Story: jump to next chapter**. The server refuses them outside Studio.
+  **Story: jump to next chapter**, and **🧪 Update + data safety test**. The server refuses them outside Studio.
 - To rename the rival, edit `C.STORY_RIVAL` and `C.STORY_CAST.rival` in `GameServer > StoryData`.
