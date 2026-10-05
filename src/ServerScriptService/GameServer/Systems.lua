@@ -33,10 +33,11 @@ function F.tierIndex(rep)
 end
 function F.unlocked(d, feature) return F.tierIndex(d.rep) >= (FEATURES[feature] or 1) end
 function F.bizUnlocked(d, key) return F.tierIndex(d.rep) >= BIZ[key].unlock end
+-- land you own: v10 deeds (they count and earn even when a full district can't place them in this server)
 function F.countLots(d, dkey)
 	local n = 0
-	for id in pairs(d.lots) do
-		if not dkey or LOTS[id].dkey == dkey then n += 1 end
+	for _, deed in ipairs(d.deeds or {}) do
+		if not dkey or deed.district == dkey then n += 1 end
 	end
 	return n
 end
@@ -85,6 +86,10 @@ function F.bizMult(d, key)
 		if boost then m *= boost end
 	end
 	if F.homeHood(d) == "ocean" and (key == "lemonade" or key == "icecream") then m *= 1.25 end
+	-- v10: locations around the city, products and supplies
+	if F.locationMult then m *= F.locationMult(d, key) end
+	if F.productMult then m *= F.productMult(d, key) end
+	if F.stockMult then m *= F.stockMult(d, key) end
 	if G.megaBiz and G.megaBiz[key] then m *= G.megaBiz[key] end
 	if d.problems[key] then m *= 0.5 end
 	return m
@@ -92,9 +97,9 @@ end
 -- district boosts: once per district you own land in (or once per lot, if E.districtBoostOnce is off)
 function F.ownedDistricts(d)
 	local out = {}
-	for id in pairs(d.lots) do
-		local k = LOTS[id].dkey
-		out[k] = E.districtBoostOnce and 1 or (out[k] or 0) + 1
+	for _, deed in ipairs(d.deeds or {}) do
+		local k = deed.district
+		if DISTRICT[k] then out[k] = E.districtBoostOnce and 1 or (out[k] or 0) + 1 end
 	end
 	return out
 end
@@ -128,7 +133,10 @@ function F.income(d, now)
 	local g = F.globalMult(d, now)
 	local per = {}
 	local total = CFG.BASE_INCOME
-	for id in pairs(d.lots) do total += DISTRICT[LOTS[id].dkey].income end
+	for _, deed in ipairs(d.deeds or {}) do
+		local dist = DISTRICT[deed.district]
+		if dist then total += dist.income end
+	end
 	for _, b in ipairs(BUSINESSES) do
 		local lvl = d.levels[b.key] or 0
 		if lvl > 0 then
@@ -259,6 +267,7 @@ local function pickBusiness(d, t)
 		local lvl = d.levels[b.key] or 0
 		if lvl > 0 then
 			local w = lvl * (1 + (t.likes[b.key] or 0))
+			if F.productCustomerMult then w *= F.productCustomerMult(d, b.key) end
 			if G.viralKey == b.key then w *= 4 end
 			if G.event and G.event.biz and G.event.biz[b.key] then w *= G.event.biz[b.key] end
 			if t.fancy and stageOf(lvl, d.chains[b.key] or 0) < 3 then w *= 0.2 end
@@ -321,6 +330,7 @@ function F.serveCustomer(plr, d, key, t, review)
 	if F.revisitReviews then F.revisitReviews(plr, d, key) end
 	if F.countServed then F.countServed(d) end
 	if F.viralServed then F.viralServed(plr, d, key) end
+	if F.productServed then F.productServed(plr, d, key) end
 	if d.frozenUntil <= now then
 		local sale = BIZ[key].income * lvl * E.customerSale * F.bizMult(d, key) * F.globalMult(d, now) * (t.tip or 1)
 		d.cash += sale
@@ -424,6 +434,8 @@ function F.buyUpgrade(plr, d, key)
 	end
 	if lvl == 0 and key ~= "lemonade" and F.storyEvent then F.storyEvent(plr, "newBusiness", key) end
 	if lvl == 0 and F.refreshDoors then F.refreshDoors(plr) end
+	-- v10: a new business gets a name (the client asks; "keep the default" is fine too)
+	if lvl == 0 and F.askBizName then task.defer(F.askBizName, plr, key) end
 	-- v9: grand opening. Every first opening gets its signature moment; bigger businesses often draw a crowd.
 	if lvl == 0 then
 		d.openings = type(d.openings) == "table" and d.openings or {}
@@ -620,6 +632,8 @@ end
 
 -- ===== BUSINESS LAND =====
 function F.buyLot(plr, lot)
+	-- v10: land is bought through the real-estate rules (limits, deeds, choosing a business)
+	if F.buyPlot then return F.buyPlot(plr, lot) end
 	local d = data[plr]
 	if not d then return end
 	if lot.owner then

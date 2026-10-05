@@ -1,5 +1,5 @@
---// CORNER EMPIRE v9 — CLIENT. All the code lives in the ModuleScripts inside this LocalScript.
-local modules = {"UI", "Audio", "AnimationConfig", "Actors", "HUD", "WorldFX", "Workers", "Menus", "Phone", "Driving", "MiniGames", "PhotoMode", "Story", "Cinematics",
+--// CORNER EMPIRE v10 — CLIENT. All the code lives in the ModuleScripts inside this LocalScript.
+local modules = {"UI", "Audio", "AnimationConfig", "Actors", "HUD", "WorldFX", "Workers", "Menus", "BusinessUI", "Phone", "Driving", "MiniGames", "PhotoMode", "Story", "Cinematics",
 	"MapApp", "InteriorUI", "InteriorLife", "CityLife", "ViralApp", "MainMenu"}
 local C = {}
 for _, name in ipairs(modules) do
@@ -8,7 +8,7 @@ for _, name in ipairs(modules) do
 end
 -- the server leaves out big sections that didn't change; keep our last copy of those (same list as HEAVY in GameServer > Players)
 local HEAVY = {"archive", "homeInfo", "props", "districts", "market", "staff", "reviews", "tours", "shareable", "standings", "passes", "cars", "showcase", "biz", "warLeaders",
-	"rebirth", "unlocks", "fees", "spire", "map", "viral"}
+	"rebirth", "unlocks", "fees", "spire", "map", "viral", "estate"}
 local asked = 0
 C.R.State.OnClientEvent:Connect(function(s)
 	local prev = C.S

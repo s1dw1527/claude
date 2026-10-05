@@ -404,6 +404,8 @@ function F.accentFor(plr)
 	return d.plot.color
 end
 
+-- v10: the same storefronts are built on city plots (GameServer > RealEstate)
+C.bizBuilders = {stand = function(...) return stand(...) end, shop = function(...) return shop(...) end}
 function F.refreshBuilding(plr, key, animate)
 	local d = data[plr]
 	if not d then return end
@@ -422,7 +424,10 @@ function F.refreshBuilding(plr, key, animate)
 	m.Name = b.tiers[stage]
 	local base = P(m, V3(16, 0.3, 16), o * CF(0, 0.15, 0), RGB(205, 205, 210), MAT.Concrete, SOLID)
 	m.PrimaryPart = base
-	local top = stage == 1 and stand(m, o, b, F.accentFor(plr)) or shop(m, o, b, stage, F.accentFor(plr))
+	-- v10: the brand's colors and name
+	local bb = F.brandedBiz and F.brandedBiz(d, key) or b
+	local accent = (F.brandAccent and d.brands and d.brands[key] and d.brands[key].accent) and F.brandAccent(d, key) or F.accentFor(plr)
+	local top = stage == 1 and stand(m, o, bb, accent) or shop(m, o, bb, stage, accent)
 	local status
 	if stage == 6 then
 		status = {text = "🌟 LANDMARK", color = GOLD}
@@ -433,7 +438,13 @@ function F.refreshBuilding(plr, key, animate)
 	end
 	status.h = 0.42
 	status.font = Enum.Font.GothamBold
-	billboard(base, UDim2.fromOffset(220, 54), V3(0, top + 2, 0), {{text = b.tiers[stage], h = 0.58}, status}, 170)
+	local brandName = F.bizName and F.hasBizName and F.hasBizName(d, key) and F.bizName(d, key) or nil
+	if brandName then
+		status.text = b.tiers[stage] .. "  •  " .. status.text
+		billboard(base, UDim2.fromOffset(240, 58), V3(0, top + 2, 0), {{text = string.upper(brandName), h = 0.58}, status}, 170)
+	else
+		billboard(base, UDim2.fromOffset(220, 54), V3(0, top + 2, 0), {{text = b.tiers[stage], h = 0.58}, status}, 170)
+	end
 	m:SetAttribute("Top", top)
 	m.Parent = plot.folder
 	plot.slots[key] = m

@@ -259,10 +259,10 @@ do
 	local intGo = button({AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -4, 0.5, 0), Size = UDim2.fromOffset(76, 24), Text = "🚪 Go inside", TextSize = 10, BackgroundColor3 = PURPLE}, intRow)
 	local TIER_COLOR = {EMPTY = SUB, BASIC = WHITE, DECENT = RGB(140, 220, 255), PROFESSIONAL = RGB(120, 255, 160), ELITE = GOLD, VIRAL = RGB(255, 110, 200)}
 	local impTitle = label({Size = UDim2.new(1, -6, 0, 18), Text = "IMPROVEMENTS (happier customers, better reviews)", TextSize = 10, TextColor3 = SUB, Font = Enum.Font.GothamBlack,
-		TextXAlignment = Enum.TextXAlignment.Left, LayoutOrder = 6}, cardF)
+		TextXAlignment = Enum.TextXAlignment.Left, LayoutOrder = 7}, cardF)
 	local impRows = {}
 	for i = 1, 5 do
-		local r = new("Frame", {Size = UDim2.new(1, -6, 0, 26), BackgroundColor3 = CARD, BorderSizePixel = 0, LayoutOrder = 6 + i}, cardF)
+		local r = new("Frame", {Size = UDim2.new(1, -6, 0, 26), BackgroundColor3 = CARD, BorderSizePixel = 0, LayoutOrder = 7 + i}, cardF)
 		corner(r, 6)
 		local l = label({Position = UDim2.fromOffset(6, 0), Size = UDim2.new(1, -96, 1, 0), TextSize = 11, TextXAlignment = Enum.TextXAlignment.Left}, r)
 		local b = button({AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -3, 0.5, 0), Size = UDim2.fromOffset(86, 22), TextSize = 10, BackgroundColor3 = BLUE}, r)
@@ -272,6 +272,8 @@ do
 	local revHolder = new("Frame", {Size = UDim2.new(1, -6, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, LayoutOrder = 21}, cardF)
 	vlist(revHolder, 4)
 	local cur = {}
+	C.bizCardFrame = cardF   -- (EmpireClient > BusinessUI adds the Products / Supplies / Brand buttons here)
+	C.bizCardCurrent = function() return cur.b and cur.b.level > 0 and cur.b.key or nil end
 	action.MouseButton1Click:Connect(function()
 		play(SND.click)
 		local b = cur.b
@@ -295,7 +297,7 @@ do
 	local function fillCard(s, b)
 		cur.b = b
 		hIcon.Text = b.icon
-		hName.Text = b.locked and ("🔒 " .. b.name) or (b.level > 0 and b.name or (b.name .. "  (not open)"))
+		hName.Text = b.locked and ("🔒 " .. b.name) or (b.level > 0 and (b.brand or b.name) or (b.name .. "  (not open)"))
 		hLvl.Text = "Lv " .. b.level .. "/" .. s.maxLevel
 		for k, pip in ipairs(pips) do pip.BackgroundColor3 = k <= b.level and (b.level >= s.maxLevel and GOLD or b.color) or GRAY end
 		if b.locked then

@@ -80,6 +80,8 @@ C.VIRAL_MOMENTS = {
 		posts = {"{post}"}},
 	capture = {icon = "📸", title = "Captured It", score = 25, cat = "funny", importance = "low", cd = 120, quiet = true},
 	competition = {icon = "🏆", title = "Champion", score = 150, cat = "empire", importance = "high", cd = 3600},
+	productTrending = {icon = "🔥", title = "{product} Is Trending", score = 150, cat = "biz", importance = "high", cd = 900,
+		posts = {"🔥 TRENDING: {name}'s {product} is EVERYWHERE.", "🔥 Everyone's talking about the {product} at {brand}. EVERYONE."}},
 }
 local MOMENTS = C.VIRAL_MOMENTS
 C.VIRAL_CATS = {

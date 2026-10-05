@@ -70,7 +70,7 @@ end
 -- the latest state as the client sees it: heavy sections are only sent when they change, so those are
 -- taken from the newest packet that had them (exactly what EmpireClient does)
 local HEAVY = {"archive", "homeInfo", "props", "districts", "market", "staff", "reviews", "tours", "shareable", "standings", "passes", "cars", "showcase", "biz", "warLeaders",
-	"rebirth", "unlocks", "fees", "spire", "map", "viral"}
+	"rebirth", "unlocks", "fees", "spire", "map", "viral", "estate"}
 function T.state(plr)
 	local latest
 	local out = {}

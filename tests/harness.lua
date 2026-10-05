@@ -1306,9 +1306,16 @@ function Inst.PromptProductPurchase(ms, plr, id) table.insert(H.passPrompts, {pl
 function Inst.GetProductInfo(ms, id) return {Name = "Pass", PriceInRobux = 99} end
 
 local TextService = service("TextService")
+-- like Roblox's filter: blocked words come back as ####; H.filterFail makes the service fail (as it can live)
+H.blockedWords = {"badword", "scamlink"}
 function Inst.FilterStringAsync(ts, text, uid)
+	if H.filterFail then error("TextService unavailable (simulated)") end
+	local out = text
+	for _, w in ipairs(H.blockedWords) do
+		out = string.gsub(out, w, string.rep("#", #w))
+	end
 	local r = newInstance("TextFilterResult")
-	rawset(r, "_text", text)
+	rawset(r, "_text", out)
 	return r
 end
 function Inst.GetNonChatStringForBroadcastAsync(r) return rawget(r, "_text") end

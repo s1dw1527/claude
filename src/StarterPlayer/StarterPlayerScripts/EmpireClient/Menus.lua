@@ -25,6 +25,7 @@ local function modal(key, title, w, h)
 	modals[key] = m
 	return m
 end
+C.makeModal = modal   -- (other modules build their windows the same way)
 function C.closeModals()
 	for _, o in pairs(modals) do o.frame.Visible = false end
 end
@@ -40,8 +41,13 @@ function C.openModal(key, extra)
 	if was and not extra then return end
 	m.extra = extra
 	m.frame.Visible = true
-	m.scale.Scale = 0.6
-	tween(m.scale, 0.3, {Scale = 1}, Enum.EasingStyle.Back)
+	-- small screens (phones): shrink the window to fit instead of running off the edges
+	local cam = game:GetService("Workspace").CurrentCamera
+	local vp = cam and cam.ViewportSize or Vector2.new(1280, 720)
+	local fs = m.frame.Size
+	local fit = math.clamp(math.min((vp.X - 16) / math.max(1, fs.X.Offset), (vp.Y - 16) / math.max(1, fs.Y.Offset)), 0.45, 1)
+	m.scale.Scale = 0.6 * fit
+	tween(m.scale, 0.3, {Scale = fit}, Enum.EasingStyle.Back)
 	if C.S and m.update then m.update(C.S) end
 end
 C.onState(function(s)
@@ -407,7 +413,7 @@ do
 	end
 	local ctrl = header(m.body, "", 2)
 	local cards = {}
-	for i = 1, 4 do
+	for i = 1, 8 do
 		local c = card(m.body, 84, 2 + i)
 		local e = {c = c}
 		e.t = label({Position = UDim2.fromOffset(12, 6), Size = UDim2.new(1, -150, 0, 22), TextSize = 16, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left}, c)
@@ -429,15 +435,19 @@ do
 		spT.Text = "🏙️ ERA " .. sp2.era .. " " .. (sp2.eraName or "") .. "  •  next: " .. sp2.name
 		spFill.Size = UDim2.fromScale(math.clamp(sp2.progress / sp2.goal, 0, 1), 1)
 		spP.Text = "$" .. fmt(sp2.progress) .. " / $" .. fmt(sp2.goal) .. "     Top builder: " .. sp2.top
-		ctrl.Text = "🗺️ Business Land — you control " .. s.lotsMine .. " lots (" .. math.floor(s.cityPct + 0.5) .. "% of the city)"
+		local es = s.estate
+		ctrl.Text = "🗺️ Real Estate — " .. (es and (es.used .. " / " .. es.capacity .. " properties (plots + rental buildings)") or (s.lotsMine .. " plots"))
+		for i, e in ipairs(cards) do e.c.Visible = s.districts[i] ~= nil end
 		for i, dd in ipairs(s.districts) do
 			local e = cards[i]
+			if not e then break end
 			e.key = dd.key
 			e.t.Text = dd.icon .. " " .. dd.name .. (dd.unlocked and "" or "   🔒")
 			e.t.TextColor3 = dd.color
-			e.a.Text = "Lot price $" .. fmt(dd.cost) .. "  •  +$" .. fmt(dd.income) .. "/s per lot  •  needs " .. dd.tierName
-			e.b.Text = "Bonus per lot: " .. dd.boost
-			e.l.Text = "You own " .. dd.mine .. "  •  " .. (dd.total - dd.sold) .. " of " .. dd.total .. " lots for sale"
+			local ed = es and es.districts and es.districts[i]
+			e.a.Text = "Plot price $" .. fmt(ed and ed.price or dd.cost) .. "  •  +$" .. fmt(dd.income) .. "/s per plot  •  needs " .. dd.tierName
+			e.b.Text = (ed and (ed.kind .. "  " .. string.rep("★", ed.stars) .. "  •  ") or "") .. "Bonus: " .. dd.boost
+			e.l.Text = "You own " .. dd.mine .. (ed and ("/" .. ed.cap) or "") .. "  •  " .. (dd.total - dd.sold) .. " of " .. dd.total .. " plots for sale"
 			e.btn.Text = "📍 Visit\n" .. dd.name
 		end
 	end

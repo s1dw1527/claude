@@ -4,18 +4,20 @@ local RGB = Color3.fromRGB
 
 -- ===== VERSION (bump these with every published update; see README "How to update Corner Empire") =====
 C.VERSION = {
-	VERSION = "9.0.0",
-	UPDATE_NAME = "Empire Life & Viral Moments",
-	SCHEMA_VERSION = 9,         -- the shape of a player's save. Raise it only together with a new step in DataMigration.
+	VERSION = "10.0.0",
+	UPDATE_NAME = "Ownership, HQ, Cars & Lifestyle",
+	SCHEMA_VERSION = 10,         -- the shape of a player's save. Raise it only together with a new step in DataMigration.
 	MIN_SUPPORTED_SCHEMA = 6,   -- saves older than v6 (no version field, no tutorial-reward tracking) are treated as v6
 	-- shown once to every returning player after an update (Messages app)
 	NOTES = {
-		"🏪 Walk-in interiors for every business, with staff at work and customers living their lives",
-		"🎬 Cinematic moments: grand openings, evictions (cartoon style), big upgrades, inspections",
-		"🤳 Four city influencers: Bay Snaps, Jax Cash, Maya Max and Drew Deals",
-		"🔥 Viral Moments: the city notices what you actually do, and CityBuzz roasts it",
-		"📱 New VIRAL app: your Viral Score, trending moments and the weekly Most Viral boards",
-		"🏆 New achievements, from \"Kick Rocks\" to \"Empire Influencer\"",
+		"🏙️ A real city real-estate market: 8 districts, ~100 plots, ownership limits that grow with you",
+		"🏷️ Name your businesses, customize your brand, and create your own products",
+		"🏢 Build an HQ with floors, an Empire Wall, and a General Manager on contract",
+		"💻 Computers for your home and HQ, with apps for your whole empire",
+		"🏡 Seven house tiers, furniture shop and grid furniture placement",
+		"🚗 15 new original cars with real stats, classes and customization",
+		"🕹️ Fun Zone + two-player arcade games (in friends' arcades too)",
+		"🎓 A new guide that explains every new system as you reach it",
 	},
 }
 
@@ -105,10 +107,10 @@ C.CFG.MAX_CUSTOMERS_PER_SEC, C.CFG.SABOTAGE_COST = E.maxCustomers, E.sabotageCos
 -- ===== REPUTATION TIERS + what each one unlocks =====
 C.REP_TIERS = {
 	{name = "UNKNOWN CORNER",     rep = 0,    unlocks = {"Lemonade Stand", "Ice Cream Cart", "Your home", "Phone & CityBuzz"}},
-	{name = "LOCAL FAVORITE",     rep = 100,  unlocks = {"Bakery & Coffee Shop", "Staff", "Cars & Deliveries", "Fun Park", "Downtown lots"}},
-	{name = "HOTSPOT",            rep = 400,  unlocks = {"Pizza & Arcade", "Stock Market", "Ads", "Property Management", "Race Track", "Empire Tower", "Industrial lots"}},
-	{name = "CITY ICON",          rep = 1200, unlocks = {"Tech Startup", "Business chains", "Rebirth", "Beach lots", "Oceanfront homes"}},
-	{name = "EMPIRE",             rep = 3500, unlocks = {"Factory", "Luxury Hills lots", "Hillside homes"}},
+	{name = "LOCAL FAVORITE",     rep = 100,  unlocks = {"Bakery & Coffee Shop", "Staff", "Cars & Deliveries", "Fun Park", "Downtown & Midtown plots"}},
+	{name = "HOTSPOT",            rep = 400,  unlocks = {"Pizza & Arcade", "Stock Market", "Ads", "Property Management", "Race Track", "Empire Tower", "Industrial & Entertainment plots", "Your HQ"}},
+	{name = "CITY ICON",          rep = 1200, unlocks = {"Tech Startup", "Business chains", "Rebirth", "Waterfront plots", "Oceanfront homes"}},
+	{name = "EMPIRE",             rep = 3500, unlocks = {"Factory", "Luxury Hills & Expansion plots", "Hillside homes"}},
 	{name = "LEGENDARY DISTRICT", rep = 9000, unlocks = {"Millionaire Row", "Legend status"}},
 }
 C.FEATURES = {staff = 2, cars = 2, deliveries = 2, funpark = 2, sabotage = 2, market = 3, ads = 3, properties = 3, race = 3, tower = 3, chains = 4, rebirth = 4}
@@ -218,11 +220,28 @@ for _, b in ipairs(C.BUSINESSES) do
 end
 
 -- ===== BUSINESS LAND (districts) =====
+-- v10: the city real-estate market. Every district has a fixed number of plots (GameServer > RealEstate places them)
+-- and a per-player limit (cap), so in a 4-player server nobody can buy up a whole district. Prime districts are
+-- small and pricey on purpose. kind = what can be built there; stars = location potential (1-5);
+-- loc = income bonus for a business located there (locFor = bigger bonus for the business types that fit it).
+-- (The first four keys are the v5-v9 land districts: their keys stay the same so existing saves keep their land.)
 C.DISTRICTS = {
-	{key = "downtown",   name = "Downtown",        icon = "🏙️", tier = 2, cost = 100000,   income = 60,    color = RGB(80, 140, 235), boost = {coffee = 1.15, tech = 1.15}, boostText = "Coffee & Tech +15%"},
-	{key = "industrial", name = "Industrial Zone", icon = "🏭", tier = 3, cost = 2500000,  income = 1000,   color = RGB(235, 165, 50), boost = {factory = 1.25, bakery = 1.1}, boostText = "Factory +25%, Bakery +10%"},
-	{key = "beach",      name = "Beach District",  icon = "🏖️", tier = 4, cost = 40000000,  income = 10000,  color = RGB(80, 210, 220), boost = {lemonade = 1.5, icecream = 1.5}, boostText = "Lemonade & Ice Cream +50%"},
-	{key = "luxury",     name = "Luxury Hills",    icon = "💎", tier = 5, cost = 600000000, income = 100000, color = RGB(190, 110, 255), boost = {all = 1.1}, boostText = "ALL income +10%"},
+	{key = "downtown",   name = "Downtown",        icon = "🏙️", tier = 2, cost = 400000,   income = 150,   color = RGB(80, 140, 235), boost = {coffee = 1.15, tech = 1.15}, boostText = "Coffee & Tech +15%",
+		kind = "Premium commercial", stars = 5, cap = 2, loc = 0.25, locFor = {coffee = 0.35, tech = 0.35}, blurb = "Prime visibility. Few plots. Big prestige."},
+	{key = "industrial", name = "Industrial Zone", icon = "🏭", tier = 3, cost = 2500000,  income = 1000,   color = RGB(235, 165, 50), boost = {factory = 1.25, bakery = 1.1}, boostText = "Factory +25%, Bakery +10%",
+		kind = "Large industrial", stars = 4, cap = 2, loc = 0.15, locFor = {factory = 0.3, bakery = 0.25}, blurb = "Big plots for factories and warehouses."},
+	{key = "beach",      name = "Waterfront",      icon = "🌊", tier = 4, cost = 40000000,  income = 10000,  color = RGB(80, 210, 220), boost = {lemonade = 1.5, icecream = 1.5}, boostText = "Lemonade & Ice Cream +50%",
+		kind = "Premium waterfront", stars = 5, cap = 1, loc = 0.2, locFor = {lemonade = 0.4, icecream = 0.4}, blurb = "Luxury beachfront. Very few plots."},
+	{key = "luxury",     name = "Luxury Hills",    icon = "💎", tier = 5, cost = 600000000, income = 100000, color = RGB(190, 110, 255), boost = {all = 1.1}, boostText = "ALL income +10%",
+		kind = "Premium luxury", stars = 5, cap = 1, loc = 0.25, blurb = "The most exclusive address in the city."},
+	{key = "suburbs",    name = "Northside Suburbs", icon = "🏘️", tier = 1, cost = 20000,   income = 15,     color = RGB(120, 190, 120), boost = {lemonade = 1.1, icecream = 1.1}, boostText = "Lemonade & Ice Cream +10%",
+		kind = "Commercial", stars = 2, cap = 5, loc = 0.08, blurb = "Cheap plots and plenty of them. Great first property."},
+	{key = "midtown",    name = "Midtown",         icon = "🏬", tier = 2, cost = 120000,   income = 60,     color = RGB(230, 120, 80), boost = {bakery = 1.1, coffee = 1.1}, boostText = "Bakery & Coffee +10%",
+		kind = "Commercial", stars = 3, cap = 5, loc = 0.12, blurb = "The main business area. Lots of room to grow."},
+	{key = "entertainment", name = "Entertainment District", icon = "🎪", tier = 3, cost = 900000, income = 400, color = RGB(255, 90, 200), boost = {arcade = 1.2, pizza = 1.1}, boostText = "Arcade +20%, Pizza +10%",
+		kind = "Commercial", stars = 4, cap = 3, loc = 0.15, locFor = {arcade = 0.3, pizza = 0.3}, blurb = "Next to the Fun Park and the Fun Zone. Arcades love it here."},
+	{key = "expansion",  name = "Expansion District", icon = "🚧", tier = 5, cost = 120000000, income = 25000, color = RGB(150, 160, 175), boost = {all = 1.05}, boostText = "ALL income +5%",
+		kind = "Late-game land", stars = 4, cap = 5, loc = 0.2, blurb = "New land at the edge of the city, for empires that ran out of room."},
 }
 C.DISTRICT = {}
 for _, d in ipairs(C.DISTRICTS) do C.DISTRICT[d.key] = d end
@@ -242,7 +261,8 @@ C.HOODS = {
 }
 C.HOOD = {}
 for _, h in ipairs(C.HOODS) do C.HOOD[h.key] = h end
-C.HOME_LEVELS = {"Starter", "Cozy", "Two-Story", "Deluxe", "Dream Home"}
+-- v10: seven house tiers (levels 1-5 kept their place; 6 and 7 are new)
+C.HOME_LEVELS = {"Starter Home", "Expanded Home", "Luxury Home", "Modern Estate", "Mansion", "Mega Mansion", "Empire Estate"}
 C.STARTER_HOMES = {
 	{hood = "oldtown", name = "Old Town Cottage",  desc = "Tiny, cheap and full of character. Fewer business problems."},
 	{hood = "suburbs", name = "Suburban Starter",   desc = "A classic family home. More customers."},

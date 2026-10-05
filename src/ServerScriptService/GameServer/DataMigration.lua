@@ -79,7 +79,77 @@ M.steps = {
 		end
 		return notes
 	end,
+	[9] = function(t)
+		local notes = {}
+		-- v10: land becomes DEEDS. Before v10 a lot was only "yours" while you were in the server, and if someone
+		-- else held it when you came back it quietly disappeared from your save. A deed is permanent: it says which
+		-- district you own a plot in, and the server finds you a plot there every time you join.
+		if t.deeds == nil then
+			local deeds = {}
+			for i, id in ipairs(type(t.lots) == "table" and t.lots or {}) do
+				local n = tonumber(id)
+				local dkey = n and M.OLD_LOT_DISTRICT[n]
+				if dkey then table.insert(deeds, {id = "d" .. i, district = dkey, plot = n, bought = 0}) end
+			end
+			t.deeds = deeds
+			t.deedSeq = #deeds
+			table.insert(notes, "deeds (" .. #deeds .. " from old land lots)")
+		end
+		for k, v in pairs(M.v10Defaults()) do
+			if t[k] == nil then
+				t[k] = v
+				table.insert(notes, k)
+			end
+		end
+		return notes
+	end,
 }
+-- the 16 land lots of v5-v9, in the order the world built them (4 per district)
+M.OLD_LOT_DISTRICT = {"downtown", "downtown", "downtown", "downtown", "industrial", "industrial", "industrial", "industrial",
+	"beach", "beach", "beach", "beach", "luxury", "luxury", "luxury", "luxury"}
+-- every new v10 field and its safe default
+function M.v10Defaults()
+	return {
+		brands = {},          -- business names, colors, logo, theme, uniform, menu style (per business type)
+		products = {},        -- product lines per business type
+		stock = {},           -- supplies per business type (0-100 each)
+		hq = {level = 0},     -- headquarters (0 = not built)
+		mgr = {left = 0, auto = false, handled = 0},   -- General Manager contract (seconds of play left)
+		computer = {tier = 0},
+		homeBuild = {items = {}, styles = {}, v = 0},    -- grid furniture + house styles
+		furniture = {},       -- furniture you own but haven't placed (key -> count)
+		carMods = {},         -- per car: paint, wheels, tint, plate...
+		garage = {fav = {}, names = {}},
+		arcade = {tickets = 0, wins = 0, played = 0},
+		perms = {house = "public", business = "public", hq = "friends"},
+		invites = {},
+		guide = {},           -- tips already shown
+	}
+end
+-- v10 data is repaired, never fatal: a broken new table is replaced by its default and the original is kept
+function M.repairV10(t, fixes)
+	for k, def in pairs(M.v10Defaults()) do
+		if t[k] ~= nil and type(t[k]) ~= "table" then
+			t[k .. "Recovered"] = t[k .. "Recovered"] == nil and t[k] or t[k .. "Recovered"]
+			t[k] = def
+			table.insert(fixes, k .. " repaired")
+		end
+	end
+	if t.deeds ~= nil then
+		if type(t.deeds) ~= "table" then
+			t.deedsRecovered = t.deeds
+			t.deeds = {}
+			table.insert(fixes, "deeds repaired")
+		else
+			local clean = {}
+			for _, dd in ipairs(t.deeds) do
+				if type(dd) == "table" and type(dd.district) == "string" and type(dd.id) == "string" then table.insert(clean, dd) end
+			end
+			if #clean ~= #t.deeds then table.insert(fixes, "bad deeds dropped") end
+			t.deeds = clean
+		end
+	end
+end
 -- the v9 Viral Moments record (score, recent moments, cooldowns, weekly history)
 function M.defaultViral()
 	return {score = 0, mentions = 0, log = {}, seen = {}, cd = {}, hall = {}, week = 0, weekScore = 0, cats = {}}
@@ -157,6 +227,7 @@ function M.validate(t)
 		t.openings = {}
 		table.insert(fixes, "openings reset")
 	end
+	M.repairV10(t, fixes)
 	if type(t.levels) == "table" then
 		for key, lvl in pairs(t.levels) do
 			if type(lvl) ~= "number" or lvl ~= lvl then
@@ -216,6 +287,9 @@ function M.sampleSaves()
 		v8 = {SchemaVersion = 8, cash = 50, earned = 10, levels = {lemonade = 1}, rep = 0, tut = 2, tutPaid = 1, mail = {}, interiors = {}, improve = {}, reviewBook = {}, homeVisits = 0},
 		v9 = {SchemaVersion = 9, cash = 75, earned = 20, levels = {lemonade = 2}, rep = 1, tut = 0, tutPaid = 7, mail = {}, interiors = {}, improve = {}, reviewBook = {}, homeVisits = 0,
 			viral = {score = 350, mentions = 4, log = {{key = "opening", t = 1}}, seen = {}, cd = {}, hall = {}, week = 0, weekScore = 0, cats = {}}, evictions = 2, openings = {}},
+		v9old = {SchemaVersion = 9, cash = 9e6, earned = 2e8, levels = {lemonade = 10, coffee = 6, pizza = 3}, rep = 1500, tut = 0, tutPaid = 7, lots = {1, 6, 10}, mail = {},
+			viral = {score = 12, mentions = 1, log = {}, seen = {}, cd = {}, hall = {}, week = 0, weekScore = 0, cats = {}}, evictions = 1, openings = {}},
+		brokenV10 = {SchemaVersion = 10, cash = 31337, earned = 1e5, levels = {lemonade = 3}, rep = 50, tut = 0, tutPaid = 7, brands = "oops", deeds = {{id = "d1", district = "midtown"}, "junk"}},
 		brokenViral = {SchemaVersion = 9, cash = 500, earned = 900, levels = {lemonade = 4}, rep = 10, tut = 0, tutPaid = 7, viral = "garbage", evictions = -5},
 		future = {SchemaVersion = 99, cash = 1, earned = 1, levels = {}, rep = 0, someNewThing = {x = 1}},
 		corrupt = {cash = "lots", earned = 0/0, levels = {lemonade = "ten"}},
@@ -227,7 +301,7 @@ function M.selfTest()
 	local function add(okFlag, text) table.insert(report, (okFlag and "✅ " or "❌ ") .. text) end
 	local samples = M.sampleSaves()
 	-- every older save comes out at the current schema with its progress untouched
-	for _, name in ipairs({"v5", "v6", "v7", "v8"}) do
+	for _, name in ipairs({"v5", "v6", "v7", "v8", "v9old"}) do
 		local orig = samples[name]
 		local before = deepCopy(orig)
 		local ok, t, log = M.migrate(orig)
@@ -236,13 +310,26 @@ function M.selfTest()
 			for k, v in pairs(before.levels) do if t.levels[k] ~= v then kept = false end end
 		end
 		if ok and before.story then kept = kept and t.story.ch == before.story.ch and t.story.title == before.story.title end
-		local untouched = orig.SchemaVersion == before.SchemaVersion and orig.viral == nil
-		add(ok and kept and untouched and t.SchemaVersion == V.SCHEMA_VERSION and t.mail ~= nil and type(t.viral) == "table" and t.evictions == 0,
+		local untouched = orig.SchemaVersion == before.SchemaVersion and orig.deeds == nil
+		add(ok and kept and untouched and t.SchemaVersion == V.SCHEMA_VERSION and t.mail ~= nil and type(t.viral) == "table" and t.evictions ~= nil
+			and type(t.deeds) == "table" and type(t.brands) == "table" and type(t.homeBuild) == "table",
 			name .. " save → schema " .. tostring(t and t.SchemaVersion) .. ", progress kept (" .. table.concat(log, " | ") .. ")")
 	end
 	do
-		local ok, t, log = M.migrate(samples.v9)
-		add(ok and t.SchemaVersion == V.SCHEMA_VERSION and #log == 0 and t.viral.score == 350 and t.evictions == 2, "v9 save loads with no changes")
+		local ok, t = M.migrate(samples.v9)
+		add(ok and t.SchemaVersion == V.SCHEMA_VERSION and t.viral.score == 350 and t.evictions == 2 and #t.deeds == 0, "v9 save keeps its viral record and gets the v10 fields")
+	end
+	do
+		local ok, t = M.migrate(samples.v9old)
+		local ds = {}
+		for _, dd in ipairs(ok and t.deeds or {}) do table.insert(ds, dd.district) end
+		add(ok and #t.deeds == 3 and ds[1] == "downtown" and ds[2] == "industrial" and ds[3] == "beach" and t.deeds[1].plot == 1,
+			"old land lots become permanent deeds (" .. table.concat(ds, ", ") .. ")")
+	end
+	do
+		local ok, t, log = M.migrate(samples.brokenV10)
+		add(ok and t.cash == 31337 and type(t.brands) == "table" and t.brandsRecovered == "oops" and #t.deeds == 1,
+			"a damaged v10 record is repaired and the rest loads (" .. table.concat(log, " | ") .. ")")
 	end
 	do
 		local ok, t, log = M.migrate(samples.brokenViral)
@@ -276,7 +363,13 @@ function M.selfTest()
 		add(not ok and tostring(err):find("7 %-> 8") ~= nil, "a migration that crashes halfway is refused: " .. tostring(err))
 	end
 	do
-		local broken = deepCopy(samples.v8)
+		local broken = deepCopy(samples.v9)
+		local real9 = M.steps[9]
+		M.steps[9] = function() error("simulated bug in the v10 step") end
+		local ok9, _, _, err9 = M.migrate(broken)
+		M.steps[9] = real9
+		add(not ok9 and tostring(err9):find("9 %-> 10") ~= nil and samples.v9.deeds == nil, "a crashing v10 step is refused and the stored v9 save is untouched: " .. tostring(err9))
+		broken = deepCopy(samples.v8)
 		local real = M.steps[8]
 		M.steps[8] = function() error("simulated bug in the v9 step") end
 		local ok, _, _, err = M.migrate(broken)

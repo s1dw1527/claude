@@ -303,7 +303,8 @@ local FURN = {
 		for i = 0, n - 1 do box(m, V3(3, 3, 3), o * CF(x, 1.8 + (i % 2) * 3, z + math.floor(i / 2) * 3.2), color or RGB(170, 130, 80), MAT.WoodPlanks) end
 	end,
 	menu = function(m, o, z, text, accent)
-		local p = box(m, V3(10, 3.4, 0.3), o * CF(0, 9.4, z), RGB(25, 30, 28))
+		text = FURN.menuText or text
+		local p = box(m, V3(10, 3.4, 0.3), o * CF(0, 9.4, z), FURN.menuColor or RGB(25, 30, 28))
 		box(m, V3(10.4, 0.25, 0.35), o * CF(0, 11.2, z), accent)
 		C.surfaceText(p, Enum.NormalId.Back, text, RGB(255, 245, 210))
 	end,
@@ -600,6 +601,13 @@ function F.roomInfo(room)
 		local s = d.staff[key]
 		m:SetAttribute("Staff", s and s.name or "")
 		m:SetAttribute("Manager", d.staff.manager and d.staff.manager.name or "")
+		local br = d.brands and d.brands[key]
+		m:SetAttribute("Uniform", br and br.uniform and C.BRAND_COLORS[br.uniform] or nil)
+		if F.productsOf then
+			local names = {}
+			for _, p in ipairs(F.productsOf(d, key)) do table.insert(names, p.name) end
+			m:SetAttribute("Menu", table.concat(names, "|"))
+		end
 	end
 end
 local function buildRoom(room)
@@ -644,7 +652,22 @@ local function buildRoom(room)
 	end
 	local lvl = BIZ[key] and (d.levels[key] or 1) or 0
 	local title = BIZ[key] and BIZ[key].tiers[math.max(1, C.stageOf(lvl, d.chains[key] or 0))] or "Home"
-	local ok, err = pcall(buildFixtures, m, o, L, BIZ[key] and key or "home", accent, lvl, owner.Name, title, BIZ[key] and BIZ[key].icon or "🏠")
+	-- v10: the menu board shows your products; the brand sets the logo and the menu style
+	FURN.menuText, FURN.menuColor = nil, nil
+	if BIZ[key] and F.productsOf then
+		local names = {}
+		for _, p in ipairs(F.productsOf(d, key)) do
+			local fair = C.PRODUCT_TEMPLATES[key] and C.PRODUCT_TEMPLATES[key].fair or 1
+			table.insert(names, p.name .. " $" .. math.max(1, math.floor(fair * (tonumber(p.price) or 1) + 0.5)))
+		end
+		FURN.menuText = table.concat(names, "  •  ")
+		local style = d.brands and d.brands[key] and d.brands[key].menu
+		FURN.menuColor = ({Neon = RGB(20, 10, 40), Classic = RGB(60, 35, 20), Minimal = RGB(240, 240, 240)})[style or ""]
+		title = F.bizName(d, key)
+		if d.brands and d.brands[key] and d.brands[key].accent then accent = F.brandAccent(d, key) end
+	end
+	local ok, err = pcall(buildFixtures, m, o, L, BIZ[key] and key or "home", accent, lvl, owner.Name, title, BIZ[key] and (d.brands and d.brands[key] and d.brands[key].logo or BIZ[key].icon) or "🏠")
+	FURN.menuText, FURN.menuColor = nil, nil
 	if not ok then warn("[CornerEmpire] interior fixtures (" .. key .. "): " .. tostring(err)) end
 	m:SetAttribute("Key", key)
 	m:SetAttribute("OwnerId", owner.UserId)

@@ -34,7 +34,10 @@ local SAVE_KEYS = {"cash", "levels", "chains", "staff", "combos", "rep", "ep", "
 	"tutPaid", "richClaimed", "eraContrib", "achievements", "shared", "found", "wentViral", "viralCount",
 	"mystery", "weekServed", "weeklyClaimed", "showcaseWeek", "votes", "favorites", "homeLikes", "homeRatingSum", "homeRatingN", "story", "storyEarned",
 	"mail", "msgSeq", "interiors", "improve", "reviewBook", "reviewSeq", "homeVisits", "homeRatings",
-	"viral", "evictions", "openings"}
+	"viral", "evictions", "openings",
+	-- v10
+	"deeds", "deedSeq", "brands", "products", "stock", "hq", "mgr", "computer", "homeBuild", "furniture", "carMods", "garage", "arcade",
+	"perms", "invites", "guide"}
 -- everything this version writes itself; any OTHER field found in a save is kept as-is when saving
 local KNOWN_KEYS = {lots = true, props = true, SchemaVersion = true, saveSeq = true, gameVersion = true, savedAt = true}
 for _, k in ipairs(SAVE_KEYS) do KNOWN_KEYS[k] = true end
@@ -248,8 +251,14 @@ end
 -- =====================================================================
 -- PLAYER DATA
 -- =====================================================================
+local newDataBase
 local function newData(plot)
 	local now = os.clock()
+	local d = newDataBase(plot, now)
+	for k, v in pairs(C.DataMigration.v10Defaults()) do d[k] = v end
+	return d
+end
+newDataBase = function(plot, now)
 	return {
 		cash = CFG.START_CASH, earned = 0, levels = {}, chains = {}, staff = {}, cands = {},
 		combos = {}, rep = 0, ep = 0, trophies = 0, skin = "classic", passes = {}, cars = {},
@@ -262,6 +271,7 @@ local function newData(plot)
 		rebirths = 0, followers = 0, home = nil, props = {}, inbox = {}, raceBest = nil, tut = 1, rentEarned = 0,
 		mail = {}, interiors = {}, improve = {}, reviewBook = {}, homeVisits = 0,
 		viral = C.DataMigration.defaultViral(), evictions = 0, openings = {},
+		deeds = {}, deedSeq = 0,
 		plot = plot,
 	}
 end
@@ -374,7 +384,7 @@ end
 -- Big, slow-changing parts of the state are only sent when they change (the client keeps the last copy).
 -- Keep this list in sync with HEAVY in EmpireClient.
 local HEAVY = {"archive", "homeInfo", "props", "districts", "market", "staff", "reviews", "tours", "shareable", "standings", "passes", "cars", "showcase", "biz", "warLeaders",
-	"rebirth", "unlocks", "fees", "spire", "map", "viral"}
+	"rebirth", "unlocks", "fees", "spire", "map", "viral", "estate"}
 local function sig(v)
 	local t = type(v)
 	if t == "table" then
@@ -430,6 +440,11 @@ function F.sendState(plr, now)
 		e.repair = d.problems[b.key] and d.problems[b.key].repair or nil
 		e.problemText = d.problems[b.key] and PROBLEMS[d.problems[b.key].type].text or nil
 		e.slot = b.index
+		if F.bizName and lvl > 0 then
+			e.brand = F.bizName(d, b.key)
+			e.named = F.hasBizName(d, b.key)
+			e.v10 = F.bizBrandState and F.bizBrandState(d, b.key) or nil
+		end
 		if F.interiorScore100 and lvl > 0 then
 			local sc = F.interiorScore100(d, b.key)
 			e.interior = {score = sc, tier = F.interiorTier(sc)}
@@ -532,7 +547,7 @@ function F.sendState(plr, now)
 		rebirth = {count = d.rebirths, cost = F.rebirthCost(d), mult = math.floor((F.rebirthMult(d) - 1) * 100 + 0.5), perks = perks, unlocked = unlocks.rebirth},
 		map = F.mapState and F.mapState(plr, d) or nil,
 		interior = F.interiorState and F.interiorState(plr, d) or nil,
-		viral = F.viralState and F.viralState(plr, d) or nil, beef = F.beefInfo and F.beefInfo(plr, d, now) or nil,
+		viral = F.viralState and F.viralState(plr, d) or nil, estate = F.estateState and F.estateState(plr, d) or nil, beef = F.beefInfo and F.beefInfo(plr, d, now) or nil,
 		tut = tut, raceBest = d.raceBest, unread = F.unreadCount and F.unreadCount(d) or 0, story = F.storyState and F.storyState(plr, d) or nil,
 		showcase = F.showcasePoints(d), tours = F.toursList(), mysterySite = C.mysterySite and C.mysterySite() or nil,
 		mysteryPrice = C.mysterySite and C.mysterySite() and F.mysteryPrice(d) or nil,
@@ -668,14 +683,8 @@ function F.startGame(plr, slot, starterIdx)
 	F.refreshKiosks(plr)
 	F.refreshTower(plr, true)
 	F.refreshWorkers(plr)
-	for _, id in ipairs(d.savedLots or {}) do
-		local lot = LOTS[id]
-		if lot and not lot.owner then
-			lot.owner = plr
-			d.lots[id] = true
-			F.buildLot(lot)
-		end
-	end
+	-- land: place this player's deeds on free plots (v10; deeds are permanent, see GameServer > RealEstate)
+	if F.placeDeeds then F.placeDeeds(plr, d) end
 	-- home
 	if isNew then
 		local st = STARTER_HOMES[starterIdx] or STARTER_HOMES[1]
@@ -771,10 +780,14 @@ function F.unload(plr, backToMenu)
 	F.clearSocial(plr)
 	if F.storyLeave then F.storyLeave(plr) end
 	if F.clearInteriors then F.clearInteriors(plr) end
-	for _, lot in ipairs(LOTS) do
-		if lot.owner == plr then
-			lot.owner = nil
-			F.buildLot(lot)
+	if F.releaseDeeds then
+		F.releaseDeeds(plr)
+	else
+		for _, lot in ipairs(LOTS) do
+			if lot.owner == plr then
+				lot.owner = nil
+				F.buildLot(lot)
+			end
 		end
 	end
 	F.releaseHome(plr)
