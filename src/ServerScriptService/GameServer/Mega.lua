@@ -25,6 +25,7 @@ local STAGE_AT = V3(230, 0, 96)      -- Downtown concert stage
 C.reserve(STAGE_AT.X - 22, STAGE_AT.Z - 16, STAGE_AT.X + 22, STAGE_AT.Z + 20)
 
 local M = {active = nil, nextAt = os.clock() + MEGA.first}
+C.megaScheduler = M   -- (tests pause it so random events don't land in the middle of a check)
 C.MEGA_STATE = M
 
 -- ===== helpers =====

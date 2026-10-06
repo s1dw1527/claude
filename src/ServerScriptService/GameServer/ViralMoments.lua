@@ -113,6 +113,7 @@ F.viralOf = viralOf
 local city = {}            -- newest first: {who, key, title, icon, text, cat, t, userId}
 C.cityMoments = city
 local lastPost = {low = -1e9, normal = -1e9, high = -1e9, legendary = -1e9}
+C.viralLastPost = lastPost   -- (tests clear it so a random influencer post can't block the post a check is waiting for)
 local recent = {}          -- [plr] = {[momentId] = os.clock()}  moments that can be captured in Photo Mode
 local nextMomentId = 0
 local IMPORTANCE = {low = 1, normal = 2, high = 3, legendary = 4}

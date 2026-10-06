@@ -1,10 +1,33 @@
 # Corner Empire
 
-A 1–4 player Roblox business tycoon. **`CornerEmpire_v10.rbxlx` is the current place file**; open it in Roblox Studio.
-`CornerEmpire_v9.rbxlx` … `CornerEmpire_v5.rbxlx` are earlier versions, kept for reference. The full v10 write-up is
-`docs/V10_REPORT.md` (v9: `docs/V9_REPORT.md`).
+A 1–4 player Roblox business tycoon. **`CornerEmpire_v11.rbxlx` is the current place file**; open it in Roblox Studio.
+`CornerEmpire_v10.rbxlx` … `CornerEmpire_v5.rbxlx` are earlier versions, kept for reference. The full v11 write-up is
+`docs/V11_REPORT.md`; install steps and the real-Studio test list are in `docs/V11_STUDIO_CHECKLIST.md`.
 
-## What's new in v10 — "Ownership, HQ, Cars & Lifestyle"
+## What's new in v11 — "Secret Mountain Base & Heists"
+
+Corner Empire now has three loops: **BUILD** (businesses, homes, property), **LIVE** (drive, visit, arcade,
+customize) and **RISK** (the secret base and robberies).
+
+- **Phone Arcade app fixed.** Opening it started an endless request → reopen loop (about 30 requests in 5 seconds)
+  that made the phone glitch. Root cause: opening any window hid and re-showed it, which reset its "already asked
+  the server" flag. `openModal` no longer hides the window it opens, so every phone window now asks once.
+- **The secret mountain HQ.** North of the race track, at the end of a dirt road: a mountain with a drain in a
+  ravine. Pull the rusty lever and a hidden door slides open (shared by everyone, never traps anyone). Drive through
+  the sewer tunnel into a huge chamber around a lava core: the Blackrock Syndicate's hideout, with a crew of 8
+  fictional NPCs, a Job Board, the Fence, the Quartermaster, a Planning Room, a secret computer, base upgrades and
+  an Escape Garage. A back exit leads out east. There's no map marker: you find it from rumors and clues.
+- **Heists.** 8 targets (Corner Bank, Gem & Gold Jewelers, Luxury Warehouse, Volt Electronics Depot, Northside Cargo
+  Yard, City History Museum, City Vault, Prestige Car Garage) open a few at a time for about 3 minutes. Start the
+  robbery, crack the security panel (a short puzzle), mind the lasers, fill your **bag**, and when the **alarm**
+  goes off, get out. The loot is **not money until you reach the mountain**: arrested, gone, dead or too slow, and
+  only the loot is lost. Crews of 1–4 share one target's loot. Bags and base levels are upgrades.
+- **Police duty.** Go on duty at the police station or in the app. Police get alerts and an approximate,
+  updating search area (never your exact position), and hold [Arrest] near a robber carrying loot. The city pays
+  them.
+- **💰 Heists phone app**, 9 new tips, 3 new "❓ What's this?" topics, and a HEISTS tab in the admin panel for testing.
+
+## What was new in v10 — "Ownership, HQ, Cars & Lifestyle"
 
 - **Real estate you keep.** 8 districts and ~100 plots: Downtown (8), Waterfront (5) and Luxury (4) are small and
   valuable, so each player can own only 1–2 there. Midtown, Northside Suburbs and Expansion have 20 plots each;
@@ -120,7 +143,7 @@ same saves and upgrades them in memory.
 **Rules that keep saves safe (already built in):**
 - Never rename `CFG.DATASTORE` in `GameServer > Config`, and never change the key format.
 - Saves carry `SchemaVersion`. On load, `GameServer > DataMigration` upgrades an old save one step at a time
-  (6 → 7 → 8 → 9 → 10), on a copy, then validates it. If anything fails, the player plays with saving **turned off** for that
+  (6 → 7 → 8 → 9 → 10 → 11), on a copy, then validates it. If anything fails, the player plays with saving **turned off** for that
   slot and sees a warning. The stored save is never overwritten with defaults.
 - Saves use `UpdateAsync` with a save counter, so an older server can't overwrite a newer save. A save written by a
   **newer** version than the server running it is loaded read-only and never saved over.
@@ -140,7 +163,7 @@ same saves and upgrades them in memory.
 **Testing in Studio never touches live data.** In Studio, every DataStore name gets `_StudioTest` on the end
 (`C.storeName`, controlled by `CFG.STUDIO_USES_LIVE_DATA = false`). Playtests read and write a separate test copy,
 never your players' saves. Leave that setting `false`. In a Studio playtest, open **Settings → 🧪 Update + data
-safety test**. It runs the migration self-test on v5–v10 sample saves (including damaged v9 and v10 records) and the real
+safety test**. It runs the migration self-test on v5–v11 sample saves (including damaged v9, v10 and v11 records) and the real
 save/load code against an in-memory store (fresh save, rejoin, conflicts, newer schema, failed load, failed migration), then prints the
 result to the Output.
 
@@ -175,7 +198,7 @@ uses `Config.lua` from the repository, so put your pass IDs in `src/ServerScript
 - `src/` holds every script from the place, one file per script, mirroring the Explorer:
   - `ServerScriptService/GameServer.server.lua` + `GameServer/*.lua` (server modules)
   - `StarterPlayer/StarterPlayerScripts/EmpireClient.client.lua` + `EmpireClient/*.lua` (client modules)
-- `tools/build.py` rebuilds the place file from `src/` (`python3 tools/build.py CornerEmpire_v10.rbxlx`).
+- `tools/build.py` rebuilds the place file from `src/` (`python3 tools/build.py CornerEmpire_v11.rbxlx`).
 - `tools/extract.py` pulls the scripts back out of a place file; `tools/compare.py` compares two place files.
 - `tools/propcheck.py <globalTypes.d.luau>` checks every property name the scripts set against the Roblox API.
 - `tools/check.sh` compiles every script, type-checks it against the Roblox API and flags unknown globals (needs the Luau tools).
@@ -196,6 +219,9 @@ uses `Config.lua` from the repository, so put your pass IDs in `src/ServerScript
     (16 cars, details, garage), `arcade_test` (2-player games, anti-farm, forfeits, prizes), `admin_test` (admin
     security and tools), `guide_test` (tips and help), `v10_data_test` (v8/v9 → v10, broken fields, disconnect
     mid-purchase, server switching, simultaneous purchases)
+  - v11: `phoneapp_test` (the Arcade app glitch: open → close → open, switching apps, during/after a game, phone
+    size), `heist_test` (mountain, door, tunnel, discovery, crew; every robbery stage, police, arrests, failures,
+    crews of 1–4, upgrades, anti-exploit, saving)
   - `python3 tests/run.py tests/smoke_test.lua`: quick boot check
   - `python3 tests/run.py tests/tutorial_test.lua`: the whole tutorial through the real client, with extra focus on step 4
   - `python3 tests/run.py tests/story_test.lua`: story chapters, rewards paid once, cutscenes, multiplayer, old saves

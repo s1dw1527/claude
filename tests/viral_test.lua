@@ -8,6 +8,10 @@ H.main(function()
 	H.startClient(a, T.clientScript)
 	H.task.wait(2)
 	local d = T.newGame(a, 1, 1)
+	-- no random city / mega events in the middle of exact cash and feed checks
+	C.G.nextEvent = H.now() + 7200
+	C.megaScheduler.nextAt = H.now() + 7200
+	C.funnySchedule[a] = H.now() + 7200
 	local cc = H.clientC
 	local pg = a:FindFirstChild("PlayerGui")
 	local function findLike(pat)
@@ -38,6 +42,8 @@ H.main(function()
 	local m2 = F.viralMoment(a, "eviction", {tenant = "Gus", item = "a sock"})
 	H.check(m2 == nil and v.score == s0 + 60, "the same moment again right away: cooldown, no score")
 	H.task.wait(301)
+	C.influencerLeave("done")
+	for k in pairs(C.viralLastPost) do C.viralLastPost[k] = -1e9 end   -- (a random visit's post mustn't hold this one back)
 	H.check(F.viralMoment(a, "eviction", {tenant = "Gus", item = "a lamp"}) ~= nil, "after the 5-minute cooldown it counts again")
 	local o1 = F.viralMoment(a, "opening", {uniq = "tech", biz = "Tech Store"})
 	local o2 = F.viralMoment(a, "opening", {uniq = "tech", biz = "Tech Store"})
@@ -62,6 +68,7 @@ H.main(function()
 	H.check(n == 6 and newPosts <= 1, "6 quick low-importance moments: all scored, at most 1 post (" .. newPosts .. ")")
 	local hit = false
 	for _, p in ipairs(C.FEED) do if tostring(p.text):find("evicted") or tostring(p.text):find("Gus") then hit = true end end
+	if not hit then for i = 1, math.min(12, #C.FEED) do print("    feed:", C.FEED[i].id, C.FEED[i].text) end end
 	H.check(hit, "the eviction became a CityBuzz post")
 
 	H.section("The pop-up and Photo Mode capture (\"Bro Got Content\")")

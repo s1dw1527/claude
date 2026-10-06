@@ -96,6 +96,12 @@
         "Guide": {
           "$path": "src/ServerScriptService/GameServer/Guide.lua"
         },
+        "Mountain": {
+          "$path": "src/ServerScriptService/GameServer/Mountain.lua"
+        },
+        "Heists": {
+          "$path": "src/ServerScriptService/GameServer/Heists.lua"
+        },
         "Cinematics": {
           "$path": "src/ServerScriptService/GameServer/Cinematics.lua"
         },
@@ -167,6 +173,9 @@
           "GuideUI": {
             "$path": "src/StarterPlayer/StarterPlayerScripts/EmpireClient/GuideUI.lua"
           },
+          "HeistUI": {
+            "$path": "src/StarterPlayer/StarterPlayerScripts/EmpireClient/HeistUI.lua"
+          },
           "Phone": {
             "$path": "src/StarterPlayer/StarterPlayerScripts/EmpireClient/Phone.lua"
           },
@@ -196,6 +205,9 @@
           },
           "BuilderUI": {
             "$path": "src/StarterPlayer/StarterPlayerScripts/EmpireClient/BuilderUI.lua"
+          },
+          "MountainLife": {
+            "$path": "src/StarterPlayer/StarterPlayerScripts/EmpireClient/MountainLife.lua"
           },
           "CityLife": {
             "$path": "src/StarterPlayer/StarterPlayerScripts/EmpireClient/CityLife.lua"

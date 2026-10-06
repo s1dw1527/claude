@@ -273,6 +273,7 @@ end
 -- THE LOOP (every 3 seconds; cheap checks only)
 -- =====================================================================
 local nextFunny = {}
+C.funnySchedule = nextFunny   -- (tests push it back so a random event can't land in the middle of a check)
 local nextBest = {}
 task.spawn(function()
 	while true do
