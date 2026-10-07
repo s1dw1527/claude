@@ -235,7 +235,7 @@ local camBtn = button({AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, 
 if C.touchLift then camBtn.Position = UDim2.new(1, -98, 1, -70 - C.touchLift) end
 camBtn.MouseButton1Click:Connect(function() C.setPhoto(true) end)
 camBtn.Name = "CameraButton"
-C.Layout.slot(camBtn, "right", 1, {size = UDim2.fromOffset(48, 48)})   -- phone layout: the right edge column, above ⚙️
+C.Layout.slot(camBtn, "right", 1, {size = UDim2.fromOffset(44, 44), onCompact = function(c) camBtn.TextSize = c and 20 or 22 end})   -- phone layout: the right edge column, above ⚙️
 
 UserInputService.InputBegan:Connect(function(input, processed)
 	if processed then return end

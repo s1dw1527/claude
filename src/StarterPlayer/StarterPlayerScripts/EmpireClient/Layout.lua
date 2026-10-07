@@ -2,9 +2,12 @@
 -- One place that knows the screen: viewport size and breakpoints, the safe area (notch, Roblox's top bar, the
 -- home indicator), where Roblox's touch controls sit, and which big window is open.
 --   • desktop / tablet: the classic layout, untouched.
---   • phone (viewport ≤ 700 wide or ≤ 500 tall): a real mobile layout. A one-row HUD at the top, small buttons down
---     the edges, notifications in two bounded stacks (top and bottom), every window sized to the screen, and only
---     ONE big window at a time. The other modules hand their frames to this one with L.slot / L.window / L.major.
+--   • phone (viewport ≤ 700 wide or ≤ 500 tall): a real mobile layout. A compact HUD at the top (money / income /
+--     reputation, then the story chip and event chip), small evenly spaced buttons down the left edge, 📱 ⚙️ 📸 down the
+--     right edge above Roblox's jump button, ONE notification stack in the top-right corner (at most 3 cards, and it
+--     never grows into the middle of the screen), the bottom of the screen left free for driving controls and
+--     interaction buttons, every window sized to the screen, and only ONE big window at a time.
+--     The other modules hand their frames to this one with L.slot / L.window / L.major.
 -- Layout work only runs when the viewport (or the safe area) changes and when a window opens or closes —
 -- never every frame.
 return function(C)
@@ -20,8 +23,11 @@ C.UIManager = L
 -- (Toasts sit above windows on purpose: "not enough cash" has to be readable while a shop is open.)
 L.Z = {hud = 5, controls = 6, stack = 30, phoneDim = 33, phone = 34, modal = 40, window = 45, puzzle = 50, toast = 55, splash = 60, critical = 80}
 L.MIN_SCALE = 0.8          -- windows never shrink text below 80% on a phone: they reflow (narrower, scrolling) instead
-L.ROW1, L.ROW2 = 40, 30    -- compact HUD rows (px)
-L.SIDE = 56                -- edge buttons (px, touch-friendly)
+L.ROW1, L.ROW2 = 34, 26    -- compact HUD rows (px): money row, story / event chips
+L.SIDE = 44                -- left-column buttons (px)
+L.RSIDE = 52               -- right-column width (px): the 📱 phone button is 52, ⚙️ and 📸 are 44
+L.STACK_MAX = 3            -- notification cards visible at once
+L.GAP = 6
 
 -- ===== breakpoints =====
 function L.classify(vp)
@@ -80,17 +86,22 @@ local function zones()
 	L.hudBottom = s.t + L.ROW1 + 4 + L.ROW2
 	-- edge columns
 	L.leftX = s.l
-	L.rightX = vp.X - s.r - L.SIDE
+	L.rightX = vp.X - s.r - L.RSIDE
 	L.colTop = L.hudBottom + 8
 	L.rightBottom = vp.Y - s.b - L.controlsH          -- the right column ends just above the jump button
-	-- notification stacks: between the edge columns, top half / bottom half of what's left
-	local x0 = s.l + L.SIDE + 6
-	local x1 = vp.X - s.r - L.SIDE - 6
-	local top, bottom = L.hudBottom + 6, vp.Y - s.b - L.controlsH
-	local mid = math.floor((top + bottom) / 2)
-	L.stackX, L.stackW = x0, math.max(120, x1 - x0)
-	L.topStackY, L.topStackH = top, math.max(40, mid - top - 3)
-	L.bottomStackY, L.bottomStackH = mid + 3, math.max(40, bottom - mid - 3)
+	L.rightColH = 44 + 44 + 52 + 2 * L.GAP            -- 📸 ⚙️ 📱
+	L.rightColTop = L.rightBottom - L.rightColH
+	-- THE notification stack: top-right, below the HUD rows. It is never allowed below ~38% of the screen height
+	-- (the middle of the screen is where the player, the road and the businesses are), and it stops above the right-hand
+	-- buttons. On a short landscape screen there's no room above them, so it moves in beside them instead.
+	L.stackY = L.hudBottom + 6
+	local want = L.portrait and vp.Y * 0.38 or vp.Y * 0.5
+	local edge = vp.X - s.r
+	if want > L.rightColTop - 8 then edge = L.rightX - 6 end
+	L.stackW = math.clamp(math.min(math.floor(vp.X * (L.portrait and 0.72 or 0.4)), edge - s.l - L.SIDE - 8), 180, 300)   -- ≈ 72% of a portrait phone's width
+	L.stackX = edge - L.stackW
+	L.stackBottom = math.max(L.stackY + 76, want)                      -- normal budget
+	L.stackMaxBottom = math.max(L.stackBottom, math.min(vp.Y * 0.5, L.portrait and L.rightColTop - 8 or vp.Y * 0.62))   -- only for a feed you opened yourself
 	-- windows (modals, the phone, game windows): ~92% wide, ~84% tall, below the HUD's first row
 	local wTop = s.t + L.ROW1 + 6
 	local w = math.min(vp.X * 0.92, vp.X - s.l - s.r)
@@ -155,8 +166,8 @@ end
 -- ===== compact containers =====
 -- row 2 of the HUD, the left and right button columns, and the two notification stacks. They only exist on the
 -- phone layout; on desktop they're hidden and everything sits where it always did.
-local function container(name, z, vertical, align)
-	local f = new("Frame", {Name = name, BackgroundTransparency = 1, Visible = false, ZIndex = z, ClipsDescendants = true}, gui)
+local function container(name, z, vertical, align, clip)
+	local f = new("Frame", {Name = name, BackgroundTransparency = 1, Visible = false, ZIndex = z, ClipsDescendants = clip ~= false}, gui)
 	local lay = new("UIListLayout", {SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 6), FillDirection = vertical and Enum.FillDirection.Vertical or Enum.FillDirection.Horizontal,
 		HorizontalAlignment = Enum.HorizontalAlignment.Center, VerticalAlignment = align or Enum.VerticalAlignment.Top}, f)
 	return f, lay
@@ -165,9 +176,13 @@ L.box = {}
 L.box.row2 = container("CompactRow2", L.Z.hud, false)
 L.box.left = container("CompactLeft", L.Z.hud, true)
 L.box.right = container("CompactRight", L.Z.controls, true, Enum.VerticalAlignment.Bottom)
-L.box.top = container("CompactTopStack", L.Z.stack, true)
-L.box.bottom = container("CompactBottomStack", L.Z.stack, true, Enum.VerticalAlignment.Bottom)
+L.box.top = container("CompactTopStack", L.Z.stack, true, nil, false)
+L.box.bottom = L.box.top    -- (v11.3: there is ONE stack now; the bottom of the screen stays free for controls)
 L.box.row2:FindFirstChildOfClass("UIListLayout").HorizontalAlignment = Enum.HorizontalAlignment.Left
+L.box.left:FindFirstChildOfClass("UIListLayout").Padding = UDim.new(0, 10)             -- evenly spaced
+L.box.top:FindFirstChildOfClass("UIListLayout").HorizontalAlignment = Enum.HorizontalAlignment.Right
+-- cards that are waiting for a free place in the stack (visible = true, but parked here until there's room)
+L.holder = new("Frame", {Name = "QueuedCards", BackgroundTransparency = 1, Visible = false, Size = UDim2.new()}, gui)
 local function placeBoxes()
 	local b = L.box
 	for _, f in pairs(b) do f.Visible = false end
@@ -178,43 +193,90 @@ local function placeBoxes()
 	b.left.Position = UDim2.fromOffset(L.leftX, L.colTop)
 	b.left.Size = UDim2.fromOffset(L.SIDE, math.max(60, L.rightBottom - L.colTop))
 	b.right.Position = UDim2.fromOffset(L.rightX, L.colTop)
-	b.right.Size = UDim2.fromOffset(L.SIDE, math.max(60, L.rightBottom - L.colTop))
-	b.top.Position = UDim2.fromOffset(L.stackX, L.topStackY)
-	b.top.Size = UDim2.fromOffset(L.stackW, L.topStackH)
-	b.bottom.Position = UDim2.fromOffset(L.stackX, L.bottomStackY)
-	b.bottom.Size = UDim2.fromOffset(L.stackW, L.bottomStackH)
+	b.right.Size = UDim2.fromOffset(L.RSIDE, math.max(60, L.rightBottom - L.colTop))
+	b.top.Position = UDim2.fromOffset(L.stackX, L.stackY)
+	b.top.Size = UDim2.fromOffset(L.stackW, L.stackMaxBottom - L.stackY)
 	L.applyBusy()
 end
 
 -- ===== slots: a frame that moves into a compact container on phones =====
--- where: "row2" | "left" | "right" | "top" | "bottom". opts.size = the compact size (UDim2, or fn(L) → UDim2);
--- stack cards keep their height and are narrowed (and scaled down to at most 80%) to the stack's width.
+-- where: "row2" | "left" | "right" | "top" ("bottom" is the same stack). opts.size = the compact size (UDim2, or fn(L) →
+-- UDim2); stack cards keep their height and are narrowed (and scaled down to at most 80%) to the stack's width, and
+-- their text shrinks to fit its box.
 -- opts.compactOnly: the frame only exists on the phone layout (hidden on desktop).
+-- opts.expanded: fn() → true while the card is open because the PLAYER opened it (the CityBuzz feed).
 local slots = {}
+-- Who gets a place first when more than L.STACK_MAX cards are showing. Cards that need an answer come first.
+local PRIORITY = {TutorialCard = 1, ProblemCard = 2, DeliveryCard = 3, PoliceAlertBar = 4, HeistBagHUD = 5, RacePanel = 6, MegaBar = 7, BeefPill = 8,
+	ViralMomentPopup = 9, StoryPill = 10, InteriorBar = 11, AchievementCard = 12, GuideTip = 13, RivalBubble = 14, HouseTourPanel = 15, BuzzFeed = 99}
+local scheduleReflow, adaptOne
 function L.slot(frame, where, order, opts)
 	opts = opts or {}
-	local e = {frame = frame, where = where, order = order or 0, opts = opts,
+	if where == "bottom" then where = "top" end
+	local e = {frame = frame, where = where, order = order or 0, opts = opts, prio = PRIORITY[frame.Name] or (20 + (order or 0)),
 		parent = frame.Parent, pos = frame.Position, anchor = frame.AnchorPoint, size = frame.Size, z = frame.ZIndex}
 	table.insert(slots, e)
+	if where == "top" then
+		frame:GetPropertyChangedSignal("Visible"):Connect(function() scheduleReflow() end)
+		-- labels and buttons added to the card later (most cards fill themselves in after they're registered)
+		frame.DescendantAdded:Connect(function(x) if L.compact then task.defer(adaptOne, x, true) end end)
+	end
 	L.applySlot(e)
 	return e
 end
 local function designSize(e)
 	return e.opts.designSize or e.size
 end
+
+-- ===== text that fits (phone layout) =====
+-- Cards were designed for a wide screen, so their text boxes are sized for the desktop. On a phone every label in a
+-- stack card gets TextScaled with a cap at its own size, so the text shrinks to fit its box instead of spilling out of
+-- it (never below 9 px before the card's scale: cards are never scaled below 80%).
+local adapted = setmetatable({}, {__mode = "k"})
+function adaptOne(x, on)
+	if x.ClassName ~= "TextLabel" and x.ClassName ~= "TextButton" then return end
+	local o = adapted[x]
+	if on then
+		if not o and not x.TextScaled and x.AutomaticSize == Enum.AutomaticSize.None then
+			o = {size = x.TextSize}
+			o.cap = new("UITextSizeConstraint", {MaxTextSize = x.TextSize, MinTextSize = math.min(x.TextSize, 9)}, x)
+			x.TextScaled = true
+			adapted[x] = o
+		end
+	elseif o then
+		x.TextScaled = false
+		x.TextSize = o.size
+		o.cap:Destroy()
+		adapted[x] = nil
+	end
+end
+function L.adaptText(frame, on)
+	for _, x in ipairs(frame:GetDescendants()) do adaptOne(x, on) end
+end
+
+local function cardScale(e)
+	local ds = designSize(e)
+	local dw = ds.X.Offset > 0 and ds.X.Offset or 300
+	local s = math.clamp(L.stackW / dw, L.MIN_SCALE, 1)
+	-- a tall card (problem, delivery) shrinks a little more rather than push into the middle of the screen
+	local dh = e.opts.compactHeight or ds.Y.Offset
+	if dh * s > L.stackBottom - L.stackY then s = math.max(L.MIN_SCALE, (L.stackBottom - L.stackY) / dh) end
+	return s, dw, ds
+end
 function L.applySlot(e)
 	local f = e.frame
 	if L.compact then
-		f.Parent = L.box[e.where]
-		f.LayoutOrder = e.order
-		if e.where == "top" or e.where == "bottom" then
-			local ds = designSize(e)
-			local dw = ds.X.Offset > 0 and ds.X.Offset or 300
-			local s = math.clamp(L.stackW / dw, L.MIN_SCALE, 1)
+		if e.where == "top" then
+			local s, dw, ds = cardScale(e)
 			L.scaleOf(f).Scale = s
 			f.Size = UDim2.fromOffset(math.min(dw, L.stackW / s), e.opts.compactHeight or ds.Y.Offset)
-		elseif e.opts.size then
-			f.Size = type(e.opts.size) == "function" and e.opts.size(L) or e.opts.size
+			f.LayoutOrder = e.prio
+			f.Parent = L.box.top
+			L.adaptText(f, true)
+		else
+			f.Parent = L.box[e.where]
+			f.LayoutOrder = e.order
+			if e.opts.size then f.Size = type(e.opts.size) == "function" and e.opts.size(L) or e.opts.size end
 		end
 		if e.opts.compactOnly then f.Visible = true end
 		if e.opts.onCompact then e.opts.onCompact(true) end
@@ -223,16 +285,56 @@ function L.applySlot(e)
 		f.Parent = e.parent
 		f.Position, f.AnchorPoint, f.Size = e.pos, e.anchor, e.size
 		local sc = f:FindFirstChild("UIScale")
-		if sc and (e.where == "top" or e.where == "bottom") then sc.Scale = 1 end
+		if sc and e.where == "top" then sc.Scale = 1 end
+		if e.where == "top" then L.adaptText(f, false) end
 		if e.opts.onCompact then e.opts.onCompact(false) end
 	end
 end
--- a slotted card changed its own design size (e.g. the tutorial card)
+
+-- ===== the notification stack: at most STACK_MAX cards, inside a height budget =====
+-- Showing cards (Visible = true) are sorted by priority. A card gets a place if there are fewer than 3 and it fits in
+-- the budget (the first card always gets one, whatever its size). The others wait in L.holder, still "visible" from
+-- their owner's point of view, and move up as soon as a card is dismissed. A card the player opened on purpose (the
+-- CityBuzz feed) may use the larger budget.
+local reflowing = false
+local function reflowStack()
+	if not L.compact or reflowing then return end
+	reflowing = true
+	local list = {}
+	for _, e in ipairs(slots) do
+		if e.where == "top" and e.frame.Visible then table.insert(list, e) end
+	end
+	table.sort(list, function(x, y) return x.prio < y.prio end)
+	local used, n = 0, 0
+	local budget = L.stackBottom - L.stackY
+	local maxBudget = L.stackMaxBottom - L.stackY
+	for _, e in ipairs(list) do
+		local s = cardScale(e)
+		local h = (e.opts.compactHeight or designSize(e).Y.Offset) * s + L.GAP
+		local mine = e.opts.expanded and e.opts.expanded()
+		local fits = n == 0 or used + h <= budget or (mine and used + h <= maxBudget)
+		if n < L.STACK_MAX and fits then
+			e.frame.Parent = L.box.top
+			e.frame.LayoutOrder = e.prio
+			used += h
+			n += 1
+		else
+			e.frame.Parent = L.holder
+		end
+	end
+	reflowing = false
+end
+L.reflowStack = reflowStack
+function scheduleReflow()
+	task.defer(reflowStack)
+end
+-- a slotted card changed its own design size (e.g. the tutorial card, the CityBuzz feed)
 function L.resize(frame, size)
 	for _, e in ipairs(slots) do
 		if e.frame == frame then
 			e.size = size
 			L.applySlot(e)
+			scheduleReflow()
 			return
 		end
 	end
@@ -269,7 +371,6 @@ function L.applyBusy()
 		box.row2.Visible = not b and not L.driving
 		box.left.Visible = not b and not L.driving
 		box.top.Visible = not b
-		box.bottom.Visible = not b
 		box.right.Visible = true
 	end
 	fire(busyListeners, b)
@@ -425,6 +526,7 @@ end
 table.insert(listeners, 1, function()
 	placeBoxes()
 	for _, e in ipairs(slots) do L.applySlot(e) end
+	reflowStack()
 	fitWorldAndChat()
 end)
 placeBoxes()

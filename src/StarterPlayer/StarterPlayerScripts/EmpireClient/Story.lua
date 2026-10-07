@@ -350,7 +350,7 @@ end
 -- =====================================================================
 local bubble = C.panel({AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 372, 1, -150), Size = UDim2.fromOffset(360, 74), BackgroundColor3 = RGB(30, 16, 34), Visible = false, ZIndex = 25}, gui)
 bubble.Name = "RivalBubble"
-C.Layout.slot(bubble, "bottom", 6)
+C.Layout.slot(bubble, "top", 6)
 stroke(bubble, RGB(255, 70, 140), 2, 0)
 local bubIcon = label({Position = UDim2.fromOffset(8, 8), Size = UDim2.fromOffset(56, 56), TextScaled = true, Text = "🎙️", ZIndex = 26}, bubble)
 local bubName = label({Position = UDim2.fromOffset(70, 4), Size = UDim2.new(1, -78, 0, 18), TextSize = 13, Font = Enum.Font.GothamBlack, TextColor3 = RGB(255, 110, 170),

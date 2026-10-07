@@ -252,16 +252,16 @@ H.main(function()
 		settle()
 		H.check(L.compact and L.mode == "phone", "viewport " .. w .. "×" .. h .. " → phone layout")
 		H.check(not topBar.Visible and not find("BusinessPanel").Visible and not find("LeaderboardPanel").Visible, "the desktop bar, business panel and leaderboard are off the screen")
-		-- something in every notification slot, to test the worst case
+		-- the CityBuzz feed (collapsed) and the story chip are showing: the worst case for the HUD
 		cc.U.buzzNote({icon = "📣", text = "New player opened a corner!"})
 		local tracker = find("StoryTracker")
 		tracker.Visible = true
+		H.task.wait(0.2)
 		local pieces = hudPieces()
-		if DEBUG_LAYOUT then for _, p in ipairs(pieces) do print("  piece", p.name, fmtR(p.r), p.o.ClassName, tostring(p.o.Text)) end end
 		local names = {}
 		for _, p in ipairs(pieces) do names[p.name] = true end
 		H.check(names.CashPill and names.TierBadge and names["CompactRow2/StoryTracker"] and names["CompactRow2/EventChip"] and names["CompactLeft/BizButton"] and names["CompactLeft/BoardButton"]
-			and names["CompactRight/PhoneButton"] and names["CompactRight/SettingsButton"], "compact HUD: cash, ⭐ badge, story chip, event chip, 🏪, 🏆, 📱, ⚙️")
+			and names["CompactRight/PhoneButton"] and names["CompactRight/SettingsButton"] and names["CompactTopStack/BuzzFeed"], "compact HUD: cash, ⭐ badge, story chip, event chip, 🏪, 🏆, 📱, ⚙️ and the CityBuzz feed")
 		local out, ov = {}, {}
 		local sc = screen()
 		local safe = {x = L.safe.l - 1, y = L.safe.t - 1, w = w - L.safe.l - L.safe.r + 2, h = h - L.safe.t - L.safe.b + 2}
@@ -274,29 +274,58 @@ H.main(function()
 		end
 		H.check(#out == 0, "every HUD piece is inside the screen and the safe area" .. (#out > 0 and (": " .. table.concat(out, ", ")) or ""))
 		H.check(#ov == 0, "no HUD pieces overlap" .. (#ov > 0 and (": " .. table.concat(ov, ", ")) or ""))
+		-- the money row is small: ≤ 34 px tall, and the story / event chips ≤ 26 px
+		local rowH = 0
+		for _, p in ipairs(pieces) do
+			if p.name == "CashPill" or p.name == "TierBadge" then rowH = math.max(rowH, p.r.h) end
+		end
+		H.check(rowH <= 34, "the money / income / reputation row is " .. rowH .. " px tall")
+		-- left buttons: 44 px, evenly spaced
+		local lefts = {}
+		for _, p in ipairs(pieces) do if p.name:find("^CompactLeft/") then table.insert(lefts, p.r) end end
+		table.sort(lefts, function(x, y) return x.y < y.y end)
+		local gaps, big = {}, false
+		for i, r in ipairs(lefts) do
+			if r.w > 44.5 or r.h > 44.5 then big = true end
+			if i > 1 then table.insert(gaps, lefts[i].y - (lefts[i - 1].y + lefts[i - 1].h)) end
+		end
+		local even = #gaps >= 1
+		for _, g in ipairs(gaps) do if math.abs(g - gaps[1]) > 1 then even = false end end
+		H.check(#lefts >= 2 and not big and even, #lefts .. " left buttons, none bigger than 44 px, equal gaps (" .. table.concat(gaps, ", ") .. ")")
+		-- the area where the player, the road and the businesses are: nothing of ours in it
 		local area = 0
-		local mid = {x = w * 0.25, y = h * 0.3, w = w * 0.5, h = h * 0.4}
+		local charZone = {x = w * 0.3, y = h * 0.38, w = w * 0.4, h = h * 0.34}
 		local inMid = {}
 		for _, p in ipairs(pieces) do
 			area += p.r.w * p.r.h
-			if overlap(p.r, mid) then table.insert(inMid, p.name) end
+			if overlap(p.r, charZone) then table.insert(inMid, p.name) end
 		end
 		local free = 1 - area / (w * h)
 		H.check(free >= 0.7, string.format("%.0f%% of the screen is free for the game world (need ≥ 70%%)", free * 100))
-		H.check(#inMid == 0, "the centre of the screen is clear" .. (#inMid > 0 and (": " .. table.concat(inMid, ", ")) or ""))
-		-- the notification stacks stay between the HUD and the touch controls
+		H.check(#inMid == 0, "the middle of the screen (30–70% across, 38–72% down) is clear" .. (#inMid > 0 and (": " .. table.concat(inMid, ", ")) or ""))
+		-- the bottom stays free: nothing but Roblox's own controls (and ours at the right edge above the jump button)
 		local jumpTop = h - L.safe.b - L.jumpZone.h
 		local inCtl = {}
 		for _, p in ipairs(pieces) do
 			if p.r.y + p.r.h > jumpTop + 1 then table.insert(inCtl, p.name) end
 		end
-		H.check(#inCtl == 0, "nothing sits in the thumbstick / jump-button band" .. (#inCtl > 0 and (": " .. table.concat(inCtl, ", ")) or ""))
+		H.check(#inCtl == 0, "the bottom band (thumbstick / jump button / action buttons) is free" .. (#inCtl > 0 and (": " .. table.concat(inCtl, ", ")) or ""))
 
-		-- every notification card, one at a time: on screen, out of the centre, clear of the HUD, text ≥ 80%
+		-- every notification card, one at a time: in the top-right stack, out of the middle, off the HUD and the right-hand buttons
 		local CARDS = {"TutorialCard", "GuideTip", "ProblemCard", "DeliveryCard", "AchievementCard", "RivalBubble", "HouseTourPanel",
-			"BuzzNote", "StoryPill", "BeefPill", "MegaBar", "HeistBagHUD", "PoliceAlertBar", "RacePanel", "InteriorBar", "ViralMomentPopup"}
-		local centre = {x = w * 0.25, y = h * 0.35, w = w * 0.5, h = h * 0.3}
+			"StoryPill", "BeefPill", "MegaBar", "HeistBagHUD", "PoliceAlertBar", "RacePanel", "InteriorBar", "ViralMomentPopup"}
 		local cbad = {}
+		local rightCol = {x = L.rightX, y = L.rightColTop, w = L.RSIDE, h = L.rightColH}
+		local function stackProblems(o, name)
+			local r = rect(o)
+			local bad = {}
+			if o.Parent ~= L.box.top then table.insert(bad, name .. " is not in the stack (parent " .. tostring(o.Parent) .. ")") end
+			if not inside(r, sc) then table.insert(bad, name .. " off screen " .. fmtR(r)) end
+			if scaleOf(o) < L.MIN_SCALE - 0.01 then table.insert(bad, name .. " scale " .. scaleOf(o)) end
+			if math.abs((r.x + r.w) - (w - L.safe.r)) > 2 then table.insert(bad, name .. " is not against the right edge " .. fmtR(r)) end
+			if overlap(r, rightCol) then table.insert(bad, name .. " reaches the right-hand buttons " .. fmtR(r)) end
+			return bad, r
+		end
 		for _, name in ipairs(CARDS) do
 			local o = find(name)
 			if not o then
@@ -304,24 +333,83 @@ H.main(function()
 			else
 				local was = o.Visible
 				o.Visible = true
-				local r = rect(o)
-				if not inside(r, sc) then table.insert(cbad, name .. " off screen " .. fmtR(r)) end
-				if overlap(r, centre) then table.insert(cbad, name .. " in the centre " .. fmtR(r)) end
-				if scaleOf(o) < L.MIN_SCALE - 0.01 then table.insert(cbad, name .. " scale " .. scaleOf(o)) end
-				local box = rect(o.Parent)
-				if not inside(r, box) then table.insert(cbad, name .. " sticks out of its stack " .. fmtR(r)) end
+				H.task.wait(0.1)
+				local bad, r = stackProblems(o, name)
+				for _, b in ipairs(bad) do table.insert(cbad, b) end
+				if overlap(r, charZone) then table.insert(cbad, name .. " reaches the middle " .. fmtR(r)) end
 				for _, p in ipairs(pieces) do
-					if p.o ~= o and not p.name:find(name) and overlap(r, p.r) then table.insert(cbad, name .. " × " .. p.name) end
+					if p.o ~= o and not p.name:find(name) and not p.name:find("BuzzFeed") and overlap(r, p.r) then table.insert(cbad, name .. " × " .. p.name) end
 				end
 				o.Visible = was
+				H.task.wait(0.05)
 			end
 		end
-		H.check(#cbad == 0, #CARDS .. " notification cards each fit their stack, stay out of the centre and off the HUD" .. (#cbad > 0 and (": " .. table.concat(cbad, ", ")) or ""))
+		H.check(#cbad == 0, #CARDS .. " notification cards each land in the top-right stack, against the right edge, out of the middle, off the HUD and the right-hand buttons" .. (#cbad > 0 and (": " .. table.concat(cbad, ", ")) or ""))
+
+		-- the stack with everything at once: at most 3 cards, inside the budget, none stacked on another, the rest wait
+		local wasVis = {}
+		for _, name in ipairs(CARDS) do local o = find(name) wasVis[name] = o.Visible o.Visible = true end
+		H.task.wait(0.2)
+		local shownCards, waiting, rects = {}, 0, {}
+		for _, name in ipairs(CARDS) do
+			local o = find(name)
+			if o.Parent == L.box.top then table.insert(shownCards, name) table.insert(rects, {name = name, r = rect(o)}) else waiting += 1 end
+		end
+		local feedShown = find("BuzzFeed").Parent == L.box.top and 1 or 0
+		H.check(#shownCards + feedShown <= L.STACK_MAX and #shownCards >= 1, #shownCards + feedShown .. " of " .. #CARDS + 1 .. " notifications are in the stack (max " .. L.STACK_MAX .. "); " .. waiting + (1 - feedShown) .. " wait: " .. table.concat(shownCards, ", "))
+		local stackBad = {}
+		for i, a2 in ipairs(rects) do
+			if i > 1 and a2.r.y + a2.r.h > L.stackBottom + 1 then table.insert(stackBad, a2.name .. " runs past the stack's budget") end
+			if overlap(a2.r, charZone) then table.insert(stackBad, a2.name .. " reaches the middle") end
+			for j = i + 1, #rects do if overlap(a2.r, rects[j].r) then table.insert(stackBad, a2.name .. " × " .. rects[j].name) end end
+		end
+		H.check(#stackBad == 0, "…inside the stack's budget, not reaching the middle, none on top of another" .. (#stackBad > 0 and (": " .. table.concat(stackBad, ", ")) or ""))
+		-- dismiss the shown ones: the waiting ones move up
+		-- (wireframe data for docs/mobile_layout_390x700.png: every piece on screen in the busiest state)
+		for _, p in ipairs(hudPieces()) do
+			print(string.format("WIRE %dx%d|%s|%d|%d|%d|%d", w, h, p.name, p.r.x, p.r.y, p.r.w, p.r.h))
+		end
+		local first = shownCards[1]
+		find(first).Visible = false
+		H.task.wait(0.2)
+		local nowShown = 0
+		for _, name in ipairs(CARDS) do if name ~= first and find(name).Parent == L.box.top then nowShown += 1 end end
+		H.check(nowShown >= #shownCards - 1 and nowShown <= L.STACK_MAX, "dismissing one lets the next waiting one in (" .. nowShown .. " still showing)")
+		for _, name in ipairs(CARDS) do find(name).Visible = wasVis[name] end
+		H.task.wait(0.2)
+		-- text in the cards shrinks to fit its box instead of spilling out
+		local unscaled = 0
+		for _, name in ipairs({"TutorialCard", "GuideTip", "ProblemCard", "DeliveryCard"}) do
+			for _, x in ipairs(find(name):GetDescendants()) do
+				if (x.ClassName == "TextLabel" or x.ClassName == "TextButton") and not x.TextScaled and x.AutomaticSize == H.G.Enum.AutomaticSize.None then unscaled += 1 end
+			end
+		end
+		H.check(unscaled == 0, "text in the tutorial / tip / problem / delivery cards is set to shrink to fit (" .. unscaled .. " fixed-size labels)")
+
+		-- the CityBuzz feed
+		local feed = find("BuzzFeed")
+		feed.Visible = true
+		H.task.wait(0.2)
+		local fr = rect(feed)
+		H.check(feed.Parent == L.box.top and fr.h <= 28.5 and inside(fr, sc) and not overlap(fr, charZone), "CityBuzz is a one-line feed in the stack when collapsed " .. fmtR(fr))
+		local head
+		for _, x in ipairs(feed:GetChildren()) do if x.ClassName == "TextButton" and x.Size.Y.Offset == 28 then head = x end end
+		click(head)
+		local fr2 = rect(feed)
+		local rows = 0
+		for _, x in ipairs(feed:GetChildren()) do if x.ClassName == "TextLabel" and x.Visible then rows += 1 end end
+		H.check(fr2.h > fr.h and inside(fr2, sc) and fr2.y + fr2.h <= h * 0.5 + 1 and fr2.x + fr2.w <= w - L.safe.r + 1, "tapping it opens the latest posts below it " .. fmtR(fr2) .. " (stays above half the screen)")
+		H.task.wait(13)
+		H.check(rect(feed).h <= 28.5, "it closes again by itself")
+		feed.Visible = false
+		tracker.Visible = false
+		local tr = find("StoryTracker")
 		cc.U.toast("💸 Not enough cash for that upgrade yet — keep earning!")
 		H.task.wait(0.6)
 		local toast
-		for _, ch in ipairs(gui:GetChildren()) do if ch.ClassName == "Frame" and ch.ZIndex == L.Z.toast and ch.Visible then toast = ch end end
-		H.check(toast and inside(rect(toast), sc) and not overlap(rect(toast), centre), "a toast fits the phone, under the top row " .. (toast and fmtR(rect(toast)) or "?"))
+		for _, ch in ipairs(gui:GetChildren()) do if ch.ClassName == "Frame" and ch.ZIndex == L.Z.toast and ch.Visible and ch.Name ~= "MoneyFloat" then toast = ch end end
+		H.check(toast and inside(rect(toast), sc) and rect(toast).y + rect(toast).h <= L.hudBottom + 30, "a toast fits the phone, in the top band " .. (toast and fmtR(rect(toast)) or "?"))
+		tracker.Visible = true
 
 		-- windows
 		local win = {x = w * 0.04 - 1, y = 0, w = w * 0.92 + 2, h = h}
@@ -500,7 +588,7 @@ H.main(function()
 	local pb = rect(find("PhoneButton"))
 	local sc = screen()
 	local jump = {x = 390 - L.safe.r - L.jumpZone.w, y = 700 - L.safe.b - L.jumpZone.h, w = L.jumpZone.w, h = L.jumpZone.h}
-	local mid = {x = 390 * 0.25, y = 700 * 0.3, w = 390 * 0.5, h = 700 * 0.4}
+	local mid = {x = 390 * 0.3, y = 700 * 0.38, w = 390 * 0.4, h = 700 * 0.34}
 	local thumb = {x = 0, y = 700 - 160, w = 390 * 0.33, h = 160}
 	local probs = {}
 	for _, e in ipairs({{gauge, "speedometer"}, {pedals, "GAS/BRAKE"}, {ctl, "nitro/drift"}}) do

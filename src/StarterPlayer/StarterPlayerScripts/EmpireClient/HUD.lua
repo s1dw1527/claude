@@ -9,6 +9,7 @@ local fmt, clock, play, SND, act, gui, U, plr = C.fmt, C.clock, C.play, C.SND, C
 local BG, CARD, GOLD, GREEN, GRAY, RED, BLUE, PURPLE, WHITE, SUB = C.BG, C.CARD, C.GOLD, C.GREEN, C.GRAY, C.RED, C.BLUE, C.PURPLE, C.WHITE, C.SUB
 local clear = C.clear
 local R = C.R
+local Lay = C.Layout
 
 local freezeOverlay = new("Frame", {Size = UDim2.fromScale(1, 1), BackgroundColor3 = RGB(140, 210, 255), BackgroundTransparency = 1, BorderSizePixel = 0}, gui)
 new("UIGradient", {Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 0.55), NumberSequenceKeypoint.new(0.5, 1), NumberSequenceKeypoint.new(1, 0.55)})}, freezeOverlay)
@@ -159,28 +160,75 @@ do
 	chipL = label({Position = UDim2.fromOffset(6, 0), Size = UDim2.new(1, -12, 1, 0), TextSize = 12, TextTruncate = Enum.TextTruncate.AtEnd}, chip)
 	chip.MouseButton1Click:Connect(function() play(SND.click) C.openModal("empire") end)
 	Lay.slot(chip, "row2", 2, {compactOnly = true, size = function(L) return UDim2.fromOffset(math.floor((L.vp.X - L.safe.l - L.safe.r) * 0.46), L.ROW2) end})
-	local note = new("TextButton", {Name = "BuzzNote", Size = UDim2.fromOffset(340, 34), BackgroundColor3 = RGB(120, 30, 80), BorderSizePixel = 0, Text = "", AutoButtonColor = true, Visible = false}, gui)
-	corner(note, 10)
-	local noteL = label({Position = UDim2.fromOffset(8, 0), Size = UDim2.new(1, -16, 1, 0), TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd}, note)
-	Lay.slot(note, "top", 1)
-	local noteId = 0
-	function U.buzzNote(p)
-		if not Lay.compact or type(p) ~= "table" then return end
-		noteId += 1
-		local mine = noteId
-		noteL.Text = "📣 CityBuzz: " .. tostring(p.icon or "") .. " " .. tostring(p.text or "")
-		note.Visible = true
-		task.delay(4, function() if noteId == mine then note.Visible = false end end)
+	-- v11.3: CityBuzz on a phone is a small expandable feed at the end of the top-right stack, not a pop-up:
+	--   collapsed:  [📣 🍕 New player opened a corner!                    ▾]      one line
+	--   opened:     [📣 CityBuzz                                           ▴]
+	--               [🍕 New player opened a corner!                         ]      the 3 latest posts
+	--               [🔥 Bob's Bakery went viral!                            ]
+	--               [Open CityBuzz ›                                        ]
+	-- It opens when you tap it and closes by itself after 12 s. A new post just changes the line (and flashes it).
+	local feed = new("Frame", {Name = "BuzzFeed", Size = UDim2.fromOffset(320, 28), BackgroundColor3 = RGB(110, 28, 76), BorderSizePixel = 0, Visible = false}, gui)
+	corner(feed, 8)
+	local feedHead = new("TextButton", {Size = UDim2.new(1, 0, 0, 28), BackgroundTransparency = 1, Text = "", AutoButtonColor = false}, feed)
+	local feedLine = label({Position = UDim2.fromOffset(8, 0), Size = UDim2.new(1, -30, 1, 0), TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd}, feedHead)
+	local feedArrow = label({AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -6, 0, 0), Size = UDim2.fromOffset(18, 28), Text = "▾", TextSize = 14}, feedHead)
+	local feedRows = {}
+	for i = 1, 3 do
+		feedRows[i] = label({Position = UDim2.fromOffset(8, 28 + (i - 1) * 26), Size = UDim2.new(1, -16, 0, 26), TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left,
+			TextTruncate = Enum.TextTruncate.AtEnd, TextColor3 = RGB(255, 225, 240), Visible = false}, feed)
 	end
-	note.MouseButton1Click:Connect(function()
+	local feedOpen = button({Position = UDim2.fromOffset(8, 28 + 78), Size = UDim2.new(1, -16, 0, 22), Text = "Open CityBuzz ›", TextSize = 12, BackgroundColor3 = RGB(200, 50, 130), Visible = false}, feed)
+	local feedPosts, feedExpanded, feedToken = {}, false, 0
+	local FEED_H = 28 + 78 + 28
+	local function feedRender()
+		local p = feedPosts[1]
+		feed.Visible = Lay.compact and p ~= nil
+		feedLine.Text = feedExpanded and "📣 CityBuzz" or ("📣 " .. tostring(p and p.icon or "") .. " " .. tostring(p and p.text or ""))
+		feedArrow.Text = feedExpanded and "▴" or "▾"
+		for i, r in ipairs(feedRows) do
+			local q = feedPosts[i]
+			r.Visible = feedExpanded and q ~= nil
+			if q then r.Text = tostring(q.icon or "") .. " " .. tostring(q.text or "") end
+		end
+		feedOpen.Visible = feedExpanded
+		Lay.resize(feed, UDim2.fromOffset(320, feedExpanded and FEED_H or 28))
+	end
+	local function feedSet(open)
+		if feedExpanded == open then return end
+		feedExpanded = open
+		feedToken += 1
+		local mine = feedToken
+		feedRender()
+		if open then task.delay(12, function() if feedToken == mine and feedExpanded then feedSet(false) end end) end
+	end
+	feedHead.MouseButton1Click:Connect(function() play(SND.click) feedSet(not feedExpanded) end)
+	feedOpen.MouseButton1Click:Connect(function()
 		play(SND.click)
-		note.Visible = false
+		feedSet(false)
 		if C.togglePhone then C.togglePhone(true) C.phoneView("buzz") end
 	end)
+	local flashId = 0
+	function U.buzzNote(p)
+		if type(p) ~= "table" then return end
+		table.insert(feedPosts, 1, {icon = p.icon, text = p.text})
+		if #feedPosts > 3 then table.remove(feedPosts) end
+		feedRender()
+		flashId += 1
+		local mine = flashId
+		feed.BackgroundColor3 = RGB(200, 50, 130)
+		task.delay(0.6, function() if flashId == mine then feed.BackgroundColor3 = RGB(110, 28, 76) end end)
+	end
+	-- the posts that were already there when you joined (newest first)
+	function U.buzzSeed(list)
+		feedPosts = {}
+		for i = 1, math.min(3, #list) do feedPosts[i] = {icon = list[i].icon, text = list[i].text} end
+		feedRender()
+	end
+	Lay.slot(feed, "top", 99, {expanded = function() return feedExpanded end})
 	Lay.onChange(function(L)
 		eventBar.Visible = not L.compact
 		U.ticker.Visible = not L.compact
-		if not L.compact then note.Visible = false end
+		feedRender()
 	end)
 	C.onState(function(s)
 		local t = s.eventText
@@ -251,7 +299,21 @@ do
 	local sub = label({AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.54), Size = UDim2.new(0.8, 0, 0, 60), TextScaled = true, TextWrapped = true, ZIndex = 61}, frame)
 	new("UIStroke", {Thickness = 2, Color = Color3.new(0, 0, 0), Transparency = 0.3}, sub)
 	local sc = new("UIScale", {}, title)
+	-- v11.3 phone layout: the celebration is a banner just under the HUD (not a dimmed full-screen message over the
+	-- road and the player), shorter, with less confetti
+	Lay.onChange(function(L)
+		if L.compact then
+			title.Position = UDim2.new(0.5, 0, 0, L.hudBottom + 38)
+			title.Size = UDim2.new(0.94, 0, 0, 40)
+			sub.Position = UDim2.new(0.5, 0, 0, L.hudBottom + 78)
+			sub.Size = UDim2.new(0.9, 0, 0, 34)
+		else
+			title.Position, title.Size = UDim2.fromScale(0.5, 0.4), UDim2.new(0.9, 0, 0, 90)
+			sub.Position, sub.Size = UDim2.fromScale(0.5, 0.54), UDim2.new(0.8, 0, 0, 60)
+		end
+	end)
 	function U.confetti(n)
+		if Lay.compact then n = math.floor((n or 60) * 0.35) end
 		for _ = 1, n or 60 do
 			local c = new("Frame", {Size = UDim2.fromOffset(math.random(8, 14), math.random(12, 20)), Position = UDim2.new(math.random(), 0, -0.05, 0),
 				BackgroundColor3 = Color3.fromHSV(math.random(), 0.8, 1), BorderSizePixel = 0, Rotation = math.random(0, 360), ZIndex = 62}, gui)
@@ -271,11 +333,11 @@ do
 		frame.Visible = true
 		frame.BackgroundTransparency = 1
 		sc.Scale = 0.2
-		tween(frame, 0.4, {BackgroundTransparency = 0.55})
+		tween(frame, 0.4, {BackgroundTransparency = Lay.compact and 1 or 0.55})
 		tween(sc, 0.6, {Scale = 1}, Enum.EasingStyle.Back)
 		play(SND.event)
 		U.confetti(50)
-		task.delay(4.5, function()
+		task.delay(Lay.compact and 3 or 4.5, function()
 			if sid ~= mine then return end
 			tween(frame, 0.5, {BackgroundTransparency = 1})
 			task.delay(0.5, function() if sid == mine then frame.Visible = false end end)
@@ -380,14 +442,14 @@ local function sheet(name, p, full, maxW, maxH, onCompact, closeBtn, edgeBtn)
 end
 -- a square edge button: big icon + a short line under it
 local function edgeButton(name, icon, order)
-	local b = new("TextButton", {Name = name, Size = UDim2.fromOffset(56, 56), BackgroundColor3 = BG, BackgroundTransparency = 0.1, BorderSizePixel = 0, Text = "", AutoButtonColor = true, Visible = false}, gui)
-	corner(b, 12)
+	local b = new("TextButton", {Name = name, Size = UDim2.fromOffset(44, 44), BackgroundColor3 = BG, BackgroundTransparency = 0.1, BorderSizePixel = 0, Text = "", AutoButtonColor = true, Visible = false}, gui)
+	corner(b, 10)
 	stroke(b, WHITE, 1.5, 0.7)
-	label({Position = UDim2.fromOffset(0, 3), Size = UDim2.new(1, 0, 0, 30), Text = icon, TextSize = 24}, b)
-	local sub = label({Position = UDim2.new(0, 2, 1, -20), Size = UDim2.new(1, -4, 0, 16), TextSize = 11, Font = Enum.Font.GothamBlack, Text = ""}, b)
+	label({Position = UDim2.fromOffset(0, 2), Size = UDim2.new(1, 0, 0, 24), Text = icon, TextSize = 19}, b)
+	local sub = label({Position = UDim2.new(0, 1, 1, -17), Size = UDim2.new(1, -2, 0, 15), TextSize = 10, Font = Enum.Font.GothamBlack, Text = ""}, b)
 	local dot = new("Frame", {AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -4, 0, 4), Size = UDim2.fromOffset(10, 10), BorderSizePixel = 0, Visible = false}, b)
 	corner(dot, 5)
-	Lay.slot(b, "left", order, {compactOnly = true})
+	Lay.slot(b, "left", order, {compactOnly = true, size = UDim2.fromOffset(44, 44)})
 	return b, sub, dot
 end
 U.edgeButton = edgeButton
@@ -678,7 +740,7 @@ do
 	local pc = panel({Position = UDim2.new(1, -312, 0, 214), AnchorPoint = Vector2.new(1, 0), Size = UDim2.fromOffset(290, 150), BackgroundColor3 = RGB(70, 30, 30), Visible = false}, gui)
 	stroke(pc, RED, 2, 0)
 	pc.Name = "ProblemCard"
-	Lay.slot(pc, "bottom", 2)
+	Lay.slot(pc, "top", 2)
 	local pt = label({Position = UDim2.fromOffset(10, 6), Size = UDim2.new(1, -20, 0, 22), TextSize = 16, Font = Enum.Font.GothamBlack, TextColor3 = RGB(255, 200, 120)}, pc)
 	local pd = label({Position = UDim2.fromOffset(10, 30), Size = UDim2.new(1, -20, 0, 36), TextSize = 13, TextWrapped = true}, pc)
 	local cur
@@ -716,7 +778,7 @@ do
 	local dc = panel({Position = UDim2.new(1, -12, 1, -230), AnchorPoint = Vector2.new(1, 1), Size = UDim2.fromOffset(290, 128), BackgroundColor3 = RGB(25, 60, 40), Visible = false}, gui)
 	stroke(dc, GREEN, 2, 0)
 	dc.Name = "DeliveryCard"
-	Lay.slot(dc, "bottom", 3)
+	Lay.slot(dc, "top", 3)
 	local dt = label({Position = UDim2.fromOffset(10, 6), Size = UDim2.new(1, -20, 0, 22), TextSize = 16, Font = Enum.Font.GothamBlack, TextColor3 = RGB(150, 255, 170)}, dc)
 	local dd = label({Position = UDim2.fromOffset(10, 28), Size = UDim2.new(1, -20, 0, 34), TextSize = 13, TextWrapped = true}, dc)
 	local dr = label({Position = UDim2.fromOffset(10, 62), Size = UDim2.new(1, -20, 0, 18), TextSize = 13, TextColor3 = GOLD}, dc)
@@ -756,10 +818,6 @@ do
 	-- small screens: keep the card inside the screen and clear of the corner buttons.
 	-- phones: the bottom notification stack (full stack width, text at ≥ 80%)
 	tc.Name = "TutorialCard"
-	Lay.slot(tc, "bottom", 1)
-	Lay.onChange(function(L)
-		L.resize(tc, UDim2.fromOffset(L.compact and 540 or math.min(540, L.vp.X - 220), 124))
-	end)
 	local title = label({Position = UDim2.fromOffset(14, 6), Size = UDim2.new(1, -120, 0, 22), TextSize = 16, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left}, tc)
 	local body = label({Position = UDim2.fromOffset(14, 30), Size = UDim2.new(1, -28, 0, 40), TextSize = 15, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top}, tc)
 	-- live progress for the current step, worked out by the server ("Level 2 / 3", "84 studs to your home"...)
@@ -775,6 +833,14 @@ do
 	local open = button({AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -10, 1, -8), Size = UDim2.fromOffset(150, 34), Text = "📱 Open Phone", TextSize = 15, BackgroundColor3 = GREEN, Visible = false}, tc)
 	open.MouseButton1Click:Connect(function()
 		if C.togglePhone then C.togglePhone(true) end
+	end)
+	-- the notification stack (top-right) on a phone: a little taller (the text is narrower there), first in line
+	Lay.slot(tc, "top", 1, {compactHeight = 140, onCompact = function(c)
+		body.Size = c and UDim2.new(1, -28, 0, 54) or UDim2.new(1, -28, 0, 40)
+		prog.Position = c and UDim2.fromOffset(14, 88) or UDim2.fromOffset(14, 74)
+	end})
+	Lay.onChange(function(L)
+		L.resize(tc, UDim2.fromOffset(L.compact and 540 or math.min(540, L.vp.X - 220), 124))
 	end)
 	local lastStep, lastSent = nil, 0
 	C.onState(function(s)
@@ -815,6 +881,13 @@ do
 	local bigSub = label({Position = UDim2.fromOffset(0, 142), Size = UDim2.new(1, 0, 0, 40), TextScaled = true, ZIndex = 71}, big)
 	new("UIStroke", {Thickness = 2, Color = Color3.new(0, 0, 0), Transparency = 0.2}, bigSub)
 	local flash = new("Frame", {Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 69}, gui)
+	-- v11.3 phone layout: the big "mega event" announcement is a small banner under the HUD for 3.5 s (the event bar
+	-- in the stack carries on after it); the screen doesn't flash
+	local bigK, bigTime = 1, 6
+	Lay.onChange(function(L)
+		bigK, bigTime = L.compact and 0.5 or 1, L.compact and 3.5 or 6
+		big.Position = L.compact and UDim2.new(0.5, 0, 0, L.hudBottom + 8 + 95 * 0.5) or UDim2.fromScale(0.5, 0.36)
+	end)
 	local bar = panel({AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 214), Size = UDim2.fromOffset(540, 44), Visible = false, ZIndex = 30}, gui)
 	bar.Name = "MegaBar"
 	Lay.slot(bar, "top", 4)
@@ -842,15 +915,17 @@ do
 			bigTitle.TextColor3 = e.color or GOLD
 			bigSub.Text = (e.sub or "") .. "   📸 V = photo mode"
 			big.Visible = true
-			bigScale.Scale = 0.3
-			tween(bigScale, 0.7, {Scale = 1}, Enum.EasingStyle.Back)
-			flash.BackgroundColor3 = e.color or GOLD
-			flash.BackgroundTransparency = 0.4
-			tween(flash, 0.8, {BackgroundTransparency = 1})
+			bigScale.Scale = 0.3 * bigK
+			tween(bigScale, 0.7, {Scale = bigK}, Enum.EasingStyle.Back)
+			if not Lay.compact then
+				flash.BackgroundColor3 = e.color or GOLD
+				flash.BackgroundTransparency = 0.4
+				tween(flash, 0.8, {BackgroundTransparency = 1})
+			end
 			play(SND.event)
 			U.confetti(90)
 			showBar({key = e.key, icon = e.icon, title = e.title, text = e.text or e.sub, color = e.color, left = e.dur})
-			task.delay(6, function()
+			task.delay(bigTime, function()
 				if bigId ~= mine then return end
 				tween(bigScale, 0.35, {Scale = 0.2}, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
 				task.delay(0.35, function() if bigId == mine then big.Visible = false end end)
@@ -889,7 +964,7 @@ end
 do
 	local card = panel({AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 12, 1, -120), Size = UDim2.fromOffset(340, 70), BackgroundColor3 = RGB(60, 45, 15), Visible = false, ZIndex = 45}, gui)
 	card.Name = "AchievementCard"
-	Lay.slot(card, "bottom", 5)
+	Lay.slot(card, "top", 5)
 	stroke(card, GOLD, 2, 0)
 	local ic = label({Position = UDim2.fromOffset(8, 0), Size = UDim2.fromOffset(54, 70), TextSize = 36, ZIndex = 46}, card)
 	local t1 = label({Position = UDim2.fromOffset(66, 8), Size = UDim2.new(1, -170, 0, 18), TextSize = 12, TextColor3 = GOLD, TextXAlignment = Enum.TextXAlignment.Left, Text = "🏆 ACHIEVEMENT UNLOCKED", ZIndex = 46}, card)
@@ -953,7 +1028,7 @@ end
 do
 	local tp = panel({AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -122), Size = UDim2.fromOffset(460, 92), BackgroundColor3 = RGB(35, 55, 45), Visible = false, ZIndex = 35}, gui)
 	tp.Name = "HouseTourPanel"
-	Lay.slot(tp, "bottom", 7)
+	Lay.slot(tp, "top", 7)
 	stroke(tp, GREEN, 2, 0)
 	local title = label({Position = UDim2.fromOffset(12, 4), Size = UDim2.new(1, -24, 0, 22), TextSize = 15, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 36}, tp)
 	local row = new("Frame", {Position = UDim2.fromOffset(8, 42), Size = UDim2.new(1, -16, 0, 42), BackgroundTransparency = 1, ZIndex = 36}, tp)

@@ -278,7 +278,7 @@ local function build()
 	corner(fb, 23)
 	fb.MouseButton1Click:Connect(function() play(SND.click) C.openModal("admin") end)
 	fb.Name = "AdminButton"
-	C.Layout.slot(fb, "left", 3, {size = UDim2.fromOffset(56, 48)})   -- phone layout: the left edge column
+	C.Layout.slot(fb, "left", 3, {size = UDim2.fromOffset(44, 44), onCompact = function(c) fb.TextSize = c and 20 or 24 end})   -- phone layout: the left edge column
 	AP.floatButton = fb
 end
 function AP.render()

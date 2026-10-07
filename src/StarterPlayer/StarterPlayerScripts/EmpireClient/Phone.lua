@@ -141,11 +141,11 @@ if UserInputService.TouchEnabled then
 end
 -- v11.1 phone layout: one column on the right edge, just above Roblox's jump button: ⚙️ above 📱
 pbtn.Name, gear.Name = "PhoneButton", "SettingsButton"
-Lay.slot(pbtn, "right", 3, {size = UDim2.fromOffset(56, 56), onCompact = function(c)
+Lay.slot(pbtn, "right", 3, {size = UDim2.fromOffset(52, 52), onCompact = function(c)
 	pLabel.Visible = not c
-	pbtn.TextSize = c and 30 or 38
+	pbtn.TextSize = c and 28 or 38
 end})
-Lay.slot(gear, "right", 2, {size = UDim2.fromOffset(48, 48)})
+Lay.slot(gear, "right", 2, {size = UDim2.fromOffset(44, 44), onCompact = function(c) gear.TextSize = c and 20 or 22 end})
 Lay.onChange(function()
 	local fit = fitScale()
 	if phone.Visible then sc.Scale = fit end
@@ -414,6 +414,7 @@ do
 		end
 	end)
 	if posts[1] and U.ticker then U.ticker.Text = "📱 CITYBUZZ: " .. posts[1].icon .. " " .. posts[1].text end
+	if U.buzzSeed then U.buzzSeed(posts) end   -- (v11.3: the phone layout's small CityBuzz feed starts with the latest posts)
 	C.onState(function(s)
 		pStats.Text = fmt(s.followers) .. " followers  •  +" .. math.floor(math.min(50, s.followers / 20)) .. "% customers from fans"
 	end)

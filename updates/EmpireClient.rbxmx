@@ -185,9 +185,12 @@ end
 -- One place that knows the screen: viewport size and breakpoints, the safe area (notch, Roblox's top bar, the
 -- home indicator), where Roblox's touch controls sit, and which big window is open.
 --   • desktop / tablet: the classic layout, untouched.
---   • phone (viewport ≤ 700 wide or ≤ 500 tall): a real mobile layout. A one-row HUD at the top, small buttons down
---     the edges, notifications in two bounded stacks (top and bottom), every window sized to the screen, and only
---     ONE big window at a time. The other modules hand their frames to this one with L.slot / L.window / L.major.
+--   • phone (viewport ≤ 700 wide or ≤ 500 tall): a real mobile layout. A compact HUD at the top (money / income /
+--     reputation, then the story chip and event chip), small evenly spaced buttons down the left edge, 📱 ⚙️ 📸 down the
+--     right edge above Roblox's jump button, ONE notification stack in the top-right corner (at most 3 cards, and it
+--     never grows into the middle of the screen), the bottom of the screen left free for driving controls and
+--     interaction buttons, every window sized to the screen, and only ONE big window at a time.
+--     The other modules hand their frames to this one with L.slot / L.window / L.major.
 -- Layout work only runs when the viewport (or the safe area) changes and when a window opens or closes —
 -- never every frame.
 return function(C)
@@ -203,8 +206,11 @@ C.UIManager = L
 -- (Toasts sit above windows on purpose: "not enough cash" has to be readable while a shop is open.)
 L.Z = {hud = 5, controls = 6, stack = 30, phoneDim = 33, phone = 34, modal = 40, window = 45, puzzle = 50, toast = 55, splash = 60, critical = 80}
 L.MIN_SCALE = 0.8          -- windows never shrink text below 80% on a phone: they reflow (narrower, scrolling) instead
-L.ROW1, L.ROW2 = 40, 30    -- compact HUD rows (px)
-L.SIDE = 56                -- edge buttons (px, touch-friendly)
+L.ROW1, L.ROW2 = 34, 26    -- compact HUD rows (px): money row, story / event chips
+L.SIDE = 44                -- left-column buttons (px)
+L.RSIDE = 52               -- right-column width (px): the 📱 phone button is 52, ⚙️ and 📸 are 44
+L.STACK_MAX = 3            -- notification cards visible at once
+L.GAP = 6
 
 -- ===== breakpoints =====
 function L.classify(vp)
@@ -263,17 +269,22 @@ local function zones()
 	L.hudBottom = s.t + L.ROW1 + 4 + L.ROW2
 	-- edge columns
 	L.leftX = s.l
-	L.rightX = vp.X - s.r - L.SIDE
+	L.rightX = vp.X - s.r - L.RSIDE
 	L.colTop = L.hudBottom + 8
 	L.rightBottom = vp.Y - s.b - L.controlsH          -- the right column ends just above the jump button
-	-- notification stacks: between the edge columns, top half / bottom half of what's left
-	local x0 = s.l + L.SIDE + 6
-	local x1 = vp.X - s.r - L.SIDE - 6
-	local top, bottom = L.hudBottom + 6, vp.Y - s.b - L.controlsH
-	local mid = math.floor((top + bottom) / 2)
-	L.stackX, L.stackW = x0, math.max(120, x1 - x0)
-	L.topStackY, L.topStackH = top, math.max(40, mid - top - 3)
-	L.bottomStackY, L.bottomStackH = mid + 3, math.max(40, bottom - mid - 3)
+	L.rightColH = 44 + 44 + 52 + 2 * L.GAP            -- 📸 ⚙️ 📱
+	L.rightColTop = L.rightBottom - L.rightColH
+	-- THE notification stack: top-right, below the HUD rows. It is never allowed below ~38% of the screen height
+	-- (the middle of the screen is where the player, the road and the businesses are), and it stops above the right-hand
+	-- buttons. On a short landscape screen there's no room above them, so it moves in beside them instead.
+	L.stackY = L.hudBottom + 6
+	local want = L.portrait and vp.Y * 0.38 or vp.Y * 0.5
+	local edge = vp.X - s.r
+	if want > L.rightColTop - 8 then edge = L.rightX - 6 end
+	L.stackW = math.clamp(math.min(math.floor(vp.X * (L.portrait and 0.72 or 0.4)), edge - s.l - L.SIDE - 8), 180, 300)   -- ≈ 72% of a portrait phone's width
+	L.stackX = edge - L.stackW
+	L.stackBottom = math.max(L.stackY + 76, want)                      -- normal budget
+	L.stackMaxBottom = math.max(L.stackBottom, math.min(vp.Y * 0.5, L.portrait and L.rightColTop - 8 or vp.Y * 0.62))   -- only for a feed you opened yourself
 	-- windows (modals, the phone, game windows): ~92% wide, ~84% tall, below the HUD's first row
 	local wTop = s.t + L.ROW1 + 6
 	local w = math.min(vp.X * 0.92, vp.X - s.l - s.r)
@@ -338,8 +349,8 @@ end
 -- ===== compact containers =====
 -- row 2 of the HUD, the left and right button columns, and the two notification stacks. They only exist on the
 -- phone layout; on desktop they're hidden and everything sits where it always did.
-local function container(name, z, vertical, align)
-	local f = new("Frame", {Name = name, BackgroundTransparency = 1, Visible = false, ZIndex = z, ClipsDescendants = true}, gui)
+local function container(name, z, vertical, align, clip)
+	local f = new("Frame", {Name = name, BackgroundTransparency = 1, Visible = false, ZIndex = z, ClipsDescendants = clip ~= false}, gui)
 	local lay = new("UIListLayout", {SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 6), FillDirection = vertical and Enum.FillDirection.Vertical or Enum.FillDirection.Horizontal,
 		HorizontalAlignment = Enum.HorizontalAlignment.Center, VerticalAlignment = align or Enum.VerticalAlignment.Top}, f)
 	return f, lay
@@ -348,9 +359,13 @@ L.box = {}
 L.box.row2 = container("CompactRow2", L.Z.hud, false)
 L.box.left = container("CompactLeft", L.Z.hud, true)
 L.box.right = container("CompactRight", L.Z.controls, true, Enum.VerticalAlignment.Bottom)
-L.box.top = container("CompactTopStack", L.Z.stack, true)
-L.box.bottom = container("CompactBottomStack", L.Z.stack, true, Enum.VerticalAlignment.Bottom)
+L.box.top = container("CompactTopStack", L.Z.stack, true, nil, false)
+L.box.bottom = L.box.top    -- (v11.3: there is ONE stack now; the bottom of the screen stays free for controls)
 L.box.row2:FindFirstChildOfClass("UIListLayout").HorizontalAlignment = Enum.HorizontalAlignment.Left
+L.box.left:FindFirstChildOfClass("UIListLayout").Padding = UDim.new(0, 10)             -- evenly spaced
+L.box.top:FindFirstChildOfClass("UIListLayout").HorizontalAlignment = Enum.HorizontalAlignment.Right
+-- cards that are waiting for a free place in the stack (visible = true, but parked here until there's room)
+L.holder = new("Frame", {Name = "QueuedCards", BackgroundTransparency = 1, Visible = false, Size = UDim2.new()}, gui)
 local function placeBoxes()
 	local b = L.box
 	for _, f in pairs(b) do f.Visible = false end
@@ -361,43 +376,90 @@ local function placeBoxes()
 	b.left.Position = UDim2.fromOffset(L.leftX, L.colTop)
 	b.left.Size = UDim2.fromOffset(L.SIDE, math.max(60, L.rightBottom - L.colTop))
 	b.right.Position = UDim2.fromOffset(L.rightX, L.colTop)
-	b.right.Size = UDim2.fromOffset(L.SIDE, math.max(60, L.rightBottom - L.colTop))
-	b.top.Position = UDim2.fromOffset(L.stackX, L.topStackY)
-	b.top.Size = UDim2.fromOffset(L.stackW, L.topStackH)
-	b.bottom.Position = UDim2.fromOffset(L.stackX, L.bottomStackY)
-	b.bottom.Size = UDim2.fromOffset(L.stackW, L.bottomStackH)
+	b.right.Size = UDim2.fromOffset(L.RSIDE, math.max(60, L.rightBottom - L.colTop))
+	b.top.Position = UDim2.fromOffset(L.stackX, L.stackY)
+	b.top.Size = UDim2.fromOffset(L.stackW, L.stackMaxBottom - L.stackY)
 	L.applyBusy()
 end
 
 -- ===== slots: a frame that moves into a compact container on phones =====
--- where: "row2" | "left" | "right" | "top" | "bottom". opts.size = the compact size (UDim2, or fn(L) → UDim2);
--- stack cards keep their height and are narrowed (and scaled down to at most 80%) to the stack's width.
+-- where: "row2" | "left" | "right" | "top" ("bottom" is the same stack). opts.size = the compact size (UDim2, or fn(L) →
+-- UDim2); stack cards keep their height and are narrowed (and scaled down to at most 80%) to the stack's width, and
+-- their text shrinks to fit its box.
 -- opts.compactOnly: the frame only exists on the phone layout (hidden on desktop).
+-- opts.expanded: fn() → true while the card is open because the PLAYER opened it (the CityBuzz feed).
 local slots = {}
+-- Who gets a place first when more than L.STACK_MAX cards are showing. Cards that need an answer come first.
+local PRIORITY = {TutorialCard = 1, ProblemCard = 2, DeliveryCard = 3, PoliceAlertBar = 4, HeistBagHUD = 5, RacePanel = 6, MegaBar = 7, BeefPill = 8,
+	ViralMomentPopup = 9, StoryPill = 10, InteriorBar = 11, AchievementCard = 12, GuideTip = 13, RivalBubble = 14, HouseTourPanel = 15, BuzzFeed = 99}
+local scheduleReflow, adaptOne
 function L.slot(frame, where, order, opts)
 	opts = opts or {}
-	local e = {frame = frame, where = where, order = order or 0, opts = opts,
+	if where == "bottom" then where = "top" end
+	local e = {frame = frame, where = where, order = order or 0, opts = opts, prio = PRIORITY[frame.Name] or (20 + (order or 0)),
 		parent = frame.Parent, pos = frame.Position, anchor = frame.AnchorPoint, size = frame.Size, z = frame.ZIndex}
 	table.insert(slots, e)
+	if where == "top" then
+		frame:GetPropertyChangedSignal("Visible"):Connect(function() scheduleReflow() end)
+		-- labels and buttons added to the card later (most cards fill themselves in after they're registered)
+		frame.DescendantAdded:Connect(function(x) if L.compact then task.defer(adaptOne, x, true) end end)
+	end
 	L.applySlot(e)
 	return e
 end
 local function designSize(e)
 	return e.opts.designSize or e.size
 end
+
+-- ===== text that fits (phone layout) =====
+-- Cards were designed for a wide screen, so their text boxes are sized for the desktop. On a phone every label in a
+-- stack card gets TextScaled with a cap at its own size, so the text shrinks to fit its box instead of spilling out of
+-- it (never below 9 px before the card's scale: cards are never scaled below 80%).
+local adapted = setmetatable({}, {__mode = "k"})
+function adaptOne(x, on)
+	if x.ClassName ~= "TextLabel" and x.ClassName ~= "TextButton" then return end
+	local o = adapted[x]
+	if on then
+		if not o and not x.TextScaled and x.AutomaticSize == Enum.AutomaticSize.None then
+			o = {size = x.TextSize}
+			o.cap = new("UITextSizeConstraint", {MaxTextSize = x.TextSize, MinTextSize = math.min(x.TextSize, 9)}, x)
+			x.TextScaled = true
+			adapted[x] = o
+		end
+	elseif o then
+		x.TextScaled = false
+		x.TextSize = o.size
+		o.cap:Destroy()
+		adapted[x] = nil
+	end
+end
+function L.adaptText(frame, on)
+	for _, x in ipairs(frame:GetDescendants()) do adaptOne(x, on) end
+end
+
+local function cardScale(e)
+	local ds = designSize(e)
+	local dw = ds.X.Offset > 0 and ds.X.Offset or 300
+	local s = math.clamp(L.stackW / dw, L.MIN_SCALE, 1)
+	-- a tall card (problem, delivery) shrinks a little more rather than push into the middle of the screen
+	local dh = e.opts.compactHeight or ds.Y.Offset
+	if dh * s > L.stackBottom - L.stackY then s = math.max(L.MIN_SCALE, (L.stackBottom - L.stackY) / dh) end
+	return s, dw, ds
+end
 function L.applySlot(e)
 	local f = e.frame
 	if L.compact then
-		f.Parent = L.box[e.where]
-		f.LayoutOrder = e.order
-		if e.where == "top" or e.where == "bottom" then
-			local ds = designSize(e)
-			local dw = ds.X.Offset > 0 and ds.X.Offset or 300
-			local s = math.clamp(L.stackW / dw, L.MIN_SCALE, 1)
+		if e.where == "top" then
+			local s, dw, ds = cardScale(e)
 			L.scaleOf(f).Scale = s
 			f.Size = UDim2.fromOffset(math.min(dw, L.stackW / s), e.opts.compactHeight or ds.Y.Offset)
-		elseif e.opts.size then
-			f.Size = type(e.opts.size) == "function" and e.opts.size(L) or e.opts.size
+			f.LayoutOrder = e.prio
+			f.Parent = L.box.top
+			L.adaptText(f, true)
+		else
+			f.Parent = L.box[e.where]
+			f.LayoutOrder = e.order
+			if e.opts.size then f.Size = type(e.opts.size) == "function" and e.opts.size(L) or e.opts.size end
 		end
 		if e.opts.compactOnly then f.Visible = true end
 		if e.opts.onCompact then e.opts.onCompact(true) end
@@ -406,16 +468,56 @@ function L.applySlot(e)
 		f.Parent = e.parent
 		f.Position, f.AnchorPoint, f.Size = e.pos, e.anchor, e.size
 		local sc = f:FindFirstChild("UIScale")
-		if sc and (e.where == "top" or e.where == "bottom") then sc.Scale = 1 end
+		if sc and e.where == "top" then sc.Scale = 1 end
+		if e.where == "top" then L.adaptText(f, false) end
 		if e.opts.onCompact then e.opts.onCompact(false) end
 	end
 end
--- a slotted card changed its own design size (e.g. the tutorial card)
+
+-- ===== the notification stack: at most STACK_MAX cards, inside a height budget =====
+-- Showing cards (Visible = true) are sorted by priority. A card gets a place if there are fewer than 3 and it fits in
+-- the budget (the first card always gets one, whatever its size). The others wait in L.holder, still "visible" from
+-- their owner's point of view, and move up as soon as a card is dismissed. A card the player opened on purpose (the
+-- CityBuzz feed) may use the larger budget.
+local reflowing = false
+local function reflowStack()
+	if not L.compact or reflowing then return end
+	reflowing = true
+	local list = {}
+	for _, e in ipairs(slots) do
+		if e.where == "top" and e.frame.Visible then table.insert(list, e) end
+	end
+	table.sort(list, function(x, y) return x.prio < y.prio end)
+	local used, n = 0, 0
+	local budget = L.stackBottom - L.stackY
+	local maxBudget = L.stackMaxBottom - L.stackY
+	for _, e in ipairs(list) do
+		local s = cardScale(e)
+		local h = (e.opts.compactHeight or designSize(e).Y.Offset) * s + L.GAP
+		local mine = e.opts.expanded and e.opts.expanded()
+		local fits = n == 0 or used + h <= budget or (mine and used + h <= maxBudget)
+		if n < L.STACK_MAX and fits then
+			e.frame.Parent = L.box.top
+			e.frame.LayoutOrder = e.prio
+			used += h
+			n += 1
+		else
+			e.frame.Parent = L.holder
+		end
+	end
+	reflowing = false
+end
+L.reflowStack = reflowStack
+function scheduleReflow()
+	task.defer(reflowStack)
+end
+-- a slotted card changed its own design size (e.g. the tutorial card, the CityBuzz feed)
 function L.resize(frame, size)
 	for _, e in ipairs(slots) do
 		if e.frame == frame then
 			e.size = size
 			L.applySlot(e)
+			scheduleReflow()
 			return
 		end
 	end
@@ -452,7 +554,6 @@ function L.applyBusy()
 		box.row2.Visible = not b and not L.driving
 		box.left.Visible = not b and not L.driving
 		box.top.Visible = not b
-		box.bottom.Visible = not b
 		box.right.Visible = true
 	end
 	fire(busyListeners, b)
@@ -608,6 +709,7 @@ end
 table.insert(listeners, 1, function()
 	placeBoxes()
 	for _, e in ipairs(slots) do L.applySlot(e) end
+	reflowStack()
 	fitWorldAndChat()
 end)
 placeBoxes()
@@ -1180,6 +1282,7 @@ local fmt, clock, play, SND, act, gui, U, plr = C.fmt, C.clock, C.play, C.SND, C
 local BG, CARD, GOLD, GREEN, GRAY, RED, BLUE, PURPLE, WHITE, SUB = C.BG, C.CARD, C.GOLD, C.GREEN, C.GRAY, C.RED, C.BLUE, C.PURPLE, C.WHITE, C.SUB
 local clear = C.clear
 local R = C.R
+local Lay = C.Layout
 
 local freezeOverlay = new("Frame", {Size = UDim2.fromScale(1, 1), BackgroundColor3 = RGB(140, 210, 255), BackgroundTransparency = 1, BorderSizePixel = 0}, gui)
 new("UIGradient", {Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 0.55), NumberSequenceKeypoint.new(0.5, 1), NumberSequenceKeypoint.new(1, 0.55)})}, freezeOverlay)
@@ -1330,28 +1433,75 @@ do
 	chipL = label({Position = UDim2.fromOffset(6, 0), Size = UDim2.new(1, -12, 1, 0), TextSize = 12, TextTruncate = Enum.TextTruncate.AtEnd}, chip)
 	chip.MouseButton1Click:Connect(function() play(SND.click) C.openModal("empire") end)
 	Lay.slot(chip, "row2", 2, {compactOnly = true, size = function(L) return UDim2.fromOffset(math.floor((L.vp.X - L.safe.l - L.safe.r) * 0.46), L.ROW2) end})
-	local note = new("TextButton", {Name = "BuzzNote", Size = UDim2.fromOffset(340, 34), BackgroundColor3 = RGB(120, 30, 80), BorderSizePixel = 0, Text = "", AutoButtonColor = true, Visible = false}, gui)
-	corner(note, 10)
-	local noteL = label({Position = UDim2.fromOffset(8, 0), Size = UDim2.new(1, -16, 1, 0), TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd}, note)
-	Lay.slot(note, "top", 1)
-	local noteId = 0
-	function U.buzzNote(p)
-		if not Lay.compact or type(p) ~= "table" then return end
-		noteId += 1
-		local mine = noteId
-		noteL.Text = "📣 CityBuzz: " .. tostring(p.icon or "") .. " " .. tostring(p.text or "")
-		note.Visible = true
-		task.delay(4, function() if noteId == mine then note.Visible = false end end)
+	-- v11.3: CityBuzz on a phone is a small expandable feed at the end of the top-right stack, not a pop-up:
+	--   collapsed:  [📣 🍕 New player opened a corner!                    ▾]      one line
+	--   opened:     [📣 CityBuzz                                           ▴]
+	--               [🍕 New player opened a corner!                         ]      the 3 latest posts
+	--               [🔥 Bob's Bakery went viral!                            ]
+	--               [Open CityBuzz ›                                        ]
+	-- It opens when you tap it and closes by itself after 12 s. A new post just changes the line (and flashes it).
+	local feed = new("Frame", {Name = "BuzzFeed", Size = UDim2.fromOffset(320, 28), BackgroundColor3 = RGB(110, 28, 76), BorderSizePixel = 0, Visible = false}, gui)
+	corner(feed, 8)
+	local feedHead = new("TextButton", {Size = UDim2.new(1, 0, 0, 28), BackgroundTransparency = 1, Text = "", AutoButtonColor = false}, feed)
+	local feedLine = label({Position = UDim2.fromOffset(8, 0), Size = UDim2.new(1, -30, 1, 0), TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd}, feedHead)
+	local feedArrow = label({AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -6, 0, 0), Size = UDim2.fromOffset(18, 28), Text = "▾", TextSize = 14}, feedHead)
+	local feedRows = {}
+	for i = 1, 3 do
+		feedRows[i] = label({Position = UDim2.fromOffset(8, 28 + (i - 1) * 26), Size = UDim2.new(1, -16, 0, 26), TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left,
+			TextTruncate = Enum.TextTruncate.AtEnd, TextColor3 = RGB(255, 225, 240), Visible = false}, feed)
 	end
-	note.MouseButton1Click:Connect(function()
+	local feedOpen = button({Position = UDim2.fromOffset(8, 28 + 78), Size = UDim2.new(1, -16, 0, 22), Text = "Open CityBuzz ›", TextSize = 12, BackgroundColor3 = RGB(200, 50, 130), Visible = false}, feed)
+	local feedPosts, feedExpanded, feedToken = {}, false, 0
+	local FEED_H = 28 + 78 + 28
+	local function feedRender()
+		local p = feedPosts[1]
+		feed.Visible = Lay.compact and p ~= nil
+		feedLine.Text = feedExpanded and "📣 CityBuzz" or ("📣 " .. tostring(p and p.icon or "") .. " " .. tostring(p and p.text or ""))
+		feedArrow.Text = feedExpanded and "▴" or "▾"
+		for i, r in ipairs(feedRows) do
+			local q = feedPosts[i]
+			r.Visible = feedExpanded and q ~= nil
+			if q then r.Text = tostring(q.icon or "") .. " " .. tostring(q.text or "") end
+		end
+		feedOpen.Visible = feedExpanded
+		Lay.resize(feed, UDim2.fromOffset(320, feedExpanded and FEED_H or 28))
+	end
+	local function feedSet(open)
+		if feedExpanded == open then return end
+		feedExpanded = open
+		feedToken += 1
+		local mine = feedToken
+		feedRender()
+		if open then task.delay(12, function() if feedToken == mine and feedExpanded then feedSet(false) end end) end
+	end
+	feedHead.MouseButton1Click:Connect(function() play(SND.click) feedSet(not feedExpanded) end)
+	feedOpen.MouseButton1Click:Connect(function()
 		play(SND.click)
-		note.Visible = false
+		feedSet(false)
 		if C.togglePhone then C.togglePhone(true) C.phoneView("buzz") end
 	end)
+	local flashId = 0
+	function U.buzzNote(p)
+		if type(p) ~= "table" then return end
+		table.insert(feedPosts, 1, {icon = p.icon, text = p.text})
+		if #feedPosts > 3 then table.remove(feedPosts) end
+		feedRender()
+		flashId += 1
+		local mine = flashId
+		feed.BackgroundColor3 = RGB(200, 50, 130)
+		task.delay(0.6, function() if flashId == mine then feed.BackgroundColor3 = RGB(110, 28, 76) end end)
+	end
+	-- the posts that were already there when you joined (newest first)
+	function U.buzzSeed(list)
+		feedPosts = {}
+		for i = 1, math.min(3, #list) do feedPosts[i] = {icon = list[i].icon, text = list[i].text} end
+		feedRender()
+	end
+	Lay.slot(feed, "top", 99, {expanded = function() return feedExpanded end})
 	Lay.onChange(function(L)
 		eventBar.Visible = not L.compact
 		U.ticker.Visible = not L.compact
-		if not L.compact then note.Visible = false end
+		feedRender()
 	end)
 	C.onState(function(s)
 		local t = s.eventText
@@ -1422,7 +1572,21 @@ do
 	local sub = label({AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.54), Size = UDim2.new(0.8, 0, 0, 60), TextScaled = true, TextWrapped = true, ZIndex = 61}, frame)
 	new("UIStroke", {Thickness = 2, Color = Color3.new(0, 0, 0), Transparency = 0.3}, sub)
 	local sc = new("UIScale", {}, title)
+	-- v11.3 phone layout: the celebration is a banner just under the HUD (not a dimmed full-screen message over the
+	-- road and the player), shorter, with less confetti
+	Lay.onChange(function(L)
+		if L.compact then
+			title.Position = UDim2.new(0.5, 0, 0, L.hudBottom + 38)
+			title.Size = UDim2.new(0.94, 0, 0, 40)
+			sub.Position = UDim2.new(0.5, 0, 0, L.hudBottom + 78)
+			sub.Size = UDim2.new(0.9, 0, 0, 34)
+		else
+			title.Position, title.Size = UDim2.fromScale(0.5, 0.4), UDim2.new(0.9, 0, 0, 90)
+			sub.Position, sub.Size = UDim2.fromScale(0.5, 0.54), UDim2.new(0.8, 0, 0, 60)
+		end
+	end)
 	function U.confetti(n)
+		if Lay.compact then n = math.floor((n or 60) * 0.35) end
 		for _ = 1, n or 60 do
 			local c = new("Frame", {Size = UDim2.fromOffset(math.random(8, 14), math.random(12, 20)), Position = UDim2.new(math.random(), 0, -0.05, 0),
 				BackgroundColor3 = Color3.fromHSV(math.random(), 0.8, 1), BorderSizePixel = 0, Rotation = math.random(0, 360), ZIndex = 62}, gui)
@@ -1442,11 +1606,11 @@ do
 		frame.Visible = true
 		frame.BackgroundTransparency = 1
 		sc.Scale = 0.2
-		tween(frame, 0.4, {BackgroundTransparency = 0.55})
+		tween(frame, 0.4, {BackgroundTransparency = Lay.compact and 1 or 0.55})
 		tween(sc, 0.6, {Scale = 1}, Enum.EasingStyle.Back)
 		play(SND.event)
 		U.confetti(50)
-		task.delay(4.5, function()
+		task.delay(Lay.compact and 3 or 4.5, function()
 			if sid ~= mine then return end
 			tween(frame, 0.5, {BackgroundTransparency = 1})
 			task.delay(0.5, function() if sid == mine then frame.Visible = false end end)
@@ -1551,14 +1715,14 @@ local function sheet(name, p, full, maxW, maxH, onCompact, closeBtn, edgeBtn)
 end
 -- a square edge button: big icon + a short line under it
 local function edgeButton(name, icon, order)
-	local b = new("TextButton", {Name = name, Size = UDim2.fromOffset(56, 56), BackgroundColor3 = BG, BackgroundTransparency = 0.1, BorderSizePixel = 0, Text = "", AutoButtonColor = true, Visible = false}, gui)
-	corner(b, 12)
+	local b = new("TextButton", {Name = name, Size = UDim2.fromOffset(44, 44), BackgroundColor3 = BG, BackgroundTransparency = 0.1, BorderSizePixel = 0, Text = "", AutoButtonColor = true, Visible = false}, gui)
+	corner(b, 10)
 	stroke(b, WHITE, 1.5, 0.7)
-	label({Position = UDim2.fromOffset(0, 3), Size = UDim2.new(1, 0, 0, 30), Text = icon, TextSize = 24}, b)
-	local sub = label({Position = UDim2.new(0, 2, 1, -20), Size = UDim2.new(1, -4, 0, 16), TextSize = 11, Font = Enum.Font.GothamBlack, Text = ""}, b)
+	label({Position = UDim2.fromOffset(0, 2), Size = UDim2.new(1, 0, 0, 24), Text = icon, TextSize = 19}, b)
+	local sub = label({Position = UDim2.new(0, 1, 1, -17), Size = UDim2.new(1, -2, 0, 15), TextSize = 10, Font = Enum.Font.GothamBlack, Text = ""}, b)
 	local dot = new("Frame", {AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -4, 0, 4), Size = UDim2.fromOffset(10, 10), BorderSizePixel = 0, Visible = false}, b)
 	corner(dot, 5)
-	Lay.slot(b, "left", order, {compactOnly = true})
+	Lay.slot(b, "left", order, {compactOnly = true, size = UDim2.fromOffset(44, 44)})
 	return b, sub, dot
 end
 U.edgeButton = edgeButton
@@ -1849,7 +2013,7 @@ do
 	local pc = panel({Position = UDim2.new(1, -312, 0, 214), AnchorPoint = Vector2.new(1, 0), Size = UDim2.fromOffset(290, 150), BackgroundColor3 = RGB(70, 30, 30), Visible = false}, gui)
 	stroke(pc, RED, 2, 0)
 	pc.Name = "ProblemCard"
-	Lay.slot(pc, "bottom", 2)
+	Lay.slot(pc, "top", 2)
 	local pt = label({Position = UDim2.fromOffset(10, 6), Size = UDim2.new(1, -20, 0, 22), TextSize = 16, Font = Enum.Font.GothamBlack, TextColor3 = RGB(255, 200, 120)}, pc)
 	local pd = label({Position = UDim2.fromOffset(10, 30), Size = UDim2.new(1, -20, 0, 36), TextSize = 13, TextWrapped = true}, pc)
 	local cur
@@ -1887,7 +2051,7 @@ do
 	local dc = panel({Position = UDim2.new(1, -12, 1, -230), AnchorPoint = Vector2.new(1, 1), Size = UDim2.fromOffset(290, 128), BackgroundColor3 = RGB(25, 60, 40), Visible = false}, gui)
 	stroke(dc, GREEN, 2, 0)
 	dc.Name = "DeliveryCard"
-	Lay.slot(dc, "bottom", 3)
+	Lay.slot(dc, "top", 3)
 	local dt = label({Position = UDim2.fromOffset(10, 6), Size = UDim2.new(1, -20, 0, 22), TextSize = 16, Font = Enum.Font.GothamBlack, TextColor3 = RGB(150, 255, 170)}, dc)
 	local dd = label({Position = UDim2.fromOffset(10, 28), Size = UDim2.new(1, -20, 0, 34), TextSize = 13, TextWrapped = true}, dc)
 	local dr = label({Position = UDim2.fromOffset(10, 62), Size = UDim2.new(1, -20, 0, 18), TextSize = 13, TextColor3 = GOLD}, dc)
@@ -1927,10 +2091,6 @@ do
 	-- small screens: keep the card inside the screen and clear of the corner buttons.
 	-- phones: the bottom notification stack (full stack width, text at ≥ 80%)
 	tc.Name = "TutorialCard"
-	Lay.slot(tc, "bottom", 1)
-	Lay.onChange(function(L)
-		L.resize(tc, UDim2.fromOffset(L.compact and 540 or math.min(540, L.vp.X - 220), 124))
-	end)
 	local title = label({Position = UDim2.fromOffset(14, 6), Size = UDim2.new(1, -120, 0, 22), TextSize = 16, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left}, tc)
 	local body = label({Position = UDim2.fromOffset(14, 30), Size = UDim2.new(1, -28, 0, 40), TextSize = 15, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top}, tc)
 	-- live progress for the current step, worked out by the server ("Level 2 / 3", "84 studs to your home"...)
@@ -1946,6 +2106,14 @@ do
 	local open = button({AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -10, 1, -8), Size = UDim2.fromOffset(150, 34), Text = "📱 Open Phone", TextSize = 15, BackgroundColor3 = GREEN, Visible = false}, tc)
 	open.MouseButton1Click:Connect(function()
 		if C.togglePhone then C.togglePhone(true) end
+	end)
+	-- the notification stack (top-right) on a phone: a little taller (the text is narrower there), first in line
+	Lay.slot(tc, "top", 1, {compactHeight = 140, onCompact = function(c)
+		body.Size = c and UDim2.new(1, -28, 0, 54) or UDim2.new(1, -28, 0, 40)
+		prog.Position = c and UDim2.fromOffset(14, 88) or UDim2.fromOffset(14, 74)
+	end})
+	Lay.onChange(function(L)
+		L.resize(tc, UDim2.fromOffset(L.compact and 540 or math.min(540, L.vp.X - 220), 124))
 	end)
 	local lastStep, lastSent = nil, 0
 	C.onState(function(s)
@@ -1986,6 +2154,13 @@ do
 	local bigSub = label({Position = UDim2.fromOffset(0, 142), Size = UDim2.new(1, 0, 0, 40), TextScaled = true, ZIndex = 71}, big)
 	new("UIStroke", {Thickness = 2, Color = Color3.new(0, 0, 0), Transparency = 0.2}, bigSub)
 	local flash = new("Frame", {Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 69}, gui)
+	-- v11.3 phone layout: the big "mega event" announcement is a small banner under the HUD for 3.5 s (the event bar
+	-- in the stack carries on after it); the screen doesn't flash
+	local bigK, bigTime = 1, 6
+	Lay.onChange(function(L)
+		bigK, bigTime = L.compact and 0.5 or 1, L.compact and 3.5 or 6
+		big.Position = L.compact and UDim2.new(0.5, 0, 0, L.hudBottom + 8 + 95 * 0.5) or UDim2.fromScale(0.5, 0.36)
+	end)
 	local bar = panel({AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 214), Size = UDim2.fromOffset(540, 44), Visible = false, ZIndex = 30}, gui)
 	bar.Name = "MegaBar"
 	Lay.slot(bar, "top", 4)
@@ -2013,15 +2188,17 @@ do
 			bigTitle.TextColor3 = e.color or GOLD
 			bigSub.Text = (e.sub or "") .. "   📸 V = photo mode"
 			big.Visible = true
-			bigScale.Scale = 0.3
-			tween(bigScale, 0.7, {Scale = 1}, Enum.EasingStyle.Back)
-			flash.BackgroundColor3 = e.color or GOLD
-			flash.BackgroundTransparency = 0.4
-			tween(flash, 0.8, {BackgroundTransparency = 1})
+			bigScale.Scale = 0.3 * bigK
+			tween(bigScale, 0.7, {Scale = bigK}, Enum.EasingStyle.Back)
+			if not Lay.compact then
+				flash.BackgroundColor3 = e.color or GOLD
+				flash.BackgroundTransparency = 0.4
+				tween(flash, 0.8, {BackgroundTransparency = 1})
+			end
 			play(SND.event)
 			U.confetti(90)
 			showBar({key = e.key, icon = e.icon, title = e.title, text = e.text or e.sub, color = e.color, left = e.dur})
-			task.delay(6, function()
+			task.delay(bigTime, function()
 				if bigId ~= mine then return end
 				tween(bigScale, 0.35, {Scale = 0.2}, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
 				task.delay(0.35, function() if bigId == mine then big.Visible = false end end)
@@ -2060,7 +2237,7 @@ end
 do
 	local card = panel({AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 12, 1, -120), Size = UDim2.fromOffset(340, 70), BackgroundColor3 = RGB(60, 45, 15), Visible = false, ZIndex = 45}, gui)
 	card.Name = "AchievementCard"
-	Lay.slot(card, "bottom", 5)
+	Lay.slot(card, "top", 5)
 	stroke(card, GOLD, 2, 0)
 	local ic = label({Position = UDim2.fromOffset(8, 0), Size = UDim2.fromOffset(54, 70), TextSize = 36, ZIndex = 46}, card)
 	local t1 = label({Position = UDim2.fromOffset(66, 8), Size = UDim2.new(1, -170, 0, 18), TextSize = 12, TextColor3 = GOLD, TextXAlignment = Enum.TextXAlignment.Left, Text = "🏆 ACHIEVEMENT UNLOCKED", ZIndex = 46}, card)
@@ -2124,7 +2301,7 @@ end
 do
 	local tp = panel({AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -122), Size = UDim2.fromOffset(460, 92), BackgroundColor3 = RGB(35, 55, 45), Visible = false, ZIndex = 35}, gui)
 	tp.Name = "HouseTourPanel"
-	Lay.slot(tp, "bottom", 7)
+	Lay.slot(tp, "top", 7)
 	stroke(tp, GREEN, 2, 0)
 	local title = label({Position = UDim2.fromOffset(12, 4), Size = UDim2.new(1, -24, 0, 22), TextSize = 15, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 36}, tp)
 	local row = new("Frame", {Position = UDim2.fromOffset(8, 42), Size = UDim2.new(1, -16, 0, 42), BackgroundTransparency = 1, ZIndex = 36}, tp)
@@ -5494,7 +5671,7 @@ local function build()
 	corner(fb, 23)
 	fb.MouseButton1Click:Connect(function() play(SND.click) C.openModal("admin") end)
 	fb.Name = "AdminButton"
-	C.Layout.slot(fb, "left", 3, {size = UDim2.fromOffset(56, 48)})   -- phone layout: the left edge column
+	C.Layout.slot(fb, "left", 3, {size = UDim2.fromOffset(44, 44), onCompact = function(c) fb.TextSize = c and 20 or 24 end})   -- phone layout: the left edge column
 	AP.floatButton = fb
 end
 function AP.render()
@@ -5586,7 +5763,7 @@ C.GuideUI = GU
 local tip = panel({AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 16, 1, -110), Size = UDim2.fromOffset(340, 150), BackgroundColor3 = RGB(30, 34, 56), Visible = false, ZIndex = 30}, gui)
 stroke(tip, GOLD, 2, 0.2)
 tip.Name = "GuideTip"
-C.Layout.slot(tip, "bottom", 4)   -- phone layout: the bottom notification stack
+C.Layout.slot(tip, "top", 4)   -- phone layout: the notification stack (top-right)
 local tipIcon = label({Position = UDim2.fromOffset(10, 8), Size = UDim2.fromOffset(36, 36), TextSize = 28, ZIndex = 31}, tip)
 local tipTitle = label({Position = UDim2.fromOffset(52, 8), Size = UDim2.new(1, -60, 0, 22), TextSize = 16, Font = Enum.Font.GothamBlack, TextColor3 = GOLD, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 31}, tip)
 local tipCount = label({Position = UDim2.fromOffset(52, 28), Size = UDim2.new(1, -60, 0, 14), TextSize = 10, TextColor3 = SUB, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 31}, tip)
@@ -6111,11 +6288,11 @@ if UserInputService.TouchEnabled then
 end
 -- v11.1 phone layout: one column on the right edge, just above Roblox's jump button: ⚙️ above 📱
 pbtn.Name, gear.Name = "PhoneButton", "SettingsButton"
-Lay.slot(pbtn, "right", 3, {size = UDim2.fromOffset(56, 56), onCompact = function(c)
+Lay.slot(pbtn, "right", 3, {size = UDim2.fromOffset(52, 52), onCompact = function(c)
 	pLabel.Visible = not c
-	pbtn.TextSize = c and 30 or 38
+	pbtn.TextSize = c and 28 or 38
 end})
-Lay.slot(gear, "right", 2, {size = UDim2.fromOffset(48, 48)})
+Lay.slot(gear, "right", 2, {size = UDim2.fromOffset(44, 44), onCompact = function(c) gear.TextSize = c and 20 or 22 end})
 Lay.onChange(function()
 	local fit = fitScale()
 	if phone.Visible then sc.Scale = fit end
@@ -6384,6 +6561,7 @@ do
 		end
 	end)
 	if posts[1] and U.ticker then U.ticker.Text = "📱 CITYBUZZ: " .. posts[1].icon .. " " .. posts[1].text end
+	if U.buzzSeed then U.buzzSeed(posts) end   -- (v11.3: the phone layout's small CityBuzz feed starts with the latest posts)
 	C.onState(function(s)
 		pStats.Text = fmt(s.followers) .. " followers  •  +" .. math.floor(math.min(50, s.followers / 20)) .. "% customers from fans"
 	end)
@@ -6657,17 +6835,19 @@ local gaugeScale = Lay.scaleOf(gauge)
 local design = {gauge = gauge.Position, gaugeAnchor = gauge.AnchorPoint, ctl = ctl.Position, ctlSize = ctl.Size, nitro = nitroBtn.Position, drift = driftBtn.Position}
 -- where everything goes. Phone layout: a low cluster just left of Roblox's jump button, nothing in the middle of
 -- the road and nothing over the thumbstick (bottom-left):
---                                  [gauge, small, top-right]
+--   [gauge, small, top-LEFT]          [notifications, top-right]
 --                                           [⚙️]
 --                          [💨] [🔥]         [📱]
 --   [ thumbstick ]     [BRAKE] [ GAS ]  [jump]
+-- (v11.3: the speedometer moved to the top-left, where the left buttons hide while you drive, so it never fights the
+-- notification stack in the top-right corner)
 local function placeDriving()
 	if Lay.compact then
 		local s, vp = Lay.safe, Lay.vp
 		local right = vp.X - s.r - Lay.jumpZone.w      -- just left of Roblox's jump button
-		gaugeScale.Scale = 0.5
-		gauge.AnchorPoint = Vector2.new(1, 0)
-		gauge.Position = UDim2.fromOffset(vp.X - s.r, Lay.hudTop + Lay.ROW1 + 8)
+		gaugeScale.Scale = 0.43
+		gauge.AnchorPoint = Vector2.new(0, 0)
+		gauge.Position = UDim2.fromOffset(s.l, Lay.colTop + 22)
 		pedals.Position = UDim2.fromOffset(right, vp.Y - s.b - 4)
 		-- 🔥 / 💨 side by side, half size, above the pedals
 		ctlScale.Scale = 0.5
@@ -7611,7 +7791,7 @@ local camBtn = button({AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, 
 if C.touchLift then camBtn.Position = UDim2.new(1, -98, 1, -70 - C.touchLift) end
 camBtn.MouseButton1Click:Connect(function() C.setPhoto(true) end)
 camBtn.Name = "CameraButton"
-C.Layout.slot(camBtn, "right", 1, {size = UDim2.fromOffset(48, 48)})   -- phone layout: the right edge column, above ⚙️
+C.Layout.slot(camBtn, "right", 1, {size = UDim2.fromOffset(44, 44), onCompact = function(c) camBtn.TextSize = c and 20 or 22 end})   -- phone layout: the right edge column, above ⚙️
 
 UserInputService.InputBegan:Connect(function(input, processed)
 	if processed then return end
@@ -8073,7 +8253,7 @@ end
 -- =====================================================================
 local bubble = C.panel({AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 372, 1, -150), Size = UDim2.fromOffset(360, 74), BackgroundColor3 = RGB(30, 16, 34), Visible = false, ZIndex = 25}, gui)
 bubble.Name = "RivalBubble"
-C.Layout.slot(bubble, "bottom", 6)
+C.Layout.slot(bubble, "top", 6)
 stroke(bubble, RGB(255, 70, 140), 2, 0)
 local bubIcon = label({Position = UDim2.fromOffset(8, 8), Size = UDim2.fromOffset(56, 56), TextScaled = true, Text = "🎙️", ZIndex = 26}, bubble)
 local bubName = label({Position = UDim2.fromOffset(70, 4), Size = UDim2.new(1, -78, 0, 18), TextSize = 13, Font = Enum.Font.GothamBlack, TextColor3 = RGB(255, 110, 170),

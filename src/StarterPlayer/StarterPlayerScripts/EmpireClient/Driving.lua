@@ -105,17 +105,19 @@ local gaugeScale = Lay.scaleOf(gauge)
 local design = {gauge = gauge.Position, gaugeAnchor = gauge.AnchorPoint, ctl = ctl.Position, ctlSize = ctl.Size, nitro = nitroBtn.Position, drift = driftBtn.Position}
 -- where everything goes. Phone layout: a low cluster just left of Roblox's jump button, nothing in the middle of
 -- the road and nothing over the thumbstick (bottom-left):
---                                  [gauge, small, top-right]
+--   [gauge, small, top-LEFT]          [notifications, top-right]
 --                                           [⚙️]
 --                          [💨] [🔥]         [📱]
 --   [ thumbstick ]     [BRAKE] [ GAS ]  [jump]
+-- (v11.3: the speedometer moved to the top-left, where the left buttons hide while you drive, so it never fights the
+-- notification stack in the top-right corner)
 local function placeDriving()
 	if Lay.compact then
 		local s, vp = Lay.safe, Lay.vp
 		local right = vp.X - s.r - Lay.jumpZone.w      -- just left of Roblox's jump button
-		gaugeScale.Scale = 0.5
-		gauge.AnchorPoint = Vector2.new(1, 0)
-		gauge.Position = UDim2.fromOffset(vp.X - s.r, Lay.hudTop + Lay.ROW1 + 8)
+		gaugeScale.Scale = 0.43
+		gauge.AnchorPoint = Vector2.new(0, 0)
+		gauge.Position = UDim2.fromOffset(s.l, Lay.colTop + 22)
 		pedals.Position = UDim2.fromOffset(right, vp.Y - s.b - 4)
 		-- 🔥 / 💨 side by side, half size, above the pedals
 		ctlScale.Scale = 0.5

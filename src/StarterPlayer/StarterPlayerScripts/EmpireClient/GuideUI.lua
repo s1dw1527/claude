@@ -13,7 +13,7 @@ C.GuideUI = GU
 local tip = panel({AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 16, 1, -110), Size = UDim2.fromOffset(340, 150), BackgroundColor3 = RGB(30, 34, 56), Visible = false, ZIndex = 30}, gui)
 stroke(tip, GOLD, 2, 0.2)
 tip.Name = "GuideTip"
-C.Layout.slot(tip, "bottom", 4)   -- phone layout: the bottom notification stack
+C.Layout.slot(tip, "top", 4)   -- phone layout: the notification stack (top-right)
 local tipIcon = label({Position = UDim2.fromOffset(10, 8), Size = UDim2.fromOffset(36, 36), TextSize = 28, ZIndex = 31}, tip)
 local tipTitle = label({Position = UDim2.fromOffset(52, 8), Size = UDim2.new(1, -60, 0, 22), TextSize = 16, Font = Enum.Font.GothamBlack, TextColor3 = GOLD, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 31}, tip)
 local tipCount = label({Position = UDim2.fromOffset(52, 28), Size = UDim2.new(1, -60, 0, 14), TextSize = 10, TextColor3 = SUB, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 31}, tip)
