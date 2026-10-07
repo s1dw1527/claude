@@ -58,8 +58,17 @@ if UserInputService.TouchEnabled then hintL.Text = "Tap Skip to skip" end
 local banner = C.panel and C.panel({AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 96), Size = UDim2.fromOffset(420, 86), BackgroundColor3 = RGB(30, 20, 44), Visible = false, ZIndex = 9}, sg)
 	or new("Frame", {AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 96), Size = UDim2.fromOffset(420, 86), BackgroundColor3 = RGB(30, 20, 44), Visible = false, ZIndex = 9}, sg)
 stroke(banner, GOLD, 2, 0.2)
+banner.Name = "CinematicBanner"
 local banTitle = label({Position = UDim2.fromOffset(10, 8), Size = UDim2.new(1, -20, 0, 36), TextSize = 26, Font = Enum.Font.GothamBlack, TextColor3 = GOLD, ZIndex = 10}, banner)
 local banSub = label({Position = UDim2.fromOffset(10, 46), Size = UDim2.new(1, -20, 0, 30), TextSize = 15, TextWrapped = true, ZIndex = 10}, banner)
+-- v11.1 phone layout: never wider than the screen; the title shrinks to fit
+if C.Layout then
+	new("UITextSizeConstraint", {MaxTextSize = 26, MinTextSize = 14}, banTitle)
+	C.Layout.onChange(function(L)
+		banner.Size = UDim2.fromOffset(math.min(420, L.vp.X - 16), 86)
+		banTitle.TextScaled = L.compact
+	end)
+end
 local bannerId = 0
 local function showBanner(r)
 	if type(r) ~= "table" or not r[1] then return end

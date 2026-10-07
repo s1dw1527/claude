@@ -183,6 +183,13 @@ H.main(function()
 	-- =====================================================================
 	H.section("Grand openings")
 	calm()
+	-- (random city events, influencer visits and funny moments share the feed gap and the viral score: pause them
+	-- so the post / score this section checks can't be pre-empted by luck — same as viral_test)
+	C.G.nextEvent = H.now() + 7200
+	if C.megaScheduler then C.megaScheduler.nextAt = H.now() + 7200 end
+	if C.funnySchedule then C.funnySchedule[a] = H.now() + 7200 end
+	if C.influencerLeave then C.influencerLeave("done") end
+	if C.viralLastPost then for k in pairs(C.viralLastPost) do C.viralLastPost[k] = -1e9 end end
 	mark = #H.remoteLog
 	local feed0 = #C.FEED > 0 and C.FEED[1].id or 0
 	T.act(a, "buy", "bakery")

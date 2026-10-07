@@ -266,6 +266,8 @@ local popTitle = label({Position = UDim2.fromOffset(12, 6), Size = UDim2.new(1, 
 local popText = label({Position = UDim2.fromOffset(12, 28), Size = UDim2.new(1, -120, 0, 60), TextSize = 13, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left,
 	TextYAlignment = Enum.TextYAlignment.Top, ZIndex = 46}, pop)
 local capB = button({AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -10, 1, -10), Size = UDim2.fromOffset(98, 40), Text = "📸 Capture", TextSize = 14, BackgroundColor3 = RGB(230, 70, 150), ZIndex = 47}, pop)
+pop.Name = "ViralMomentPopup"
+C.Layout.slot(pop, "top", 9)
 local popId, popMoment = 0, nil
 CL.lastMoment = nil
 local function moment(e)
@@ -277,10 +279,13 @@ local function moment(e)
 	popText.Text = (e.icon or "🔥") .. " " .. tostring(e.title) .. "\n" .. tostring(e.text or "")
 	pop.Visible = true
 	play(SND.event)
-	local s = new("UIScale", {Scale = 0.7}, pop)
-	tween(s, 0.3, {Scale = 1}, Enum.EasingStyle.Back)
+	-- (one UIScale only: the phone layout owns it there, so the pop-in animation is desktop-only)
+	if not C.Layout.isSlotted(pop) then
+		local s = C.Layout.scaleOf(pop)
+		s.Scale = 0.7
+		tween(s, 0.3, {Scale = 1}, Enum.EasingStyle.Back)
+	end
 	task.delay(10, function()
-		s:Destroy()
 		if popId == my then pop.Visible = false popMoment = nil end
 	end)
 end
@@ -310,6 +315,8 @@ end
 -- the beef / live challenge tracker (top center, under the event bar)
 local pill = C.panel({AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 150), Size = UDim2.fromOffset(440, 32), BackgroundColor3 = RGB(120, 30, 30), Visible = false, ZIndex = 30}, gui)
 local pillL = label({Size = UDim2.fromScale(1, 1), TextSize = 13, Font = Enum.Font.GothamBlack, TextWrapped = true, ZIndex = 31}, pill)
+pill.Name = "BeefPill"
+C.Layout.slot(pill, "top", 3)
 C.onState(function(s)
 	local b = s.beef
 	pill.Visible = b ~= nil

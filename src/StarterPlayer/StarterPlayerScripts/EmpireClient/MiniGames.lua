@@ -14,6 +14,9 @@ stroke(win, GOLD, 3, 0)
 local titleL = label({Size = UDim2.new(1, 0, 0, 46), TextSize = 24, Font = Enum.Font.GothamBlack, TextColor3 = GOLD, ZIndex = 41}, win)
 local infoL = label({Position = UDim2.fromOffset(0, 44), Size = UDim2.new(1, 0, 0, 22), TextSize = 14, TextColor3 = SUB, ZIndex = 41}, win)
 local area = new("Frame", {Position = UDim2.fromOffset(16, 72), Size = UDim2.new(1, -32, 1, -88), BackgroundColor3 = RGB(16, 16, 28), BorderSizePixel = 0, ZIndex = 41, ClipsDescendants = true}, win)
+-- v11.1: sized to the screen (scaled as a whole: the games keep their shape); one big window at a time on phones
+win.Name = "MiniGameWindow"
+C.Layout.window("minigame", win, {fixed = true, z = C.Layout.Z.window})
 corner(area, 12)
 local active = nil
 local function finish(token, score, delay)

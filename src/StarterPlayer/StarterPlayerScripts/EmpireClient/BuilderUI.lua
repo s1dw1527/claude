@@ -30,9 +30,10 @@ local function txt(parent, text, pos, size, sizePx, color, bold, order)
 	return label({Position = pos, Size = size, Text = text, TextSize = sizePx or 13, TextColor3 = color or WHITE, TextWrapped = true, LayoutOrder = order,
 		Font = bold and Enum.Font.GothamBlack or Enum.Font.GothamBold, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top}, parent)
 end
-local function row(parent, order, h)
-	local f = new("Frame", {Size = UDim2.new(1, -8, 0, h or 36), BackgroundTransparency = 1, LayoutOrder = order}, parent)
-	new("UIListLayout", {FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder}, f)
+-- a row of equal buttons that wraps onto the next line when the window is narrow (phones)
+local function grid(parent, order, cell)
+	local f = new("Frame", {Size = UDim2.new(1, -8, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, LayoutOrder = order}, parent)
+	new("UIGridLayout", {CellSize = cell, CellPadding = UDim2.fromOffset(4, 4), SortOrder = Enum.SortOrder.LayoutOrder}, f)
 	return f
 end
 
@@ -47,7 +48,7 @@ local function renderShop()
 	local level = st and st.level or 0
 	local owned = {}
 	for _, e in ipairs(st and st.inventory or {}) do owned[e.k] = e.n end
-	local tabs = new("Frame", {Size = UDim2.new(1, -8, 0, 64), BackgroundTransparency = 1, LayoutOrder = 0}, shopM.body)
+	local tabs = new("Frame", {Size = UDim2.new(1, -8, 0, 64), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, LayoutOrder = 0}, shopM.body)
 	new("UIGridLayout", {CellSize = UDim2.fromOffset(112, 28), CellPadding = UDim2.fromOffset(4, 4), SortOrder = Enum.SortOrder.LayoutOrder}, tabs)
 	for i, c in ipairs(cat.cats) do
 		local b = button({Text = c, TextSize = 11, BackgroundColor3 = c == B.shopCat and PURPLE or GRAY, LayoutOrder = i}, tabs)
@@ -99,7 +100,7 @@ B.area = area
 local TABS = {{"place", "🔨 Furniture"}, {"styles", "🎨 House style"}, {"visitors", "🔐 Visitors"}}
 local tabBtns = {}
 for i, t in ipairs(TABS) do
-	tabBtns[t[1]] = btn(tabBar, t[2], UDim2.new(), UDim2.fromOffset(150, 32), GRAY, function()
+	tabBtns[t[1]] = btn(tabBar, t[2], UDim2.new(), UDim2.new(1 / 3, -4, 1, 0), GRAY, function()
 		B.tab = t[1]
 		B.render()
 	end, i)
@@ -109,12 +110,21 @@ B.sel = sel
 
 local CELL = 30
 local function renderPlace(st)
+	-- phone layout: the plan fills the window's width (cells 18-30 px) and storage / the selected item goes
+	-- UNDER the plan as a bottom sheet with big buttons, instead of beside it
+	local compact = C.Layout.compact
+	if compact then
+		local aw = bM.frame.Size.X.Offset - 24
+		CELL = math.clamp(math.floor(aw / math.max(1, st.cols)), 18, 30)
+	else
+		CELL = 30
+	end
 	local gw, gh = st.cols * CELL, st.rows * CELL
 	local gridF = new("Frame", {Position = UDim2.fromOffset(0, 26), Size = UDim2.fromOffset(gw, gh), BackgroundColor3 = RGB(26, 28, 38), BorderSizePixel = 0}, area)
 	corner(gridF, 6)
 	B.grid = gridF
 	txt(area, "🏠 " .. tostring(st.levelName) .. "  •  " .. #st.items .. " / " .. st.cap .. " items  •  interior score " .. st.score .. (st.inside and "" or "   (go inside your home to place things)"),
-		UDim2.fromOffset(0, 2), UDim2.fromOffset(gw + 300, 20), 12, st.inside and GOLD or RGB(255, 170, 140), true)
+		UDim2.fromOffset(0, 2), compact and UDim2.new(1, 0, 0, 20) or UDim2.fromOffset(gw + 300, 20), 12, st.inside and GOLD or RGB(255, 170, 140), true)
 	-- the door is at the bottom of the plan
 	txt(area, "⬇ front door", UDim2.fromOffset(gw / 2 - 40, gh + 28), UDim2.fromOffset(120, 16), 11, SUB)
 	local blocked = {}
@@ -154,6 +164,14 @@ local function renderPlace(st)
 	-- side panel: storage, or the selected item
 	local side = new("ScrollingFrame", {Position = UDim2.fromOffset(gw + 12, 26), Size = UDim2.new(1, -(gw + 12), 1, -30), BackgroundTransparency = 1, BorderSizePixel = 0,
 		ScrollBarThickness = 4, AutomaticCanvasSize = Enum.AutomaticSize.Y, CanvasSize = UDim2.new()}, area)
+	if compact then
+		side.Position = UDim2.fromOffset(0, gh + 48)
+		side.Size = UDim2.new(1, 0, 1, -(gh + 50))
+		-- thumb-sized buttons (Rotate / Place / Done...) on a phone
+		side.ChildAdded:Connect(function(ch)
+			if ch:IsA("TextButton") then ch.Size = UDim2.new(1, -4, 0, 46) end
+		end)
+	end
 	new("UIListLayout", {Padding = UDim.new(0, 5), SortOrder = Enum.SortOrder.LayoutOrder}, side)
 	B.side = side
 	local picked
@@ -209,7 +227,7 @@ local function renderStyles(st)
 		local s = st.styles[kind]
 		header(list, KIND_NAMES[kind], order)
 		order += 1
-		local r = row(list, order, 58)
+		local r = grid(list, order, UDim2.fromOffset(176, 56))
 		order += 1
 		for i, o in ipairs(s.list) do
 			local locked = st.level < o.tier
@@ -235,7 +253,7 @@ local function renderVisitors(st)
 	local order = 1
 	for _, kind in ipairs({{"house", "🏠 House"}, {"business", "🏪 Businesses"}, {"hq", "🏢 HQ"}}) do
 		header(list, kind[2], order)
-		local r = row(list, order + 1, 36)
+		local r = grid(list, order + 1, UDim2.fromOffset(170, 34))
 		order += 2
 		for i, mo in ipairs(MODES) do
 			local cur = st.perms[kind[1]] == mo[1]
@@ -295,12 +313,17 @@ if bar then
 	local bb = button({AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -212, 0.5, 0), Size = UDim2.fromOffset(96, 32), Text = "🔨 Build", TextSize = 13, BackgroundColor3 = RGB(230, 140, 40), Visible = false}, bar)
 	bb.MouseButton1Click:Connect(function() play(SND.click) B.open("place") end)
 	B.barButton = bb
+	local lastShow
 	C.onState(function(s)
 		local st = s.interior
 		local show = st ~= nil and st.mine == true and st.key == "home"
 		bb.Visible = show
-		bar.Size = UDim2.fromOffset(show and 570 or 470, 44)
-		if barL then barL.Size = UDim2.new(1, show and -320 or -220, 1, 0) end
+		if show ~= lastShow then
+			lastShow = show
+			-- (through the layout manager: on a phone the bar lives in the top stack, narrowed to fit)
+			C.Layout.resize(bar, UDim2.fromOffset(show and 570 or 470, 44))
+		end
+		if barL and not C.Layout.isSlotted(bar) then barL.Size = UDim2.new(1, show and -320 or -220, 1, 0) end
 	end)
 end
 end

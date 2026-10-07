@@ -277,6 +277,8 @@ local function build()
 	local fb = button({AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 12, 1, -220), Size = UDim2.fromOffset(46, 46), Text = "🛡️", TextSize = 24, BackgroundColor3 = RGB(60, 40, 90)}, gui)
 	corner(fb, 23)
 	fb.MouseButton1Click:Connect(function() play(SND.click) C.openModal("admin") end)
+	fb.Name = "AdminButton"
+	C.Layout.slot(fb, "left", 3, {size = UDim2.fromOffset(56, 48)})   -- phone layout: the left edge column
 	AP.floatButton = fb
 end
 function AP.render()

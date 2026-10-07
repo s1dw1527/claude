@@ -94,6 +94,26 @@ local hintL = label({AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -1
 local chapterL = label({Position = UDim2.new(1, -230, 0, 10), Size = UDim2.fromOffset(120, 22), TextSize = 12, TextColor3 = SUB, TextXAlignment = Enum.TextXAlignment.Right, ZIndex = 11}, box)
 local skipB = button({Position = UDim2.new(1, -100, 0, 10), Size = UDim2.fromOffset(86, 28), Text = "Skip ⏭", TextSize = 14, BackgroundColor3 = GRAY, ZIndex = 12}, box)
 local clickArea = new("TextButton", {Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Text = "", ZIndex = 10}, box)
+-- v11.1 phone layout: a smaller portrait, the name on its own line, the line of dialogue under it at a size that fits
+box.Name = "StoryDialogue"
+local boxCap = box:FindFirstChildOfClass("UISizeConstraint")
+local textCap = new("UITextSizeConstraint", {MaxTextSize = 20, MinTextSize = 12}, textL)
+C.Layout.onChange(function(L)
+	local c = L.compact
+	box.Size = c and UDim2.new(0.94, 0, 0, 196) or UDim2.new(0.9, 0, 0, 150)
+	boxCap.MaxSize = c and Vector2.new(820, 210) or Vector2.new(820, 170)
+	portrait.Size = c and UDim2.fromOffset(52, 52) or UDim2.fromOffset(90, 90)
+	portrait.Position = c and UDim2.fromOffset(10, 10) or UDim2.fromOffset(14, 14)
+	nameL.Position = c and UDim2.fromOffset(72, 10) or UDim2.fromOffset(118, 10)
+	nameL.Size = c and UDim2.new(1, -176, 0, 24) or UDim2.new(1, -240, 0, 26)
+	nameL.TextSize = c and 16 or 20
+	chapterL.Visible = not c
+	textL.Position = c and UDim2.fromOffset(12, 68) or UDim2.fromOffset(118, 40)
+	textL.Size = c and UDim2.new(1, -24, 1, -94) or UDim2.new(1, -134, 1, -66)
+	textL.TextScaled = c
+	textCap.MaxTextSize = c and 17 or 20
+	hintL.Size = c and UDim2.fromOffset(250, 18) or UDim2.fromOffset(330, 18)
+end)
 -- letterbox bars for a "movie" feel
 local barTop = new("Frame", {Size = UDim2.new(1, 0, 0, 0), BackgroundColor3 = Color3.new(0, 0, 0), BorderSizePixel = 0, ZIndex = 5}, sg)
 local barBot = new("Frame", {AnchorPoint = Vector2.new(0, 1), Position = UDim2.fromScale(0, 1), Size = UDim2.new(1, 0, 0, 0), BackgroundColor3 = Color3.new(0, 0, 0), BorderSizePixel = 0, ZIndex = 5}, sg)
@@ -310,6 +330,8 @@ gradient(doneCard, RGB(255, 90, 170), RGB(90, 40, 140))
 local doneTitle = label({Position = UDim2.fromOffset(10, 12), Size = UDim2.new(1, -20, 0, 34), TextSize = 26, Font = Enum.Font.GothamBlack, ZIndex = 31}, doneCard)
 local doneName = label({Position = UDim2.fromOffset(10, 52), Size = UDim2.new(1, -20, 0, 30), TextSize = 22, Font = Enum.Font.GothamBlack, TextColor3 = GOLD, ZIndex = 31}, doneCard)
 local doneReward = label({Position = UDim2.fromOffset(10, 92), Size = UDim2.new(1, -20, 0, 60), TextSize = 17, TextWrapped = true, ZIndex = 31}, doneCard)
+doneCard.Name = "ChapterDoneCard"
+C.Layout.window("chapterDone", doneCard, {fixed = true, major = false})
 function C.splashStory(sc)
 	doneTitle.Text = "📖 CHAPTER " .. sc.ch .. " COMPLETE"
 	doneName.Text = sc.icon .. " " .. sc.title
@@ -327,6 +349,8 @@ end
 -- SPEECH BUBBLES (roasts while you play: small, bottom-left, a few seconds, never blocking)
 -- =====================================================================
 local bubble = C.panel({AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 372, 1, -150), Size = UDim2.fromOffset(360, 74), BackgroundColor3 = RGB(30, 16, 34), Visible = false, ZIndex = 25}, gui)
+bubble.Name = "RivalBubble"
+C.Layout.slot(bubble, "bottom", 6)
 stroke(bubble, RGB(255, 70, 140), 2, 0)
 local bubIcon = label({Position = UDim2.fromOffset(8, 8), Size = UDim2.fromOffset(56, 56), TextScaled = true, Text = "🎙️", ZIndex = 26}, bubble)
 local bubName = label({Position = UDim2.fromOffset(70, 4), Size = UDim2.new(1, -78, 0, 18), TextSize = 13, Font = Enum.Font.GothamBlack, TextColor3 = RGB(255, 110, 170),
@@ -344,8 +368,10 @@ local function showBubble(who, text)
 	bubName.TextColor3 = sp.color or WHITE
 	bubText.Text = text
 	bubble.Visible = true
-	bubble.Position = UDim2.new(0, 372, 1, -60)
-	tween(bubble, 0.35, {Position = UDim2.new(0, 372, 1, -150)}, Enum.EasingStyle.Back)
+	if not C.Layout.isSlotted(bubble) then
+		bubble.Position = UDim2.new(0, 372, 1, -60)
+		tween(bubble, 0.35, {Position = UDim2.new(0, 372, 1, -150)}, Enum.EasingStyle.Back)
+	end
 	task.delay(math.max(5, #text * 0.07), function()
 		if bubbleId == id then bubble.Visible = false end
 	end)
@@ -374,7 +400,9 @@ end)
 -- "NEW STORY EVENT": a small pill under the top bar; tap it to open the Story app
 do
 	local pill = button({AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 148), Size = UDim2.fromOffset(360, 34), Text = "", TextSize = 13, TextWrapped = true,
-		BackgroundColor3 = RGB(200, 50, 130), Visible = false, ZIndex = 40}, gui)
+		BackgroundColor3 = RGB(200, 50, 130), Visible = false, ZIndex = 30}, gui)
+	pill.Name = "StoryPill"
+	C.Layout.slot(pill, "top", 2)
 	local id = 0
 	function C.storyEventPill(text)
 		id += 1
@@ -403,6 +431,21 @@ local trFill, trBg = C.bar(tracker, UDim2.fromOffset(10, 62), UDim2.new(1, -20, 
 local trProg = label({Position = UDim2.fromOffset(10, 72), Size = UDim2.new(1, -20, 0, 16), TextSize = 11, TextColor3 = SUB, TextXAlignment = Enum.TextXAlignment.Left,
 	TextTruncate = Enum.TextTruncate.AtEnd}, tracker)
 local trBtn = new("TextButton", {Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Text = ""}, tracker)
+-- v11.1 phone layout: the tracker shrinks to a chip in HUD row 2 — "📖 CH 1 · Broke Legend" and a thin progress
+-- line; tap it for the whole objective (the Story app)
+tracker.Name = "StoryTracker"
+local Lay = C.Layout
+Lay.slot(tracker, "row2", 1, {
+	size = function(L) return UDim2.fromOffset(math.floor((L.vp.X - L.safe.l - L.safe.r) * 0.52), L.ROW2) end,
+	onCompact = function(c)
+		trObj.Visible, trProg.Visible = not c, not c
+		trTitle.Position = c and UDim2.fromOffset(8, 2) or UDim2.fromOffset(10, 4)
+		trTitle.Size = c and UDim2.new(1, -16, 0, 20) or UDim2.new(1, -20, 0, 20)
+		trTitle.TextSize = c and 12 or 13
+		trBg.Position = c and UDim2.new(0, 8, 1, -6) or UDim2.fromOffset(10, 62)
+		trBg.Size = c and UDim2.new(1, -16, 0, 3) or UDim2.new(1, -20, 0, 8)
+	end,
+})
 trBtn.MouseButton1Click:Connect(function()
 	play(SND.click)
 	if C.togglePhone then C.togglePhone(true) C.phoneView("story") end
@@ -589,7 +632,7 @@ C.onState(function(s)
 		for _, o in ipairs(st.obj or {}) do
 			if not o.done then nextObj = o break end
 		end
-		trTitle.Text = "📖 CH " .. st.ch .. ": " .. (st.icon or "") .. " " .. (st.name or "")
+		trTitle.Text = Lay.compact and ("📖 CH " .. st.ch .. " · " .. (st.name or "")) or ("📖 CH " .. st.ch .. ": " .. (st.icon or "") .. " " .. (st.name or ""))
 		trObj.Text = nextObj and nextObj.t or "Chapter complete!"
 		trFill.Size = UDim2.fromScale(math.clamp(nextObj and nextObj.f or 1, 0, 1), 1)
 		trProg.Text = nextObj and nextObj.p or ""

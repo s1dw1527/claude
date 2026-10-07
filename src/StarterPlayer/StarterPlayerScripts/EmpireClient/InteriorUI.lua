@@ -17,12 +17,30 @@ local decoB = button({AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1,
 local leaveB = button({AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -6, 0.5, 0), Size = UDim2.fromOffset(84, 32), Text = "🚪 Leave", TextSize = 13, BackgroundColor3 = GRAY}, bar)
 leaveB.MouseButton1Click:Connect(function() play(SND.click) act("leaveInterior") end)
 C.interiorBar, C.interiorBarLabel = bar, barL   -- (BuilderUI adds its Build button here)
+bar.Name = "InteriorBar"
+-- phone layout: the top notification stack, two lines (the name on top, the buttons under it)
+C.Layout.slot(bar, "top", 8, {compactHeight = 74, onCompact = function(c)
+	barL.Position = c and UDim2.fromOffset(10, 2) or UDim2.fromOffset(10, 0)
+	barL.Size = c and UDim2.new(1, -20, 0, 28) or UDim2.new(1, -220, 1, 0)
+	for _, b in ipairs(bar:GetChildren()) do
+		if b:IsA("TextButton") then
+			b.AnchorPoint = c and Vector2.new(1, 1) or Vector2.new(1, 0.5)
+			b.Position = UDim2.new(1, b.Position.X.Offset, c and 1 or 0.5, c and -4 or 0)
+		end
+	end
+end})
 
 -- the decorate panel
 local panel = C.panel({AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -16, 0.5, 0), Size = UDim2.fromOffset(330, 470), BackgroundColor3 = RGB(28, 26, 40), Visible = false, ZIndex = 5}, gui)
 new("UISizeConstraint", {MaxSize = Vector2.new(330, 470)}, panel)
 label({Position = UDim2.fromOffset(12, 4), Size = UDim2.new(1, -60, 0, 30), Text = "🛋️ DECORATE", TextSize = 16, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 6}, panel)
 local closeB = button({Position = UDim2.new(1, -40, 0, 6), Size = UDim2.fromOffset(30, 26), Text = "✕", TextSize = 14, BackgroundColor3 = GRAY, ZIndex = 6}, panel)
+-- phone layout: a bottom sheet (the room stays visible above it); one big window at a time
+panel.Name = "DecoratePanel"
+C.Layout.window("decorate", panel, {sheet = true, desktopFit = false, onFit = function(compact)
+	closeB.Size = compact and UDim2.fromOffset(40, 32) or UDim2.fromOffset(30, 26)
+	closeB.Position = compact and UDim2.new(1, -46, 0, 4) or UDim2.new(1, -40, 0, 6)
+end})
 local scoreL = label({Position = UDim2.fromOffset(12, 32), Size = UDim2.new(1, -24, 0, 16), TextSize = 11, TextColor3 = GOLD, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 6}, panel)
 local tabRow = new("Frame", {Position = UDim2.fromOffset(8, 52), Size = UDim2.new(1, -16, 0, 28), BackgroundTransparency = 1, ZIndex = 6}, panel)
 new("UIListLayout", {FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 4)}, tabRow)

@@ -228,10 +228,12 @@ do
 	if plr.Character then task.spawn(hookChar, plr.Character) end
 	plr.CharacterAdded:Connect(hookChar)
 	local targets = {}
-	local COLORS = {race = RGB(255, 210, 60), delivery = RGB(80, 255, 140), tut = RGB(90, 170, 255), map = RGB(255, 120, 220)}
+	-- (v11.1: "heist" — the route home with loot — was set by the Heists HUD but never listed here, so it never
+	-- showed; "arcade" is the Arcade app's way to a booth)
+	local COLORS = {race = RGB(255, 210, 60), heist = RGB(255, 150, 40), delivery = RGB(80, 255, 140), tut = RGB(90, 170, 255), map = RGB(255, 120, 220), arcade = RGB(170, 110, 255)}
 	local function refresh()
 		local kind, pos
-		for _, k in ipairs({"race", "delivery", "tut", "map"}) do
+		for _, k in ipairs({"race", "heist", "delivery", "tut", "map", "arcade"}) do
 			if targets[k] then
 				kind, pos = k, targets[k]
 				break

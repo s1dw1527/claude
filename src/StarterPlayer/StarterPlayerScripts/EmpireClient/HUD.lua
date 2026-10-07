@@ -26,17 +26,73 @@ do
 	gradient(repFill, RGB(255, 170, 40), RGB(255, 235, 110), 0)
 	local repL = label({Position = UDim2.new(1, -382, 0, 44), Size = UDim2.fromOffset(370, 16), TextXAlignment = Enum.TextXAlignment.Right, TextSize = 12, TextColor3 = SUB, TextTruncate = Enum.TextTruncate.AtEnd}, top)
 	local statsL = label({Position = UDim2.new(1, -382, 0, 60), Size = UDim2.fromOffset(370, 18), TextXAlignment = Enum.TextXAlignment.Right, TextSize = 13, TextTruncate = Enum.TextTruncate.AtEnd}, top)
+	-- v11.1 PHONE LAYOUT: one compact row instead of the big bar.
+	--   [ 💰 $4.50M  +$37.0K/s ]            [ ⭐ LEGENDARY  9,859 REP ]
+	-- Tap either side for the full details (the 📊 MY EMPIRE window). Desktop keeps the bar above.
+	local Lay = C.Layout
+	local row1 = new("Frame", {Name = "CompactHUD", BackgroundTransparency = 1, Visible = false, ZIndex = Lay.Z.hud}, gui)
+	local function pill(color)
+		local b = new("TextButton", {BackgroundColor3 = BG, BackgroundTransparency = 0.15, BorderSizePixel = 0, Text = "", AutoButtonColor = true, Size = UDim2.fromScale(0.5, 1)}, row1)
+		corner(b, 10)
+		stroke(b, color, 1.5, 0.4)
+		return b
+	end
+	local function fitText(l, max, min)
+		l.TextScaled = true
+		new("UITextSizeConstraint", {MaxTextSize = max, MinTextSize = min or 9}, l)
+		return l
+	end
+	local cashPill = pill(GOLD)
+	cashPill.Name = "CashPill"
+	local cCash = fitText(label({Position = UDim2.fromOffset(8, 4), Size = UDim2.new(0.56, -8, 1, -8), TextXAlignment = Enum.TextXAlignment.Left, Font = Enum.Font.GothamBlack, TextColor3 = GOLD, Text = "$0"}, cashPill), 22, 12)
+	local cInc = fitText(label({Position = UDim2.new(0.56, 0, 0, 8), Size = UDim2.new(0.44, -8, 1, -16), TextXAlignment = Enum.TextXAlignment.Right, TextColor3 = GREEN, Text = ""}, cashPill), 15, 9)
+	local tierPill = pill(RGB(255, 170, 40))
+	tierPill.Name = "TierBadge"
+	local cTier = fitText(label({Position = UDim2.fromOffset(8, 3), Size = UDim2.new(1, -16, 0.55, -3), TextColor3 = GOLD, Font = Enum.Font.GothamBlack, Text = "⭐"}, tierPill), 14, 9)
+	local cRep = fitText(label({Position = UDim2.new(0, 8, 0.55, 0), Size = UDim2.new(1, -16, 0.45, -3), TextColor3 = SUB, Text = ""}, tierPill), 11, 8)
+	local cRepFill = bar(tierPill, UDim2.new(0, 6, 1, -4), UDim2.new(1, -12, 0, 2), GOLD)
+	-- the short tier name for the badge ("LEGENDARY DISTRICT" → "LEGENDARY")
+	local SHORT = {["UNKNOWN CORNER"] = "UNKNOWN", ["LOCAL FAVORITE"] = "LOCAL FAV", ["LEGENDARY DISTRICT"] = "LEGENDARY"}
+	C.shortTier = function(name) return SHORT[name] or name end
+	local function openDetails()
+		play(SND.click)
+		C.openModal("empire")
+	end
+	cashPill.MouseButton1Click:Connect(openDetails)
+	tierPill.MouseButton1Click:Connect(openDetails)
+	U.compactHUD = row1
+	Lay.onChange(function(L)
+		top.Visible = not L.compact
+		row1.Visible = L.compact
+		if not L.compact then return end
+		local s, vp = L.safe, L.vp
+		local w = vp.X - s.l - s.r
+		row1.Position = UDim2.fromOffset(s.l, s.t)
+		row1.Size = UDim2.fromOffset(w, L.ROW1)
+		local tw = math.clamp(w * 0.4, 118, 190)
+		cashPill.Size = UDim2.fromOffset(w - tw - 6, L.ROW1)
+		tierPill.Position = UDim2.fromOffset(w - tw, 0)
+		tierPill.Size = UDim2.fromOffset(tw, L.ROW1)
+	end)
 	local shown, target, lastCash = 0, 0, nil
 	RunService.RenderStepped:Connect(function(dt)
+		if shown == target then return end
 		shown += (target - shown) * math.clamp(dt * 8, 0, 1)
 		if math.abs(target - shown) < 1 then shown = target end
 		cashL.Text = "$" .. fmt(shown)
+		cCash.Text = "$" .. fmt(shown)
 	end)
 	local function floatText(text, color)
-		local l = label({Text = text, TextColor3 = color, TextSize = 20, Font = Enum.Font.GothamBlack, AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.new(0.5, -230, 0, 80), Size = UDim2.fromOffset(200, 30)}, gui)
+		-- (phone layout: it rises from under the cash pill instead of from the desktop bar's spot)
+		local from, to = UDim2.new(0.5, -230, 0, 80), UDim2.new(0.5, -230, 0, 30)
+		if Lay.compact then
+			local x, y = Lay.safe.l + 90, Lay.safe.t + Lay.ROW1 + 40
+			from, to = UDim2.fromOffset(x, y), UDim2.fromOffset(x, y - 34)
+		end
+		local l = label({Name = "MoneyFloat", Text = text, TextColor3 = color, TextSize = 20, Font = Enum.Font.GothamBlack, AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = from, Size = UDim2.fromOffset(200, 30), ZIndex = Lay.Z.toast}, gui)
 		new("UIStroke", {Thickness = 2, Color = Color3.new(0, 0, 0), Transparency = 0.3}, l)
-		tween(l, 1.1, {Position = UDim2.new(0.5, -230, 0, 30), TextTransparency = 1})
+		tween(l, 1.1, {Position = to, TextTransparency = 1})
 		task.delay(1.1, function() l:Destroy() end)
 	end
 	C.onState(function(s)
@@ -47,6 +103,11 @@ do
 		lastCash = s.cash
 		target = s.cash
 		incL.Text = "+$" .. fmt(s.income) .. "/sec"
+		cInc.Text = "+$" .. fmt(s.income) .. "/s"
+		if shown == target then cCash.Text = "$" .. fmt(s.cash) cashL.Text = "$" .. fmt(s.cash) end
+		cTier.Text = "⭐ " .. C.shortTier(s.tierName)
+		cRep.Text = fmt(s.rep) .. " REP"
+		cRepFill.Size = UDim2.fromScale(s.nextRep and math.clamp((s.rep - s.prevRep) / (s.nextRep - s.prevRep), 0, 1) or 1, 1)
 		local m = {string.format("Boost x%.2f", s.gm)}
 		if s.passMult > 1 then table.insert(m, "💎 x" .. s.passMult) end
 		if s.rebirth.count > 0 then table.insert(m, "♻️ +" .. s.rebirth.mult .. "%") end
@@ -72,10 +133,42 @@ end
 
 -- ===== EVENT BANNER + TICKER + TOAST =====
 do
+	local chip, chipL
+	local Lay = C.Layout
 	local eventBar = panel({Position = UDim2.new(0.5, 0, 0, 148), AnchorPoint = Vector2.new(0.5, 0), Size = UDim2.fromOffset(760, 30)}, gui)
 	local eventL = label({Position = UDim2.fromOffset(10, 0), Size = UDim2.new(1, -200, 1, 0), TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd}, eventBar)
 	local warL = label({Position = UDim2.new(1, -190, 0, 0), Size = UDim2.new(0, 180, 1, 0), TextSize = 14, TextXAlignment = Enum.TextXAlignment.Right, TextColor3 = GOLD, Font = Enum.Font.GothamBlack}, eventBar)
 	U.ticker = label({Position = UDim2.new(0.5, 0, 0, 182), AnchorPoint = Vector2.new(0.5, 0), Size = UDim2.fromOffset(760, 20), TextSize = 13, TextColor3 = RGB(255, 170, 230), TextTruncate = Enum.TextTruncate.AtEnd, TextStrokeTransparency = 0.5}, gui)
+	-- v11.1 phone layout: a small event chip in HUD row 2 (tap → 📊 MY EMPIRE), and CityBuzz as a short-lived
+	-- notification (4 s, tap → the CityBuzz app) instead of a permanent ticker
+	chip = new("TextButton", {Name = "EventChip", Size = UDim2.fromOffset(160, 30), BackgroundColor3 = BG, BorderSizePixel = 0, Text = "", AutoButtonColor = true}, gui)
+	corner(chip, 8)
+	chipL = label({Position = UDim2.fromOffset(6, 0), Size = UDim2.new(1, -12, 1, 0), TextSize = 12, TextTruncate = Enum.TextTruncate.AtEnd}, chip)
+	chip.MouseButton1Click:Connect(function() play(SND.click) C.openModal("empire") end)
+	Lay.slot(chip, "row2", 2, {compactOnly = true, size = function(L) return UDim2.fromOffset(math.floor((L.vp.X - L.safe.l - L.safe.r) * 0.46), L.ROW2) end})
+	local note = new("TextButton", {Name = "BuzzNote", Size = UDim2.fromOffset(340, 34), BackgroundColor3 = RGB(120, 30, 80), BorderSizePixel = 0, Text = "", AutoButtonColor = true, Visible = false}, gui)
+	corner(note, 10)
+	local noteL = label({Position = UDim2.fromOffset(8, 0), Size = UDim2.new(1, -16, 1, 0), TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd}, note)
+	Lay.slot(note, "top", 1)
+	local noteId = 0
+	function U.buzzNote(p)
+		if not Lay.compact or type(p) ~= "table" then return end
+		noteId += 1
+		local mine = noteId
+		noteL.Text = "📣 CityBuzz: " .. tostring(p.icon or "") .. " " .. tostring(p.text or "")
+		note.Visible = true
+		task.delay(4, function() if noteId == mine then note.Visible = false end end)
+	end
+	note.MouseButton1Click:Connect(function()
+		play(SND.click)
+		note.Visible = false
+		if C.togglePhone then C.togglePhone(true) C.phoneView("buzz") end
+	end)
+	Lay.onChange(function(L)
+		eventBar.Visible = not L.compact
+		U.ticker.Visible = not L.compact
+		if not L.compact then note.Visible = false end
+	end)
 	C.onState(function(s)
 		local t = s.eventText
 		local col = BG
@@ -93,8 +186,24 @@ do
 		eventBar.BackgroundColor3 = col
 		eventL.Text = t
 		warL.Text = "⚔️ CORNER WAR " .. clock(s.warLeft)
+		-- phone: the short version in the event chip
+		if s.frozen > 0 then
+			chipL.Text = "❄️ FROZEN " .. s.frozen .. "s"
+		elseif s.eventLeft then
+			chipL.Text = (s.eventText or ""):gsub("%s*%(.-%)", "") .. " " .. clock(s.eventLeft)
+		else
+			chipL.Text = "📰 Next event " .. clock(s.nextEvent or 0)
+		end
+		chip.BackgroundColor3 = col
 	end)
-	local toast = panel({Position = UDim2.new(0.5, 0, 0, -60), AnchorPoint = Vector2.new(0.5, 0), Size = UDim2.fromOffset(640, 52), BackgroundColor3 = RGB(45, 70, 140), Visible = false, ZIndex = 50}, gui)
+	local toast = panel({Position = UDim2.new(0.5, 0, 0, -60), AnchorPoint = Vector2.new(0.5, 0), Size = UDim2.fromOffset(640, 52), BackgroundColor3 = RGB(45, 70, 140), Visible = false, ZIndex = Lay.Z.toast}, gui)
+	-- phone: full safe width, just under the top row (over row 2, which it covers for 5 s)
+	local toastY = 208
+	Lay.onChange(function(L)
+		toastY = L.compact and (L.safe.t + L.ROW1 + 4) or 208
+		toast.Size = L.compact and UDim2.fromOffset(math.min(640, L.vp.X - L.safe.l - L.safe.r), 56) or UDim2.fromOffset(640, 52)
+		if toast.Visible then toast.Position = UDim2.new(0.5, 0, 0, toastY) end
+	end)
 	gradient(toast, RGB(80, 120, 230), RGB(40, 60, 140))
 	local toastL = label({Size = UDim2.new(1, -20, 1, 0), Position = UDim2.fromOffset(10, 0), TextSize = 16, TextWrapped = true, Font = Enum.Font.GothamBlack, ZIndex = 51}, toast)
 	local id = 0
@@ -104,7 +213,7 @@ do
 		toastL.Text = msg
 		toast.Visible = true
 		toast.Position = UDim2.new(0.5, 0, 0, -60)
-		tween(toast, 0.4, {Position = UDim2.new(0.5, 0, 0, 208)}, Enum.EasingStyle.Back)
+		tween(toast, 0.4, {Position = UDim2.new(0.5, 0, 0, toastY)}, Enum.EasingStyle.Back)
 		play(SND.event)
 		task.delay(5, function()
 			if id ~= mine then return end
@@ -155,6 +264,8 @@ do
 	end
 	R.Splash.OnClientEvent:Connect(U.splash)
 	local war = panel({AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(520, 360), Visible = false, ZIndex = 65}, gui)
+	war.Name = "WarResults"
+	C.Layout.window("warResults", war, {fixed = true, major = false})
 	gradient(war, RGB(70, 50, 20), RGB(25, 20, 12))
 	stroke(war, GOLD, 3, 0)
 	label({Size = UDim2.new(1, 0, 0, 56), Text = "🏆 CORNER WAR RESULTS 🏆", TextSize = 28, Font = Enum.Font.GothamBlack, TextColor3 = GOLD, ZIndex = 66}, war)
@@ -184,6 +295,8 @@ end
 local function collapsible(p, titleText, fullSize, key)
 	label({Position = UDim2.fromOffset(12, 0), Size = UDim2.new(1, -60, 0, 36), Text = titleText, TextSize = 16, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left}, p)
 	local btn = button({Position = UDim2.new(1, -40, 0, 5), Size = UDim2.fromOffset(30, 26), Text = "—", TextSize = 16, BackgroundColor3 = GRAY}, p)
+	-- phone: the panel is a window opened from an edge button, so "—" becomes a big ✕
+	local x = button({Position = UDim2.new(1, -46, 0, 2), Size = UDim2.fromOffset(42, 34), Text = "X", TextSize = 18, BackgroundColor3 = RED, Visible = false}, p)
 	local body = new("Frame", {Position = UDim2.fromOffset(0, 38), Size = UDim2.new(1, 0, 1, -38), BackgroundTransparency = 1}, p)
 	local open = true
 	local function set(v)
@@ -197,8 +310,68 @@ local function collapsible(p, titleText, fullSize, key)
 		set(not open)
 	end)
 	U["collapse_" .. key] = set
-	return body
+	return body, function(compact)
+		btn.Visible = not compact
+		x.Visible = compact
+		if compact then
+			open = true
+			body.Visible = true
+			btn.Text = "—"
+		end
+	end, x
 end
+
+-- v11.1 phone layout: the business panel and the leaderboard become windows behind small edge buttons
+-- (🏪 Lv 10, 🏆 #2). One window at a time; they never sit on top of the game.
+local Lay = C.Layout
+local function sheet(name, p, full, maxW, maxH, onCompact, closeBtn, edgeBtn)
+	local sc = Lay.scaleOf(p)
+	local isOpen = false
+	local designPos, designAnchor = p.Position, p.AnchorPoint
+	local function apply()
+		if Lay.compact then
+			local a = Lay.win
+			local w, h = math.min(maxW, a.w), math.min(maxH, a.h)
+			p.AnchorPoint = Vector2.new(0.5, 0.5)
+			p.Position = UDim2.fromOffset(a.x + a.w / 2, a.y + a.h / 2)
+			p.Size = UDim2.fromOffset(w, h)
+			p.ZIndex = Lay.Z.modal
+			p.Visible = isOpen
+		else
+			p.Position, p.AnchorPoint, p.Size, p.ZIndex = designPos, designAnchor, full, 1
+			p.Visible = true
+		end
+		onCompact(Lay.compact)
+	end
+	local function setOpen(v)
+		isOpen = v
+		if Lay.compact then p.Visible = v end
+	end
+	closeBtn.MouseButton1Click:Connect(function()
+		play(SND.click)
+		setOpen(false)
+	end)
+	edgeBtn.MouseButton1Click:Connect(function()
+		play(SND.click)
+		setOpen(not isOpen)
+	end)
+	Lay.major(name, p, {compactOnly = true, close = function() setOpen(false) end})
+	Lay.onChange(function() apply() end)
+	return sc, setOpen
+end
+-- a square edge button: big icon + a short line under it
+local function edgeButton(name, icon, order)
+	local b = new("TextButton", {Name = name, Size = UDim2.fromOffset(56, 56), BackgroundColor3 = BG, BackgroundTransparency = 0.1, BorderSizePixel = 0, Text = "", AutoButtonColor = true, Visible = false}, gui)
+	corner(b, 12)
+	stroke(b, WHITE, 1.5, 0.7)
+	label({Position = UDim2.fromOffset(0, 3), Size = UDim2.new(1, 0, 0, 30), Text = icon, TextSize = 24}, b)
+	local sub = label({Position = UDim2.new(0, 2, 1, -20), Size = UDim2.new(1, -4, 0, 16), TextSize = 11, Font = Enum.Font.GothamBlack, Text = ""}, b)
+	local dot = new("Frame", {AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -4, 0, 4), Size = UDim2.fromOffset(10, 10), BorderSizePixel = 0, Visible = false}, b)
+	corner(dot, 5)
+	Lay.slot(b, "left", order, {compactOnly = true})
+	return b, sub, dot
+end
+U.edgeButton = edgeButton
 
 -- ===== BUSINESS PANEL (left, collapsible): pick a business, manage it =====
 -- A compact strip of business chips (level, lock, problem and "can upgrade" markers) and one management card
@@ -207,16 +380,18 @@ end
 do
 	local full = UDim2.new(0, 300, 1, -232)
 	local p = panel({Position = UDim2.new(0, 12, 0, 214), Size = full, ClipsDescendants = true}, gui)
-	local body = collapsible(p, "🏢  BUSINESSES", full, "biz")
-	-- smaller screens (phones, tablets): scale the whole panel down instead of covering the game
-	local sc = new("UIScale", {}, p)
-	local cam = game:GetService("Workspace").CurrentCamera
-	local function fit()
-		local vp = cam and cam.ViewportSize or Vector2.new(1280, 720)
+	p.Name = "BusinessPanel"
+	local body, onCompact, closeX = collapsible(p, "🏢  BUSINESSES", full, "biz")
+	local bizBtn, bizSub, bizDot = edgeButton("BizButton", "🏪", 1)
+	-- smaller screens (tablets): scale the whole panel down instead of covering the game.
+	-- phones: a window behind the 🏪 button (sized to the screen, text at full size)
+	local sc, setOpen = sheet("business", p, full, 360, 620, onCompact, closeX, bizBtn)
+	U.openBusinessPanel = function(v) setOpen(v ~= false) end
+	Lay.onChange(function(L)
+		if L.compact then sc.Scale = 1 return end
+		local vp = L.vp
 		sc.Scale = math.clamp(math.min(vp.Y / 820, vp.X / 1100), 0.6, 1)
-	end
-	fit()
-	if cam then cam:GetPropertyChangedSignal("ViewportSize"):Connect(fit) end
+	end)
 	local strip = new("ScrollingFrame", {Position = UDim2.fromOffset(6, 0), Size = UDim2.new(1, -12, 0, 56), BackgroundTransparency = 1, BorderSizePixel = 0, ScrollBarThickness = 3,
 		AutomaticCanvasSize = Enum.AutomaticSize.X, CanvasSize = UDim2.new(), ScrollingDirection = Enum.ScrollingDirection.X}, body)
 	new("UIListLayout", {FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 4)}, strip)
@@ -377,6 +552,7 @@ do
 			for _, b in ipairs(s.biz) do if b.level > 0 then selected = b.key break end end
 			selected = selected or s.biz[1].key
 		end
+		local anyProblem, anyBuy = false, false
 		for i, b in ipairs(s.biz) do
 			local c = chips[i]
 			if not c then
@@ -404,10 +580,15 @@ do
 			local canBuy = not b.locked and b.cost >= 0 and s.cash >= b.cost
 			c.dot.Visible = b.problem or canBuy
 			c.dot.BackgroundColor3 = b.problem and RED or GREEN
+			if b.problem then anyProblem = true elseif canBuy then anyBuy = true end
+			if b.key == selected then bizSub.Text = b.level > 0 and ("Lv " .. b.level) or "BUY" end
 			if lastLevels[i] and b.level > lastLevels[i] then play(SND.buy) end
 			lastLevels[i] = b.level
 			if b.key == selected then fillCard(s, b) end
 		end
+		-- the 🏪 button: red dot = a problem somewhere, green = you can afford an upgrade
+		bizDot.Visible = anyProblem or anyBuy
+		bizDot.BackgroundColor3 = anyProblem and RED or GREEN
 	end
 	C.onState(update)
 	C.selectBusiness = function(key) selected = key revSig = nil end
@@ -418,7 +599,10 @@ end
 do
 	local full = UDim2.fromOffset(290, 318)
 	local p = panel({Position = UDim2.new(1, -12, 0, 214), AnchorPoint = Vector2.new(1, 0), Size = full, ClipsDescendants = true}, gui)
-	local body = collapsible(p, "🏆  CITY LEADERBOARD", full, "board")
+	p.Name = "LeaderboardPanel"
+	local body, onCompact, closeX = collapsible(p, "🏆  CITY LEADERBOARD", full, "board")
+	local boardBtn, boardSub = edgeButton("BoardButton", "🏆", 2)
+	sheet("leaderboard", p, full, 300, 330, onCompact, closeX, boardBtn)
 	local MEDALS = {"🥇", "🥈", "🥉", "4."}
 	local rows = {}
 	for i = 1, 4 do
@@ -464,6 +648,9 @@ do
 			end
 		end
 		info.Text = "❄ Freeze costs $" .. fmt(s.sabCost) .. " and stops a rival's income for " .. s.sabTime .. "s."
+		local rank = "—"
+		for i, e in ipairs(s.standings) do if e.userId == plr.UserId then rank = "#" .. i end end
+		boardSub.Text = rank
 	end)
 end
 
@@ -471,6 +658,8 @@ end
 do
 	local pc = panel({Position = UDim2.new(1, -312, 0, 214), AnchorPoint = Vector2.new(1, 0), Size = UDim2.fromOffset(290, 150), BackgroundColor3 = RGB(70, 30, 30), Visible = false}, gui)
 	stroke(pc, RED, 2, 0)
+	pc.Name = "ProblemCard"
+	Lay.slot(pc, "bottom", 2)
 	local pt = label({Position = UDim2.fromOffset(10, 6), Size = UDim2.new(1, -20, 0, 22), TextSize = 16, Font = Enum.Font.GothamBlack, TextColor3 = RGB(255, 200, 120)}, pc)
 	local pd = label({Position = UDim2.fromOffset(10, 30), Size = UDim2.new(1, -20, 0, 36), TextSize = 13, TextWrapped = true}, pc)
 	local cur
@@ -507,6 +696,8 @@ do
 
 	local dc = panel({Position = UDim2.new(1, -12, 1, -230), AnchorPoint = Vector2.new(1, 1), Size = UDim2.fromOffset(290, 128), BackgroundColor3 = RGB(25, 60, 40), Visible = false}, gui)
 	stroke(dc, GREEN, 2, 0)
+	dc.Name = "DeliveryCard"
+	Lay.slot(dc, "bottom", 3)
 	local dt = label({Position = UDim2.fromOffset(10, 6), Size = UDim2.new(1, -20, 0, 22), TextSize = 16, Font = Enum.Font.GothamBlack, TextColor3 = RGB(150, 255, 170)}, dc)
 	local dd = label({Position = UDim2.fromOffset(10, 28), Size = UDim2.new(1, -20, 0, 34), TextSize = 13, TextWrapped = true}, dc)
 	local dr = label({Position = UDim2.fromOffset(10, 62), Size = UDim2.new(1, -20, 0, 18), TextSize = 13, TextColor3 = GOLD}, dc)
@@ -543,14 +734,13 @@ do
 	local tc = panel({AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -16), Size = UDim2.fromOffset(540, 124), BackgroundColor3 = RGB(30, 70, 140), Visible = false}, gui)
 	gradient(tc, RGB(70, 130, 230), RGB(30, 60, 140))
 	stroke(tc, RGB(150, 200, 255), 2, 0)
-	-- small screens: keep the card inside the screen and clear of the corner buttons
-	local cam = game:GetService("Workspace").CurrentCamera
-	local function fit()
-		local w = cam and cam.ViewportSize.X or 1000
-		tc.Size = UDim2.fromOffset(math.min(540, w - 220), 124)
-	end
-	fit()
-	if cam then cam:GetPropertyChangedSignal("ViewportSize"):Connect(fit) end
+	-- small screens: keep the card inside the screen and clear of the corner buttons.
+	-- phones: the bottom notification stack (full stack width, text at ≥ 80%)
+	tc.Name = "TutorialCard"
+	Lay.slot(tc, "bottom", 1)
+	Lay.onChange(function(L)
+		L.resize(tc, UDim2.fromOffset(L.compact and 540 or math.min(540, L.vp.X - 220), 124))
+	end)
 	local title = label({Position = UDim2.fromOffset(14, 6), Size = UDim2.new(1, -120, 0, 22), TextSize = 16, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left}, tc)
 	local body = label({Position = UDim2.fromOffset(14, 30), Size = UDim2.new(1, -28, 0, 40), TextSize = 15, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top}, tc)
 	-- live progress for the current step, worked out by the server ("Level 2 / 3", "84 studs to your home"...)
@@ -575,6 +765,8 @@ do
 		if not t then return end
 		title.Text = "🎓 TUTORIAL  •  Step " .. t.step .. " of " .. t.total
 		body.Text = t.text
+		-- phone: the business panel lives behind the 🏪 button, so say where it is
+		if Lay.compact and t.step <= 3 then body.Text = t.text .. "  (Tap 🏪 on the left.)" end
 		prog.Text = t.progress or ""
 		open.Visible = t.phone == true
 		prog.Size = UDim2.new(1, open.Visible and -178 or -28, 0, 42)
@@ -586,8 +778,10 @@ do
 		if lastStep ~= t.step then
 			if lastStep and t.step > lastStep then play(SND.buy) end
 			lastStep = t.step
-			tc.Position = UDim2.new(0.5, 0, 1, 140)
-			tween(tc, 0.5, {Position = UDim2.new(0.5, 0, 1, -16)}, Enum.EasingStyle.Back)
+			if not Lay.compact then
+				tc.Position = UDim2.new(0.5, 0, 1, 140)
+				tween(tc, 0.5, {Position = UDim2.new(0.5, 0, 1, -16)}, Enum.EasingStyle.Back)
+			end
 		end
 	end)
 end
@@ -603,6 +797,8 @@ do
 	new("UIStroke", {Thickness = 2, Color = Color3.new(0, 0, 0), Transparency = 0.2}, bigSub)
 	local flash = new("Frame", {Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 69}, gui)
 	local bar = panel({AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 214), Size = UDim2.fromOffset(540, 44), Visible = false, ZIndex = 30}, gui)
+	bar.Name = "MegaBar"
+	Lay.slot(bar, "top", 4)
 	stroke(bar, GOLD, 2, 0)
 	local barTitle = label({Position = UDim2.fromOffset(12, 2), Size = UDim2.new(1, -110, 0, 22), TextSize = 15, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 31}, bar)
 	local barText = label({Position = UDim2.fromOffset(12, 22), Size = UDim2.new(1, -110, 0, 18), TextSize = 12, TextColor3 = GOLD, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 31}, bar)
@@ -644,8 +840,10 @@ do
 			if current == e.key then
 				barText.Text = e.text or ""
 				if e.left then endsAt = os.clock() + e.left end
-				tween(bar, 0.08, {Size = UDim2.fromOffset(556, 46)})
-				task.delay(0.08, function() tween(bar, 0.15, {Size = UDim2.fromOffset(540, 44)}) end)
+				if not Lay.compact then
+					tween(bar, 0.08, {Size = UDim2.fromOffset(556, 46)})
+					task.delay(0.08, function() tween(bar, 0.15, {Size = UDim2.fromOffset(540, 44)}) end)
+				end
 			end
 		elseif e.kind == "end" then
 			current = nil
@@ -671,6 +869,8 @@ end
 -- ===== ACHIEVEMENT CARD (with a Share-to-CityBuzz button) =====
 do
 	local card = panel({AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 12, 1, -120), Size = UDim2.fromOffset(340, 70), BackgroundColor3 = RGB(60, 45, 15), Visible = false, ZIndex = 45}, gui)
+	card.Name = "AchievementCard"
+	Lay.slot(card, "bottom", 5)
 	stroke(card, GOLD, 2, 0)
 	local ic = label({Position = UDim2.fromOffset(8, 0), Size = UDim2.fromOffset(54, 70), TextSize = 36, ZIndex = 46}, card)
 	local t1 = label({Position = UDim2.fromOffset(66, 8), Size = UDim2.new(1, -170, 0, 18), TextSize = 12, TextColor3 = GOLD, TextXAlignment = Enum.TextXAlignment.Left, Text = "🏆 ACHIEVEMENT UNLOCKED", ZIndex = 46}, card)
@@ -690,8 +890,10 @@ do
 		t2.Text = a.title or ""
 		share.Visible = true
 		card.Visible = true
-		card.Position = UDim2.new(0, -360, 1, -120)
-		tween(card, 0.4, {Position = UDim2.new(0, 12, 1, -120)}, Enum.EasingStyle.Back)
+		if not Lay.isSlotted(card) then
+			card.Position = UDim2.new(0, -360, 1, -120)
+			tween(card, 0.4, {Position = UDim2.new(0, 12, 1, -120)}, Enum.EasingStyle.Back)
+		end
 		play(SND.buy)
 		task.delay(7, function()
 			if key == a.key then nextCard() end
@@ -731,13 +933,16 @@ end
 -- ===== HOUSE TOUR PANEL (shows up when you're at another player's house) =====
 do
 	local tp = panel({AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -122), Size = UDim2.fromOffset(460, 92), BackgroundColor3 = RGB(35, 55, 45), Visible = false, ZIndex = 35}, gui)
+	tp.Name = "HouseTourPanel"
+	Lay.slot(tp, "bottom", 7)
 	stroke(tp, GREEN, 2, 0)
 	local title = label({Position = UDim2.fromOffset(12, 4), Size = UDim2.new(1, -24, 0, 22), TextSize = 15, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 36}, tp)
 	local row = new("Frame", {Position = UDim2.fromOffset(8, 42), Size = UDim2.new(1, -16, 0, 42), BackgroundTransparency = 1, ZIndex = 36}, tp)
-	new("UIListLayout", {FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 6)}, row)
+	-- (button widths are fractions of the row, so the row also fits the narrower phone card)
+	new("UIListLayout", {FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0.015, 0)}, row)
 	local target
 	local function vb(text, w, color, fn)
-		local b = button({Size = UDim2.fromOffset(w, 40), Text = text, TextSize = 13, BackgroundColor3 = color, ZIndex = 37}, row)
+		local b = button({Size = UDim2.new(w, 0, 0, 40), Text = text, TextSize = 13, BackgroundColor3 = color, ZIndex = 37}, row)
 		b.MouseButton1Click:Connect(function()
 			if target then
 				play(SND.click)
@@ -745,9 +950,9 @@ do
 			end
 		end)
 	end
-	vb("❤️ Like", 80, RGB(230, 70, 120), function(id) act("tourVote", id, "like") end)
-	for n = 1, 5 do vb("⭐" .. n, 44, RGB(200, 150, 30), function(id) act("tourVote", id, "rate", n) end) end
-	vb("📌 Favorite", 110, BLUE, function(id) act("tourVote", id, "fav") end)
+	vb("❤️ Like", 0.18, RGB(230, 70, 120), function(id) act("tourVote", id, "like") end)
+	for n = 1, 5 do vb("⭐" .. n, 0.09, RGB(200, 150, 30), function(id) act("tourVote", id, "rate", n) end) end
+	vb("📌 Favorite", 0.25, BLUE, function(id) act("tourVote", id, "fav") end)
 	C.onState(function(s)
 		local root = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
 		local near

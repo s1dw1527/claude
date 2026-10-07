@@ -147,6 +147,8 @@ stroke(hud, GOLD, 2, 0.2)
 local bagL = label({Position = UDim2.fromOffset(10, 4), Size = UDim2.new(1, -20, 0, 26), TextSize = 18, Font = Enum.Font.GothamBlack, TextColor3 = GOLD}, hud)
 local objL = label({Position = UDim2.fromOffset(10, 32), Size = UDim2.new(1, -20, 0, 26), TextSize = 14, Font = Enum.Font.GothamBlack, TextWrapped = true}, hud)
 HU.hud, HU.bagLabel, HU.objLabel = hud, bagL, objL
+hud.Name = "HeistBagHUD"
+C.Layout.slot(hud, "top", 5)   -- phone layout: the top notification stack
 local function showState(st)
 	HU.state = st
 	hud.Visible = st.active == true
@@ -179,16 +181,12 @@ local function closePuzzle()
 	pz.Visible = false
 end
 pzClose.MouseButton1Click:Connect(function() play(SND.click) closePuzzle() end)
-local function fit(frame)
-	local cam = Workspace.CurrentCamera
-	local vp = cam and cam.ViewportSize or Vector2.new(1280, 720)
-	local sc = frame:FindFirstChildOfClass("UIScale")
-	if sc then sc.Scale = math.clamp(math.min((vp.X - 16) / 440, (vp.Y - 16) / 380), 0.5, 1) end
-end
+-- sized to the screen when it opens (scaled as a whole: the keypad must keep its shape); a big window on phones
+pz.Name = "HeistPuzzle"
+C.Layout.window("heistPuzzle", pz, {fixed = true, close = closePuzzle})
 local function openPuzzle(p)
 	closePuzzle()
 	pz.Visible = true
-	fit(pz)
 	HU.lastPuzzle = p
 	if p.kind == "timing" then
 		pzInfo.Text = "Hit NOW when the marker is in the green zone, " .. p.need .. " times in a row."
@@ -254,6 +252,8 @@ local alertBar = panel({AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(
 stroke(alertBar, RGB(80, 140, 255), 2, 0.2)
 local alertL = label({Size = UDim2.fromScale(1, 1), TextSize = 15, Font = Enum.Font.GothamBlack, TextWrapped = true}, alertBar)
 HU.alertBar, HU.alertLabel = alertBar, alertL
+alertBar.Name = "PoliceAlertBar"
+C.Layout.slot(alertBar, "top", 6)
 local alertToken = 0
 R.Menu.OnClientEvent:Connect(function(kind, a)
 	if kind == "heist" and type(a) == "table" then

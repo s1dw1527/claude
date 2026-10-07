@@ -131,6 +131,9 @@
           "UI": {
             "$path": "src/StarterPlayer/StarterPlayerScripts/EmpireClient/UI.lua"
           },
+          "Layout": {
+            "$path": "src/StarterPlayer/StarterPlayerScripts/EmpireClient/Layout.lua"
+          },
           "Audio": {
             "$path": "src/StarterPlayer/StarterPlayerScripts/EmpireClient/Audio.lua"
           },

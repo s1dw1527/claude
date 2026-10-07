@@ -32,6 +32,7 @@ end
 -- "What's this?" help button for a modal (the text comes from the guide)
 local function helpButton(m, topic)
 	local b = button({Position = UDim2.new(1, -150, 0, 10), Size = UDim2.fromOffset(96, 32), Text = "❓ What's this?", TextSize = 11, BackgroundColor3 = PURPLE}, m.frame)
+	m.help = b   -- (on a phone the window moves it to the top-left corner as a plain ❓)
 	b.MouseButton1Click:Connect(function()
 		play(SND.click)
 		if C.showHelp then C.showHelp(topic) end
@@ -58,6 +59,8 @@ do
 		if fn then fn() end
 	end)
 	-- dangerous actions never run from a single tap: they always go through this
+	box.Name = "ConfirmDialog"
+	C.Layout.window("confirm", box, {major = false, z = C.Layout.Z.critical})
 	function C.confirm(question, yesText, fn)
 		q.Text = question
 		yes.Text = yesText or "Confirm"

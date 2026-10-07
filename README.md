@@ -1,8 +1,20 @@
 # Corner Empire
 
-A 1–4 player Roblox business tycoon. **`CornerEmpire_v11.rbxlx` is the current place file**; open it in Roblox Studio.
-`CornerEmpire_v10.rbxlx` … `CornerEmpire_v5.rbxlx` are earlier versions, kept for reference. The full v11 write-up is
-`docs/V11_REPORT.md`; install steps and the real-Studio test list are in `docs/V11_STUDIO_CHECKLIST.md`.
+A 1–4 player Roblox business tycoon. **`CornerEmpire_v11_1.rbxlx` is the current place file**; open it in Roblox Studio.
+`CornerEmpire_v11.rbxlx` … `CornerEmpire_v5.rbxlx` are earlier versions, kept for reference. The full v11 write-up is
+`docs/V11_REPORT.md`; install steps and the real-Studio test list are in `docs/V11_STUDIO_CHECKLIST.md`. The v11.1
+mobile UI overhaul (client only) is in `docs/V11_1_MOBILE_REPORT.md`.
+
+## What's new in v11.1 — Mobile UI overhaul (client only)
+
+On phones (viewport ≤ 700 wide or ≤ 500 tall) the game now uses a real mobile layout instead of the desktop UI
+squeezed onto the screen: one compact money row with a ⭐ tier badge, a story chip and an event chip, small 🏪 / 🏆
+edge buttons for the business panel and the leaderboard, CityBuzz as a 4-second notification, a centred, phone-sized
+phone, windows that reflow to the screen (text never below 80%) with only one open at a time, GAS/BRAKE pedals for
+touch driving, a mobile builder layout, and vertical game cards in the Arcade app. Desktop keeps the classic layout.
+The layout manager is `EmpireClient > Layout` (also `C.UIManager`). Only `EmpireClient` changed; the server and the
+DataStore (`CornerEmpire_v5`) are untouched. Tested in the simulated engine only — see the report for the Studio
+mobile checklist.
 
 ## What's new in v11 — "Secret Mountain Base & Heists"
 
@@ -198,7 +210,7 @@ uses `Config.lua` from the repository, so put your pass IDs in `src/ServerScript
 - `src/` holds every script from the place, one file per script, mirroring the Explorer:
   - `ServerScriptService/GameServer.server.lua` + `GameServer/*.lua` (server modules)
   - `StarterPlayer/StarterPlayerScripts/EmpireClient.client.lua` + `EmpireClient/*.lua` (client modules)
-- `tools/build.py` rebuilds the place file from `src/` (`python3 tools/build.py CornerEmpire_v11.rbxlx`).
+- `tools/build.py` rebuilds the place file from `src/` (`python3 tools/build.py CornerEmpire_v11_1.rbxlx`).
 - `tools/extract.py` pulls the scripts back out of a place file; `tools/compare.py` compares two place files.
 - `tools/propcheck.py <globalTypes.d.luau>` checks every property name the scripts set against the Roblox API.
 - `tools/check.sh` compiles every script, type-checks it against the Roblox API and flags unknown globals (needs the Luau tools).
@@ -222,6 +234,10 @@ uses `Config.lua` from the repository, so put your pass IDs in `src/ServerScript
   - v11: `phoneapp_test` (the Arcade app glitch: open → close → open, switching apps, during/after a game, phone
     size), `heist_test` (mountain, door, tunnel, discovery, crew; every robbery stage, police, arrests, failures,
     crews of 1–4, upgrades, anti-exploit, saving)
+  - v11.1: `mobile_test` (computes every element's on-screen rectangle at 390×700, 430×932, 393×852, 375×667 and
+    844×390: HUD inside the screen and the safe area, no overlaps, ≥ 70% of the screen free, centre clear, every window
+    and phone app fits, one window at a time, driving controls clear of the thumbstick / jump button / road, Arcade
+    lifecycle on a phone, no per-frame layout work, desktop layout restored exactly)
   - `python3 tests/run.py tests/smoke_test.lua`: quick boot check
   - `python3 tests/run.py tests/tutorial_test.lua`: the whole tutorial through the real client, with extra focus on step 4
   - `python3 tests/run.py tests/story_test.lua`: story chapters, rewards paid once, cutscenes, multiplayer, old saves

@@ -148,14 +148,21 @@ H.main(function()
 	H.check(info.frame.Visible, "at home")
 	cc.closeModals()
 	F.leaveInterior(a)
+	-- v11.1: on a phone the window is sized to the screen (reflowed, text ≥ 80%) — see tests/mobile_test.lua for the full layout checks
 	local cam = H.workspace.CurrentCamera
 	local old = cam.ViewportSize
-	rawget(cam, "_p").ViewportSize = old * 0.4
+	rawget(cam, "_p").ViewportSize = H.G.Vector2.new(390, 700)
+	cam:GetPropertyChangedSignal("ViewportSize"):Fire()
+	H.task.wait(0.3)
 	openArcadeFromPhone()
 	H.task.wait(1.5)
 	local s = info.scale.Scale
-	H.check(info.frame.Visible and s > 0 and s < 1 and s == s, "on a phone-sized screen the window scales to fit (" .. string.format("%.2f", s) .. ")")
+	local w = info.frame.Size.X.Offset * s
+	H.check(info.frame.Visible and cc.Layout.compact and s >= 0.8 and s <= 1 and w <= 390 * 0.92 + 1,
+		"on a phone-sized screen the window fits the screen (" .. math.floor(w) .. " px of 390, text at " .. string.format("%.0f%%", s * 100) .. ")")
 	rawget(cam, "_p").ViewportSize = old
+	cam:GetPropertyChangedSignal("ViewportSize"):Fire()
+	H.task.wait(0.3)
 	cc.closeModals()
 
 	T.assertClean("phone apps lifecycle")

@@ -41,6 +41,7 @@
   ],
   "/StarterPlayer/StarterPlayerScripts/EmpireClient": [
     "UI",
+    "Layout",
     "Audio",
     "AnimationConfig",
     "Actors",

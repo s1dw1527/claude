@@ -9,22 +9,56 @@ local modals = C.modals
 
 local LOCKS = {garage = "cars", staff = "staff", market = "market", marketing = "ads", properties = "properties", fun = "funpark"}
 C.MODAL_LOCKS = LOCKS
+local Lay = C.Layout
 local function modal(key, title, w, h)
-	local f = panel({AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.53), Size = UDim2.fromOffset(w, h), Visible = false, ZIndex = 10}, gui)
+	local f = panel({AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.53), Size = UDim2.fromOffset(w, h), Visible = false, ZIndex = Lay.Z.modal}, gui)
+	f.Name = "Modal_" .. key
 	gradient(f, RGB(40, 44, 64), RGB(20, 22, 32))
-	label({Size = UDim2.new(1, 0, 0, 50), Text = title, TextSize = 24, Font = Enum.Font.GothamBlack}, f)
+	local t = label({Size = UDim2.new(1, 0, 0, 50), Text = title, TextSize = 24, Font = Enum.Font.GothamBlack}, f)
 	local x = button({Position = UDim2.new(1, -46, 0, 8), Size = UDim2.fromOffset(36, 36), Text = "X", TextSize = 18, BackgroundColor3 = RED}, f)
 	local body = new("ScrollingFrame", {Position = UDim2.fromOffset(12, 54), Size = UDim2.new(1, -24, 1, -66), BackgroundTransparency = 1, BorderSizePixel = 0,
 		ScrollBarThickness = 6, AutomaticCanvasSize = Enum.AutomaticSize.Y, CanvasSize = UDim2.new()}, f)
 	vlist(body, 8)
-	local m = {frame = f, body = body, scale = new("UIScale", {}, f)}
+	local m = {frame = f, body = body, scale = new("UIScale", {}, f), title = t, close = x, w = w, h = h}
 	x.MouseButton1Click:Connect(function()
 		play(SND.click)
 		f.Visible = false
 	end)
 	modals[key] = m
+	Lay.major(key, f)
 	return m
 end
+-- v11.1: size a window for this screen. Desktop: the design size (shrunk only if the screen is smaller).
+-- Phone: ≤ 92% wide and ≤ 84% tall, text ≥ 80% (the window gets narrower and scrolls instead), centred under the
+-- HUD's top row, a full-height title that fits and a bigger close button.
+local function fitModal(m)
+	local s, size = Lay.fitWindow(m.frame, m.scale, m.w, m.h, m.fixed)
+	m.frame.Size = size
+	if not Lay.compact then
+		m.frame.AnchorPoint = Vector2.new(0.5, 0.5)
+		m.frame.Position = UDim2.fromScale(0.5, 0.53)
+	end
+	m.title.TextScaled = Lay.compact
+	m.title.Size = Lay.compact and UDim2.new(1, -110, 0, 44) or UDim2.new(1, 0, 0, 50)
+	m.title.Position = Lay.compact and UDim2.fromOffset(55, 3) or UDim2.new()
+	if not m.titleCap then m.titleCap = new("UITextSizeConstraint", {MaxTextSize = 24, MinTextSize = 12}, m.title) end
+	m.close.Size = Lay.compact and UDim2.fromOffset(44, 40) or UDim2.fromOffset(36, 36)
+	m.close.Position = Lay.compact and UDim2.new(1, -50, 0, 5) or UDim2.new(1, -46, 0, 8)
+	if m.help then
+		m.help.Position = Lay.compact and UDim2.fromOffset(6, 5) or UDim2.new(1, -150, 0, 10)
+		m.help.Size = Lay.compact and UDim2.fromOffset(44, 40) or UDim2.fromOffset(96, 32)
+		m.help.Text = Lay.compact and "❓" or "❓ What's this?"
+		m.help.TextSize = Lay.compact and 20 or 11
+	end
+	if m.onFit then m.onFit(Lay.compact, s) end
+	return s
+end
+C.fitModal = fitModal
+Lay.onChange(function()
+	for _, m in pairs(modals) do
+		if m.frame.Visible then m.scale.Scale = fitModal(m) end
+	end
+end)
 C.makeModal = modal   -- (other modules build their windows the same way)
 function C.closeModals()
 	for _, o in pairs(modals) do o.frame.Visible = false end
@@ -51,13 +85,10 @@ function C.openModal(key, extra)
 		return
 	end
 	m.extra = extra
-	m.frame.Visible = true
-	-- small screens (phones): shrink the window to fit instead of running off the edges
-	local cam = game:GetService("Workspace").CurrentCamera
-	local vp = cam and cam.ViewportSize or Vector2.new(1280, 720)
-	local fs = m.frame.Size
-	local fit = math.clamp(math.min((vp.X - 16) / math.max(1, fs.X.Offset), (vp.Y - 16) / math.max(1, fs.Y.Offset)), 0.45, 1)
+	-- v11.1: sized for this screen (phones get a reflowed window, not a shrunken desktop one)
+	local fit = fitModal(m)
 	m.scale.Scale = 0.6 * fit
+	m.frame.Visible = true
 	tween(m.scale, 0.3, {Scale = fit}, Enum.EasingStyle.Back)
 	if C.S and m.update then m.update(C.S) end
 end
@@ -142,7 +173,9 @@ do
 			end
 		end
 	end
-	local cp = panel({AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(600, 260), Visible = false, ZIndex = 20}, gui)
+	local cp = panel({AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(600, 260), Visible = false, ZIndex = Lay.Z.window}, gui)
+	cp.Name = "CandidatesWindow"
+	Lay.window("candidates", cp, {major = false})   -- opens over the staff window, so it isn't a "big window" of its own
 	gradient(cp, RGB(45, 55, 80), RGB(22, 26, 38))
 	local cpT = label({Size = UDim2.new(1, 0, 0, 44), TextSize = 20, Font = Enum.Font.GothamBlack}, cp)
 	local cx = button({Position = UDim2.new(1, -44, 0, 6), Size = UDim2.fromOffset(34, 34), Text = "X", BackgroundColor3 = RED}, cp)
@@ -864,6 +897,56 @@ do
 				render()
 			end
 		end
+	end
+end
+
+-- ===== 📊 MY EMPIRE (v11.1) =====
+-- Everything the desktop top bar shows, for the phone layout: tap the compact HUD (cash, ⭐ tier badge, event chip)
+-- to open it. Also handy on desktop.
+do
+	local m = modal("empire", "📊  MY EMPIRE", 460, 520)
+	local function row(order, h, color)
+		local c = card(m.body, h, order, color)
+		local l = label({Position = UDim2.fromOffset(12, 4), Size = UDim2.new(1, -24, 1, -8), TextSize = 14, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left,
+			TextYAlignment = Enum.TextYAlignment.Top}, c)
+		return l, c
+	end
+	local cashL = row(1, 64, RGB(50, 44, 24))
+	local boostL = row(2, 54)
+	header(m.body, "⭐ REPUTATION", 3)
+	local tierL, tierC = row(4, 86, RGB(56, 44, 20))
+	local repFill = bar(tierC, UDim2.new(0, 12, 1, -14), UDim2.new(1, -24, 0, 8), GOLD)
+	header(m.body, "📊 STATS", 5)
+	local statsL = row(6, 64)
+	header(m.body, "🏙️ THE CITY", 7)
+	local cityL = row(8, 70)
+	m.update = function(s)
+		cashL.Text = "💰 $" .. fmt(s.cash) .. "\n+$" .. fmt(s.income) .. " per second"
+		cashL.TextSize = 18
+		cashL.TextColor3 = GOLD
+		local b = {string.format("Boost x%.2f", s.gm)}
+		if s.passMult > 1 then table.insert(b, "💎 x" .. s.passMult) end
+		if s.rebirth.count > 0 then table.insert(b, "♻️ +" .. s.rebirth.mult .. "%") end
+		if s.buffMult then table.insert(b, string.format("⚔️ x%.1f %s", s.buffMult, clock(s.buffLeft))) end
+		if s.adName then table.insert(b, "📣 " .. clock(s.adLeft)) end
+		if s.relaxedLeft > 0 then table.insert(b, "🎡 " .. clock(s.relaxedLeft)) end
+		if s.trending then table.insert(b, "📱 TRENDING") end
+		if (s.viralLeft or 0) > 0 then table.insert(b, "🔥 VIRAL " .. clock(s.viralLeft)) end
+		if (s.postBuffLeft or 0) > 0 then table.insert(b, string.format("📈 post x%.2f %s", s.postBuffMult or 1, clock(s.postBuffLeft))) end
+		boostL.Text = table.concat(b, "   ")
+		if s.nextRep then
+			tierL.Text = "⭐ " .. s.tierName .. "\n" .. fmt(s.rep) .. " / " .. fmt(s.nextRep) .. " rep → " .. s.nextName .. "\nUnlocks: " .. table.concat(s.nextUnlocks or {}, ", ")
+			repFill.Size = UDim2.fromScale(math.clamp((s.rep - s.prevRep) / (s.nextRep - s.prevRep), 0, 1), 1)
+		else
+			tierL.Text = "⭐ " .. s.tierName .. "\n" .. fmt(s.rep) .. " reputation  •  MAX TIER"
+			repFill.Size = UDim2.fromScale(1, 1)
+		end
+		statsL.Text = string.format("🏆 %d trophies   ♻️ %d rebirths\n👥 %s followers   ⭐ %.1f stars   🏙️ %d%% of the city", s.trophies, s.rebirth.count, fmt(s.followers), s.stars, math.floor(s.cityPct + 0.5))
+		local ev
+		if s.frozen > 0 then ev = "❄️ YOUR INCOME IS FROZEN (" .. s.frozen .. "s)"
+		elseif s.eventLeft then ev = "⚡ " .. tostring(s.eventText) .. " (" .. s.eventLeft .. "s)"
+		else ev = "📰 " .. tostring(s.eventText) .. "\nNext city event in " .. s.nextEvent .. "s" end
+		cityL.Text = ev .. "\n⚔️ Corner war: " .. clock(s.warLeft)
 	end
 end
 end

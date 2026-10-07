@@ -13,12 +13,16 @@ stroke(pbtn, WHITE, 2, 0.4)
 local badge = new("Frame", {AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(1, -6, 0, 6), Size = UDim2.fromOffset(26, 26), BackgroundColor3 = RED, BorderSizePixel = 0, Visible = false, ZIndex = 5}, pbtn)
 corner(badge, 13)
 local badgeL = label({Size = UDim2.fromScale(1, 1), TextSize = 13, Font = Enum.Font.GothamBlack, ZIndex = 6}, badge)
-label({AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 1, 2), Size = UDim2.fromOffset(80, 14), Text = "PHONE (P)", TextSize = 10, TextColor3 = WHITE, TextStrokeTransparency = 0.4}, pbtn)
+local pLabel = label({AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 1, 2), Size = UDim2.fromOffset(80, 14), Text = "PHONE (P)", TextSize = 10, TextColor3 = WHITE, TextStrokeTransparency = 0.4}, pbtn)
 local gear = button({AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -98, 1, -16), Size = UDim2.fromOffset(46, 46), Text = "⚙️", TextSize = 22, BackgroundColor3 = RGB(60, 64, 84)}, gui)
 gear.MouseButton1Click:Connect(function() play(SND.click) C.openModal("settings") end)
 
 -- phone body
-local phone = new("Frame", {AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -16, 1, -104), Size = UDim2.fromOffset(330, 600), BackgroundColor3 = RGB(12, 12, 16), BorderSizePixel = 0, Visible = false, ZIndex = 20}, gui)
+local Lay = C.Layout
+local phone = new("Frame", {Name = "Phone", AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -16, 1, -104), Size = UDim2.fromOffset(330, 600), BackgroundColor3 = RGB(12, 12, 16), BorderSizePixel = 0, Visible = false, ZIndex = Lay.Z.phone}, gui)
+-- phone layout: the game darkens a little behind the phone; tapping outside the phone closes it
+local dim = new("TextButton", {Name = "PhoneDim", Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.new(0, 0, 0), BackgroundTransparency = 0.55, BorderSizePixel = 0, Text = "",
+	AutoButtonColor = false, Visible = false, ZIndex = Lay.Z.phoneDim}, gui)
 corner(phone, 36)
 stroke(phone, RGB(90, 90, 110), 3, 0)
 local screen = new("Frame", {Position = UDim2.fromOffset(12, 14), Size = UDim2.new(1, -24, 1, -28), BackgroundColor3 = RGB(24, 28, 44), BorderSizePixel = 0, ClipsDescendants = true, ZIndex = 21}, phone)
@@ -28,6 +32,8 @@ local timeL = label({Position = UDim2.fromOffset(20, 6), Size = UDim2.fromOffset
 label({Position = UDim2.new(1, -90, 0, 6), Size = UDim2.fromOffset(74, 18), TextSize = 12, TextXAlignment = Enum.TextXAlignment.Right, Text = "📶 🔋", ZIndex = 22}, screen)
 new("Frame", {AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 6), Size = UDim2.fromOffset(90, 18), BackgroundColor3 = Color3.new(0, 0, 0), BorderSizePixel = 0, ZIndex = 23}, screen)
 local sc = new("UIScale", {}, phone)
+-- phone layout: a clear ✕ on the phone itself
+local closeX = button({AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -20, 0, 15), Size = UDim2.fromOffset(38, 28), Text = "X", TextSize = 17, BackgroundColor3 = RED, ZIndex = 40, Visible = false}, phone)
 
 local views = {}
 -- what to run when a view opens. (Kept in a Lua table: Roblox doesn't allow custom fields on Instances, so
@@ -64,8 +70,26 @@ function C.phoneView(name)
 	for n, v in pairs(views) do v.Visible = n == name end
 	if refreshers[name] then refreshers[name]() end
 end
--- the phone is 600px tall: shrink it on short screens (phones in landscape) so it always fits
+-- the phone is 600px tall: shrink it on short screens so it always fits.
+-- v11.1 phone layout: a real phone-sized phone, centred: ~82% of the screen wide and ~78% tall (clamped so it
+-- never leaves the screen), at full text size. In landscape (no room for 500 px) it scales down as a whole.
 local function fitScale()
+	if Lay.compact then
+		local a = Lay.win
+		local w = math.min(math.clamp(Lay.vp.X * 0.82, 280, 420), a.w)
+		local h = math.min(math.clamp(Lay.vp.Y * 0.78, 500, 760), a.h)
+		phone.AnchorPoint = Vector2.new(0.5, 0.5)
+		phone.Position = UDim2.fromOffset(a.x + a.w / 2, a.y + a.h / 2)
+		if h >= 500 then
+			phone.Size = UDim2.fromOffset(w, h)
+			return 1
+		end
+		phone.Size = UDim2.fromOffset(330, 600)
+		return math.max(0.4, math.min(a.h / 600, a.w / 330))
+	end
+	phone.Size = UDim2.fromOffset(330, 600)
+	phone.AnchorPoint = Vector2.new(1, 1)
+	phone.Position = C.touchLift and UDim2.new(1, -16, 1, -16) or UDim2.new(1, -16, 1, -104)
 	local cam = game:GetService("Workspace").CurrentCamera
 	local h = cam and cam.ViewportSize.Y or 800
 	return math.clamp((h - 130) / 600, 0.5, 1)
@@ -75,9 +99,9 @@ function C.togglePhone(force)
 	if open == nil then open = not phone.Visible end
 	if open then
 		C.closeModals()
-		phone.Visible = true
 		local fit = fitScale()
 		sc.Scale = 0.7 * fit
+		phone.Visible = true
 		tween(sc, 0.25, {Scale = fit}, Enum.EasingStyle.Back)
 		C.phoneView("home")
 	else
@@ -85,6 +109,14 @@ function C.togglePhone(force)
 	end
 	play(SND.click)
 end
+-- the dim, the ✕ and the HUD (which steps aside: see Layout) follow the phone however it opens or closes
+phone:GetPropertyChangedSignal("Visible"):Connect(function()
+	dim.Visible = phone.Visible and Lay.compact
+	closeX.Visible = Lay.compact
+end)
+dim.MouseButton1Click:Connect(function() C.togglePhone(false) end)
+closeX.MouseButton1Click:Connect(function() C.togglePhone(false) end)
+Lay.major("phone", phone, {close = function() phone.Visible = false end})
 -- tell the server whenever the phone opens or closes, however it happened (button, P, controller, an app
 -- closing it, photo mode). The tutorial's "open your phone" step checks this, so it can't be missed.
 local function reportPhone()
@@ -107,13 +139,28 @@ if UserInputService.TouchEnabled then
 	phone.Position = UDim2.new(1, -16, 1, -16)
 	C.touchLift = 154
 end
+-- v11.1 phone layout: one column on the right edge, just above Roblox's jump button: ⚙️ above 📱
+pbtn.Name, gear.Name = "PhoneButton", "SettingsButton"
+Lay.slot(pbtn, "right", 3, {size = UDim2.fromOffset(56, 56), onCompact = function(c)
+	pLabel.Visible = not c
+	pbtn.TextSize = c and 30 or 38
+end})
+Lay.slot(gear, "right", 2, {size = UDim2.fromOffset(48, 48)})
+Lay.onChange(function()
+	local fit = fitScale()
+	if phone.Visible then sc.Scale = fit end
+	dim.Visible = phone.Visible and Lay.compact
+	closeX.Visible = Lay.compact
+end)
 
 -- ===== HOME SCREEN =====
 do
 	local v = makeView("home")
 	label({Position = UDim2.fromOffset(0, 8), Size = UDim2.new(1, 0, 0, 44), TextSize = 40, Font = Enum.Font.GothamBlack, Text = "12:00", ZIndex = 23, Name = "BigClock"}, v)
 	label({Position = UDim2.fromOffset(0, 54), Size = UDim2.new(1, 0, 0, 16), TextSize = 12, TextColor3 = SUB, Text = "Corner Empire OS", ZIndex = 23}, v)
-	local grid = new("Frame", {Position = UDim2.fromOffset(10, 84), Size = UDim2.new(1, -20, 1, -94), BackgroundTransparency = 1, ZIndex = 22}, v)
+	-- (scrolls when the phone is shorter than the app grid — phone layout, landscape)
+	local grid = new("ScrollingFrame", {Position = UDim2.fromOffset(10, 84), Size = UDim2.new(1, -20, 1, -94), BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 22,
+		ScrollBarThickness = 3, AutomaticCanvasSize = Enum.AutomaticSize.Y, CanvasSize = UDim2.new(), ScrollingDirection = Enum.ScrollingDirection.Y}, v)
 	new("UIGridLayout", {CellSize = UDim2.fromOffset(62, 72), CellPadding = UDim2.fromOffset(8, 3), SortOrder = Enum.SortOrder.LayoutOrder}, grid)
 	local APPS = {
 		{"📱", "Buzz", "view", "buzz", RGB(230, 70, 150)}, {"💬", "Messages", "view", "messages", RGB(60, 190, 90)}, {"🗺️", "Map", "view", "map", RGB(60, 140, 230)},
@@ -351,6 +398,8 @@ do
 		table.insert(posts, 1, p)
 		if #posts > 40 then table.remove(posts) end
 		if U.ticker then U.ticker.Text = "📱 CITYBUZZ: " .. p.icon .. " " .. p.text end
+		-- phone layout: a 4-second notification instead of the ticker (not while you're reading the feed)
+		if U.buzzNote and not (phone.Visible and current == "buzz") then U.buzzNote(p) end
 		if phone.Visible and current == "buzz" then render() end
 	end)
 	R.BuzzUpdate.OnClientEvent:Connect(function(id, likes, reactions, views)

@@ -16,6 +16,9 @@ local win = panel({AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromSca
 gradient(win, RGB(40, 30, 80), RGB(16, 14, 30))
 stroke(win, GOLD, 3, 0)
 new("UIScale", {}, win)
+-- v11.1: sized to the screen (scaled as a whole: the duel screens keep their shape); one big window at a time on phones
+win.Name = "ArcadeGameWindow"
+C.Layout.window("arcadeGame", win, {fixed = true, z = C.Layout.Z.window})
 local title = label({Size = UDim2.new(1, -60, 0, 44), Position = UDim2.fromOffset(10, 0), TextSize = 22, Font = Enum.Font.GothamBlack, TextColor3 = GOLD, ZIndex = 46}, win)
 local sub = label({Position = UDim2.fromOffset(10, 40), Size = UDim2.new(1, -20, 0, 22), TextSize = 14, TextColor3 = SUB, ZIndex = 46}, win)
 local quit = button({Position = UDim2.new(1, -96, 0, 8), Size = UDim2.fromOffset(86, 30), Text = "Leave", TextSize = 13, BackgroundColor3 = RED, ZIndex = 47}, win)
@@ -294,6 +297,64 @@ function A.renderInfo()
 	header(infoM.body, "🏆 Top players in this server", 40)
 	for i, b in ipairs(e.board) do label({Size = UDim2.new(1, -8, 0, 22), Text = i .. ". " .. b.name .. " — " .. b.wins .. " wins", TextSize = 14, LayoutOrder = 40 + i}, infoM.body) end
 	header(infoM.body, "Games", 60)
-	for i, g in ipairs(e.games) do label({Size = UDim2.new(1, -8, 0, 22), Text = g.icon .. " " .. g.name .. " — " .. g.desc, TextSize = 12, TextColor3 = SUB, TextWrapped = true, LayoutOrder = 60 + i}, infoM.body) end
+	-- v11.1: one card per game, stacked vertically (scrolls on a phone): name, players, what it is, ▶ PLAY
+	for i, g in ipairs(e.games) do
+		local c = card(infoM.body, 78, 60 + i, RGB(40, 34, 70))
+		c.Name = "GameCard"
+		label({Position = UDim2.fromOffset(12, 6), Size = UDim2.new(1, -120, 0, 22), Text = g.icon .. " " .. string.upper(g.name), TextSize = 16, Font = Enum.Font.GothamBlack,
+			TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd}, c)
+		label({Position = UDim2.fromOffset(12, 28), Size = UDim2.new(1, -120, 0, 16), Text = "👥 2 players", TextSize = 12, TextColor3 = GOLD, TextXAlignment = Enum.TextXAlignment.Left}, c)
+		label({Position = UDim2.fromOffset(12, 44), Size = UDim2.new(1, -120, 0, 30), Text = tostring(g.desc or ""), TextSize = 11, TextColor3 = SUB, TextWrapped = true,
+			TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top}, c)
+		local b = button({AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -10, 0.5, 0), Size = UDim2.fromOffset(96, 44), Text = "▶ PLAY", TextSize = 16, BackgroundColor3 = GREEN}, c)
+		b.Name = "PlayButton"
+		b.MouseButton1Click:Connect(function()
+			play(SND.click)
+			A.goPlay(g)
+		end)
+	end
+end
+-- ▶ PLAY: the games run at the Fun Zone booths (two players at one booth), so PLAY shows the way to the right
+-- booth and closes the window. The route clears itself when you get there.
+local boothCache = {}
+local function findBooth(name)
+	local hit = boothCache[name]
+	if hit and hit.Parent then return hit end
+	local world = game:GetService("Workspace")
+	for _, d in ipairs(world:GetDescendants()) do
+		if d:IsA("ProximityPrompt") and d.ActionText == "Play " .. name and d.Parent and d.Parent:IsA("BasePart") then
+			boothCache[name] = d.Parent
+			return d.Parent
+		end
+	end
+end
+local routeId = 0
+function A.goPlay(g)
+	local part = findBooth(g.name)
+	infoM.frame.Visible = false
+	if not part then
+		U.toast("🕹️ " .. g.name .. ": play it at the Fun Zone booths (look for them on the Map).")
+		return
+	end
+	local pos = part.Position
+	local root = C.plr.Character and C.plr.Character:FindFirstChild("HumanoidRootPart")
+	if root and (root.Position - pos).Magnitude < 16 then
+		U.toast("🕹️ You're there: walk up to a " .. g.name .. " cabinet and use the prompt.")
+		return
+	end
+	U.toast("🕹️ Follow the purple beam to the " .. g.name .. " booth. You need a second player there!")
+	if not U.setBeamTarget then return end
+	U.setBeamTarget("arcade", pos)
+	routeId += 1
+	local mine = routeId
+	task.spawn(function()
+		local t0 = os.clock()
+		while routeId == mine and os.clock() - t0 < 180 do
+			task.wait(1)
+			local r = C.plr.Character and C.plr.Character:FindFirstChild("HumanoidRootPart")
+			if r and (r.Position - pos).Magnitude < 16 then break end
+		end
+		if routeId == mine then U.setBeamTarget("arcade", nil) end
+	end)
 end
 end

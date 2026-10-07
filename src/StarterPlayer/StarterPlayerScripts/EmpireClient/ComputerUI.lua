@@ -25,6 +25,20 @@ local main = new("ScrollingFrame", {Position = UDim2.fromOffset(196, 54), Size =
 	ScrollBarThickness = 6, AutomaticCanvasSize = Enum.AutomaticSize.Y, CanvasSize = UDim2.new()}, m.frame)
 new("UIListLayout", {Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder}, main)
 CUI.side, CUI.main = side, main
+-- v11.1 phone layout: the app bar becomes a scrolling strip across the top, the app gets the full width below
+local sideList = side:FindFirstChildOfClass("UIListLayout")
+m.onFit = function(compact)
+	CUI.compact = compact
+	side.Size = compact and UDim2.new(1, -24, 0, 50) or UDim2.new(0, 176, 1, -66)
+	side.AutomaticCanvasSize = compact and Enum.AutomaticSize.X or Enum.AutomaticSize.Y
+	side.ScrollingDirection = compact and Enum.ScrollingDirection.X or Enum.ScrollingDirection.XY
+	sideList.FillDirection = compact and Enum.FillDirection.Horizontal or Enum.FillDirection.Vertical
+	main.Position = compact and UDim2.fromOffset(12, 110) or UDim2.fromOffset(196, 54)
+	main.Size = compact and UDim2.new(1, -24, 1, -122) or UDim2.new(1, -208, 1, -66)
+	for _, ch in ipairs(side:GetChildren()) do
+		if ch:IsA("GuiObject") then ch.Size = compact and UDim2.new(0, 124, 1, -10) or UDim2.new(1, 0, 0, 34) end
+	end
+end
 
 local DATA, APP = nil, "overview"
 local function line(text, order, color, size, h)
@@ -141,12 +155,13 @@ end
 local function render()
 	clear(side)
 	if not DATA then return end
-	local t = label({Size = UDim2.new(1, 0, 0, 34), Text = DATA.tierName, TextSize = 13, TextWrapped = true, Font = Enum.Font.GothamBlack, TextColor3 = GOLD, LayoutOrder = 0}, side)
+	local cellSize = CUI.compact and UDim2.new(0, 124, 1, -10) or UDim2.new(1, 0, 0, 34)
+	local t = label({Size = cellSize, Text = DATA.tierName, TextSize = 13, TextWrapped = true, Font = Enum.Font.GothamBlack, TextColor3 = GOLD, LayoutOrder = 0}, side)
 	t.BackgroundTransparency = 1
 	local cur
 	for i, a in ipairs(DATA.apps) do
 		if a.key == APP then cur = a end
-		local b = button({Size = UDim2.new(1, 0, 0, 34), Text = (a.locked and "🔒 " or a.icon .. " ") .. a.name, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left,
+		local b = button({Size = cellSize, Text = (a.locked and "🔒 " or a.icon .. " ") .. a.name, TextSize = 12, TextXAlignment = Enum.TextXAlignment.Left,
 			BackgroundColor3 = a.key == APP and BLUE or (a.locked and RGB(40, 40, 48) or RGB(34, 40, 58)), LayoutOrder = i}, side)
 		b.MouseButton1Click:Connect(function()
 			play(SND.click)

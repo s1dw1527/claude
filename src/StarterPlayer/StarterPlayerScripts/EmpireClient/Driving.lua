@@ -55,7 +55,7 @@ end
 
 -- ===== DRIVE BUTTONS (touch + mouse) and input helpers =====
 -- Nitro: SHIFT, gamepad B / R1, or the 🔥 button. Drift: Q or CTRL, gamepad X / L1, or the 💨 button.
-local held = {nitro = false, drift = false}
+local held = {nitro = false, drift = false, gas = false, brake = false}
 local ctl = new("Frame", {AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -376, 1, -16), Size = UDim2.fromOffset(104, 222), BackgroundTransparency = 1, Visible = false}, gui)
 local function holdButton(text, y, color)
 	local b = new("TextButton", {AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, y), Size = UDim2.fromOffset(100, 100), Text = text, TextSize = 20,
@@ -84,6 +84,56 @@ local function bindHold(btn, key)
 end
 bindHold(nitroBtn, "nitro")
 bindHold(driftBtn, "drift")
+-- v11.1 touch screens: GAS and BRAKE pedals bottom-right (Roblox's thumbstick, bottom-left, steers). They only
+-- show on touch screens / the phone layout, so a desktop with a keyboard looks exactly as before.
+local Lay = C.Layout
+local pedals = new("Frame", {Name = "Pedals", AnchorPoint = Vector2.new(1, 1), Size = UDim2.fromOffset(146, 76), BackgroundTransparency = 1, Visible = false, ZIndex = Lay.Z.controls}, gui)
+local function pedal(text, x, h, color)
+	local b = new("TextButton", {AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, x, 1, 0), Size = UDim2.fromOffset(h, h), Text = text, TextSize = 16,
+		Font = Enum.Font.GothamBlack, TextColor3 = WHITE, BackgroundColor3 = color, BackgroundTransparency = 0.15, AutoButtonColor = false, BorderSizePixel = 0}, pedals)
+	new("UICorner", {CornerRadius = UDim.new(0.3, 0)}, b)
+	stroke(b, WHITE, 2, 0.4)
+	return b
+end
+local gasBtn = pedal("⬆\nGAS", 0, 76, RGB(50, 170, 80))
+local brakeBtn = pedal("⬇\nBRAKE", -84, 62, RGB(200, 60, 60))
+bindHold(gasBtn, "gas")
+bindHold(brakeBtn, "brake")
+gauge.Name, ctl.Name = "Speedometer", "DriveButtons"
+local ctlScale = Lay.scaleOf(ctl)
+local gaugeScale = Lay.scaleOf(gauge)
+local design = {gauge = gauge.Position, gaugeAnchor = gauge.AnchorPoint, ctl = ctl.Position, ctlSize = ctl.Size, nitro = nitroBtn.Position, drift = driftBtn.Position}
+-- where everything goes. Phone layout: a low cluster just left of Roblox's jump button, nothing in the middle of
+-- the road and nothing over the thumbstick (bottom-left):
+--                                  [gauge, small, top-right]
+--                                           [⚙️]
+--                          [💨] [🔥]         [📱]
+--   [ thumbstick ]     [BRAKE] [ GAS ]  [jump]
+local function placeDriving()
+	if Lay.compact then
+		local s, vp = Lay.safe, Lay.vp
+		local right = vp.X - s.r - Lay.jumpZone.w      -- just left of Roblox's jump button
+		gaugeScale.Scale = 0.5
+		gauge.AnchorPoint = Vector2.new(1, 0)
+		gauge.Position = UDim2.fromOffset(vp.X - s.r, Lay.hudTop + Lay.ROW1 + 8)
+		pedals.Position = UDim2.fromOffset(right, vp.Y - s.b - 4)
+		-- 🔥 / 💨 side by side, half size, above the pedals
+		ctlScale.Scale = 0.5
+		ctl.Size = UDim2.fromOffset(212, 100)
+		driftBtn.Position = UDim2.new(0, 50, 1, 0)
+		nitroBtn.Position = UDim2.new(1, -50, 1, 0)
+		ctl.Position = UDim2.fromOffset(right, vp.Y - s.b - 4 - 76 - 8)
+	else
+		gaugeScale.Scale = 1
+		gauge.AnchorPoint, gauge.Position = design.gaugeAnchor, design.gauge
+		ctlScale.Scale = 1
+		ctl.Position, ctl.Size = design.ctl, design.ctlSize
+		nitroBtn.Position, driftBtn.Position = design.nitro, design.drift
+		pedals.Position = UDim2.new(1, -16 - (UserInputService.TouchEnabled and 170 or 0), 1, -16)
+	end
+end
+Lay.onChange(placeDriving)
+local function showPedals() return Lay.compact or UserInputService.TouchEnabled end
 local PAD = Enum.UserInputType.Gamepad1
 local function down(key) return UserInputService:IsKeyDown(key) end
 local function pad(key)
@@ -138,7 +188,9 @@ RunService.Heartbeat:Connect(function(dt)
 			driving = false
 			gauge.Visible = false
 			ctl.Visible = false
-			held.nitro, held.drift = false, false
+			pedals.Visible = false
+			Lay.setDriving(false)
+			held.nitro, held.drift, held.gas, held.brake = false, false, false, false
 			speed = 0
 			endDrift(false)
 			driftL.Text = ""
@@ -153,6 +205,8 @@ RunService.Heartbeat:Connect(function(dt)
 		driving = true
 		gauge.Visible = true
 		ctl.Visible = true
+		pedals.Visible = showPedals()
+		Lay.setDriving(true)   -- phone layout: the HUD's second row and the left buttons step aside while you drive
 		speed = root.CFrame.LookVector:Dot(root.AssemblyLinearVelocity)
 	end
 	nitroBtn.Visible = hasNitro
@@ -170,6 +224,8 @@ RunService.Heartbeat:Connect(function(dt)
 	local driftK = seat:GetAttribute("Drift") or 1
 	local throttle = seat.ThrottleFloat
 	local steer = seat.SteerFloat
+	-- the touch pedals win over the thumbstick's forward/back
+	if held.gas then throttle = 1 elseif held.brake then throttle = -1 end
 	local photo = C.photoActive == true     -- photo mode: the car coasts to a stop and ignores the keys
 	if photo then throttle, steer = 0, 0 end
 	local boosting = not photo and hasNitro and throttle > 0 and nitro > 0 and wantNitro()
@@ -436,6 +492,8 @@ end
 -- ===== RACE HUD =====
 do
 	local rp = panel({AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 266), Size = UDim2.fromOffset(380, 78), BackgroundColor3 = RGB(30, 30, 36), Visible = false}, gui)
+	rp.Name = "RacePanel"
+	C.Layout.slot(rp, "top", 7)   -- phone layout: the top notification stack
 	stroke(rp, GOLD, 2, 0)
 	local title = label({Position = UDim2.fromOffset(12, 4), Size = UDim2.new(1, -24, 0, 22), TextSize = 15, Font = Enum.Font.GothamBlack, TextColor3 = GOLD, TextXAlignment = Enum.TextXAlignment.Left}, rp)
 	local timer = label({Position = UDim2.fromOffset(12, 26), Size = UDim2.new(0.5, 0, 0, 44), TextSize = 36, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left, Text = "0.00"}, rp)
