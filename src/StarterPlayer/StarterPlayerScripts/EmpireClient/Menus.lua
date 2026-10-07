@@ -921,7 +921,8 @@ do
 	header(m.body, "🏙️ THE CITY", 7)
 	local cityL = row(8, 70)
 	m.update = function(s)
-		cashL.Text = "💰 $" .. fmt(s.cash) .. "\n+$" .. fmt(s.income) .. " per second"
+		local rent = s.rentRate or 0
+		cashL.Text = "💰 $" .. fmt(s.cash) .. "\n+$" .. fmt(s.income) .. " per second" .. (rent ~= 0 and ("   🏢 rent " .. (rent > 0 and "+" or "-") .. "$" .. fmt(math.abs(rent)) .. "/s") or "")
 		cashL.TextSize = 18
 		cashL.TextColor3 = GOLD
 		local b = {string.format("Boost x%.2f", s.gm)}

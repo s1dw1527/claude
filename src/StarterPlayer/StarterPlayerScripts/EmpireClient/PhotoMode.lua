@@ -25,26 +25,24 @@ end
 local bars = new("Frame", {Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Visible = false}, sg)
 new("Frame", {Size = UDim2.new(1, 0, 0.1, 0), BackgroundColor3 = Color3.new(0, 0, 0), BorderSizePixel = 0}, bars)
 new("Frame", {AnchorPoint = Vector2.new(0, 1), Position = UDim2.fromScale(0, 1), Size = UDim2.new(1, 0, 0.1, 0), BackgroundColor3 = Color3.new(0, 0, 0), BorderSizePixel = 0}, bars)
-local bar = new("Frame", {AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -12), Size = UDim2.new(0, 980, 0, 104), BackgroundColor3 = RGB(20, 22, 32), BackgroundTransparency = 0.15, BorderSizePixel = 0}, sg)
+local bar = new("Frame", {Name = "PhotoBar", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -12), Size = UDim2.new(0, 980, 0, 104), BackgroundColor3 = RGB(20, 22, 32), BackgroundTransparency = 0.15, BorderSizePixel = 0}, sg)
 corner(bar, 12)
-new("UISizeConstraint", {MaxSize = Vector2.new(980, 104)}, bar)
--- narrow screens: the bar scales down instead of running off the edge
-do
-	local bs = new("UIScale", {}, bar)
-	local function fitBar()
-		local vp = camera and camera.ViewportSize or Vector2.new(1280, 720)
-		bs.Scale = math.clamp((vp.X - 24) / 980, 0.45, 1)
-	end
-	fitBar()
-	if camera then camera:GetPropertyChangedSignal("ViewportSize"):Connect(fitBar) end
-end
+local barCap = new("UISizeConstraint", {MaxSize = Vector2.new(980, 104)}, bar)
+local HINT = "📸 PHOTO MODE • WASD/QE fly • hold right-click or drag to look • SHIFT fast • H hides this bar • V exits • take the shot with Roblox's Capture button"
 local hint = label({Position = UDim2.fromOffset(10, 2), Size = UDim2.new(1, -20, 0, 18), TextSize = 11, TextColor3 = SUB, TextXAlignment = Enum.TextXAlignment.Left,
-	Text = "📸 PHOTO MODE • WASD/QE fly • hold right-click or drag to look • SHIFT fast • H hides this bar • V exits • take the shot with Roblox's Capture button"}, bar)
-local row1 = new("Frame", {Position = UDim2.fromOffset(8, 22), Size = UDim2.new(1, -16, 0, 38), BackgroundTransparency = 1}, bar)
-local row2 = new("Frame", {Position = UDim2.fromOffset(8, 62), Size = UDim2.new(1, -16, 0, 38), BackgroundTransparency = 1}, bar)
-for _, r in ipairs({row1, row2}) do new("UIListLayout", {FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 6)}, r) end
+	TextTruncate = Enum.TextTruncate.AtEnd, Text = HINT}, bar)
+-- (the two button rows scroll sideways when they don't fit: on a phone you swipe them)
+local function row(y)
+	local r = new("ScrollingFrame", {Position = UDim2.fromOffset(8, y), Size = UDim2.new(1, -16, 0, 38), BackgroundTransparency = 1, BorderSizePixel = 0, ScrollBarThickness = 2,
+		AutomaticCanvasSize = Enum.AutomaticSize.X, CanvasSize = UDim2.new(), ScrollingDirection = Enum.ScrollingDirection.X}, bar)
+	new("UIListLayout", {FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder}, r)
+	return r
+end
+local row1, row2 = row(22), row(62)
+local order = 0
 local function pbtn(parent, text, w, color, fn)
-	local b = button({Size = UDim2.fromOffset(w, 36), Text = text, TextSize = 12, TextWrapped = true, BackgroundColor3 = color or BLUE}, parent)
+	order += 1
+	local b = button({Size = UDim2.fromOffset(w, 36), Text = text, TextSize = 12, TextWrapped = true, BackgroundColor3 = color or BLUE, LayoutOrder = order}, parent)
 	b.MouseButton1Click:Connect(function()
 		play(SND.click)
 		fn(b)
@@ -170,7 +168,30 @@ pbtn(row1, "🏪 Business", 84, RGB(120, 90, 220), function() orbit("business") 
 pbtn(row1, "🏠 Home", 70, RGB(120, 90, 220), function() orbit("home") end)
 pbtn(row1, "🏙️ Empire", 76, RGB(120, 90, 220), function() orbit("empire") end)
 pbtn(row1, "🏆 Showcase my empire", 150, RGB(200, 150, 30), function() act("showcaseSubmit") end)
-pbtn(row1, "✖ Exit (V)", 76, RED, function() C.setPhoto(false) end)
+local exitB = pbtn(row1, "✖ Exit (V)", 76, RED, function() C.setPhoto(false) end)
+-- v11.2 phone layout: the bar is the screen's width (it used to be a 980 px bar shrunk to 45%, half off the screen
+-- with 5 px text); text at full size, rows you swipe, ✖ Exit first, a short hint, the move pad above the bar
+local barScale = new("UIScale", {}, bar)
+C.Layout.onChange(function(L)
+	if L.compact then
+		local w = L.vp.X - L.safe.l - L.safe.r
+		barCap.MaxSize = Vector2.new(w, 104)
+		bar.Size = UDim2.fromOffset(w, 104)
+		bar.Position = UDim2.new(0.5, 0, 1, -L.safe.b)
+		barScale.Scale = 1
+		hint.Text = "📸 PHOTO MODE • swipe the buttons • use Roblox's Capture button for the shot"
+		exitB.LayoutOrder = -1
+		pad.Position = UDim2.new(0, L.safe.l, 1, -(L.safe.b + 112))
+	else
+		barCap.MaxSize = Vector2.new(980, 104)
+		bar.Size = UDim2.new(0, 980, 0, 104)
+		bar.Position = UDim2.new(0.5, 0, 1, -12)
+		barScale.Scale = math.clamp((L.vp.X - 24) / 980, 0.45, 1)
+		hint.Text = HINT
+		exitB.LayoutOrder = 8
+		pad.Position = UDim2.new(0, 16, 1, -130)
+	end
+end)
 local EMOTES = {{"👋", "wave"}, {"🕺", "dance"}, {"🎉", "cheer"}, {"👉", "point"}, {"😂", "laugh"}}
 for _, e in ipairs(EMOTES) do
 	pbtn(row2, e[1], 40, RGB(60, 150, 90), function()

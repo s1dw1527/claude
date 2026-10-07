@@ -293,6 +293,20 @@ local function buildSite(s)
 	st.center = (o * CF(0, 2, 0)).Position
 	return st
 end
+-- v11.2: the targets sit near the edge of the map, where the terrain's random edge hills are: clear the hills out of
+-- each target's lot and its way in (in v11 they could half-bury a building in Studio)
+for _, s in ipairs(SITES) do
+	local x, z = s.pos.X, s.pos.Z
+	C.clearTerrain(x - 42, z - 42, x + 42, z + 42, 70)
+	if math.abs(x) > 600 then
+		-- east / west edge: a lane back towards the city
+		local inner = x > 0 and 640 or -640
+		C.clearTerrain(math.min(inner, x), z - 12, math.max(inner, x), z + 12, 50)
+	else
+		-- north edge: a lane south, out of the hills
+		C.clearTerrain(x - 12, z, x + 12, -550, 50)
+	end
+end
 for _, s in ipairs(SITES) do buildSite(s) end
 -- simple access driveways out to where the roads end
 P(FOLDER, V3(90, 0.2, 12), CF(695, 0.12, 0), RGB(52, 54, 60), MAT.Asphalt)
@@ -809,7 +823,8 @@ MC.onStation = function(plr, key)
 		if not key2 then notify(plr, "🚗 You don't own a car yet.") return end
 		F.spawnCar(plr, key2, MC.garageCF)
 	else
-		R.Menu:FireClient(plr, "heistApp", {tab = ({jobs = "jobs", quartermaster = "gear", base = "gear", planning = "intel", computer = "intel"})[key] or "jobs"})
+		-- (v11.2: the planning room and the computer asked for an "intel" tab the app doesn't have → an empty window)
+		R.Menu:FireClient(plr, "heistApp", {tab = ({jobs = "jobs", quartermaster = "gear", base = "gear", planning = "jobs", computer = "police"})[key] or "jobs"})
 		if F.guideTip then F.guideTip(plr, key == "jobs" and "robberyJobs" or "heistsApp") end
 	end
 end

@@ -196,7 +196,12 @@ R.Menu.OnClientEvent:Connect(function(kind, e)
 		reset()
 		title.Text = NAMES[e.game] or "ARCADE"
 		sub.Text = "Waiting for a second player... (ask a friend to join this game)"
-		big("⏳", WHITE, 120)
+		big("⏳", WHITE, 100)
+		-- v11.2: nobody around? play the 🤖 Arcade Bot right away
+		bigButton("🤖 Play the Arcade Bot", PURPLE, 190, function()
+			play(SND.click)
+			act("arcBot")
+		end)
 	elseif e.state == "left" then
 		win.Visible = false
 	elseif e.state == "matched" then
@@ -303,12 +308,20 @@ function A.renderInfo()
 		c.Name = "GameCard"
 		label({Position = UDim2.fromOffset(12, 6), Size = UDim2.new(1, -120, 0, 22), Text = g.icon .. " " .. string.upper(g.name), TextSize = 16, Font = Enum.Font.GothamBlack,
 			TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd}, c)
-		label({Position = UDim2.fromOffset(12, 28), Size = UDim2.new(1, -120, 0, 16), Text = "👥 2 players", TextSize = 12, TextColor3 = GOLD, TextXAlignment = Enum.TextXAlignment.Left}, c)
+		label({Position = UDim2.fromOffset(12, 28), Size = UDim2.new(1, -120, 0, 16), Text = "👥 2 players  •  or vs 🤖", TextSize = 12, TextColor3 = GOLD, TextXAlignment = Enum.TextXAlignment.Left}, c)
 		label({Position = UDim2.fromOffset(12, 44), Size = UDim2.new(1, -120, 0, 30), Text = tostring(g.desc or ""), TextSize = 11, TextColor3 = SUB, TextWrapped = true,
 			TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top}, c)
-		local b = button({AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -10, 0.5, 0), Size = UDim2.fromOffset(96, 44), Text = "▶ PLAY", TextSize = 16, BackgroundColor3 = GREEN}, c)
+		-- ▶ PLAY starts right away against the 🤖 Arcade Bot; 👥 shows the way to a booth to play a real person
+		local b = button({AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -10, 0, 6), Size = UDim2.fromOffset(96, 36), Text = "▶ PLAY", TextSize = 16, BackgroundColor3 = GREEN}, c)
 		b.Name = "PlayButton"
 		b.MouseButton1Click:Connect(function()
+			play(SND.click)
+			infoM.frame.Visible = false
+			act("arcBot", g.key)
+		end)
+		local pb = button({AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -10, 1, -6), Size = UDim2.fromOffset(96, 28), Text = "👥 vs player", TextSize = 12, BackgroundColor3 = BLUE}, c)
+		pb.Name = "FindPlayerButton"
+		pb.MouseButton1Click:Connect(function()
 			play(SND.click)
 			A.goPlay(g)
 		end)

@@ -30,6 +30,7 @@ C.ARCADE_GAMES = {
 C.ARCADE_ORDER = {"reaction", "buttons", "hoops", "sprint"}
 C.ARCADE_RULES = {
 	winTickets = 12, playTickets = 3,
+	botWinTickets = 5, botPlayTickets = 1,  -- v11.2: against the 🤖 Arcade Bot (so it can't out-earn real matches)
 	pairCap = 5, pairWindow = 600,        -- rewarded games against the same opponent per 10 minutes
 	hourCap = 30,                         -- rewarded games per hour
 	minSeconds = 6,                       -- a match shorter than this (e.g. an instant forfeit) pays nothing
@@ -68,7 +69,12 @@ local function station(id, game, pos)
 end
 
 local matches = {}    -- plr -> match
-local function send(plr, payload) if plr.Parent then R.Menu:FireClient(plr, "arcade", payload) end end
+-- (the 🤖 Arcade Bot is a plain table standing in for the second player: nothing is ever sent to it, it has no save
+-- data, and it's never in `matches`)
+-- (never write plr.bot on a real Player: reading a property an Instance doesn't have is an error in Roblox)
+local BOTS = setmetatable({}, {__mode = "k"})
+local function isBot(p) return BOTS[p] == true end
+local function send(plr, payload) if not isBot(plr) and plr.Parent then R.Menu:FireClient(plr, "arcade", payload) end end
 local function other(m, plr) return m.p[1] == plr and m.p[2] or m.p[1] end
 local function both(m, payload) for _, p in ipairs(m.p) do send(p, payload) end end
 
@@ -102,7 +108,11 @@ local function finish(m, winner, why)
 			local won = p == winner
 			local tickets = 0
 			if long and rewardable(p, other(m, p), now) then
-				tickets = won and RULES.winTickets or (why == "forfeit" and 0 or RULES.playTickets)
+				if m.bot then
+					tickets = won and RULES.botWinTickets or (why == "forfeit" and 0 or RULES.botPlayTickets)
+				else
+					tickets = won and RULES.winTickets or (why == "forfeit" and 0 or RULES.playTickets)
+				end
 			end
 			a.tickets += tickets
 			a.played += 1
@@ -115,7 +125,7 @@ local function finish(m, winner, why)
 		end
 	end
 	local g = C.ARCADE_GAMES[m.game]
-	if winner and F.buzz and math.random() < 0.25 then F.buzz(g.icon, winner.Name .. " just won " .. g.name .. " against " .. other(m, winner).Name .. "!", g.color) end
+	if winner and not m.bot and F.buzz and math.random() < 0.25 then F.buzz(g.icon, winner.Name .. " just won " .. g.name .. " against " .. other(m, winner).Name .. "!", g.color) end
 	if m.station then m.station.match = nil end
 end
 F.arcadeFinish = finish
@@ -268,7 +278,7 @@ function F.arcadeForfeit(plr, why)
 		local o = other(m, plr)
 		send(plr, {state = "forfeit", why = why})
 		finish(m, o, "forfeit")
-		notify(o, "🕹️ " .. plr.Name .. " left the game. You win!")
+		if not isBot(o) then notify(o, "🕹️ " .. plr.Name .. " left the game. You win!") end
 	end
 	leaveStation(plr)
 end
@@ -301,6 +311,67 @@ function F.arcadeJoin(plr, id, game)
 	send(plr, {state = "waiting", game = game, station = id})
 	return true
 end
+-- =====================================================================
+-- THE 🤖 ARCADE BOT (v11.2): play right away when nobody else is around
+-- =====================================================================
+-- A fair, beatable opponent. It "plays" through the same rules as a person (the same rate caps, the same timing),
+-- so the server still decides everything.
+local function botPlay(m, bot)
+	local g = m.game
+	task.spawn(function()
+		if g == "reaction" then
+			local lastRound, delay = nil, 0
+			while not m.over do
+				task.wait(0.05)
+				if m.round ~= lastRound then
+					lastRound = m.round
+					delay = 0.28 + math.random() * 0.32      -- 280-600 ms
+				end
+				if m.phase == GO and not m.roundWinner and m.goAt and os.clock() - m.goAt >= delay and m.press then m.press(bot) end
+			end
+		elseif g == "buttons" then
+			while not m.over do
+				task.wait(0.25)
+				if m.tap then m.tap(bot, math.random(1, 3)) end     -- ~8 taps a second
+			end
+		elseif g == "hoops" then
+			for _ = 1, C.ARCADE_GAMES.hoops.shots do
+				task.wait(2 + math.random() * 2.5)
+				if m.over then return end
+				if m.shoot then m.shoot(bot) end
+			end
+		elseif g == "sprint" then
+			while not m.over do
+				task.wait(0.25)
+				if m.step then m.step(bot, math.random(1, 2)) end     -- ~6 steps a second
+			end
+		end
+	end)
+end
+function F.arcadeBot(plr, game)
+	local d = data[plr]
+	if not d then return false end
+	if matches[plr] then notify(plr, "🕹️ Finish your current game first.") return false end
+	-- waiting at a booth? play that booth's game against the bot instead
+	local id = inStation[plr]
+	local s = id and stations[id]
+	if s and s.game then game = s.game end
+	if not C.ARCADE_GAMES[game] then return false end
+	leaveStation(plr)
+	local bot = {Name = "🤖 Arcade Bot", UserId = -1}
+	BOTS[bot] = true
+	local m = {game = game, p = {plr, bot}, t0 = os.clock(), score = {}, bot = bot}
+	matches[plr] = m
+	send(plr, {state = "matched", game = game, names = {plr.Name, bot.Name}, bot = true})
+	task.delay(1.5, function()
+		if m.over then return end
+		RUN[game](m)
+		botPlay(m, bot)
+	end)
+	F.markActive(plr)
+	return true
+end
+
 -- a machine somewhere (home, Arcade business): its own station, game picked by the first player
 function F.arcadeMachine(plr, owner, where)
 	if not (owner and data[owner]) then return end
@@ -470,6 +541,7 @@ end
 C.ACTIONS = C.ACTIONS or {}
 C.ACTIONS.arcInfo = function(plr) R.Menu:FireClient(plr, "arcadeInfo", F.arcadeInfo(plr)) end
 C.ACTIONS.arcLeave = function(plr) F.arcadeForfeit(plr, "left") end
+C.ACTIONS.arcBot = function(plr, d, a) if a == nil or (C.str(a, 12) and C.ARCADE_GAMES[a]) then F.arcadeBot(plr, a) end end
 C.ACTIONS.arcPick = function(plr, d, a, b)
 	-- a = station id (a machine), b = game key
 	if C.str(a, 60) and stations[a] and C.str(b, 12) and C.ARCADE_GAMES[b] and string.sub(a, 1, 8) == "machine:" then

@@ -198,8 +198,10 @@ end
 function F.brandedBiz(d, key)
 	local base = BIZ[key]
 	local b = d.brands and d.brands[key]
-	if type(b) ~= "table" or not (b.exterior or b.sign) then return base end
-	return setmetatable({wall = b.exterior and C.BRAND_COLORS[b.exterior] or base.wall, color = b.sign and C.BRAND_COLORS[b.sign] or base.color}, {__index = base})
+	if type(b) ~= "table" or not (b.exterior or b.sign or b.name or b.logo) then return base end
+	-- signName / icon (v11.2): the storefront sign shows YOUR name and logo (it used to keep saying "BAKERY" after a rename)
+	return setmetatable({wall = b.exterior and C.BRAND_COLORS[b.exterior] or base.wall, color = b.sign and C.BRAND_COLORS[b.sign] or base.color,
+		signName = type(b.name) == "string" and b.name ~= "" and b.name or nil, icon = b.logo or base.icon}, {__index = base})
 end
 function F.brandInfo(d, key)
 	local b = (d.brands and d.brands[key]) or {}

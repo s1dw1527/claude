@@ -31,6 +31,16 @@ C.MOUNTAIN = MC
 local CH, TU, EX = MC.chamber, MC.tunnel, MC.exit
 C.reserve(140, -860, 470, -600)
 
+-- v11.2: the terrain's random edge hills sit right here. Carve them out of everything you walk or drive through:
+-- the chamber (with its walls and roof), the tunnel, the ravine and the way in, the back exit and a lane out of it.
+-- (The hill stays around the outside, so the base is a rocky, grassy mountain.)
+if C.clearTerrain then
+	C.clearTerrain(CH.x0 - 12, CH.z0 - 12, CH.x1 + 12, CH.z1 + 12, CH.h + 20)        -- chamber
+	C.clearTerrain(TU.x0 - 6, TU.z0 - 4, TU.x1 + 6, TU.z1 + 2, TU.h + 8)              -- tunnel
+	C.clearTerrain(TU.x0 - 19, TU.z1, TU.x1 + 19, TU.z1 + 72, 50)                     -- ravine, lever, the way in
+	C.clearTerrain(EX.x0 - 4, EX.z0 - 8, EX.x1 + 26, EX.z1 + 8, EX.h + 10)           -- back exit and its mouth
+	C.clearTerrain(EX.x1, EX.z0 - 8, EX.x1 + 26, TU.z1 + 72, 50)                      -- a lane south out of the hills
+end
 local f = Instance.new("Folder")
 f.Name = "Mountain"
 f.Parent = C.WORLD
@@ -66,8 +76,9 @@ do
 			for _, k in ipairs({1, 0.8, 0.6, 0.4}) do
 				local c = V3(mc.X + math.cos(a) * rx * k, y, mc.Z + math.sin(a) * rz * k)
 				if not blocked(c, s * 0.62) then
-					P(f, V3(s, s * 0.8, s), CF(c) * CFrame.Angles(rnd:NextNumber(-0.3, 0.3), rnd:NextNumber(0, 6.28), rnd:NextNumber(-0.3, 0.3)),
+					local rock = P(f, V3(s, s * 0.8, s), CF(c) * CFrame.Angles(rnd:NextNumber(-0.3, 0.3), rnd:NextNumber(0, 6.28), rnd:NextNumber(-0.3, 0.3)),
 						ROCK[rnd:NextInteger(1, #ROCK)], layer > 7 and MAT.Basalt or MAT.Slate, SOLID)
+					rock.Name = "MountainRock"
 					shellCount += 1
 				end
 			end
@@ -119,7 +130,8 @@ do
 	surfaceText(plate, Enum.NormalId.Front, "DRAIN 7", RGB(220, 220, 210))
 	P(f, V3(6, 0.15, 30), CF(300, 0.12, mouthZ + 15), RGB(70, 110, 120), MAT.Glass, {Transparency = 0.3})   -- a trickle of water
 	-- vents and faint lights on the slopes (things that look a little too man-made)
-	for _, v in ipairs({{250, 54, -700}, {350, 62, -705}, {300, 88, -770}, {230, 40, -790}}) do
+	-- (v11.2: these used to float inside the chamber; now they're on the roof of the rock, outside)
+	for _, v in ipairs({{250, CH.h + 14, -700}, {350, CH.h + 16, -705}, {300, 88, -770}, {230, CH.h + 12, -790}}) do
 		P(f, V3(3, 4, 3), CF(v[1], v[2], v[3]), RGB(70, 70, 74), MAT.DiamondPlate, SOLID)
 		local glow = P(f, V3(2.6, 0.3, 2.6), CF(v[1], v[2] + 2.1, v[3]), RGB(255, 150, 60), MAT.Neon)
 		C.smoke(glow, false, 2)

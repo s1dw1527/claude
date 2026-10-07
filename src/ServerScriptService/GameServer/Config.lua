@@ -4,8 +4,8 @@ local RGB = Color3.fromRGB
 
 -- ===== VERSION (bump these with every published update; see README "How to update Corner Empire") =====
 C.VERSION = {
-	VERSION = "11.0.0",
-	UPDATE_NAME = "Secret Mountain Base & Heists",
+	VERSION = "11.2.0",
+	UPDATE_NAME = "Mountain, Arcade & Mobile Fixes",
 	SCHEMA_VERSION = 11,         -- the shape of a player's save. Raise it only together with a new step in DataMigration.
 	MIN_SUPPORTED_SCHEMA = 6,   -- saves older than v6 (no version field, no tutorial-reward tracking) are treated as v6
 	-- shown once to every returning player after an update (Messages app)
@@ -14,6 +14,9 @@ C.VERSION = {
 		"💰 Heists: rob the Corner Bank and 7 other targets, then get the loot back to the mountain",
 		"🚓 Go on duty as police and stop robbers before they reach their hideout",
 		"📱 New HEISTS phone app; the Arcade app no longer glitches",
+		"🛠️ 11.2: the mountain base and the heist targets are no longer buried in the hills",
+		"🕹️ 11.2: ▶ PLAY in the Arcade app — play the 🤖 Arcade Bot when nobody else is around",
+		"🏢 11.2: apartments show their rent, and empty ones no longer cost upkeep",
 	},
 }
 

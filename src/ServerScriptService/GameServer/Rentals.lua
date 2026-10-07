@@ -420,6 +420,24 @@ function F.tenantChoice(plr, msg, choice)
 	end
 end
 
+-- ===== what your buildings earn right now, per second (for the HUD; v11.2) =====
+-- rent from the tenants you have (at their credit and the building's condition) minus the upkeep of the rented units
+function F.rentRate(d)
+	local total, upkeep = 0, 0
+	for _, b in ipairs(d.props or {}) do
+		local per, occ = F.rentalRent(b), 0
+		for ui = 1, #b.units do
+			local t = b.units[ui]
+			if t then
+				occ += 1
+				total += per * (0.75 + (tonumber(t.credit) or 3) * 0.07) * (0.5 + (tonumber(b.condition) or 100) / 200)
+			end
+		end
+		if #b.units > 0 then upkeep += F.rentalUpkeep(b) * occ / #b.units end
+	end
+	return (total * F.globalRentMult(d) - upkeep) / C.CFG.RENT_INTERVAL
+end
+
 -- ===== simulation (called from the main loop every second) =====
 local timers = {}
 function F.rentalTick(plr, d, now)
@@ -436,9 +454,11 @@ function F.rentalTick(plr, d, now)
 		local leavers = {}
 		for bi, b in ipairs(d.props) do
 			local per = F.rentalRent(b)
+			local occ = 0
 			for ui = 1, #b.units do
 				local t = b.units[ui]
 				if t then
+					occ += 1
 					local mood = moodOf(t)
 					local lateChance = (5 - t.credit) * 0.035 + (mood < 30 and 0.08 or 0)
 					if rnd:NextNumber() < lateChance then
@@ -455,17 +475,21 @@ function F.rentalTick(plr, d, now)
 					if t.mood < 12 then table.insert(leavers, {b = b, ui = ui, t = t}) end
 				end
 			end
-			upkeep += F.rentalUpkeep(b)
+			-- v11.2: upkeep is paid for the RENTED units only. (It used to be charged in full on empty buildings,
+			-- so an empty Luxury Tower quietly took $48K every 30 s and apartments looked like they lost money.)
+			if #b.units > 0 then upkeep += F.rentalUpkeep(b) * occ / #b.units end
 			b.condition = math.max(10, b.condition - 0.4)
 		end
 		total = math.floor(total * F.globalRentMult(d))
+		upkeep = math.floor(upkeep)
 		local net = total - upkeep
 		d.cash = math.max(0, d.cash + net)
 		if total > 0 then
 			F.earn(d, total)
 			d.rentEarned = (d.rentEarned or 0) + total
-			R.Customer:FireClient(plr, {rent = total, upkeep = upkeep})
 		end
+		-- tell the player every rent day (the HUD shows "🏢 rent +$X", so the money never appears out of nowhere)
+		if total > 0 or upkeep > 0 then R.Customer:FireClient(plr, {rent = total, upkeep = upkeep}) end
 		if late and rnd:NextNumber() < 0.5 then
 			F.pushMsg(plr, {icon = "💸", from = late.t.name, text = late.t.name .. " " .. pick(TENANT.late)})
 		end

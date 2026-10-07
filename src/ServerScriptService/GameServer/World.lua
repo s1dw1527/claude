@@ -99,6 +99,18 @@ do
 	for _ = 1, 30 do
 		repaint(rnd:NextNumber(-640, 640), rnd:NextNumber(-620, 320), rnd:NextNumber(8, 20), rnd:NextNumber(8, 20), DIRT)
 	end
+	-- v11.2: clear the terrain out of a built-up area. The random edge hills above can cover anything built near
+	-- the edge of the map (in v11 they filled the mountain base's tunnel and chamber and half-buried the heist
+	-- targets). Everything above the ground in the box becomes air, then the normal ground surface goes back in, so
+	-- a box with no hill in it comes out exactly as it was.
+	C.clearedTerrain = {}
+	function C.clearTerrain(x0, z0, x1, z1, h)
+		h = h or 60
+		local cx, cz, sx, sz = (x0 + x1) / 2, (z0 + z1) / 2, math.abs(x1 - x0), math.abs(z1 - z0)
+		T:FillBlock(CF(cx, (h - 16) / 2, cz), V3(sx, h + 16, sz), MAT.Air)
+		T:FillBlock(CF(cx, -8 + off, cz), V3(sx, 16, sz), G)
+		table.insert(C.clearedTerrain, {math.min(x0, x1), math.min(z0, z1), math.max(x0, x1), math.max(z0, z1), h})
+	end
 	C.terrainPond = function(x, z, sx, sz)
 		T:FillBlock(CF(x, -2 + off, z), V3(sx, 4, sz), W)
 		T:FillBlock(CF(x, -5 + off, z), V3(sx + 4, 2, sz + 4), S)

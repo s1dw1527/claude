@@ -565,10 +565,50 @@ function L.Current()
 	return name
 end
 
+-- ===== world labels and chat on a phone (v11.2) =====
+-- Speech bubbles, the names over people and the signs over buildings are BillboardGuis sized in screen pixels, so on a
+-- phone they cover far more of the view than on a monitor ("messages too big"). On the phone layout they're drawn at
+-- 65%; the Roblox chat window and chat bubbles use smaller text. Desktop: untouched.
+L.BILLBOARD_SCALE = 0.65
+local bbOrig = setmetatable({}, {__mode = "k"})
+local function fitBillboard(bb)
+	if not bb.Parent then return end
+	local o = bbOrig[bb]
+	if not o then
+		if not L.compact then return end
+		o = bb.Size
+		bbOrig[bb] = o
+	end
+	local k = L.compact and L.BILLBOARD_SCALE or 1
+	bb.Size = UDim2.new(o.X.Scale, o.X.Offset * k, o.Y.Scale, o.Y.Offset * k)
+end
+L.fitBillboard = fitBillboard
+Workspace.DescendantAdded:Connect(function(x)
+	if L.compact and x:IsA("BillboardGui") then task.defer(fitBillboard, x) end
+end)
+local wasCompact = false
+local function fitWorldAndChat()
+	if L.compact == wasCompact then return end
+	wasCompact = L.compact
+	for _, x in ipairs(Workspace:GetDescendants()) do
+		if x:IsA("BillboardGui") then fitBillboard(x) end
+	end
+	pcall(function()
+		local tcs = game:GetService("TextChatService")
+		local win, bub = tcs:FindFirstChildOfClass("ChatWindowConfiguration"), tcs:FindFirstChildOfClass("BubbleChatConfiguration")
+		if win then
+			win.TextSize = L.compact and 13 or 14
+			win.HeightScale = L.compact and 0.6 or 1
+		end
+		if bub then bub.TextSize = L.compact and 13 or 16 end
+	end)
+end
+
 -- re-place the containers and every slot on each layout change
 table.insert(listeners, 1, function()
 	placeBoxes()
 	for _, e in ipairs(slots) do L.applySlot(e) end
+	fitWorldAndChat()
 end)
 placeBoxes()
 end
@@ -1189,6 +1229,17 @@ do
 		play(SND.click)
 		C.openModal("empire")
 	end
+	-- rent day (every 30 s): say where the money came from
+	R.Customer.OnClientEvent:Connect(function(c)
+		if type(c) ~= "table" or not c.rent then return end
+		local net = (c.rent or 0) - (c.upkeep or 0)
+		local l = label({Name = "MoneyFloat", Text = "🏢 Rent " .. (net >= 0 and "+$" or "-$") .. fmt(math.abs(net)), TextColor3 = net >= 0 and RGB(150, 220, 255) or RED, TextSize = 16,
+			Font = Enum.Font.GothamBlack, AnchorPoint = Vector2.new(0.5, 0.5), Size = UDim2.fromOffset(220, 26), ZIndex = Lay.Z.toast,
+			Position = Lay.compact and UDim2.fromOffset(Lay.safe.l + 110, Lay.safe.t + Lay.ROW1 + 64) or UDim2.new(0.5, -230, 0, 108)}, gui)
+		new("UIStroke", {Thickness = 2, Color = Color3.new(0, 0, 0), Transparency = 0.3}, l)
+		tween(l, 2, {Position = l.Position - UDim2.fromOffset(0, 30), TextTransparency = 1})
+		task.delay(2, function() l:Destroy() end)
+	end)
 	cashPill.MouseButton1Click:Connect(openDetails)
 	tierPill.MouseButton1Click:Connect(openDetails)
 	U.compactHUD = row1
@@ -1233,8 +1284,10 @@ do
 		end
 		lastCash = s.cash
 		target = s.cash
-		incL.Text = "+$" .. fmt(s.income) .. "/sec"
-		cInc.Text = "+$" .. fmt(s.income) .. "/s"
+		-- (v11.2: apartment rent is part of what you earn, so it's shown too)
+		local rent = s.rentRate or 0
+		incL.Text = "+$" .. fmt(s.income) .. "/sec" .. (rent ~= 0 and ("   🏢 " .. (rent > 0 and "+" or "-") .. "$" .. fmt(math.abs(rent)) .. "/s rent") or "")
+		cInc.Text = "+$" .. fmt(s.income + math.max(0, rent)) .. "/s"
 		if shown == target then cCash.Text = "$" .. fmt(s.cash) cashL.Text = "$" .. fmt(s.cash) end
 		cTier.Text = "⭐ " .. C.shortTier(s.tierName)
 		cRep.Text = fmt(s.rep) .. " REP"
@@ -1330,13 +1383,19 @@ do
 	local toast = panel({Position = UDim2.new(0.5, 0, 0, -60), AnchorPoint = Vector2.new(0.5, 0), Size = UDim2.fromOffset(640, 52), BackgroundColor3 = RGB(45, 70, 140), Visible = false, ZIndex = Lay.Z.toast}, gui)
 	-- phone: full safe width, just under the top row (over row 2, which it covers for 5 s)
 	local toastY = 208
-	Lay.onChange(function(L)
-		toastY = L.compact and (L.safe.t + L.ROW1 + 4) or 208
-		toast.Size = L.compact and UDim2.fromOffset(math.min(640, L.vp.X - L.safe.l - L.safe.r), 56) or UDim2.fromOffset(640, 52)
-		if toast.Visible then toast.Position = UDim2.new(0.5, 0, 0, toastY) end
-	end)
 	gradient(toast, RGB(80, 120, 230), RGB(40, 60, 140))
 	local toastL = label({Size = UDim2.new(1, -20, 1, 0), Position = UDim2.fromOffset(10, 0), TextSize = 16, TextWrapped = true, Font = Enum.Font.GothamBlack, ZIndex = 51}, toast)
+	-- (v11.2: smaller on a phone, and the text shrinks to fit instead of spilling out of the box)
+	local toastCap
+	Lay.onChange(function(L)
+		toastY = L.compact and (L.safe.t + L.ROW1 + 4) or 208
+		toast.Size = L.compact and UDim2.fromOffset(math.min(640, L.vp.X - L.safe.l - L.safe.r), 46) or UDim2.fromOffset(640, 52)
+		if toast.Visible then toast.Position = UDim2.new(0.5, 0, 0, toastY) end
+		if toastL then
+			toastL.TextScaled = L.compact
+			toastCap = toastCap or new("UITextSizeConstraint", {MaxTextSize = 14, MinTextSize = 10}, toastL)
+		end
+	end)
 	local id = 0
 	function U.toast(msg)
 		id += 1
@@ -3811,7 +3870,8 @@ do
 	header(m.body, "🏙️ THE CITY", 7)
 	local cityL = row(8, 70)
 	m.update = function(s)
-		cashL.Text = "💰 $" .. fmt(s.cash) .. "\n+$" .. fmt(s.income) .. " per second"
+		local rent = s.rentRate or 0
+		cashL.Text = "💰 $" .. fmt(s.cash) .. "\n+$" .. fmt(s.income) .. " per second" .. (rent ~= 0 and ("   🏢 rent " .. (rent > 0 and "+" or "-") .. "$" .. fmt(math.abs(rent)) .. "/s") or "")
 		cashL.TextSize = 18
 		cashL.TextColor3 = GOLD
 		local b = {string.format("Boost x%.2f", s.gm)}
@@ -4976,7 +5036,12 @@ R.Menu.OnClientEvent:Connect(function(kind, e)
 		reset()
 		title.Text = NAMES[e.game] or "ARCADE"
 		sub.Text = "Waiting for a second player... (ask a friend to join this game)"
-		big("⏳", WHITE, 120)
+		big("⏳", WHITE, 100)
+		-- v11.2: nobody around? play the 🤖 Arcade Bot right away
+		bigButton("🤖 Play the Arcade Bot", PURPLE, 190, function()
+			play(SND.click)
+			act("arcBot")
+		end)
 	elseif e.state == "left" then
 		win.Visible = false
 	elseif e.state == "matched" then
@@ -5083,12 +5148,20 @@ function A.renderInfo()
 		c.Name = "GameCard"
 		label({Position = UDim2.fromOffset(12, 6), Size = UDim2.new(1, -120, 0, 22), Text = g.icon .. " " .. string.upper(g.name), TextSize = 16, Font = Enum.Font.GothamBlack,
 			TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd}, c)
-		label({Position = UDim2.fromOffset(12, 28), Size = UDim2.new(1, -120, 0, 16), Text = "👥 2 players", TextSize = 12, TextColor3 = GOLD, TextXAlignment = Enum.TextXAlignment.Left}, c)
+		label({Position = UDim2.fromOffset(12, 28), Size = UDim2.new(1, -120, 0, 16), Text = "👥 2 players  •  or vs 🤖", TextSize = 12, TextColor3 = GOLD, TextXAlignment = Enum.TextXAlignment.Left}, c)
 		label({Position = UDim2.fromOffset(12, 44), Size = UDim2.new(1, -120, 0, 30), Text = tostring(g.desc or ""), TextSize = 11, TextColor3 = SUB, TextWrapped = true,
 			TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top}, c)
-		local b = button({AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -10, 0.5, 0), Size = UDim2.fromOffset(96, 44), Text = "▶ PLAY", TextSize = 16, BackgroundColor3 = GREEN}, c)
+		-- ▶ PLAY starts right away against the 🤖 Arcade Bot; 👥 shows the way to a booth to play a real person
+		local b = button({AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -10, 0, 6), Size = UDim2.fromOffset(96, 36), Text = "▶ PLAY", TextSize = 16, BackgroundColor3 = GREEN}, c)
 		b.Name = "PlayButton"
 		b.MouseButton1Click:Connect(function()
+			play(SND.click)
+			infoM.frame.Visible = false
+			act("arcBot", g.key)
+		end)
+		local pb = button({AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -10, 1, -6), Size = UDim2.fromOffset(96, 28), Text = "👥 vs player", TextSize = 12, BackgroundColor3 = BLUE}, c)
+		pb.Name = "FindPlayerButton"
+		pb.MouseButton1Click:Connect(function()
 			play(SND.click)
 			A.goPlay(g)
 		end)
@@ -5849,7 +5922,7 @@ R.Menu.OnClientEvent:Connect(function(kind, a)
 		if a.state then showState(a.state) end
 		if m.frame.Visible then HU.render() end
 	elseif kind == "heistApp" and type(a) == "table" then
-		HU.tab = a.tab or HU.tab
+		HU.tab = (a.tab and RENDER[a.tab]) and a.tab or "jobs"   -- (an unknown tab used to leave the window empty)
 		if not m.frame.Visible then C.openModal("heists", true) end
 		HU.render()
 	elseif kind == "heistPuzzle" and type(a) == "table" then
@@ -7328,26 +7401,24 @@ end
 local bars = new("Frame", {Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Visible = false}, sg)
 new("Frame", {Size = UDim2.new(1, 0, 0.1, 0), BackgroundColor3 = Color3.new(0, 0, 0), BorderSizePixel = 0}, bars)
 new("Frame", {AnchorPoint = Vector2.new(0, 1), Position = UDim2.fromScale(0, 1), Size = UDim2.new(1, 0, 0.1, 0), BackgroundColor3 = Color3.new(0, 0, 0), BorderSizePixel = 0}, bars)
-local bar = new("Frame", {AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -12), Size = UDim2.new(0, 980, 0, 104), BackgroundColor3 = RGB(20, 22, 32), BackgroundTransparency = 0.15, BorderSizePixel = 0}, sg)
+local bar = new("Frame", {Name = "PhotoBar", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -12), Size = UDim2.new(0, 980, 0, 104), BackgroundColor3 = RGB(20, 22, 32), BackgroundTransparency = 0.15, BorderSizePixel = 0}, sg)
 corner(bar, 12)
-new("UISizeConstraint", {MaxSize = Vector2.new(980, 104)}, bar)
--- narrow screens: the bar scales down instead of running off the edge
-do
-	local bs = new("UIScale", {}, bar)
-	local function fitBar()
-		local vp = camera and camera.ViewportSize or Vector2.new(1280, 720)
-		bs.Scale = math.clamp((vp.X - 24) / 980, 0.45, 1)
-	end
-	fitBar()
-	if camera then camera:GetPropertyChangedSignal("ViewportSize"):Connect(fitBar) end
-end
+local barCap = new("UISizeConstraint", {MaxSize = Vector2.new(980, 104)}, bar)
+local HINT = "📸 PHOTO MODE • WASD/QE fly • hold right-click or drag to look • SHIFT fast • H hides this bar • V exits • take the shot with Roblox's Capture button"
 local hint = label({Position = UDim2.fromOffset(10, 2), Size = UDim2.new(1, -20, 0, 18), TextSize = 11, TextColor3 = SUB, TextXAlignment = Enum.TextXAlignment.Left,
-	Text = "📸 PHOTO MODE • WASD/QE fly • hold right-click or drag to look • SHIFT fast • H hides this bar • V exits • take the shot with Roblox's Capture button"}, bar)
-local row1 = new("Frame", {Position = UDim2.fromOffset(8, 22), Size = UDim2.new(1, -16, 0, 38), BackgroundTransparency = 1}, bar)
-local row2 = new("Frame", {Position = UDim2.fromOffset(8, 62), Size = UDim2.new(1, -16, 0, 38), BackgroundTransparency = 1}, bar)
-for _, r in ipairs({row1, row2}) do new("UIListLayout", {FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 6)}, r) end
+	TextTruncate = Enum.TextTruncate.AtEnd, Text = HINT}, bar)
+-- (the two button rows scroll sideways when they don't fit: on a phone you swipe them)
+local function row(y)
+	local r = new("ScrollingFrame", {Position = UDim2.fromOffset(8, y), Size = UDim2.new(1, -16, 0, 38), BackgroundTransparency = 1, BorderSizePixel = 0, ScrollBarThickness = 2,
+		AutomaticCanvasSize = Enum.AutomaticSize.X, CanvasSize = UDim2.new(), ScrollingDirection = Enum.ScrollingDirection.X}, bar)
+	new("UIListLayout", {FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder}, r)
+	return r
+end
+local row1, row2 = row(22), row(62)
+local order = 0
 local function pbtn(parent, text, w, color, fn)
-	local b = button({Size = UDim2.fromOffset(w, 36), Text = text, TextSize = 12, TextWrapped = true, BackgroundColor3 = color or BLUE}, parent)
+	order += 1
+	local b = button({Size = UDim2.fromOffset(w, 36), Text = text, TextSize = 12, TextWrapped = true, BackgroundColor3 = color or BLUE, LayoutOrder = order}, parent)
 	b.MouseButton1Click:Connect(function()
 		play(SND.click)
 		fn(b)
@@ -7473,7 +7544,30 @@ pbtn(row1, "🏪 Business", 84, RGB(120, 90, 220), function() orbit("business") 
 pbtn(row1, "🏠 Home", 70, RGB(120, 90, 220), function() orbit("home") end)
 pbtn(row1, "🏙️ Empire", 76, RGB(120, 90, 220), function() orbit("empire") end)
 pbtn(row1, "🏆 Showcase my empire", 150, RGB(200, 150, 30), function() act("showcaseSubmit") end)
-pbtn(row1, "✖ Exit (V)", 76, RED, function() C.setPhoto(false) end)
+local exitB = pbtn(row1, "✖ Exit (V)", 76, RED, function() C.setPhoto(false) end)
+-- v11.2 phone layout: the bar is the screen's width (it used to be a 980 px bar shrunk to 45%, half off the screen
+-- with 5 px text); text at full size, rows you swipe, ✖ Exit first, a short hint, the move pad above the bar
+local barScale = new("UIScale", {}, bar)
+C.Layout.onChange(function(L)
+	if L.compact then
+		local w = L.vp.X - L.safe.l - L.safe.r
+		barCap.MaxSize = Vector2.new(w, 104)
+		bar.Size = UDim2.fromOffset(w, 104)
+		bar.Position = UDim2.new(0.5, 0, 1, -L.safe.b)
+		barScale.Scale = 1
+		hint.Text = "📸 PHOTO MODE • swipe the buttons • use Roblox's Capture button for the shot"
+		exitB.LayoutOrder = -1
+		pad.Position = UDim2.new(0, L.safe.l, 1, -(L.safe.b + 112))
+	else
+		barCap.MaxSize = Vector2.new(980, 104)
+		bar.Size = UDim2.new(0, 980, 0, 104)
+		bar.Position = UDim2.new(0.5, 0, 1, -12)
+		barScale.Scale = math.clamp((L.vp.X - 24) / 980, 0.45, 1)
+		hint.Text = HINT
+		exitB.LayoutOrder = 8
+		pad.Position = UDim2.new(0, 16, 1, -130)
+	end
+end)
 local EMOTES = {{"👋", "wave"}, {"🕺", "dance"}, {"🎉", "cheer"}, {"👉", "point"}, {"😂", "laugh"}}
 for _, e in ipairs(EMOTES) do
 	pbtn(row2, e[1], 40, RGB(60, 150, 90), function()

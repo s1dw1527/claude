@@ -520,7 +520,7 @@ function F.sendState(plr, now)
 	local lotsMine = F.countLots(d)
 	local car = F.activeCar(plr)
 	local st = {
-		cash = d.cash, income = inc, passMult = F.passMult(d), gm = gm,
+		cash = d.cash, income = inc, passMult = F.passMult(d), gm = gm, rentRate = F.rentRate and math.floor(F.rentRate(d)) or 0,
 		frozen = math.max(0, math.ceil(d.frozenUntil - now)),
 		sabCd = math.max(0, math.ceil(d.sabCooldown - now)), sabCost = F.sabotageCost(d), sabTime = CFG.SABOTAGE_TIME,
 		adCosts = {F.adCost(d, "small"), F.adCost(d, "major"), F.adCost(d, "citywide")},

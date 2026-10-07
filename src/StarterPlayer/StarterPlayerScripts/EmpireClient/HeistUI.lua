@@ -263,7 +263,7 @@ R.Menu.OnClientEvent:Connect(function(kind, a)
 		if a.state then showState(a.state) end
 		if m.frame.Visible then HU.render() end
 	elseif kind == "heistApp" and type(a) == "table" then
-		HU.tab = a.tab or HU.tab
+		HU.tab = (a.tab and RENDER[a.tab]) and a.tab or "jobs"   -- (an unknown tab used to leave the window empty)
 		if not m.frame.Visible then C.openModal("heists", true) end
 		HU.render()
 	elseif kind == "heistPuzzle" and type(a) == "table" then

@@ -10,6 +10,8 @@ local WHITE, DARK = RGB(250, 250, 250), RGB(30, 30, 36)
 local f = Instance.new("Folder")
 f.Name = "RaceTrack"
 f.Parent = C.WORLD
+-- v11.2: the north bend runs close to the terrain's random edge hills; keep the track and its barriers clear of them
+if C.clearTerrain then C.clearTerrain(-275, -630, 45, -535, 40) end
 
 -- closed Catmull-Rom spline through the control points
 local CTRL = {V3(-180, 0, -355), V3(0, 0, -355), V3(180, 0, -355), V3(240, 0, -395), V3(235, 0, -470), V3(170, 0, -510), V3(80, 0, -480),

@@ -382,10 +382,50 @@ function L.Current()
 	return name
 end
 
+-- ===== world labels and chat on a phone (v11.2) =====
+-- Speech bubbles, the names over people and the signs over buildings are BillboardGuis sized in screen pixels, so on a
+-- phone they cover far more of the view than on a monitor ("messages too big"). On the phone layout they're drawn at
+-- 65%; the Roblox chat window and chat bubbles use smaller text. Desktop: untouched.
+L.BILLBOARD_SCALE = 0.65
+local bbOrig = setmetatable({}, {__mode = "k"})
+local function fitBillboard(bb)
+	if not bb.Parent then return end
+	local o = bbOrig[bb]
+	if not o then
+		if not L.compact then return end
+		o = bb.Size
+		bbOrig[bb] = o
+	end
+	local k = L.compact and L.BILLBOARD_SCALE or 1
+	bb.Size = UDim2.new(o.X.Scale, o.X.Offset * k, o.Y.Scale, o.Y.Offset * k)
+end
+L.fitBillboard = fitBillboard
+Workspace.DescendantAdded:Connect(function(x)
+	if L.compact and x:IsA("BillboardGui") then task.defer(fitBillboard, x) end
+end)
+local wasCompact = false
+local function fitWorldAndChat()
+	if L.compact == wasCompact then return end
+	wasCompact = L.compact
+	for _, x in ipairs(Workspace:GetDescendants()) do
+		if x:IsA("BillboardGui") then fitBillboard(x) end
+	end
+	pcall(function()
+		local tcs = game:GetService("TextChatService")
+		local win, bub = tcs:FindFirstChildOfClass("ChatWindowConfiguration"), tcs:FindFirstChildOfClass("BubbleChatConfiguration")
+		if win then
+			win.TextSize = L.compact and 13 or 14
+			win.HeightScale = L.compact and 0.6 or 1
+		end
+		if bub then bub.TextSize = L.compact and 13 or 16 end
+	end)
+end
+
 -- re-place the containers and every slot on each layout change
 table.insert(listeners, 1, function()
 	placeBoxes()
 	for _, e in ipairs(slots) do L.applySlot(e) end
+	fitWorldAndChat()
 end)
 placeBoxes()
 end

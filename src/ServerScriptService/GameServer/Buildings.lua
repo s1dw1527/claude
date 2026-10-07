@@ -131,7 +131,7 @@ local function stand(m, o, b, accent)
 		P(m, V3(7, 2.2, 3.6), o * CF(0, 1.4, 1), wood, MAT.Wood, SOLID)
 		P(m, V3(7.4, 0.3, 4), o * CF(0, 2.6, 1), RGB(196, 146, 84), MAT.WoodPlanks, SOLID)
 		local sb = P(m, V3(4.4, 1.2, 0.15), o * CF(0, 1.5, 2.85), RGB(226, 70, 60))
-		surfaceText(sb, Enum.NormalId.Back, "LEMONADE")
+		surfaceText(sb, Enum.NormalId.Back, b.signName and string.upper(b.signName) or "LEMONADE")
 		for _, sx in ipairs({-3.4, 3.4}) do P(m, V3(0.35, 6, 0.35), o * CF(sx, 3.3, -0.6), wood, MAT.Wood) end
 		awning(m, o * CF(0, 0, -2.4), 7.4, 6.1, 0, RGB(255, 214, 60), WHITE, "stripe")
 		PROPS.lemonade(m, o * CF(0.8, 2.75, 0.8), 0.7)
@@ -193,7 +193,7 @@ local function stand(m, o, b, accent)
 		P(m, V3(3, 0.2, 1.4), o * CF(0, 1.4, 1.5), RGB(150, 110, 70), MAT.WoodPlanks)
 		P(m, V3(1.2, 0.8, 0.1), o * CF(0, 1.9, 1.2), RGB(120, 200, 255), MAT.Neon)
 		local sb = P(m, V3(5, 1, 0.2), o * CF(0, 5.3, 2.55), RGB(40, 40, 50))
-		surfaceText(sb, Enum.NormalId.Back, "STARTUP", RGB(120, 200, 255))
+		surfaceText(sb, Enum.NormalId.Back, b.signName and string.upper(b.signName) or "STARTUP", RGB(120, 200, 255))
 		return 7
 	else -- factory workshop
 		P(m, V3(9, 6, 8), o * CF(0, 3.3, -0.5), RGB(150, 84, 64), MAT.Brick, SOLID)
@@ -264,7 +264,7 @@ local function shop(m, o, b, st, accent)
 	end
 	-- sign
 	local sb = P(m, V3(w * 0.8, 1.6, 0.3), base * CF(0, 0.3 + sfH + 1.5, fz + 0.15), T.arcade and RGB(20, 16, 40) or (landmark and GOLD or b.roof), landmark and MAT.Foil or MAT.SmoothPlastic)
-	surfaceText(sb, Enum.NormalId.Back, b.icon .. " " .. string.upper(b.name), T.arcade and RGB(255, 90, 220) or WHITE)
+	surfaceText(sb, Enum.NormalId.Back, b.icon .. " " .. string.upper(b.signName or b.name), T.arcade and RGB(255, 90, 220) or WHITE)
 	-- upper floor windows (front + sides)
 	for f = 1, floors - 1 do
 		local y = 0.3 + f * fh + fh * 0.5

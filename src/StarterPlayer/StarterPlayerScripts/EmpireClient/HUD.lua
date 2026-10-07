@@ -58,6 +58,17 @@ do
 		play(SND.click)
 		C.openModal("empire")
 	end
+	-- rent day (every 30 s): say where the money came from
+	R.Customer.OnClientEvent:Connect(function(c)
+		if type(c) ~= "table" or not c.rent then return end
+		local net = (c.rent or 0) - (c.upkeep or 0)
+		local l = label({Name = "MoneyFloat", Text = "🏢 Rent " .. (net >= 0 and "+$" or "-$") .. fmt(math.abs(net)), TextColor3 = net >= 0 and RGB(150, 220, 255) or RED, TextSize = 16,
+			Font = Enum.Font.GothamBlack, AnchorPoint = Vector2.new(0.5, 0.5), Size = UDim2.fromOffset(220, 26), ZIndex = Lay.Z.toast,
+			Position = Lay.compact and UDim2.fromOffset(Lay.safe.l + 110, Lay.safe.t + Lay.ROW1 + 64) or UDim2.new(0.5, -230, 0, 108)}, gui)
+		new("UIStroke", {Thickness = 2, Color = Color3.new(0, 0, 0), Transparency = 0.3}, l)
+		tween(l, 2, {Position = l.Position - UDim2.fromOffset(0, 30), TextTransparency = 1})
+		task.delay(2, function() l:Destroy() end)
+	end)
 	cashPill.MouseButton1Click:Connect(openDetails)
 	tierPill.MouseButton1Click:Connect(openDetails)
 	U.compactHUD = row1
@@ -102,8 +113,10 @@ do
 		end
 		lastCash = s.cash
 		target = s.cash
-		incL.Text = "+$" .. fmt(s.income) .. "/sec"
-		cInc.Text = "+$" .. fmt(s.income) .. "/s"
+		-- (v11.2: apartment rent is part of what you earn, so it's shown too)
+		local rent = s.rentRate or 0
+		incL.Text = "+$" .. fmt(s.income) .. "/sec" .. (rent ~= 0 and ("   🏢 " .. (rent > 0 and "+" or "-") .. "$" .. fmt(math.abs(rent)) .. "/s rent") or "")
+		cInc.Text = "+$" .. fmt(s.income + math.max(0, rent)) .. "/s"
 		if shown == target then cCash.Text = "$" .. fmt(s.cash) cashL.Text = "$" .. fmt(s.cash) end
 		cTier.Text = "⭐ " .. C.shortTier(s.tierName)
 		cRep.Text = fmt(s.rep) .. " REP"
@@ -199,13 +212,19 @@ do
 	local toast = panel({Position = UDim2.new(0.5, 0, 0, -60), AnchorPoint = Vector2.new(0.5, 0), Size = UDim2.fromOffset(640, 52), BackgroundColor3 = RGB(45, 70, 140), Visible = false, ZIndex = Lay.Z.toast}, gui)
 	-- phone: full safe width, just under the top row (over row 2, which it covers for 5 s)
 	local toastY = 208
-	Lay.onChange(function(L)
-		toastY = L.compact and (L.safe.t + L.ROW1 + 4) or 208
-		toast.Size = L.compact and UDim2.fromOffset(math.min(640, L.vp.X - L.safe.l - L.safe.r), 56) or UDim2.fromOffset(640, 52)
-		if toast.Visible then toast.Position = UDim2.new(0.5, 0, 0, toastY) end
-	end)
 	gradient(toast, RGB(80, 120, 230), RGB(40, 60, 140))
 	local toastL = label({Size = UDim2.new(1, -20, 1, 0), Position = UDim2.fromOffset(10, 0), TextSize = 16, TextWrapped = true, Font = Enum.Font.GothamBlack, ZIndex = 51}, toast)
+	-- (v11.2: smaller on a phone, and the text shrinks to fit instead of spilling out of the box)
+	local toastCap
+	Lay.onChange(function(L)
+		toastY = L.compact and (L.safe.t + L.ROW1 + 4) or 208
+		toast.Size = L.compact and UDim2.fromOffset(math.min(640, L.vp.X - L.safe.l - L.safe.r), 46) or UDim2.fromOffset(640, 52)
+		if toast.Visible then toast.Position = UDim2.new(0.5, 0, 0, toastY) end
+		if toastL then
+			toastL.TextScaled = L.compact
+			toastCap = toastCap or new("UITextSizeConstraint", {MaxTextSize = 14, MinTextSize = 10}, toastL)
+		end
+	end)
 	local id = 0
 	function U.toast(msg)
 		id += 1
