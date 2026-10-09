@@ -26,6 +26,9 @@ H.main(function()
 	-- unlock every app (reputation + a few businesses), and keep the city quiet so only the app under test changes the UI
 	d.rep, d.cash = 1e7, 1e9
 	for _, b in ipairs(C.BUSINESSES) do d.levels[b.key] = 3 end
+	-- CityBuzz shows up to 25 posts: fill it, so a post arriving mid-test replaces one instead of adding a row
+	-- (a growing-but-capped feed is content, not a leak)
+	for i = 1, 30 do F.buzz("📰", "Test post " .. i, Color3.fromRGB(200, 200, 200)) end
 	C.G.nextEvent = H.now() + 1e6
 	if C.MEGA_STATE then C.MEGA_STATE.nextAt = H.now() + 1e6 end
 	H.task.wait(3)
