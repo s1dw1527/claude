@@ -1,9 +1,18 @@
 # Corner Empire
 
-A 1–4 player Roblox business tycoon. **`CornerEmpire_v12.rbxlx` is the current place file**; open it in Roblox Studio.
-`CornerEmpire_v11_3.rbxlx`, `CornerEmpire_v11_2.rbxlx` … `CornerEmpire_v5.rbxlx` are earlier versions, kept for reference. The full v11 write-up is
+A 1–4 player Roblox business tycoon. **`CornerEmpire_v13.rbxlx` is the current place file**; open it in Roblox Studio.
+`CornerEmpire_v12.rbxlx`, `CornerEmpire_v11_3.rbxlx`, `CornerEmpire_v11_2.rbxlx` … `CornerEmpire_v5.rbxlx` are earlier versions, kept for reference. The full v11 write-up is
 `docs/V11_REPORT.md`; install steps and the real-Studio test list are in `docs/V11_STUDIO_CHECKLIST.md`. The v11.1
 mobile UI overhaul (client only) is in `docs/V11_1_MOBILE_REPORT.md`.
+
+## What's new in v13 — Life & Empire, Phase A: Living City (server + client)
+
+The city is busy wherever you are: pooled pedestrians and traffic on the real road network (cars stop at red lights,
+keep their distance and turn at junctions; people wait to cross), a different crowd in every district, buses,
+delivery vans and street scenes. New 🧭 Explore app: City Jobs (courier runs, lost dogs, street clean-ups), 30 Golden
+Corners and 20 places to discover, all checked on the server. Every phone app passed a leak audit. Same
+`CornerEmpire_v5` DataStore; save schema 13 (additive). Install both drop-ins. Details, test results, the
+Studio checklist and the roadmap for Phases B–E: `docs/V13_REPORT.md`. Not tested in real Studio.
 
 ## What's new in v12 — City Takeover & Billionaire Progression (server + client)
 
@@ -235,7 +244,7 @@ uses `Config.lua` from the repository, so put your pass IDs in `src/ServerScript
 - `src/` holds every script from the place, one file per script, mirroring the Explorer:
   - `ServerScriptService/GameServer.server.lua` + `GameServer/*.lua` (server modules)
   - `StarterPlayer/StarterPlayerScripts/EmpireClient.client.lua` + `EmpireClient/*.lua` (client modules)
-- `tools/build.py` rebuilds the place file from `src/` (`python3 tools/build.py CornerEmpire_v12.rbxlx`).
+- `tools/build.py` rebuilds the place file from `src/` (`python3 tools/build.py CornerEmpire_v13.rbxlx`).
 - `tools/extract.py` pulls the scripts back out of a place file; `tools/compare.py` compares two place files.
 - `tools/propcheck.py <globalTypes.d.luau>` checks every property name the scripts set against the Roblox API.
 - `tools/check.sh` compiles every script, type-checks it against the Roblox API and flags unknown globals (needs the Luau tools).
