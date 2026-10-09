@@ -110,6 +110,21 @@ H.main(function()
 	H.section("Empire Plaza + Hall of Fame")
 	local plaza = H.workspace:FindFirstChild("EmpirePlaza", true)
 	H.check(plaza ~= nil and C.PLAZA_AT ~= nil, "the Empire Plaza exists")
+	do
+		local out, parts, tallest, stand = {}, 0, 0, 0
+		for _, x in ipairs(plaza:GetDescendants()) do
+			if x:IsA("BasePart") then
+				parts += 1
+				local p = x.Position
+				if math.abs(p.X - C.PLAZA_AT.X) > 70 or math.abs(p.Z - C.PLAZA_AT.Z) > 42 then table.insert(out, x.Name .. string.format(" (%.0f, %.0f)", p.X, p.Z)) end
+				local top = p.Y + x.Size.Y / 2
+				if p.X > C.PLAZA_AT.X + 10 and p.X < C.PLAZA_AT.X + 34 then tallest = math.max(tallest, top) end
+				if p.X < C.PLAZA_AT.X - 20 and p.X > C.PLAZA_AT.X - 32 then stand = math.max(stand, top) end
+			end
+		end
+		H.check(#out == 0 and parts < 150, "all " .. parts .. " plaza parts stay inside its reserved beach site" .. (#out > 0 and (": " .. table.concat(out, ", ")) or ""))
+		H.check(stand > 3 and tallest > stand * 10, string.format("the thumbnail shot: a %.0f-stud starter stand beside a %.0f-stud golden tower", stand, tallest))
+	end
 	d.empire.ms = {}
 	for _, m in ipairs(C.EMPIRE_MILESTONES) do d.empire.ms[m.key] = 1 end
 	d.cash, d.earned = 3e9, 3e9
@@ -204,4 +219,5 @@ H.main(function()
 	calm()
 
 	T.assertClean("empire test run")
+	print("\n" .. H.passed .. " passed, " .. H.failed .. " failed")
 end)
