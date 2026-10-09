@@ -103,16 +103,34 @@ end
 local Signal = {}
 Signal.__index = Signal
 function Signal.new(name) return setmetatable({handlers = {}, name = name}, Signal) end
+-- H.liveConnections: connections that are still connected (a growing number across open/close cycles = a leak)
+H.liveConnections = 0
+H.connSet = setmetatable({}, {__mode = "k"})   -- with H.traceConnections = true: every live connection and where it was made
 function Signal:Connect(fn)
 	local h = {fn = fn, connected = true}
 	table.insert(self.handlers, h)
+	H.liveConnections += 1
+	if H.traceConnections then h.where = debug.traceback("", 2) h.sig = self.name H.connSet[h] = true end
 	local sig = self
-	return {Connected = true, Disconnect = function(c)
+	local conn = {Connected = true}
+	h.conn = conn
+	conn.Disconnect = function(c)
+		if h.connected then H.liveConnections -= 1 end
 		h.connected = false
-		c.Connected = false
+		conn.Connected = false
 		local i = table.find(sig.handlers, h)
 		if i then table.remove(sig.handlers, i) end
-	end}
+	end
+	return conn
+end
+-- like Roblox: destroying an instance disconnects everything connected to its events
+function Signal:_disconnectAll()
+	for _, h in ipairs(self.handlers) do
+		if h.connected then H.liveConnections -= 1 end
+		h.connected = false
+		if h.conn then h.conn.Connected = false end
+	end
+	self.handlers = {}
 end
 function Signal:Once(fn)
 	local c
@@ -748,6 +766,9 @@ function Inst.Destroy(o)
 	for _, c in ipairs(o:GetChildren()) do c:Destroy() end
 	o.Parent = nil
 	rawset(o, "_destroyed", true)
+	for _, tbl in ipairs({rawget(o, "_signals"), rawget(o, "_propsig"), rawget(o, "_attrsig")}) do
+		for _, sg in pairs(tbl) do sg:_disconnectAll() end
+	end
 	local cs = H.CollectionService
 	if cs then cs:_untagAll(o) end
 end
