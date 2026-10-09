@@ -255,10 +255,14 @@ do
 		tag(lights, "TrafficLight")
 		return box
 	end
-	for _, pos in ipairs({{-128, 0}, {128, 0}, {-330, 0}, {330, 0}, {0, 128}, {0, -128}, {-330, -128}, {330, -128}, {-330, 128}, {330, 128}}) do
+	-- Phase 0 = east-west traffic (along X) has green, phase 1 = north-south (along Z). The client's traffic obeys
+	-- the same cycle (v13). Each light hangs over the road it controls (the phase-1 light used to hang over the
+	-- east-west road too, so north-south traffic had no signal).
+	C.TRAFFIC_LIGHTS = {{-128, 0}, {128, 0}, {-330, 0}, {330, 0}, {0, 128}, {0, -128}, {-330, -128}, {330, -128}, {-330, 128}, {330, 128}}
+	for _, pos in ipairs(C.TRAFFIC_LIGHTS) do
 		local x, z = pos[1], pos[2]
 		trafficLight(x + 11, z + 11, 0, 0)
-		trafficLight(x - 11, z - 11, math.pi, 1)
+		trafficLight(x - 11, z - 11, -math.pi / 2, 1)
 	end
 	-- benches, hydrants, bins, bus stops
 	local function bench(x, z, yaw)

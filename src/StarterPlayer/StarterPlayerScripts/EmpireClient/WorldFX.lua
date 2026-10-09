@@ -95,7 +95,9 @@ R.Customer.OnClientEvent:Connect(function(c)
 	table.insert(customers, {n = makePerson(c.npc), pts = pts, segs = segs, total = total, t = c.t, age = 0, review = c.review, door = c.door, shout = c.shout})
 end)
 
--- ===== loops for pedestrians and traffic =====
+-- (v13: the pedestrians and traffic that used to loop around fixed rectangles here are now CityCrowd: a pool that
+-- keeps the area around you busy, on the real road network, obeying the traffic lights.)
+-- (loop helpers and the car body are still used by the flying cars of the later City Eras, below)
 local function loop(points)
 	local segs, total = {}, 0
 	for i = 1, #points do
@@ -116,22 +118,6 @@ local function loopAt(l, d)
 		d -= len
 	end
 	return l.pts[1], V3(0, 0, -1)
-end
-local WALK_LOOPS = {
-	loop({V3(-119, 0.3, -119), V3(119, 0.3, -119), V3(119, 0.3, 119), V3(-119, 0.3, 119)}),
-	loop({V3(140, 0.3, -9), V3(320, 0.3, -9), V3(320, 0.3, 9), V3(140, 0.3, 9)}),
-	loop({V3(-140, 0.3, 9), V3(-320, 0.3, 9), V3(-320, 0.3, -9), V3(-140, 0.3, -9)}),
-	loop({V3(-8, 0.3, 140), V3(-8, 0.3, 325), V3(8, 0.3, 325), V3(8, 0.3, 140)}),
-	loop({V3(-362, 0.3, -20), V3(-590, 0.3, -20), V3(-590, 0.3, 22), V3(-362, 0.3, 22)}),
-	loop({V3(345, 0.3, -10), V3(560, 0.3, -10), V3(560, 0.3, 10), V3(345, 0.3, 10)}),
-	loop({V3(-140, 0.3, 218), V3(-580, 0.3, 218), V3(-580, 0.3, 232), V3(-140, 0.3, 232)}),
-	loop({V3(-60, 0.3, 342), V3(560, 0.3, 342), V3(560, 0.3, 352), V3(-60, 0.3, 352)}),
-}
-local walkers = {}
-for i = 1, 30 do
-	local l = WALK_LOOPS[(i - 1) % #WALK_LOOPS + 1]
-	local dirSign = (i % 2 == 0) and 1 or -1
-	table.insert(walkers, {n = makePerson(math.random(#catalog.npcs)), l = l, d = math.random() * l.total, speed = (5 + math.random() * 2) * dirSign, low = i > 12})
 end
 local function makeTrafficCar()
 	local col = Color3.fromHSV(math.random(), 0.55, 0.85)
@@ -156,32 +142,6 @@ local function makeTrafficCar()
 	end
 	return parts
 end
-local TRAFFIC_LOOPS = {
-	loop({V3(-131, 0.2, -131), V3(131, 0.2, -131), V3(131, 0.2, 131), V3(-131, 0.2, 131)}),
-	loop({V3(-125, 0.2, 125), V3(125, 0.2, 125), V3(125, 0.2, -125), V3(-125, 0.2, -125)}),
-	loop({V3(-333, 0.2, -303), V3(333, 0.2, -303), V3(333, 0.2, 338), V3(-333, 0.2, 338)}),
-	loop({V3(-327, 0.2, 332), V3(327, 0.2, 332), V3(327, 0.2, -297), V3(-327, 0.2, -297)}),
-	loop({V3(138, 0.2, 3.5), V3(640, 0.2, 3.5), V3(640, 0.2, -3.5), V3(138, 0.2, -3.5)}),
-	loop({V3(-138, 0.2, -3.5), V3(-640, 0.2, -3.5), V3(-640, 0.2, 3.5), V3(-138, 0.2, 3.5)}),
-	loop({V3(-3, 0.2, 138), V3(-3, 0.2, 330), V3(3, 0.2, 330), V3(3, 0.2, 138)}),
-}
-local traffic = {}
-for i = 1, 16 do
-	local l = TRAFFIC_LOOPS[(i - 1) % #TRAFFIC_LOOPS + 1]
-	table.insert(traffic, {parts = makeTrafficCar(), l = l, d = math.random() * l.total, speed = 24 + math.random() * 14, low = i > 7})
-end
-function U.applyCrowd()
-	local mode = C.settings.crowd
-	for _, w in ipairs(walkers) do
-		w.on = mode == "high" or (mode == "low" and not w.low)
-		setVisible(w.n, w.on)
-	end
-	for _, t in ipairs(traffic) do
-		t.on = mode == "high" or (mode == "low" and not t.low)
-		setVisible(t.parts, t.on)
-	end
-end
-U.applyCrowd()
 
 -- ===== WEATHER =====
 local wxPart = fxPart(V3(90, 1, 90), WHITE)
@@ -283,7 +243,6 @@ for _, m in ipairs(CollectionService:GetTagged("Rotator")) do addRotator(m) end
 CollectionService:GetInstanceAddedSignal("Rotator"):Connect(addRotator)
 
 -- ===== PER-FRAME ANIMATION =====
-local lightPhaseT = 0
 RunService.RenderStepped:Connect(function(dt)
 	local now = os.clock()
 	local camPos = camera.CFrame.Position
@@ -315,22 +274,6 @@ RunService.RenderStepped:Connect(function(dt)
 			floatBillboard(c.door + V3(0, 6, 0), lines, (c.review or c.shout) and 3.5 or 1.2)
 		end
 	end
-	for _, w in ipairs(walkers) do
-		if w.on then
-			w.d += w.speed * dt
-			local pos, dir = loopAt(w.l, w.d)
-			if w.speed < 0 then dir = -dir end
-			posePerson(w.n, CFrame.lookAt(pos, pos + dir), now * 8 + w.speed)
-		end
-	end
-	for _, t in ipairs(traffic) do
-		if t.on then
-			t.d += t.speed * dt
-			local pos, dir = loopAt(t.l, t.d)
-			local cf = CFrame.lookAt(pos, pos + dir)
-			for _, e in ipairs(t.parts) do e[1].CFrame = cf * e[2] end
-		end
-	end
 	for _, p in ipairs(CollectionService:GetTagged("Spin")) do
 		if p:IsA("BasePart") then
 			local sp = p:GetAttribute("SpinSpeed") or 1
@@ -354,9 +297,9 @@ RunService.RenderStepped:Connect(function(dt)
 			end
 		end
 	end
-	-- traffic lights: 8s cycle, yellow for the last 2s
-	lightPhaseT += dt
-	local cyc = lightPhaseT % 16
+	-- traffic lights: 8s per direction, yellow for the last 2s. Server time, so every client (and CityCrowd's cars
+	-- and pedestrians) sees the same lights.
+	local cyc = Workspace:GetServerTimeNow() % 16
 	local phaseGreen = cyc < 8 and 0 or 1
 	local yellow = (cyc % 8) > 6
 	for _, m in ipairs(CollectionService:GetTagged("TrafficLight")) do
