@@ -182,6 +182,8 @@ RENDER.HEISTS = function(s)
 	btn(g, "🚨 Test police alert", function() adm("policeAlert") end, BLUE, nil, 7)
 	btn(g, "🧹 Clear police alerts", function() adm("clearAlerts") end, GRAY, nil, 8)
 	btn(g, "♻️ Reset all robberies", function() adm("heistReset") end, RED, nil, 9)
+	btn(g, "👑 Test $1M celebration", function() local t = needTarget() if t then adm("empireShow", {target = t, key = "m1"}) end end, PURPLE, nil, 10)
+	btn(g, "👑 Test $1B celebration", function() local t = needTarget() if t then adm("empireShow", {target = t, key = "m1000"}) end end, PURPLE, nil, 11)
 end
 RENDER.TELEPORT = function(s)
 	line("Target: " .. targetName(), 0, GOLD)

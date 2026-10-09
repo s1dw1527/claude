@@ -311,6 +311,17 @@ H.main(function()
 		end
 		H.check(#inCtl == 0, "the bottom band (thumbstick / jump button / action buttons) is free" .. (#inCtl > 0 and (": " .. table.concat(inCtl, ", ")) or ""))
 
+		-- the real tutorial card is off for these checks: the server re-sends its state every second, which would race with forcing cards visible
+		d.tut = 0
+		H.task.wait(1.2)
+		-- run each measurement right after a state packet, so the next one is a full second away
+		local gotPacket = false
+		cc.onState(function() gotPacket = true end)
+		local function afterPacket()
+			gotPacket = false
+			local t0 = H.now()
+			while not gotPacket and H.now() - t0 < 3 do H.task.wait(0.02) end
+		end
 		-- every notification card, one at a time: in the top-right stack, out of the middle, off the HUD and the right-hand buttons
 		local CARDS = {"TutorialCard", "GuideTip", "ProblemCard", "DeliveryCard", "AchievementCard", "RivalBubble", "HouseTourPanel",
 			"StoryPill", "BeefPill", "MegaBar", "HeistBagHUD", "PoliceAlertBar", "RacePanel", "InteriorBar", "ViralMomentPopup"}
@@ -332,8 +343,9 @@ H.main(function()
 				table.insert(cbad, name .. " missing")
 			else
 				local was = o.Visible
+				afterPacket()
 				o.Visible = true
-				H.task.wait(0.1)
+				H.task.wait(0.05)
 				local bad, r = stackProblems(o, name)
 				for _, b in ipairs(bad) do table.insert(cbad, b) end
 				if overlap(r, charZone) then table.insert(cbad, name .. " reaches the middle " .. fmtR(r)) end
@@ -348,8 +360,9 @@ H.main(function()
 
 		-- the stack with everything at once: at most 3 cards, inside the budget, none stacked on another, the rest wait
 		local wasVis = {}
+		afterPacket()
 		for _, name in ipairs(CARDS) do local o = find(name) wasVis[name] = o.Visible o.Visible = true end
-		H.task.wait(0.2)
+		H.task.wait(0.06)
 		local shownCards, waiting, rects = {}, 0, {}
 		for _, name in ipairs(CARDS) do
 			local o = find(name)

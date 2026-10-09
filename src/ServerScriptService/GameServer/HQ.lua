@@ -280,6 +280,7 @@ function F.buyHQFloor(plr)
 	R.Splash:FireClient(plr, "🏢 HQ: " .. string.upper(f.name) .. " FLOOR", f.desc, RGB(120, 190, 255))
 	F.buzz("🏢", plr.Name .. "'s HQ just added a " .. f.name .. " floor!", d.plot.color)
 	if F.refreshTower then F.refreshTower(plr, true) end
+	if F.cineHQ then F.cineHQ(plr, d, f) end
 	if F.guideTip then F.guideTip(plr, f.n == 1 and "visitHQ" or (f.n == 2 and "hireManager" or nil)) end
 	return true
 end

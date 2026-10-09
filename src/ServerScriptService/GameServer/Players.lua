@@ -37,7 +37,9 @@ local SAVE_KEYS = {"cash", "levels", "chains", "staff", "combos", "rep", "ep", "
 	"viral", "evictions", "openings",
 	-- v10
 	"deeds", "deedSeq", "brands", "products", "stock", "hq", "mgr", "computer", "homeBuild", "furniture", "carMods", "garage", "arcade",
-	"perms", "invites", "guide", "heist"}
+	"perms", "invites", "guide", "heist",
+	-- v12
+	"empire"}
 -- everything this version writes itself; any OTHER field found in a save is kept as-is when saving
 local KNOWN_KEYS = {lots = true, props = true, SchemaVersion = true, saveSeq = true, gameVersion = true, savedAt = true}
 for _, k in ipairs(SAVE_KEYS) do KNOWN_KEYS[k] = true end
@@ -520,7 +522,7 @@ function F.sendState(plr, now)
 	local lotsMine = F.countLots(d)
 	local car = F.activeCar(plr)
 	local st = {
-		cash = d.cash, income = inc, passMult = F.passMult(d), gm = gm, rentRate = F.rentRate and math.floor(F.rentRate(d)) or 0,
+		cash = d.cash, income = inc, passMult = F.passMult(d), gm = gm, empire = F.empireBrief and F.empireBrief(d) or nil, rentRate = F.rentRate and math.floor(F.rentRate(d)) or 0,
 		frozen = math.max(0, math.ceil(d.frozenUntil - now)),
 		sabCd = math.max(0, math.ceil(d.sabCooldown - now)), sabCost = F.sabotageCost(d), sabTime = CFG.SABOTAGE_TIME,
 		adCosts = {F.adCost(d, "small"), F.adCost(d, "major"), F.adCost(d, "citywide")},
@@ -822,6 +824,7 @@ local TP = {
 	downtown = CFrame.lookAt(V3(150, 4, -12), V3(230, 4, -12)),
 	industrial = CFrame.lookAt(V3(-150, 4, -12), V3(-230, 4, -12)),
 	beach = CFrame.lookAt(V3(0, 4, 150), V3(0, 4, 230)),
+	plaza = CFrame.lookAt(V3(0, 4, 352), V3(0, 4, 395)),
 	luxury = CFrame.lookAt(V3(230, 4, -140), V3(230, 4, -220)),
 	spire = CFrame.lookAt(V3(0, 4, 24), V3(0, 4, 0)),
 	funpark = CFrame.lookAt(V3(-360, 4, 12), V3(-470, 4, 12)),
@@ -1374,6 +1377,7 @@ task.spawn(function()
 					if active < 2 and math.random() < F.problemChance(d) then F.makeProblem(plr, d, now) end
 				end
 				if tick % 5 == 0 then F.checkMilestones(plr, d) end
+				if F.empireTick then F.empireTick(plr, d, now) end
 				F.deliveryTick(plr, d, now)
 				F.rentalTick(plr, d, now)
 				F.tutorialTick(plr, d)

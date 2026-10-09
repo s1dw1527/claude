@@ -69,6 +69,8 @@ local EVICT_BANTER = {
 
 -- ===== other interactions =====
 local LINES = {
+	milestone = function(c) return {{"manager", "Boss... I just checked the books.", "shock"}, {"you", "And?", "think"}, {"manager", "We're worth " .. tostring(c.short or "a LOT") .. ". " .. tostring(c.name or "") .. ".", "hype"}, {"you", "Remember the lemonade stand?", "owner"}} end,
+	hqReveal = function(c) return {{"manager", "Your " .. tostring(c.floor or "new") .. " floor is ready.", "wave"}, {"you", "It's beautiful.", "celebrate"}} end,
 	hire = function(c) return pick({
 		{{"staff", "I won't let you down, boss!", "wave"}, {"you", "Welcome to the team, " .. first(c.name) .. "!", "owner"}},
 		{{"staff", "Do I get a name tag? I've always wanted a name tag.", "hype"}, {"you", "You get a name tag.", "owner"}, {"staff", "BEST DAY EVER.", "celebrate"}},
@@ -98,6 +100,7 @@ local function facingOut(doorPos, insidePos)
 	local out = doorPos + (doorPos - insidePos)
 	return CFrame.lookAt(doorPos, V3(out.X, doorPos.Y, out.Z)) * CFrame.Angles(0, math.pi, 0)
 end
+F.facingOut = facingOut
 function F.bizAnchor(d, key)
 	local slot = F.slotCF(d.plot, key)
 	local door = (slot * CF(0, 0, 9)).Position

@@ -4,9 +4,9 @@ local RGB = Color3.fromRGB
 
 -- ===== VERSION (bump these with every published update; see README "How to update Corner Empire") =====
 C.VERSION = {
-	VERSION = "11.2.0",
-	UPDATE_NAME = "Mountain, Arcade & Mobile Fixes",
-	SCHEMA_VERSION = 11,         -- the shape of a player's save. Raise it only together with a new step in DataMigration.
+	VERSION = "12.0.0",
+	UPDATE_NAME = "City Takeover & Billionaire Progression",
+	SCHEMA_VERSION = 12,         -- the shape of a player's save. Raise it only together with a new step in DataMigration.
 	MIN_SUPPORTED_SCHEMA = 6,   -- saves older than v6 (no version field, no tutorial-reward tracking) are treated as v6
 	-- shown once to every returning player after an update (Messages app)
 	NOTES = {
@@ -17,6 +17,9 @@ C.VERSION = {
 		"🛠️ 11.2: the mountain base and the heist targets are no longer buried in the hills",
 		"🕹️ 11.2: ▶ PLAY in the Arcade app — play the 🤖 Arcade Bot when nobody else is around",
 		"🏢 11.2: apartments show their rent, and empty ones no longer cost upkeep",
+		"👑 12: BILLIONAIRE MILESTONES at $1M / $10M / $100M / $1B, with a tower that grows a crown, and the new Empire Plaza on the beach",
+		"🏪 12: storefront makeovers (Modern, Neon, Retro, Luxury Gold, Billionaire) and grand openings for every big upgrade",
+		"🏆 12: the Empire Hall: top empires across the city, with verified milestones and a Visit button",
 	},
 }
 
@@ -517,12 +520,49 @@ C.RACE = {fee = 20, par = 42, maxTime = 300}
 
 -- ===== TUTORIAL =====
 C.TUTORIAL = {
-	{text = "Welcome to Corner Empire! 🍋 Tap BUY on the Lemonade Stand in your business panel, then give it a name.", target = "plot"},
-	{text = "Nice! Upgrade the Lemonade Stand to Level 3 — watch it transform.", target = "plot"},
+	{text = "Welcome! 🍋 Open your first business: tap BUY on the Lemonade Stand, then name it.", target = "plot"},
+	{text = "Customers are paying you! Upgrade the stand to Level 3 and watch it transform.", target = "plot"},
 	{text = "Buy the Ice Cream Cart. More businesses = more customers!", target = "plot"},
 	{text = "Open your 📱 Phone: press P, tap the 📱 button, or press Y on a controller. Everything lives in there.", target = nil},
 	{text = "Visit your home! Walk there, or use Phone → Map → My Home.", target = "home"},
 	{text = "Customers leave reviews. Reach LOCAL FAVORITE reputation to unlock Staff, Cars, Deliveries and property plots around the city.", target = "plot"},
 	{text = "Go to Corner Motors, buy a car and hop in! (Phone → Map → Dealership)", target = "dealer"},
 }
+
+-- ===== v12: CITY TAKEOVER & BILLIONAIRE PROGRESSION =====
+-- EMPIRE VALUE is worked out by the server from the player's real, saved assets: cash + what they paid for their
+-- businesses (every upgrade level and chain location), land deeds, apartment buildings, cars and home. The milestones
+-- below are claimed once per save (a rebirth never takes them away) and only when the empire value is real:
+-- lifetime earned income must also be at least `earnedShare` of the milestone value, so cash handed out by admin tools,
+-- a tutorial bonus or a lucky heist alone can't buy a $1B title.
+C.EMPIRE = {
+	checkEvery = 5,         -- the main loop looks every 5 s
+	earnedShare = 0.2,      -- lifetime earned income must be >= 20% of the milestone's value
+	boardEvery = 120,       -- the cross-server Hall of Fame refreshes every 2 minutes (one read per server)
+	publishGap = 150,       -- a player's entry is written at most every 2.5 minutes ...
+	publishDelta = 0.05,    -- ... and only when their value moved by 5% (or a milestone was reached)
+	boardSize = 10,
+	visitCooldown = 8,
+}
+C.EMPIRE_MILESTONES = {
+	{key = "m1", value = 1e6, name = "MILLIONAIRE", icon = "💵", short = "$1M", color = RGB(120, 230, 150), rep = 50, cash = 10000, followers = 200,
+		perk = "A gold crown band and a helipad on your Empire Tower, plus 3 extra floors", tag = "💵"},
+	{key = "m10", value = 1e7, name = "MULTI-MILLIONAIRE", icon = "💰", short = "$10M", color = RGB(110, 200, 255), rep = 150, cash = 100000, followers = 800,
+		perk = "A glowing gold spire; unlocks the Luxury Gold storefront", tag = "💰"},
+	{key = "m100", value = 1e8, name = "HUNDRED-MILLIONAIRE", icon = "💎", short = "$100M", color = RGB(190, 130, 255), rep = 400, cash = 1000000, followers = 3000,
+		perk = "A golden sky beam you can see across the city", tag = "💎"},
+	{key = "m1000", value = 1e9, name = "BILLIONAIRE", icon = "👑", short = "$1B", color = RGB(255, 210, 70), rep = 1000, cash = 10000000, followers = 10000,
+		perk = "The turning gold Billionaire crown and fireworks; unlocks the Billionaire storefront", tag = "👑"},
+}
+-- storefront makeovers (a brand field, cosmetic only). need = milestones reached (0-4).
+C.STOREFRONT_STYLES = {
+	{k = "classic", name = "Classic", icon = "🏪", need = 0, desc = "The standard storefront."},
+	{k = "modern", name = "Modern", icon = "🏢", need = 0, desc = "Dark sign, white LED strip, clean lines."},
+	{k = "neon", name = "Neon Nights", icon = "🌃", need = 0, desc = "A glowing neon sign and a glowing frame."},
+	{k = "retro", name = "Retro Diner", icon = "🎞️", need = 0, desc = "Marquee bulbs, a striped awning and a checkered step."},
+	{k = "luxury", name = "Luxury Gold", icon = "✨", need = 2, desc = "Gold sign, columns and spotlights. Unlocks at $10M."},
+	{k = "billionaire", name = "Billionaire", icon = "👑", need = 4, desc = "Black marble, golden neon and a beacon. Unlocks at $1B."},
+}
+C.STOREFRONT = {}
+for _, st in ipairs(C.STOREFRONT_STYLES) do C.STOREFRONT[st.k] = st end
 end

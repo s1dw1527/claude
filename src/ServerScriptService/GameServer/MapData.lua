@@ -21,6 +21,7 @@ function C.mapCatalog()
 	add({key = "dealer", name = "Corner Motors", icon = "🚗", kind = "Car dealership", at = xz(V3(0, 0, -160)), tp = "dealer", feature = "cars", desc = "Buy and spawn cars."})
 	add({key = "race", name = "Race Track", icon = "🏁", kind = "Race track", at = xz(V3(0, 0, -360)), tp = "race", feature = "race", desc = "Time trials, drift zone and the track record board."})
 	add({key = "funpark", name = "Fun Park", icon = "🎡", kind = "Attraction", at = xz(V3(-470, 0, 12)), tp = "funpark", feature = "funpark", desc = "Mini-games, the Ferris wheel and fireworks."})
+	if C.PLAZA_AT then add({key = "plaza", name = "Empire Plaza", icon = "👑", kind = "Landmark", at = xz(C.PLAZA_AT), tp = "plaza", desc = "Hall of Fame billboards, the giant tower and the Empire Hall."}) end
 	if C.MUSEUM_AT then add({key = "museum", name = "Legacy Museum", icon = "🏛️", kind = "Museum", at = xz(C.MUSEUM_AT), tp = "museum", desc = "Your relics, records and the weekly boards."}) end
 	local rent = {}
 	for _, l in ipairs(C.RENT_LOTS or {}) do table.insert(rent, l.pos) end

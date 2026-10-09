@@ -445,6 +445,7 @@ function F.refreshBuilding(plr, key, animate)
 	else
 		billboard(base, UDim2.fromOffset(220, 54), V3(0, top + 2, 0), {{text = b.tiers[stage], h = 0.58}, status}, 170)
 	end
+	if F.empireDress then F.empireDress(m, o, d, key, top, F.empireTier and F.empireTier(d) or 0) end
 	m:SetAttribute("Top", top)
 	m.Parent = plot.folder
 	plot.slots[key] = m
@@ -576,7 +577,10 @@ function F.refreshTower(plr, force)
 		if (d.levels[b.key] or 0) >= CFG.MAX_LEVEL then maxed += 1 end
 	end
 	local floors = tier >= C.FEATURES.tower and (3 + tier + maxed + math.min(10, d.rebirths)) or 0
-	local key = floors .. "|" .. d.skin .. "|" .. d.trophies .. "|" .. d.rebirths
+	-- v12: every verified empire milestone adds floors and a crown (a billionaire's tower is the tallest on the street)
+	local etier = F.empireTier and F.empireTier(d) or 0
+	if etier > 0 then floors = math.max(floors, 4) + etier * 3 end
+	local key = floors .. "|" .. d.skin .. "|" .. d.trophies .. "|" .. d.rebirths .. "|e" .. etier
 	if key == d.towerKey and not force then return end
 	d.towerKey = key
 	if plot.tower then plot.tower:Destroy() end
@@ -607,6 +611,8 @@ function F.refreshTower(plr, force)
 			end
 		end
 		local topY = floors * fh + 1
+		if etier > 0 then topY = F.empireCrown(m, base, floors * fh, etier, accent) + 1 end
+		m:SetAttribute("Top", topY)
 		local ring = cyl(m, 0.3, 8, CF(base + V3(0, topY + 1.5, 0)), accent, MAT.Neon, {Transparency = 0.2})
 		spin(ring, 1.2)
 		local holo = ball(m, V3(3, 3, 3), CF(base + V3(0, topY + 3.2, 0)), accent, MAT.Neon, {Transparency = 0.35})

@@ -36,6 +36,8 @@
     "ViralMoments",
     "Influencers",
     "CityEvents",
+    "Empire",
+    "EmpirePlaza",
     "Updates",
     "Players"
   ],
@@ -51,6 +53,7 @@
     "Menus",
     "BusinessUI",
     "HQUI",
+    "EmpireUI",
     "ComputerUI",
     "GarageUI",
     "ArcadeUI",

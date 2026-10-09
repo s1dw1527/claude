@@ -179,12 +179,14 @@ local BRAND_FIELDS = {
 	uniform = function(v) return C.int(v, 1, #C.BRAND_COLORS) ~= nil end,
 	theme = function(v) return table.find(C.BRAND_THEMES, v) ~= nil end,
 	menu = function(v) return table.find(C.MENU_STYLES, v) ~= nil end,
+	-- v12 storefront style; the empire tier decides which ones are open (checked on the server, never on the client)
+	style = function(v, d) local st = type(v) == "string" and C.STOREFRONT[v]; return st ~= nil and (F.empireTier and F.empireTier(d) or 0) >= st.need end,
 }
 function F.setBrand(plr, key, field, value)
 	local d = data[plr]
 	if not (d and BIZ[key]) or (d.levels[key] or 0) <= 0 then return false end
 	local ok = BRAND_FIELDS[field]
-	if not (ok and ok(value)) then return false end
+	if not (ok and ok(value, d)) then return false end
 	brandOf(d, key)[field] = value
 	F.refreshBuilding(plr, key, false)
 	F.refreshBrandEverywhere(plr, key)
@@ -206,7 +208,7 @@ end
 function F.brandInfo(d, key)
 	local b = (d.brands and d.brands[key]) or {}
 	return {name = F.bizName(d, key), named = F.hasBizName(d, key), logo = b.logo or BIZ[key].icon, sign = b.sign, accent = b.accent, exterior = b.exterior, uniform = b.uniform,
-		theme = b.theme or "Classic", menu = b.menu or "Chalkboard", renameFee = F.renameFee(d, key),
+		style = b.style or "classic", theme = b.theme or "Classic", menu = b.menu or "Chalkboard", renameFee = F.renameFee(d, key),
 		renameIn = (b.renamedAt and math.max(0, B.renameCooldown - (os.time() - b.renamedAt))) or 0}
 end
 

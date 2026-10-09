@@ -493,6 +493,13 @@ TOOLS.fillBag = {run = function(admin, a)
 	local ok = HA().fillBag(p)
 	return ok, ok and "bag filled (test loot)" or "they have no bag", p
 end}
+-- v12: play an empire celebration for testing. Claims and pays NOTHING (the milestones are server-verified only).
+TOOLS.empireShow = {run = function(admin, a)
+	local p, d = target(a)
+	if not (p and d and C.EMPIRE_ADMIN) then return false, "Pick a player." end
+	local name = C.EMPIRE_ADMIN.celebrate(p, d, str(a.key, 8) or "m1000")
+	return true, "celebration shown: " .. tostring(name) .. " (nothing claimed)", p
+end}
 TOOLS.policeAlert = {run = function() return HA() ~= nil and HA().alert(), "test police alert" end}
 TOOLS.clearAlerts = {run = function() return HA() ~= nil and HA().clearAlerts(), "cleared police alerts" end}
 TOOLS.secretDoor = {run = function(admin, a)

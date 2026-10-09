@@ -465,6 +465,31 @@ T.opening = function(S, o, ctx, lines)
 	S:move(you, "celebrate")
 	S:wait(1.2)
 end
+-- v12: the billionaire moment. The camera starts on the owner at the foot of their tower, then tilts up the whole height while confetti falls.
+T.milestone = function(S, o, ctx, lines)
+	local you = S:actor("you", S:pt(0, 8), S:pt(0, 0))
+	local up = 6 + (ctx.index or 1) * 14
+	S:shot(V3(0, 3.2, 20), V3(0, 4, 2), 0)
+	S:move(you, "owner")
+	S:wait(0.8)
+	S:shot(V3(4, 8, 24), V3(0, up * 0.6, -6), 1.6)
+	S:shot(V3(10, up * 0.5, 34), V3(0, up, -6), 1.8)
+	A.confetti(S.folder, S:pt(0, up * 0.5), 40)
+	S:lines(lines)
+	S:move(you, "celebrate")
+	A.confetti(S.folder, S:pt(0, 12), 40)
+	S:wait(1.4)
+end
+T.hqReveal = function(S, o, ctx, lines)
+	local you = S:actor("you", S:pt(0, 9), S:pt(0, 0))
+	S:shot(V3(0, 3, 18), V3(0, 6, 0), 0)
+	S:wait(0.5)
+	S:shot(V3(8, 12, 26), V3(0, 18, -4), 1.8)
+	A.confetti(S.folder, S:pt(0, 14), 30)
+	S:lines(lines)
+	S:move(you, "celebrate")
+	S:wait(1.0)
+end
 T.hire = function(S, o, ctx, lines) dialogue(S, o, lines) end
 T.fire = function(S, o, ctx, lines)
 	dialogue(S, o, lines, {props = {staff = "box"}})

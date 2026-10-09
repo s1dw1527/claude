@@ -418,12 +418,15 @@ function F.buyUpgrade(plr, d, key)
 	if newStage ~= oldStage then F.refreshWorkers(plr) end
 	if newStage > oldStage and oldStage > 0 then
 		F.buzz(b.icon, plr.Name .. "'s " .. b.tiers[oldStage] .. " transformed into a " .. b.tiers[newStage] .. "!", b.color)
-		-- a major upgrade gets a short scene
-		if F.cinematic then
+		-- a major upgrade gets a short scene; the first time a business reaches a new building it is a Grand Opening (v12)
+		if F.tierOpening and F.tierOpening(plr, d, key, oldStage, newStage) then
+			-- celebrated by Empire.tierOpening
+		elseif F.cinematic then
 			F.cinematic(plr, "upgrade", {biz = b.tiers[newStage], names = {staff = d.staff[key] and d.staff[key].name or nil}}, {at = F.bizAnchor(d, key),
 				title = "⬆️ " .. string.upper(b.tiers[newStage]), result = {"⬆️ MAJOR UPGRADE", b.tiers[oldStage] .. " → " .. b.tiers[newStage]}, react = "celebrate"})
 		end
 	end
+	if lvl >= 1 and F.empireFirst then F.empireFirst(plr, "upgrade") end
 	if lvl + 1 == CFG.MAX_LEVEL then
 		notify(plr, "⭐ " .. b.tiers[newStage] .. " is MAX level!" .. (F.unlocked(d, "chains") and " Open new locations to build a chain." or ""))
 		F.refreshTower(plr)
