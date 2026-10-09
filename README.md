@@ -1,9 +1,17 @@
 # Corner Empire
 
-A 1–4 player Roblox business tycoon. **`CornerEmpire_v11_3.rbxlx` is the current place file**; open it in Roblox Studio.
-`CornerEmpire_v11_2.rbxlx` … `CornerEmpire_v5.rbxlx` are earlier versions, kept for reference. The full v11 write-up is
+A 1–4 player Roblox business tycoon. **`CornerEmpire_v12.rbxlx` is the current place file**; open it in Roblox Studio.
+`CornerEmpire_v11_3.rbxlx`, `CornerEmpire_v11_2.rbxlx` … `CornerEmpire_v5.rbxlx` are earlier versions, kept for reference. The full v11 write-up is
 `docs/V11_REPORT.md`; install steps and the real-Studio test list are in `docs/V11_STUDIO_CHECKLIST.md`. The v11.1
 mobile UI overhaul (client only) is in `docs/V11_1_MOBILE_REPORT.md`.
+
+## What's new in v12 — City Takeover & Billionaire Progression (server + client)
+
+Server-verified $1M / $10M / $100M / $1B empire milestones with celebrations, a growing Empire Tower, the Empire Plaza
+and Hall of Fame billboards on the beach, storefront makeovers, Grand Re-Openings for new building tiers, an HQ reveal,
+first-income / first-upgrade moments and the 👑 Empire app. Same `CornerEmpire_v5` DataStore; save schema 12 (additive
+migration). Install both `updates/GameServer.rbxmx` and `updates/EmpireClient.rbxmx`. Details, install steps, the
+simulated-vs-Studio test split and the thumbnail advice: `docs/V12_REPORT.md`. Not tested in real Studio.
 
 ## What's new in v11.3 — phone layout rework (client only)
 
@@ -227,7 +235,7 @@ uses `Config.lua` from the repository, so put your pass IDs in `src/ServerScript
 - `src/` holds every script from the place, one file per script, mirroring the Explorer:
   - `ServerScriptService/GameServer.server.lua` + `GameServer/*.lua` (server modules)
   - `StarterPlayer/StarterPlayerScripts/EmpireClient.client.lua` + `EmpireClient/*.lua` (client modules)
-- `tools/build.py` rebuilds the place file from `src/` (`python3 tools/build.py CornerEmpire_v11_3.rbxlx`).
+- `tools/build.py` rebuilds the place file from `src/` (`python3 tools/build.py CornerEmpire_v12.rbxlx`).
 - `tools/extract.py` pulls the scripts back out of a place file; `tools/compare.py` compares two place files.
 - `tools/propcheck.py <globalTypes.d.luau>` checks every property name the scripts set against the Roblox API.
 - `tools/check.sh` compiles every script, type-checks it against the Roblox API and flags unknown globals (needs the Luau tools).
