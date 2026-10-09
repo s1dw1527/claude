@@ -133,7 +133,24 @@ M.steps = {
 		end
 		return notes
 	end,
+	[12] = function(t)
+		local notes = {}
+		-- v13: the living city: Golden Corners collected, places discovered, City Jobs done. One new record.
+		for k, v in pairs(M.v13Defaults()) do
+			if t[k] == nil then
+				t[k] = v
+				table.insert(notes, k)
+			end
+		end
+		return notes
+	end,
 }
+-- every new v13 field and its safe default
+function M.v13Defaults()
+	return {
+		city = {corners = {}, places = {}, jobs = 0, jobPay = 0, streak = 0},
+	}
+end
 -- every new v12 field and its safe default
 function M.v12Defaults()
 	return {
@@ -151,6 +168,7 @@ function M.featureDefaults()
 	local out = M.v10Defaults()
 	for k, v in pairs(M.v11Defaults()) do out[k] = v end
 	for k, v in pairs(M.v12Defaults()) do out[k] = v end
+	for k, v in pairs(M.v13Defaults()) do out[k] = v end
 	return out
 end
 -- the 16 land lots of v5-v9, in the order the world built them (4 per district)
@@ -364,6 +382,12 @@ function M.sampleSaves()
 		v11 = {SchemaVersion = 11, cash = 2.5e8, earned = 4e9, levels = {lemonade = 10, pizza = 9, tech = 4}, rep = 6000, tut = 0, tutPaid = 7, deeds = {{id = "d2", district = "luxury", plot = 1, paid = 5e6}},
 			brands = {pizza = {name = "Slice Empire", style = "neon"}}, hq = {level = 4}, heist = {discovered = true, done = 7, failed = 1, earned = 123456, best = 40000, bag = 3, base = 4, arrests = 0, policeEarned = 0},
 			unknownFuture = {keep = "me"}},
+		v12 = {SchemaVersion = 12, cash = 3.3e9, earned = 9e9, levels = {lemonade = 10, pizza = 10, tech = 7}, rep = 9000, tut = 0, tutPaid = 7,
+			deeds = {{id = "d3", district = "downtown", plot = 1, paid = 4e5}}, brands = {tech = {name = "Byte Barn", style = "billionaire"}},
+			heist = {discovered = true, done = 3, failed = 0, earned = 5000, best = 2000, bag = 2, base = 2, arrests = 0, policeEarned = 0},
+			empire = {ms = {m1 = 100, m10 = 200, m100 = 300, m1000 = 400}, best = 3.4e9, pub = 3.4e9, pubAt = 1, firstIncome = true, firstUpgrade = true, visits = 2, legacy = false, seeded = true},
+			cars = {coupe = true}, home = {level = 4}, unknownFuture2 = {keep = "me too"}},
+		brokenV13 = {SchemaVersion = 13, cash = 999, earned = 7000, levels = {lemonade = 4}, rep = 9, tut = 0, tutPaid = 7, city = {corners = "lots", jobs = -4, places = {spire = 5}}},
 		brokenV12 = {SchemaVersion = 12, cash = 888, earned = 5000, levels = {lemonade = 3}, rep = 7, tut = 0, tutPaid = 7, empire = {ms = "oops", best = -5, firstIncome = "yes"}},
 		brokenViral = {SchemaVersion = 9, cash = 500, earned = 900, levels = {lemonade = 4}, rep = 10, tut = 0, tutPaid = 7, viral = "garbage", evictions = -5},
 		future = {SchemaVersion = 99, cash = 1, earned = 1, levels = {}, rep = 0, someNewThing = {x = 1}},
@@ -425,6 +449,28 @@ function M.selfTest()
 		local ok, t, log = M.migrate(samples.brokenV12)
 		add(ok and t.cash == 888 and type(t.empire.ms) == "table" and t.empire.best == 0 and t.empire.firstIncome == false and table.concat(log, "|"):find("empire.ms repaired", 1, true) ~= nil,
 			"a damaged v12 empire record is repaired; the rest of the save loads (" .. table.concat(log, " | ") .. ")")
+	end
+	do
+		local orig = samples.v12
+		local before = deepCopy(orig)
+		local ok, t, log = M.migrate(orig)
+		add(ok and t.SchemaVersion == V.SCHEMA_VERSION and t.cash == before.cash and t.earned == before.earned and t.levels.tech == 7 and t.brands.tech.style == "billionaire"
+			and t.empire.ms.m1000 == 400 and t.empire.seeded == true and t.heist.done == 3 and t.cars.coupe == true and t.home.level == 4 and t.unknownFuture2.keep == "me too"
+			and type(t.city) == "table" and next(t.city.corners) == nil and t.city.jobs == 0 and orig.city == nil and orig.SchemaVersion == 12,
+			"v12 save keeps cash, businesses, brand style, all 4 milestones, heists, cars, home and unknown fields, and gets the v13 city record (" .. table.concat(log, " | ") .. ")")
+	end
+	do
+		local ok, t, log = M.migrate(samples.brokenV13)
+		add(ok and t.cash == 999 and type(t.city.corners) == "table" and t.city.jobs == 0 and t.city.places.spire == 5,
+			"a damaged v13 city record is repaired field by field; the rest of the save loads (" .. table.concat(log, " | ") .. ")")
+	end
+	do
+		local broken = deepCopy(samples.v12)
+		local real = M.steps[12]
+		M.steps[12] = function() error("simulated bug in the v13 step") end
+		local ok, _, _, err = M.migrate(broken)
+		M.steps[12] = real
+		add(not ok and tostring(err):find("12 %-> 13") ~= nil and samples.v12.city == nil, "a crashing v13 step is refused and the stored v12 save is untouched: " .. tostring(err))
 	end
 	do
 		local broken = deepCopy(samples.v11)

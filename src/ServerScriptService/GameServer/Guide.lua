@@ -35,6 +35,10 @@ C.GUIDE_TIPS = {
 	{key = "policeChase", icon = "🚓", title = "Police chases", text = "Police on duty get an alert and an approximate search area, never your exact spot. Use roads, the off-road paths and the back door."},
 	{key = "heistsApp", icon = "📱", title = "The Heists app", text = "Jobs, your current job, crew invites, gear and police duty — all in the 💰 Heists phone app."},
 	{key = "robberyTeam", icon = "🤝", title = "Crews", text = "Some jobs need 2+ people. Invite players from the Heists app; a crew shares one target, so bring friends because it's safer."},
+	-- v13: the living city
+	{key = "explore", icon = "🧭", title = "Go explore", text = "Phone → 🧭 Explore: City Jobs (courier runs, lost dogs, street clean-ups), 30 hidden Golden Corners and every place on the map pay you to get out there."},
+	{key = "goldenCorner", icon = "✨", title = "Golden Corners", text = "30 of them, at street corners all over the city. Finish a district's set for a bonus; the 🧭 Explore app gives a hint for each one you're missing."},
+	{key = "cityJob", icon = "💼", title = "City Jobs", text = "Follow the beam to each stop. Do it on foot or by car: a teleport cancels the job. The pay is a slice of your income, so it keeps up as you grow."},
 }
 C.GUIDE_TIP = {}
 for i, t in ipairs(C.GUIDE_TIPS) do
@@ -43,6 +47,7 @@ for i, t in ipairs(C.GUIDE_TIPS) do
 end
 -- "What's this?" texts (the client shows them from the catalog)
 C.GUIDE_HELP = {
+	explore = {title = "🧭 Explore", text = "City Jobs: take one of three offers and follow the beam; courier runs are timed from pickup, a lost dog follows you home once found, clean-ups are timed from the first pile. Rewards are a number of seconds of your income (with a minimum), so they matter early and stay fair later. A teleport cancels a job. Golden Corners: 30 tokens at street corners, one-time rewards plus a bonus for each district's full set and for all 30. Places: the first visit to every place on the map pays a little. Everything is checked by the server where you actually are."},
 	property = {title = "🏙️ Property plots", text = "Plots are permanent: once bought, a plot is yours on every server and comes back when you join. Prime districts (Downtown, Waterfront, Luxury) have few plots and a low per-player cap, so everyone gets a chance; Midtown, Suburbs and Expansion have plenty. You can own more properties as your reputation grows (+1 per 10 rebirths). Selling returns half of what you paid."},
 	chooseBusiness = {title = "🏪 Choosing a business", text = "A plot runs one business type. If you already own that business, the plot becomes another location of it: your income from that business gets the district's bonus (capped). You can change the business later."},
 	products = {title = "🍽️ Products, supplies and brand", text = "More product slots unlock at business levels 1, 3, 5, 7 and 10. Demand depends on price, quality, presentation, popularity and ingredients; a trending product brings extra customers for a while. Supplies run down as you sell: keep them above 20%. Brand choices are cosmetic."},
@@ -169,6 +174,7 @@ task.spawn(function()
 					local root = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
 					if root and (root.Position - C.MOUNTAIN.center).Magnitude < 200 then F.guideTip(plr, "discoverBase") end
 				end
+				if not seen.explore and seen.welcomeV10 and (d.served or 0) >= 20 then F.guideTip(plr, "explore") end
 				if not seen.arcadePrize and type(d.arcade) == "table" and (tonumber(d.arcade.tickets) or 0) >= 40 then F.guideTip(plr, "arcadePrize") end
 			end)
 			if not ok then warn("[CornerEmpire] guide: " .. tostring(err)) end

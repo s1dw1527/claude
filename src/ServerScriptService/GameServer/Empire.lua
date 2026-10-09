@@ -499,6 +499,7 @@ function F.empireVisit(plr, targetId)
 	local char = plr.Character
 	if not char then return false end
 	visitAt[plr] = now
+	if F.cityOnTeleport then F.cityOnTeleport(plr) end
 	F.despawnCar(plr)
 	local plot = od.plot
 	char:PivotTo(CFrame.lookAt(plot.at(0, 4, 34 + 6), plot.at(0, 4, -10)))

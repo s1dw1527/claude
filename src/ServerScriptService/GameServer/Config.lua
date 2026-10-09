@@ -4,9 +4,9 @@ local RGB = Color3.fromRGB
 
 -- ===== VERSION (bump these with every published update; see README "How to update Corner Empire") =====
 C.VERSION = {
-	VERSION = "12.0.0",
-	UPDATE_NAME = "City Takeover & Billionaire Progression",
-	SCHEMA_VERSION = 12,         -- the shape of a player's save. Raise it only together with a new step in DataMigration.
+	VERSION = "13.0.0",
+	UPDATE_NAME = "Life & Empire: Living City",
+	SCHEMA_VERSION = 13,         -- the shape of a player's save. Raise it only together with a new step in DataMigration.
 	MIN_SUPPORTED_SCHEMA = 6,   -- saves older than v6 (no version field, no tutorial-reward tracking) are treated as v6
 	-- shown once to every returning player after an update (Messages app)
 	NOTES = {
@@ -20,6 +20,8 @@ C.VERSION = {
 		"👑 12: BILLIONAIRE MILESTONES at $1M / $10M / $100M / $1B, with a tower that grows a crown, and the new Empire Plaza on the beach",
 		"🏪 12: storefront makeovers (Modern, Neon, Retro, Luxury Gold, Billionaire) and grand openings for every big upgrade",
 		"🏆 12: the Empire Hall: top empires across the city, with verified milestones and a Visit button",
+		"🚶 13: the city is alive: people on every sidewalk, traffic that stops at red lights, buses, delivery vans, street musicians, beach life",
+		"🧭 13: new EXPLORE app: City Jobs (courier runs, lost pets, street clean-ups), 30 Golden Corners to find, and every place on the map to discover",
 	},
 }
 

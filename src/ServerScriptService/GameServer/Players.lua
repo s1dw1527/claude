@@ -39,7 +39,9 @@ local SAVE_KEYS = {"cash", "levels", "chains", "staff", "combos", "rep", "ep", "
 	"deeds", "deedSeq", "brands", "products", "stock", "hq", "mgr", "computer", "homeBuild", "furniture", "carMods", "garage", "arcade",
 	"perms", "invites", "guide", "heist",
 	-- v12
-	"empire"}
+	"empire",
+	-- v13
+	"city"}
 -- everything this version writes itself; any OTHER field found in a save is kept as-is when saving
 local KNOWN_KEYS = {lots = true, props = true, SchemaVersion = true, saveSeq = true, gameVersion = true, savedAt = true}
 for _, k in ipairs(SAVE_KEYS) do KNOWN_KEYS[k] = true end
@@ -386,7 +388,7 @@ end
 -- Big, slow-changing parts of the state are only sent when they change (the client keeps the last copy).
 -- Keep this list in sync with HEAVY in EmpireClient.
 local HEAVY = {"archive", "homeInfo", "props", "districts", "market", "staff", "reviews", "tours", "shareable", "standings", "passes", "cars", "showcase", "biz", "warLeaders",
-	"rebirth", "unlocks", "fees", "spire", "map", "viral", "estate"}
+	"rebirth", "unlocks", "fees", "spire", "map", "viral", "estate", "explore"}
 local function sig(v)
 	local t = type(v)
 	if t == "table" then
@@ -522,7 +524,7 @@ function F.sendState(plr, now)
 	local lotsMine = F.countLots(d)
 	local car = F.activeCar(plr)
 	local st = {
-		cash = d.cash, income = inc, passMult = F.passMult(d), gm = gm, empire = F.empireBrief and F.empireBrief(d) or nil, rentRate = F.rentRate and math.floor(F.rentRate(d)) or 0,
+		cash = d.cash, income = inc, passMult = F.passMult(d), gm = gm, empire = F.empireBrief and F.empireBrief(d) or nil, explore = F.exploreBrief and F.exploreBrief(d) or nil, rentRate = F.rentRate and math.floor(F.rentRate(d)) or 0,
 		frozen = math.max(0, math.ceil(d.frozenUntil - now)),
 		sabCd = math.max(0, math.ceil(d.sabCooldown - now)), sabCost = F.sabotageCost(d), sabTime = CFG.SABOTAGE_TIME,
 		adCosts = {F.adCost(d, "small"), F.adCost(d, "major"), F.adCost(d, "citywide")},
@@ -864,6 +866,7 @@ local function teleport(plr, d, key)
 	end
 	local char = plr.Character
 	if cf and char then
+		if F.cityOnTeleport then F.cityOnTeleport(plr) end
 		F.despawnCar(plr)
 		char:PivotTo(cf)
 	end
@@ -1191,6 +1194,7 @@ do
 		return {cars = cars, passes = passes, staff = staff, ads = ads, npcs = npcs, chains = #CHAINS, rentals = rentals,
 			features = features, tiers = tiers, presets = C.PRESET_COUNT, minigames = MINIGAMES, homeLevels = HOME_LEVELS,
 			story = C.storyCatalog and C.storyCatalog() or nil, map = C.mapCatalog and C.mapCatalog() or nil, version = C.VERSION,
+			explore = F.exploreCatalog and F.exploreCatalog() or nil,
 			interiors = C.interiorCatalog and C.interiorCatalog() or nil, cast = C.CAST,
 			furniture = C.furnitureCatalog and C.furnitureCatalog() or nil, guide = C.guideCatalog and C.guideCatalog() or nil}
 	end

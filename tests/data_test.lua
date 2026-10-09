@@ -16,7 +16,7 @@ H.main(function()
 	end
 
 	H.section("Version + store names")
-	H.check(C.VERSION.VERSION == "12.0.0" and C.VERSION.SCHEMA_VERSION == 12 and C.VERSION.MIN_SUPPORTED_SCHEMA == 6, "C.VERSION is 12.0.0 / schema 12 / oldest 6")
+	H.check(C.VERSION.VERSION == "13.0.0" and C.VERSION.SCHEMA_VERSION == 13 and C.VERSION.MIN_SUPPORTED_SCHEMA == 6, "C.VERSION is 13.0.0 / schema 13 / oldest 6")
 	H.check(C.CFG.DATASTORE == "CornerEmpire_v5", "the live DataStore name is unchanged (CornerEmpire_v5)")
 	H.check(C.storeName(C.CFG.DATASTORE) == "CornerEmpire_v5_StudioTest", "Studio playtests use a separate test copy of the store")
 

@@ -1,5 +1,5 @@
 --// CORNER EMPIRE v11.1 — CLIENT. All the code lives in the ModuleScripts inside this LocalScript.
-local modules = {"UI", "Layout", "Audio", "AnimationConfig", "Actors", "HUD", "WorldFX", "CityCrowd", "Workers", "Menus", "BusinessUI", "HQUI", "EmpireUI", "ComputerUI", "GarageUI", "ArcadeUI", "AdminPanel", "GuideUI", "HeistUI", "Phone", "Driving", "MiniGames", "PhotoMode", "Story", "Cinematics",
+local modules = {"UI", "Layout", "Audio", "AnimationConfig", "Actors", "HUD", "WorldFX", "CityCrowd", "Workers", "Menus", "BusinessUI", "HQUI", "EmpireUI", "ExploreUI", "ComputerUI", "GarageUI", "ArcadeUI", "AdminPanel", "GuideUI", "HeistUI", "Phone", "Driving", "MiniGames", "PhotoMode", "Story", "Cinematics",
 	"MapApp", "InteriorUI", "InteriorLife", "BuilderUI", "MountainLife", "CityLife", "ViralApp", "MainMenu"}
 local C = {}
 for _, name in ipairs(modules) do
@@ -8,7 +8,7 @@ for _, name in ipairs(modules) do
 end
 -- the server leaves out big sections that didn't change; keep our last copy of those (same list as HEAVY in GameServer > Players)
 local HEAVY = {"archive", "homeInfo", "props", "districts", "market", "staff", "reviews", "tours", "shareable", "standings", "passes", "cars", "showcase", "biz", "warLeaders",
-	"rebirth", "unlocks", "fees", "spire", "map", "viral", "estate"}
+	"rebirth", "unlocks", "fees", "spire", "map", "viral", "estate", "explore"}
 local asked = 0
 C.R.State.OnClientEvent:Connect(function(s)
 	local prev = C.S
