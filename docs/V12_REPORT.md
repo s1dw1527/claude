@@ -111,6 +111,33 @@ tower is the picture. Compare against A "BUILD YOUR EMPIRE!" and C "OWN THE CITY
 **click-through rate with enough impressions** and also **retention** (a thumbnail that gets clicks but players leave in
 the first minutes isn't winning). Take the screenshots from the plaza with Photo Mode.
 
-## 9. Final results
+## 9. Final results (SIMULATED engine — not Roblox Studio)
 
-(see the end of this file — filled in by the last test run)
+Final run on the finished code: **26 suites, 1,397 checks, 0 failed.**
+
+| Suite | Result | | Suite | Result |
+|---|---|---|---|---|
+| admin | 55 / 55 | | mobile | **201 / 201** (was 193; +Empire app at 4 phone sizes) |
+| arcade | 38 / 38 | | perf | 11 / 11 |
+| business | 24 / 24 | | phone | 39 / 39 |
+| car | 36 / 36 | | phoneapp | 17 / 17 |
+| critical | 45 / 45 | | smoke | 5 / 5 |
+| data | 26 / 26 (v11 → v12 migration) | | story | 70 / 70 |
+| **empire (new)** | **64 / 64** | | terrain | 4 / 4 |
+| estate | 79 / 79 | | tutorial | 46 / 46 |
+| features | 156 / 156 | | v10_data | 15 / 15 |
+| guide | 17 / 17 | | v112 | 30 / 30 |
+| heist | 100 / 100 | | v9 | 75 / 75 |
+| home | 64 / 64 | | viral | 86 / 86 |
+| hq | 56 / 56 | | interior | 38 / 38 |
+
+Bugs the regression caught during v12 (all fixed before this run):
+- **Update-day payout flood** — `story_test` and `v9_test` failed because a rich pre-v12 save claimed and was paid every milestone at once. Fixed by recognizing, not paying, already-passed milestones (section 3).
+- **Empire Hall tab buttons 25 px tall on phones** — `mobile_test`; now 40 px.
+- **First income fired on purchase**, before the stand had sold anything; now on the stand's own first sales.
+
+Static checks: `luau-lsp` clean except the known `WorldFX.lua:59` false positive; API property check 0 problems.
+Build: `CornerEmpire_v12.rbxlx` extracts back to the 74 source scripts byte-for-byte; both drop-ins contain the new
+modules (`Empire`, `EmpirePlaza`, `EmpireUI`), `VERSION = "12.0.0"` and `DATASTORE = "CornerEmpire_v5"`.
+
+**Not run anywhere real:** Roblox Studio, a phone, real DataStores, real terrain, real rendering. See section 7.
