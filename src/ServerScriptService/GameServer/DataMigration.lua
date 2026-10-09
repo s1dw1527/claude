@@ -128,6 +128,8 @@ M.steps = {
 		if type(t.empire) == "table" and ((tonumber(t.earned) or 0) > 100 or (type(t.levels) == "table" and (tonumber(t.levels.lemonade) or 0) > 1)) then
 			if t.empire.firstIncome == false then t.empire.firstIncome = true end
 			if t.empire.firstUpgrade == false then t.empire.firstUpgrade = true end
+			-- milestones this save had already passed before v12 are recognized on the first check, not paid again
+			if t.empire.seeded ~= true then t.empire.legacy = true end
 		end
 		return notes
 	end,
@@ -135,7 +137,7 @@ M.steps = {
 -- every new v12 field and its safe default
 function M.v12Defaults()
 	return {
-		empire = {ms = {}, best = 0, pub = 0, pubAt = 0, firstIncome = false, firstUpgrade = false, visits = 0},
+		empire = {ms = {}, best = 0, pub = 0, pubAt = 0, firstIncome = false, firstUpgrade = false, visits = 0, legacy = false, seeded = false},
 	}
 end
 -- every new v11 field and its safe default

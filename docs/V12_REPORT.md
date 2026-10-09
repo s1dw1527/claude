@@ -18,7 +18,7 @@ additive migration. Nothing was published to Roblox. Install **both** `updates/G
 | 3 | Empire Showcase / Hall of Fame | **Empire Plaza** on the beach (map marker 👑, teleport `plaza`, 📱 Empire app). Two billboards list the richest empires with business name, value and verified milestone badges. The **Empire Hall** window shows the top 10 with **🚶 Visit** buttons. Rankings are shared across servers (section 4). |
 | 4 | Business makeovers | New brand field **storefront style**: Classic, Modern, Neon Nights, Retro Diner (free), Luxury Gold ($10M), Billionaire ($1B). Works with the existing sign colour, accent, exterior colour, logo and name. Picked in the Empire Hall → 🎨 Makeovers. |
 | 5 | Grand Opening events | The first time a business reaches a **new building tier** it plays a *Grand Re-Opening*: NPC customers rush the door, confetti, burst and shockwave, a camera shot, a CityBuzz post. Once per business and tier, never repeated. |
-| 6 | First Business tutorial | Steps 1–2 reworded shorter ("Open your first business…", "Customers are paying you!…"). Added a **💵 FIRST INCOME!** moment (burst over the stand) and a **⭐ FIRST UPGRADE!** moment. Veterans get neither (the migration marks them done). |
+| 6 | First Business tutorial | Steps 1–2 reworded shorter ("Open your first business…", "Customers are paying you!…"). Added a **💵 FIRST INCOME!** moment (fires on the stand's own first sales, a few seconds after opening it; burst over the stand) and a **⭐ FIRST UPGRADE!** moment. Veterans get neither (the migration marks them done). |
 | 7 | Thumbnail moments, as real gameplay | (a) the plaza: a tiny "🍋 DAY ONE $0" stand beside a giant golden tower labelled $1,000,000,000; (b) the **HQ reveal** cinematic when you build an HQ floor; (c) the **billionaire celebration** (tower crown, beam, fireworks, cinematic). All happen in normal play; the admin panel can replay them for testing. |
 | 8 | Mobile UI | No layout change. The Empire Hall is an ordinary modal (same window system as every other menu). The notification stack, CityBuzz feed and phone layout are unchanged; `mobile_test` still passes (section 6). |
 
@@ -42,7 +42,16 @@ be inflated by clicking.
 - Claimed once per save (`empire.ms[key]` = time). The record is repaired on every read.
 - Rewards are paid by the same code that claims. A rebirth resets businesses but not the claimed-milestone record, so nothing is paid twice.
 - Locked storefront styles are refused on the server.
+- Admin "give cash" does not count as earnings, so it can't unlock a milestone either.
 - The admin "test celebration" plays the show and **claims and pays nothing**.
+
+### Update day for existing players
+
+A save from before v12 that is *already* past some milestones is **recognized, not paid**: on its first check the
+milestones it already passed are recorded (badges, tower crown, storefront unlocks, Hall of Fame tags) with one
+"👑 WELCOME BACK, BILLIONAIRE!" banner, but no cash, reputation, followers or viral score is paid for them. Otherwise a
+veteran billionaire would receive $11.1M + 1,600 rep the moment the update goes live (the regression suite caught exactly
+that). Every milestone reached **after** the update is celebrated and paid normally.
 
 ## 4. Hall of Fame storage
 
@@ -69,14 +78,16 @@ New place instead? Open `CornerEmpire_v12.rbxlx`, set the pass IDs and owner, pu
 
 Results are filled in at the end of this file (section 9) from the final run.
 
-New `tests/empire_test.lua` covers: value rules and NaN safety; milestone verification (no real earnings = no claim,
+New `tests/empire_test.lua` covers: update day (a pre-v12 rich save is recognized, not paid; a later milestone is paid); value rules and NaN safety; milestone verification (no real earnings = no claim,
 real earnings = claim, no double pay, client can't claim or send a value, a huge jump claims all); damaged milestone
 record repair; the tower crown; storefront style rules (free styles, locked styles refused, unknown style refused,
 every style builds); the plaza and board text; hall ranking, visit flags and bad visit input; tier opening once only;
 first-income / first-upgrade once only; short tutorial text; the Empire Hall window tabs; the admin test tool.
 `tests/data_test.lua` covers the v11 → v12 migration (cash, levels, brand, heists and unknown fields kept, original
-untouched, damaged record repaired, a crashing step refused). `tests/mobile_test.lua` was made timing-robust (it now
-waits for a state packet before measuring the notification stack — the failures were test timing, not a layout bug).
+untouched, damaged record repaired, a crashing step refused). `tests/mobile_test.lua` now also opens 📱 → 👑 Empire at
+390×700, 430×932, 393×852 and 375×667 and checks every tab's buttons sit inside the window and are ≥ 28 px tall (it
+caught 25 px tab buttons, now 40 px). It was also made timing-robust: it measures right after a state packet, and holds off
+random city events (a real mega event's bar took a stack slot mid-check — correct layout behaviour, wrong test setup).
 
 ## 7. Needs a real Roblox Studio / phone test
 
@@ -84,7 +95,8 @@ waits for a state packet before measuring the notification stack — the failure
 - [ ] Map → 👑 Empire Plaza → Visit teleports you there
 - [ ] 📱 Empire app opens the Empire Hall on a phone (390×700) and desktop; tabs, Visit buttons and style Apply buttons are tappable
 - [ ] Admin panel → Heists tab → 👑 Test $1M / $1B celebration plays fireworks, a splash, the cinematic and a CityBuzz post — and your cash and tier do **not** change
-- [ ] On a test save, give yourself income + cash past $1M (admin): the claim happens within ~5 s, paid once; the tower grows floors and a crown; restart the server and confirm it is still claimed and not paid twice
+- [ ] On a fresh test save, play (or use the 4x Money pass) until lifetime earnings pass $200K and empire value passes $1M — admin cash alone won't count, by design. The claim happens within ~5 s and is paid once; the tower grows floors and a crown; rejoin and confirm it is still claimed and not paid twice
+- [ ] Load an existing rich save (back up first): one WELCOME BACK banner, crown and badges appear, cash does not jump
 - [ ] Each storefront style looks right on a stand and a shop (Neon, Retro, Luxury, Billionaire); sign text still readable; renaming still updates the sign
 - [ ] Upgrade a business to a new building tier → Grand Re-Opening with crowd, once
 - [ ] Build an HQ floor → HQ reveal cinematic

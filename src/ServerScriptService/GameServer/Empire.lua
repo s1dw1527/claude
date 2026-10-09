@@ -34,6 +34,8 @@ local function rec(d)
 	e.visits = (type(e.visits) == "number" and e.visits >= 0) and e.visits or 0
 	e.firstIncome = e.firstIncome == true
 	e.firstUpgrade = e.firstUpgrade == true
+	e.legacy = e.legacy == true
+	e.seeded = e.seeded == true
 	return e
 end
 C.EMPIRE_MS = {}
@@ -239,6 +241,28 @@ function F.checkEmpire(plr, d, now)
 	local e = rec(d)
 	local v = F.empireValue(d)
 	if v > e.best then e.best = v end
+	-- update day for a save from before v12: the milestones it already passed are RECOGNIZED (badges, tower,
+	-- storefronts, one banner) but not paid out again. Only milestones reached from now on pay rewards.
+	if not e.seeded then
+		e.seeded = true
+		if e.legacy then
+			local top
+			for _, m in ipairs(MS) do
+				if not e.ms[m.key] and v >= m.value and (tonumber(d.earned) or 0) >= m.value * E.earnedShare then
+					e.ms[m.key] = os.time()
+					top = m
+					if F.achieve then F.achieve(plr, "empire_" .. m.key) end
+				end
+			end
+			if top then
+				if F.refreshTower then F.refreshTower(plr, true) end
+				for _, bz in ipairs(C.BUSINESSES) do if (d.levels[bz.key] or 0) > 0 then F.refreshBuilding(plr, bz.key, false) end end
+				R.Splash:FireClient(plr, top.icon .. " WELCOME BACK, " .. top.name .. "!", "Your empire is already worth $" .. fmt(v) .. ". The city noticed: look at your tower.", top.color)
+				F.empirePublish(plr, d, true)
+			end
+			return nil
+		end
+	end
 	local claimed
 	for _, m in ipairs(MS) do
 		if not e.ms[m.key] and v >= m.value and (tonumber(d.earned) or 0) >= m.value * E.earnedShare then
@@ -282,7 +306,16 @@ end
 -- called from the main loop (every 5 s per player)
 function F.empireTick(plr, d, now)
 	local e = rec(d)
-	if not e.firstIncome and (tonumber(d.earned) or 0) >= 25 and (d.levels.lemonade or 0) > 0 then F.empireFirst(plr, "income") end
+	-- first income = the first money the new stand makes (the empty corner earns a trickle before it, which doesn't count)
+	if not e.firstIncome and (d.levels.lemonade or 0) > 0 then
+		local earned = tonumber(d.earned) or 0
+		if type(e.incomeBase) ~= "number" then
+			e.incomeBase = earned
+		elseif earned >= e.incomeBase + 10 then
+			e.incomeBase = nil
+			F.empireFirst(plr, "income")
+		end
+	end
 	F.checkEmpire(plr, d, now)
 	F.empirePublish(plr, d, false)
 end

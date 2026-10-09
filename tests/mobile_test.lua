@@ -20,7 +20,8 @@ H.main(function()
 		H.task.wait(0.5)
 	end
 	d.tut = 0
-	C.G.nextEvent = H.now() + 3600
+	C.G.nextEvent = H.now() + 1e6   -- no city events during the layout checks (a mega event's bar would take a stack slot)
+	C.MEGA_STATE.nextAt = H.now() + 1e6
 	H.task.wait(2)
 	local L = cc.Layout
 	local gui = cc.gui
@@ -313,6 +314,9 @@ H.main(function()
 
 		-- the real tutorial card is off for these checks: the server re-sends its state every second, which would race with forcing cards visible
 		d.tut = 0
+		if C.MEGA_STATE.active then C.F.endMega() end
+		C.MEGA_STATE.nextAt = H.now() + 1e6
+		C.G.nextEvent = H.now() + 1e6
 		H.task.wait(1.2)
 		-- run each measurement right after a state packet, so the next one is a full second away
 		local gotPacket = false
@@ -510,6 +514,40 @@ H.main(function()
 		closeAll()
 		H.check(#bad == 0, "every window (" .. (function() local n = 0 for _ in pairs(cc.modals) do n += 1 end return n end)() .. ") fits: ≤ 92% wide, ≤ 85% tall, text ≥ 80%, close button inside, one at a time" .. (#bad > 0 and (": " .. table.concat(bad, ", ")) or ""))
 		H.check(#big == 0, "nothing inside a window sticks out of it" .. (#big > 0 and (": " .. table.concat(big, " | ")) or ""))
+
+		-- v12: the 👑 Empire app on this screen: opens from the phone, every tab's buttons sit inside the window and are thumb-sized
+		cc.togglePhone(true)
+		cc.phoneView("home")
+		for _, b in ipairs(find("Phone"):GetDescendants()) do
+			if b.ClassName == "TextButton" and b.Text == "👑" and b.Size.X.Offset == 56 then click(b) end
+		end
+		H.task.wait(1.5)
+		local em = cc.modals.empireHall
+		local ebad, tabsSeen = {}, 0
+		local function checkEmpire(tab)
+			local wr = rect(em.frame)
+			local n = 0
+			for _, b in ipairs(em.body:GetDescendants()) do
+				if b.ClassName == "TextButton" and shown(b) then
+					n += 1
+					local r = rect(b)
+					if r.x < wr.x - 1 or r.x + r.w > wr.x + wr.w + 1 then table.insert(ebad, tab .. ": '" .. b.Text .. "' sticks out " .. fmtR(r)) end
+					if r.h < 28 then table.insert(ebad, tab .. ": '" .. b.Text .. "' only " .. math.floor(r.h) .. " px tall") end
+				end
+			end
+			if n > 0 then tabsSeen += 1 end
+		end
+		H.check(em and em.frame.Visible and not cc.phoneOpen(), "📱 → 👑 Empire opens the Empire Hall (and closes the phone)")
+		checkEmpire("hall")
+		for _, tab in ipairs({"Milestones", "Makeovers"}) do
+			for _, b in ipairs(em.body:GetDescendants()) do
+				if b.ClassName == "TextButton" and tostring(b.Text):find(tab) then click(b) break end
+			end
+			checkEmpire(tab)
+		end
+		local er = rect(em.frame)
+		H.check(tabsSeen == 3 and #ebad == 0 and inside(er, sc), "Empire Hall on " .. w .. "×" .. h .. ": 3 tabs, every button inside the window and ≥ 28 px tall" .. (#ebad > 0 and (": " .. table.concat(ebad, ", ")) or ""))
+		closeAll()
 
 		-- the Arcade app on this screen: vertical game cards with PLAY
 		cc.togglePhone(true)

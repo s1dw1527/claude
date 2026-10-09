@@ -146,7 +146,13 @@ H.main(function()
 	local dc = T.newGame(f1, 1, 1)
 	dc.tut = 0
 	H.check(dc.empire and dc.empire.firstIncome == false and dc.empire.firstUpgrade == false, "a new save starts with both firsts unclaimed")
-	F.empireFirst(f1, "income")
+	dc.cash = math.max(dc.cash, 100)
+	T.act(f1, "buy", "lemonade")
+	H.task.wait(0.3)
+	H.check((dc.levels.lemonade or 0) >= 1 and dc.empire.firstIncome == false, "buying the stand is not 'first income' yet (the corner's trickle doesn't count)")
+	local t0 = H.now()
+	while not dc.empire.firstIncome and H.now() - t0 < 60 do H.task.wait(1) end
+	H.check(dc.empire.firstIncome == true, "💵 FIRST INCOME fires once the stand itself has made money (" .. math.floor(H.now() - t0) .. " s)")
 	F.empireFirst(f1, "income")
 	H.check(dc.empire.firstIncome == true, "first income marks once")
 	F.empireFirst(f1, "upgrade")
@@ -176,6 +182,25 @@ H.main(function()
 	H.check(ok == true and F.empireTier(d) == tier0, "the admin 'test celebration' tool plays the show and claims nothing (" .. tostring(msg) .. ")")
 	local bad, _ = C.ADMIN_TOOLS.empireShow.run(a, {target = 999})
 	H.check(bad == false, "the admin tool refuses a missing player")
+	calm()
+
+	H.section("Update day: a rich save from before v12")
+	local dan = T.join("Dan", 104)
+	rawget(T.slotStore(), "_data")["u104_s1"] = {SchemaVersion = 11, cash = 5e7, earned = 3e8, rep = 1500, tut = 0, tutPaid = 7,
+		levels = {lemonade = 10, icecream = 10, bakery = 8}, staff = {}, cars = {}, viral = {score = 0}}
+	T.act(dan, "menuPlay", 1)
+	H.task.wait(8)
+	local dd = T.data(dan)
+	H.check(dd and dd.empire and dd.empire.legacy == true and dd.empire.seeded == true, "the migration marks it as a pre-v12 save, and the first check ran")
+	H.check(F.empireTier(dd) == 2, "milestones it had already passed are recognized ($1M, $10M): tier " .. F.empireTier(dd))
+	H.check(dd.cash < 5e7 + F.incomePerSec(dd) * 10 + 1, "...but NOT paid out again on update day (cash " .. C.fmt(dd.cash) .. ")")
+	H.check((dd.viral and dd.viral.score or 0) == 0, "...and no viral score flood")
+	H.check(dd.achievements and dd.achievements["empire_" .. C.EMPIRE_MILESTONES[2].key], "the badges are given")
+	dd.cash = 2e8
+	local cashBefore = dd.cash
+	local newly = F.checkEmpire(dan, dd, H.now())
+	H.check(newly and #newly == 1 and newly[1].key == C.EMPIRE_MILESTONES[3].key and dd.cash >= cashBefore + C.EMPIRE_MILESTONES[3].cash,
+		"a milestone reached AFTER the update is celebrated and paid normally")
 	calm()
 
 	T.assertClean("empire test run")
