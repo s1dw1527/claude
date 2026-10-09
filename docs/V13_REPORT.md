@@ -170,6 +170,41 @@ Bugs the new tests caught and that are fixed:
   - friends leaderboards plus exploration and robbery boards
 - **E — Polish:** scheduled special-occasion events with saved rewards; the staged 10-step first ten minutes; more district set pieces; a device and performance pass.
 
-## 9. Final results
+## 9. Final results (SIMULATED engine, not Roblox Studio)
 
-(filled in from the final run, below)
+Final run on the finished code: **29 suites, 1,482 checks, 0 failed.**
+
+| Suite | Result | | Suite | Result |
+|---|---|---|---|---|
+| admin | 55 / 55 |  interior | 38 / 38 |
+| arcade | 38 / 38 |  **lifecycle (new)** | 11 / 11 |
+| business | 24 / 24 |  mobile | 201 / 201 |
+| car | 36 / 36 |  perf | 11 / 11 |
+| **city (new)** | 37 / 37 |  phone | 39 / 39 |
+| critical | 45 / 45 |  phoneapp | 17 / 17 |
+| data | 26 / 26 |  smoke | 5 / 5 |
+| empire | 64 / 64 |  story | 70 / 70 |
+| estate | 79 / 79 |  terrain | 4 / 4 |
+| **explore (new)** | 37 / 37 |  tutorial | 46 / 46 |
+| features | 156 / 156 |  v10_data | 15 / 15 |
+| guide | 17 / 17 |  v112 | 30 / 30 |
+| heist | 100 / 100 |  v9 | 75 / 75 |
+| home | 64 / 64 |  viral | 86 / 86 |
+| hq | 56 / 56 |  | |
+
+About `lifecycle_test`. In the full run it failed once: CityBuzz posts arriving mid-test added rows. That is bounded
+content (the feed shows at most 25 posts), not a leak. Two changes followed:
+- the test now fills the feed to its cap before measuring;
+- anything that grows is re-measured over 6 more opens, and only growth that repeats counts as a leak.
+
+Results after the changes:
+- 9 runs in a row passed;
+- a **deliberately planted leak** (one extra connection per open of the 👑 Empire app) was caught and reported as
+  `👑 Empire: +18 live connections from EmpireUI:138`; the planted line was then removed.
+
+Static checks: `luau-lsp` clean except the known `WorldFX.lua:59` false positive; API property check 0 problems.
+Build: `CornerEmpire_v13.rbxlx` extracts back to all 77 source scripts byte-for-byte. The drop-ins contain the new
+modules (`Explore`, `CityCrowd`, `ExploreUI`), `VERSION = "13.0.0"` and `DATASTORE = "CornerEmpire_v5"`.
+
+**Not run anywhere real:** Roblox Studio, a phone, real DataStores, real text filtering, real rendering or physics.
+See section 7.

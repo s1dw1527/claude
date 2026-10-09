@@ -122,9 +122,11 @@ H.main(function()
 		return m
 	end
 	local leaks, opened, worst = {}, 0, 0
-	for _, app in ipairs(apps) do
+	-- one app: two warm-up opens (unless already warm), then REOPENS more; what grew by >= 1 per open?
+	local function measureApp(app, warm)
 		local before, p0
-		for cycle = 1, 2 + REOPENS do
+		local found = {}
+		for cycle = warm and 2 or 1, 2 + REOPENS do
 			openApp(app.icon)
 			local visible = cc.phoneOpen()
 			for _, m in pairs(cc.modals) do if m.frame.Visible then visible = true end end
@@ -137,17 +139,34 @@ H.main(function()
 			end
 		end
 		H.task.wait(1.2)
+		local most = 0
 		for k, n in pairs(liveByLine()) do
 			local g = n - (before[k] or 0)
-			worst = math.max(worst, g)
-			if g >= REOPENS then table.insert(leaks, string.format("%s %s: +%d live connections from %s", app.icon, app.name, g, k)) end
+			most = math.max(most, g)
+			if g >= REOPENS then table.insert(found, string.format("+%d live connections from %s", g, k)) end
 		end
 		for k, n in pairs(paths()) do
 			local g = n - (p0[k] or 0)
-			worst = math.max(worst, g)
-			if g >= REOPENS then table.insert(leaks, string.format("%s %s: +%d × %s", app.icon, app.name, g, k)) end
+			most = math.max(most, g)
+			if g >= REOPENS then table.insert(found, string.format("+%d × %s", g, k)) end
+		end
+		return found, most
+	end
+	local noise = {}
+	for _, app in ipairs(apps) do
+		local found, most = measureApp(app, false)
+		worst = math.max(worst, most)
+		if #found > 0 then
+			-- a real leak grows again on the next 6 opens; something else going on in the game at that moment doesn't
+			local again = measureApp(app, true)
+			if #again > 0 then
+				for _, f in ipairs(again) do table.insert(leaks, app.icon .. " " .. app.name .. ": " .. f) end
+			else
+				table.insert(noise, app.icon .. " " .. app.name .. " (" .. table.concat(found, "; ") .. ", not repeated)")
+			end
 		end
 	end
+	if #noise > 0 then print("  (one-off growth that did not repeat: " .. table.concat(noise, " | ") .. ")") end
 	H.check(opened == #apps, opened .. " / " .. #apps .. " apps open something when tapped")
 	H.check(#leaks == 0, "no app leaks on reopen: nothing grows once per open (6 reopens after warm-up; largest growth of one code line or UI element: " .. worst .. ")"
 		.. (#leaks > 0 and (":\n      " .. table.concat(leaks, "\n      ")) or ""))
