@@ -446,6 +446,12 @@ function F.refreshBuilding(plr, key, animate)
 		billboard(base, UDim2.fromOffset(220, 54), V3(0, top + 2, 0), {{text = b.tiers[stage], h = 0.58}, status}, 170)
 	end
 	if F.empireDress then F.empireDress(m, o, d, key, top, F.empireTier and F.empireTier(d) or 0) end
+	-- v14: the owner can run the counter (Rush Orders)
+	if C.RECIPES and C.RECIPES[key] then
+		C.prompt(base, "🍳 Rush orders", b.tiers[stage], 14, 0.2, function(who)
+			if who == plr then F.cookStart(plr, key) else C.notify(who, "🍳 Only the owner runs this counter.") end
+		end)
+	end
 	m:SetAttribute("Top", top)
 	m.Parent = plot.folder
 	plot.slots[key] = m

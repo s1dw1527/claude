@@ -92,7 +92,7 @@ R.Customer.OnClientEvent:Connect(function(c)
 		segs[i] = len
 		total += len
 	end
-	table.insert(customers, {n = makePerson(c.npc), pts = pts, segs = segs, total = total, t = c.t, age = 0, review = c.review, door = c.door, shout = c.shout})
+	table.insert(customers, {n = makePerson(c.npc), pts = pts, segs = segs, total = total, t = c.t, age = 0, review = c.review, door = c.door, shout = c.shout, icon = c.icon, item = c.item})
 end)
 
 -- (v13: the pedestrians and traffic that used to loop around fixed rectangles here are now CityCrowd: a pool that
@@ -267,7 +267,8 @@ RunService.RenderStepped:Connect(function(dt)
 		if c.age >= c.t then
 			removePerson(c.n)
 			table.remove(customers, i)
-			local lines = {{"💵", GREEN}}
+			-- (v14: what was actually bought, e.g. "🍕 Luigi's Margherita", then the money)
+			local lines = c.icon and {{c.icon .. " " .. (c.item or ""), WHITE}, {"💵", GREEN}} or {{"💵", GREEN}}
 			if c.review then lines = {{stars(c.review.stars), GOLD}, {"\"" .. c.review.text .. "\"", WHITE}} end
 			-- fans who recognize the owner (story chapter 3+)
 			if c.shout then table.insert(lines, 1, {"🗣️ " .. c.shout, RGB(255, 140, 200)}) end

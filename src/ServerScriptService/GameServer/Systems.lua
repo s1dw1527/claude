@@ -91,6 +91,7 @@ function F.bizMult(d, key)
 	if F.productMult then m *= F.productMult(d, key) end
 	if F.stockMult then m *= F.stockMult(d, key) end
 	if G.megaBiz and G.megaBiz[key] then m *= G.megaBiz[key] end
+	if F.rushMult then m *= F.rushMult(d, key) end   -- v14: Rush Orders (Kitchen)
 	if d.problems[key] then m *= 0.5 end
 	return m
 end
@@ -314,7 +315,11 @@ function F.spawnCustomer(plr, d, now)
 	end
 	-- from story chapter 3 on, some customers recognize you and shout something
 	local shout = F.storyShout and plr and F.storyShout(plr, d) or nil
-	R.Customer:FireAllClients({plot = plot.index, npc = ti, start = start, entry = entry, door = V3(door.X, 1, door.Z), t = travel, review = review, shout = shout, owner = plr.UserId})
+	-- (v14: which business and which of its products, so the sale shows what was actually bought)
+	local plist = F.productsOf and F.productsOf(d, key) or {}
+	local item = #plist > 0 and plist[math.random(#plist)].name or nil
+	R.Customer:FireAllClients({plot = plot.index, npc = ti, start = start, entry = entry, door = V3(door.X, 1, door.Z), t = travel, review = review, shout = shout, owner = plr.UserId,
+		icon = BIZ[key].icon, item = item})
 	task.delay(travel, function()
 		if data[plr] == d then F.serveCustomer(plr, d, key, t, review) end
 	end)

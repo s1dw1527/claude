@@ -190,7 +190,7 @@ local function drawJob(now)
 	local j = E.job
 	if not j then dogPos = nil return end
 	local ts = j.targets or {}
-	if j.kind == "courier" then
+	if j.kind == "courier" or j.kind == "catering" then
 		local p = ts[1] and V3(ts[1][1], ts[1][2], ts[1][3])
 		if p and not j.carrying then
 			parcel.Transparency = 0

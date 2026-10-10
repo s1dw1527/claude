@@ -24,7 +24,7 @@ H.main(function()
 	end
 
 	H.section("Tips")
-	H.check(#C.GUIDE_TIPS == 30, "30 contextual tips (18 from v10 + 9 for the mountain and heists + 3 for Explore)")
+	H.check(#C.GUIDE_TIPS == 31, "31 contextual tips (18 from v10 + 9 for the mountain and heists + 3 for Explore + Rush Orders)")
 	local mk = #H.remoteLog
 	H.check(d.tut and d.tut > 0, "a new player starts in the opening tutorial")
 	F.guideTip(a, "claimProperty")

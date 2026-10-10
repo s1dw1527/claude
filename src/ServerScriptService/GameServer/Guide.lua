@@ -36,6 +36,7 @@ C.GUIDE_TIPS = {
 	{key = "heistsApp", icon = "📱", title = "The Heists app", text = "Jobs, your current job, crew invites, gear and the police scanner — all in the 💰 Heists phone app."},
 	{key = "robberyTeam", icon = "🤝", title = "Crews", text = "Some jobs need 2+ people. Invite players from the Heists app; a crew shares one target, so bring friends because it's safer."},
 	-- v13: the living city
+	{key = "rushOrders", icon = "🍳", title = "Rush Orders", text = "Tap the recipe steps in order before the customer loses patience. Perfect dishes earn tips and a sales rush for this business (+25% per dish for 20 s). Three misses end the shift; walking away ends it too."},
 	{key = "explore", icon = "🧭", title = "Go explore", text = "Phone → 🧭 Explore: City Jobs (courier runs, lost dogs, street clean-ups), 30 hidden Golden Corners and every place on the map pay you to get out there."},
 	{key = "goldenCorner", icon = "✨", title = "Golden Corners", text = "30 of them, at street corners all over the city. Finish a district's set for a bonus; the 🧭 Explore app gives a hint for each one you're missing."},
 	{key = "cityJob", icon = "💼", title = "City Jobs", text = "Follow the beam to each stop. Do it on foot or by car: a teleport cancels the job. The pay is a slice of your income, so it keeps up as you grow."},

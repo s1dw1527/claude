@@ -10,18 +10,22 @@ local GOLD, GREEN, GRAY, WHITE, SUB, CARD, BLUE = C.GOLD, C.GREEN, C.GRAY, C.WHI
 local cat = C.catalog.interiors
 if not cat then return end
 
-local bar = C.panel({AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 148), Size = UDim2.fromOffset(470, 44), BackgroundColor3 = RGB(36, 30, 50), Visible = false}, gui)
-local barL = label({Position = UDim2.fromOffset(10, 0), Size = UDim2.new(1, -220, 1, 0), TextSize = 13, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left,
+local bar = C.panel({AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 148), Size = UDim2.fromOffset(560, 44), BackgroundColor3 = RGB(36, 30, 50), Visible = false}, gui)
+local barL = label({Position = UDim2.fromOffset(10, 0), Size = UDim2.new(1, -320, 1, 0), TextSize = 13, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left,
 	TextTruncate = Enum.TextTruncate.AtEnd}, bar)
 local decoB = button({AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -96, 0.5, 0), Size = UDim2.fromOffset(110, 32), Text = "🛋️ Decorate", TextSize = 13, BackgroundColor3 = RGB(200, 90, 160)}, bar)
 local leaveB = button({AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -6, 0.5, 0), Size = UDim2.fromOffset(84, 32), Text = "🚪 Leave", TextSize = 13, BackgroundColor3 = GRAY}, bar)
 leaveB.MouseButton1Click:Connect(function() play(SND.click) act("leaveInterior") end)
+-- v14: run the counter (Rush Orders) in your own business
+local cookB = button({AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -212, 0.5, 0), Size = UDim2.fromOffset(96, 32), Text = "🍳 Cook", TextSize = 13, BackgroundColor3 = RGB(210, 110, 40), Visible = false}, bar)
+local cookKey
+cookB.MouseButton1Click:Connect(function() play(SND.click) if cookKey then act("cookStart", cookKey) end end)
 C.interiorBar, C.interiorBarLabel = bar, barL   -- (BuilderUI adds its Build button here)
 bar.Name = "InteriorBar"
 -- phone layout: the top notification stack, two lines (the name on top, the buttons under it)
 C.Layout.slot(bar, "top", 8, {compactHeight = 74, onCompact = function(c)
 	barL.Position = c and UDim2.fromOffset(10, 2) or UDim2.fromOffset(10, 0)
-	barL.Size = c and UDim2.new(1, -20, 0, 28) or UDim2.new(1, -220, 1, 0)
+	barL.Size = c and UDim2.new(1, -20, 0, 28) or UDim2.new(1, -320, 1, 0)
 	for _, b in ipairs(bar:GetChildren()) do
 		if b:IsA("TextButton") then
 			b.AnchorPoint = c and Vector2.new(1, 1) or Vector2.new(1, 0.5)
@@ -194,6 +198,8 @@ C.onState(function(s)
 	end
 	barL.Text = (st.key == "home" and "🏠 " or "🏪 ") .. st.owner .. "'s " .. st.name .. "   " .. C.stars(st.stars) .. "  score " .. st.score
 	decoB.Visible = st.mine
+	cookKey = (st.mine and st.key ~= "home") and st.key or nil
+	cookB.Visible = cookKey ~= nil
 	if panel.Visible then
 		-- redraw when something changed (an item placed, a style picked, cash crossed a price)
 		local sig = st.score .. tostring(st.wall) .. tostring(st.floor) .. tostring(st.light) .. math.floor(s.cash / 100)

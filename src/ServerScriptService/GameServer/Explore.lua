@@ -21,11 +21,12 @@ local X = {
 	placeSecs = 30, placeMin = 75, placeRadius = {Landmark = 45, ["Business district"] = 80, Neighborhood = 80},
 	setSecs = 120, setMin = 500,           -- a district's whole set
 	allSecs = 900, allMin = 25000,         -- all 30
-	offers = 3, refreshEvery = 480, cooldown = 15,
+	offers = 4, refreshEvery = 480, cooldown = 15,
 	jobs = {
 		courier = {icon = "📦", name = "Courier run", secs = 90, min = 250, rep = 4},
 		pet = {icon = "🐶", name = "Lost dog", secs = 75, min = 200, rep = 6},
 		cleanup = {icon = "🧹", name = "Street clean-up", secs = 60, min = 150, rep = 5},
+		catering = {icon = "🎂", name = "Catering order", secs = 120, min = 400, rep = 8},   -- v14: needs a food business
 	},
 	reach = 9,        -- how close counts as "there" for a job step
 	petExpire = 360,
@@ -289,6 +290,25 @@ local function makeOffer(plr, kind)
 		o.who, o.dog = rnd(NAMES), rnd(DOGS)
 		o.text = o.who .. "'s dog " .. o.dog .. " ran off! Last seen near " .. pet.road .. " (" .. zoneName(pet.pos) .. "). Find " .. o.dog .. " and walk them home."
 		o.bonus = 1
+	elseif kind == "catering" then
+		-- one of YOUR food businesses cooks it; you take it to the party
+		local d = data[plr]
+		local own = {}
+		for _, k in ipairs({"lemonade", "icecream", "bakery", "coffee", "pizza"}) do if d and (d.levels[k] or 0) > 0 then table.insert(own, k) end end
+		local key = own[math.random(#own)]
+		local door = (F.slotCF(d.plot, key) * CFrame.new(0, 0, 9)).Position
+		local party = pointBetween(door, 200, 520)
+		local dist = (door - party.pos).Magnitude
+		local list = F.productsOf and F.productsOf(d, key) or {}
+		local item = #list > 0 and list[math.random(#list)].name or C.BIZ[key].name
+		local who = rnd({"A birthday party", "An office lunch", "A wedding rehearsal", "A soccer team", "A movie night", "A family reunion"})
+		local qty = math.random(8, 24)
+		o.stops = {V3(door.X, 0.3, door.Z), party.pos}
+		o.limit = math.floor(dist / 12 + 50)
+		o.key = key
+		o.text = who .. " on " .. party.road .. " (" .. zoneName(party.pos) .. ") ordered " .. qty .. " × " .. C.BIZ[key].icon .. " " .. item .. " from " .. (F.bizName and F.bizName(d, key) or C.BIZ[key].name)
+			.. ". Pick it up at your business, then deliver within " .. o.limit .. " s."
+		o.bonus = 1 + math.min(1, dist / 900)
 	else
 		local center = pointBetween(here, 100, 380)
 		local pts = {}
@@ -312,6 +332,10 @@ end
 local function refreshOffers(plr, st)
 	st.offers = {}
 	for _, k in ipairs({"courier", "pet", "cleanup"}) do table.insert(st.offers, makeOffer(plr, k)) end
+	local d = data[plr]
+	local food = false
+	for _, k in ipairs({"lemonade", "icecream", "bakery", "coffee", "pizza"}) do if d and (d.levels[k] or 0) > 0 then food = true end end
+	if food and F.slotCF and d.plot then table.insert(st.offers, makeOffer(plr, "catering")) end
 	st.nextRefresh = os.clock() + X.refreshEvery
 end
 local function stateOf(plr)
@@ -339,7 +363,7 @@ function F.cityJobView(plr)
 			if p then targets = {{p.X, p.Y, p.Z}} end
 		end
 		view.active = {kind = a.kind, icon = a.icon, name = a.name, text = a.text, step = a.step, steps = #a.stops, left = left, targets = targets,
-			dog = a.dog, who = a.who, carrying = a.kind == "pet" and a.step == 2 or (a.kind == "courier" and a.step == 2), got = a.gotN}
+			dog = a.dog, who = a.who, carrying = a.step == 2 and (a.kind == "pet" or a.kind == "courier" or a.kind == "catering"), got = a.gotN}
 	end
 	return view
 end
@@ -380,6 +404,7 @@ function F.cityJobTake(plr, i)
 	if o.kind == "courier" then st.active.text = "📦 Go to the pickup point (follow the beam)." end
 	if o.kind == "pet" then st.active.text = "🐶 Find " .. o.dog .. " (follow the beam)." end
 	if o.kind == "cleanup" then st.active.text = "🧹 Bag the litter piles (follow the beam)." end
+	if o.kind == "catering" then st.active.text = "🎂 Go to your business to pick up the order (follow the beam)." end
 	if F.guideTip then F.guideTip(plr, "cityJob") end
 	push(plr)
 	return true
@@ -416,15 +441,17 @@ local function jobTick(plr, d, pos)
 	elseif at(a.stops[a.step]) then
 		if a.step == 1 then
 			a.step = 2
-			if a.kind == "courier" then
+			if a.kind == "courier" or a.kind == "catering" then
 				a.deadline = now + a.limit
-				a.text = "📦 Parcel picked up! Deliver it within " .. a.limit .. " s (follow the beam)."
+				a.text = a.kind == "catering" and ("🎂 Order packed! Get it to the party within " .. a.limit .. " s (follow the beam).")
+					or ("📦 Parcel picked up! Deliver it within " .. a.limit .. " s (follow the beam).")
 			else
 				a.text = "🐶 You found " .. a.dog .. "! Walk them back to " .. a.who .. "."
 			end
 			push(plr)
 		else
-			endJob(plr, st, true, a.kind == "courier" and "Delivered on time." or (a.who .. " is so happy to have " .. a.dog .. " back!"))
+			endJob(plr, st, true, (a.kind == "courier" and "Delivered on time.") or (a.kind == "catering" and "The party loved it! (+reputation)")
+				or (a.who .. " is so happy to have " .. a.dog .. " back!"))
 		end
 	end
 end
