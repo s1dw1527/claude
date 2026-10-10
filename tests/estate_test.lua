@@ -105,7 +105,7 @@ H.main(function()
 	H.check(F.locationMult(d, "lemonade") > 1, string.format("a location adds income: x%.2f", F.locationMult(d, "lemonade")))
 	-- more reputation: more capacity, district caps and rising prices
 	d.rep = 1300   -- CITY ICON
-	H.check(F.propertyCapacity(d) == 6, "CITY ICON: 6 properties")
+	H.check(F.propertyCapacity(d) == 7, "CITY ICON: 7 properties")
 	d.cash = 1e9
 	local dt1, dt2, dt3 = nil, nil, nil
 	for _, l in ipairs(LOTS) do

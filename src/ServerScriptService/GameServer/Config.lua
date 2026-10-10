@@ -343,7 +343,7 @@ C.STAFF_ROLES = {
 	marketer = {role = "Marketer", icon = "📣", cost = 120000, desc = "+6% customers per star"},
 	engineer = {role = "Engineer", icon = "🔧", cost = 30000, desc = "Fewer problems, cheaper repairs"},
 }
-C.STAFF_ORDER = {"lemonade", "icecream", "bakery", "coffee", "pizza", "arcade", "tech", "factory", "manager", "marketer", "engineer"}
+C.STAFF_ORDER = {"lemonade", "icecream", "bakery", "coffee", "pizza", "arcade", "tech", "factory", "theater", "manager", "marketer", "engineer"}
 C.NAMES = {"Alex", "Sam", "Jordan", "Riley", "Casey", "Morgan", "Taylor", "Jamie", "Avery", "Quinn", "Maya", "Leo", "Zoe", "Omar", "Priya", "Kai", "Nina", "Luca", "Ivy", "Theo", "Rosa", "Ben", "Aria", "Milo"}
 
 C.PROBLEMS = {

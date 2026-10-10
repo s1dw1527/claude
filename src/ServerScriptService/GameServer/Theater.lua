@@ -162,6 +162,7 @@ function F.theaterShow(plr)
 	if premiere then
 		t.premiered[film.key] = true
 		F.addRep(plr, TH.premiereRep)
+		if F.rivalAct then F.rivalAct(plr, "premiere", "theater") end
 		F.buzz("🎬", "PREMIERE NIGHT: " .. film.icon .. " " .. film.title .. " opened at " .. plr.Name .. "'s " .. name .. " (" .. guests .. " guests)!", BIZ.theater.color)
 		C.burst((F.slotCF(d.plot, "theater") * CFrame.new(0, 12, 6)).Position, RGB(255, 220, 120), 80)
 	end

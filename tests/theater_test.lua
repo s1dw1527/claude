@@ -150,10 +150,9 @@ H.main(function()
 	local cap0 = F.theaterInfo(a).capacity
 	local c0 = d.cash
 	local upCost = F.theaterUpCost(0)
-	T.act(a, "theaterUp", "seats")
-	H.task.wait(0.3)
+	F.theaterUpgrade(a, "seats")
 	local paid = c0 - d.cash
-	H.check(d.theater.up.seats == 1 and F.theaterInfo(a).capacity > cap0 and paid <= upCost and paid >= upCost - F.incomePerSec(d) * 2, "💺 Seats level 1: " .. cap0 .. " → " .. F.theaterInfo(a).capacity .. " seats for $" .. C.fmt(upCost))
+	H.check(d.theater.up.seats == 1 and F.theaterInfo(a).capacity > cap0 and paid == upCost, "💺 Seats level 1: " .. cap0 .. " → " .. F.theaterInfo(a).capacity .. " seats for $" .. C.fmt(upCost) .. " (paid " .. C.fmt(paid) .. ")")
 	local f0 = F.theaterInfo(a).fill
 	T.act(a, "theaterUp", "screen")
 	H.task.wait(0.3)
@@ -225,6 +224,9 @@ H.main(function()
 	local c1 = d.cash
 	H.check(deed2 and F.setDeedBiz(a, deed2.id, "theater") and d.cash == c1 and d.plot.slots.theater == lot2.folder, "choosing it on a new plot moves it there for free")
 	H.check(F.theaterShow(a) ~= nil, "...and the shows go on")
+	local lot3 = lotIn("suburbs") or lotIn("midtown")
+	local deed3 = F.buyPlot(a, lot3)
+	H.check(deed3 and F.setDeedBiz(a, deed3.id, "theater") == false and deed3.biz == nil and d.plot.slots.theater == lot2.folder, "one theater per empire: it can't be on two plots")
 
 	H.section("Saved")
 	local okSave = F.save and F.save(a)

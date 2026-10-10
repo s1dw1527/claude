@@ -43,7 +43,7 @@ local SAVE_KEYS = {"cash", "levels", "chains", "staff", "combos", "rep", "ep", "
 	-- v13
 	"city",
 	-- v14
-	"theater"}
+	"theater", "rivals"}
 -- everything this version writes itself; any OTHER field found in a save is kept as-is when saving
 local KNOWN_KEYS = {lots = true, props = true, SchemaVersion = true, saveSeq = true, gameVersion = true, savedAt = true}
 for _, k in ipairs(SAVE_KEYS) do KNOWN_KEYS[k] = true end
@@ -480,7 +480,8 @@ function F.sendState(plr, now)
 	for _, slot in ipairs(STAFF_ORDER) do
 		local s = d.staff[slot]
 		staff[slot] = {hired = s ~= nil, name = s and s.name, service = s and s.service, speed = s and s.speed, exp = s and s.exp,
-			trainCost = (s and s.exp < 5) and F.trainCost(slot, s) or nil, hireCost = F.hireCost(slot), locked = BIZ[slot] ~= nil and (d.levels[slot] or 0) <= 0}
+			trainCost = (s and s.exp < 5) and F.trainCost(slot, s) or nil, hireCost = F.hireCost(slot), locked = BIZ[slot] ~= nil and (d.levels[slot] or 0) <= 0,
+			crew = F.crewView and F.crewView(s) or nil}
 	end
 	local problems = {}
 	for key, pr in pairs(d.problems) do
@@ -975,10 +976,11 @@ R.Action.OnServerEvent:Connect(function(plr, action, a, b, c)
 			return
 		end
 		d.cash -= cost
-		d.staff[a] = {name = cand.name, service = cand.service, speed = cand.speed, exp = cand.exp}
+		d.staff[a] = {name = cand.name, service = cand.service, speed = cand.speed, exp = cand.exp, trait = cand.trait or nil, shift = "flex", xp = 0}
 		d.cands[a] = nil
 		d.seen.roles[a] = true
 		notify(plr, "👋 Hired " .. cand.name .. " as your " .. STAFF_ROLES[a].role .. "!")
+		if F.rivalAct then F.rivalAct(plr, "hire", a) end
 		R.Menu:FireClient(plr, "closeCandidates")
 		if F.refreshWorkers then F.refreshWorkers(plr) end
 		if F.cineStaff then F.cineStaff(plr, d, a, cand.name, true) end
@@ -1193,7 +1195,7 @@ do
 		for k, t in pairs(FEATURES) do features[k] = {tier = t, tierName = REP_TIERS[t].name, name = FEATURE_NAMES[k]} end
 		local tiers = {}
 		for i, t in ipairs(REP_TIERS) do tiers[i] = {name = t.name, rep = t.rep, unlocks = t.unlocks} end
-		return {cars = cars, passes = passes, staff = staff, ads = ads, npcs = npcs, chains = #CHAINS, rentals = rentals,
+		return {cars = cars, passes = passes, staff = staff, ads = ads, npcs = npcs, chains = #CHAINS, rentals = rentals, traits = C.TRAITS,
 			features = features, tiers = tiers, presets = C.PRESET_COUNT, minigames = MINIGAMES, homeLevels = HOME_LEVELS,
 			story = C.storyCatalog and C.storyCatalog() or nil, map = C.mapCatalog and C.mapCatalog() or nil, version = C.VERSION,
 			explore = F.exploreCatalog and F.exploreCatalog() or nil,

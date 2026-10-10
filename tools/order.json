@@ -42,6 +42,8 @@
     "Explore",
     "Kitchen",
     "Theater",
+    "Crew",
+    "Rivals",
     "Updates",
     "Players"
   ],
@@ -64,6 +66,7 @@
     "ActivityLog",
     "KitchenUI",
     "TheaterUI",
+    "RivalsUI",
     "ComputerUI",
     "GarageUI",
     "ArcadeUI",

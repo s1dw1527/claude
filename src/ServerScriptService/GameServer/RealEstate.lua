@@ -28,7 +28,9 @@ local WHITE = RGB(250, 250, 250)
 
 -- ===== limits =====
 C.ESTATE = {
-	capacity = {1, 2, 4, 6, 9, 12},   -- properties (plots + rental buildings) by reputation tier
+	-- properties (plots + rental buildings) by reputation tier. v14 review: +1 from HOTSPOT up, the tier that unlocks
+	-- the Movie Theater (which needs a plot of its own), so opening it never means giving up a rental or a location
+	capacity = {1, 2, 5, 7, 10, 13},
 	rebirthPer = 10, rebirthMax = 4,  -- +1 capacity per 10 rebirths, up to +4
 	priceStep = 1.25,                 -- each extra plot in the same district costs 25% more
 	sellBack = 0.5,                   -- selling refunds half of what you paid
@@ -270,6 +272,14 @@ function F.setDeedBiz(plr, deedId, key)
 	if deed.biz and changedAt[deed] and now - changedAt[deed] < E.changeCooldown then
 		notify(plr, "🏙️ You just changed this plot. Try again in " .. math.ceil(E.changeCooldown - (now - changedAt[deed])) .. "s.")
 		return false
+	end
+	-- one Movie Theater per empire: it can move to another plot, not be on two
+	if b.lotOnly then
+		local other = F.siteDeed(d, key)
+		if other and other ~= deed then
+			notify(plr, b.icon .. " Your " .. b.name .. " is already on your " .. (DISTRICT[other.district] and DISTRICT[other.district].name or "other") .. " plot. Choose something else there first to move it.")
+			return false
+		end
 	end
 	local opening = (d.levels[key] or 0) <= 0
 	if opening then

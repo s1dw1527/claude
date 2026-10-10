@@ -207,7 +207,7 @@ end
 -- opts.expanded: fn() → true while the card is open because the PLAYER opened it (the CityBuzz feed).
 local slots = {}
 -- Who gets a place first when more than L.STACK_MAX cards are showing. Cards that need an answer come first.
-local PRIORITY = {TutorialCard = 1, ProblemCard = 2, DeliveryCard = 3, PoliceAlertBar = 4, CityJobCard = 4.5, HeistBagHUD = 5, RacePanel = 6, MegaBar = 7, BeefPill = 8,
+local PRIORITY = {TutorialCard = 1, ProblemCard = 2, DeliveryCard = 3, PoliceAlertBar = 4, CityJobCard = 4.5, RivalCard = 4.7, HeistBagHUD = 5, RacePanel = 6, MegaBar = 7, BeefPill = 8,
 	ViralMomentPopup = 9, StoryPill = 10, InteriorBar = 11, AchievementCard = 12, GuideTip = 13, RivalBubble = 14, HouseTourPanel = 15, BuzzFeed = 99}
 local scheduleReflow, adaptOne
 function L.slot(frame, where, order, opts)

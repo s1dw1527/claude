@@ -189,6 +189,7 @@ function F.cookDone(plr, id, seq)
 	rush[d][sh.key] = {mult = math.min(K.rushMax, cur + K.rushPer), untilT = now + K.rushTime}
 	if sh.served % 3 == 0 and F.addRep then F.addRep(plr, 1) end
 	R.Menu:FireClient(plr, "cookResult", {ok = true, tip = tip, streak = sh.streak, rush = rush[d][sh.key].mult, served = sh.served})
+	if F.rivalAct then F.rivalAct(plr, "cook", sh.key) end
 	-- the customer walks out happy, in the world
 	local door = doorOf(d, sh.key)
 	if door then C.burst(door + V3(0, 4, 0), BIZ[sh.key].color, 12) end

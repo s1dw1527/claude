@@ -130,14 +130,22 @@ end
 do
 	local m = modal("staff", "👥  STAFF", 640, 540)
 	label({Size = UDim2.new(1, -8, 0, 34), TextSize = 13, TextColor3 = SUB, TextWrapped = true, LayoutOrder = 0,
-		Text = "Each employee has ★ Service, Speed and Experience. Service makes customers happier (better reviews). Train them to level up!"}, m.body)
+		Text = "Each employee has ★ Service, Speed and Experience, and often a trait. Pick their shift: 🔄 Flex (all day), ☀️ Day or 🌙 Night (×1.3 on shift, ×0.7 off). They learn on the job, or train them."}, m.body)
+	local SHIFT_NEXT = {flex = "day", day = "night", night = "flex"}
 	local rows = {}
 	for i, st in ipairs(catalog.staff) do
 		local row = card(m.body, 70, i)
 		label({Position = UDim2.fromOffset(8, 0), Size = UDim2.fromOffset(44, 70), Text = st.icon, TextSize = 28}, row)
 		label({Position = UDim2.fromOffset(56, 6), Size = UDim2.new(1, -260, 0, 20), Text = st.role, TextSize = 15, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left}, row)
 		local r = {desc = st.desc}
-		r.info = label({Position = UDim2.fromOffset(56, 26), Size = UDim2.new(1, -260, 0, 40), TextSize = 12, TextColor3 = SUB, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top, TextWrapped = true}, row)
+		r.info = label({Position = UDim2.fromOffset(56, 26), Size = UDim2.new(1, -370, 0, 40), TextSize = 12, TextColor3 = SUB, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top, TextWrapped = true}, row)
+		-- v14: the shift (tap to switch Flex → Day → Night)
+		r.shift = button({Position = UDim2.new(1, -306, 0.5, 0), AnchorPoint = Vector2.new(0, 0.5), Size = UDim2.fromOffset(104, 48), TextSize = 12, TextWrapped = true, BackgroundColor3 = RGB(70, 80, 120), Visible = false}, row)
+		r.shift.Name = "Shift_" .. st.slot
+		r.shift.MouseButton1Click:Connect(function()
+			play(SND.click)
+			if r.cur then act("crewShift", st.slot, SHIFT_NEXT[r.cur] or "flex") end
+		end)
 		r.b1 = button({Position = UDim2.new(1, -196, 0.5, 0), AnchorPoint = Vector2.new(0, 0.5), Size = UDim2.fromOffset(110, 48), TextSize = 12, TextWrapped = true}, row)
 		r.b2 = button({Position = UDim2.new(1, -80, 0.5, 0), AnchorPoint = Vector2.new(0, 0.5), Size = UDim2.fromOffset(72, 48), TextSize = 12, Text = "Fire", BackgroundColor3 = RED}, row)
 		r.b1.MouseButton1Click:Connect(function()
@@ -152,8 +160,13 @@ do
 			local st = s.staff[slot]
 			r.hired = st.hired
 			r.b2.Visible = st.hired
+			r.shift.Visible = st.hired and st.crew ~= nil
 			if st.hired then
-				r.info.Text = st.name .. "   Service " .. stars(st.service) .. "  Speed " .. stars(st.speed) .. "  Exp " .. stars(st.exp) .. "\n" .. r.desc
+				local cw = st.crew
+				r.cur = cw and cw.shift
+				if cw then r.shift.Text = cw.shiftName .. "\n" .. (cw.working and "working" or "off now") end
+				r.info.Text = st.name .. (cw and cw.trait and ("  " .. cw.traitIcon .. " " .. cw.trait) or "") .. "\nService " .. stars(st.service) .. "  Speed " .. stars(st.speed) .. "  Exp " .. stars(st.exp)
+					.. (cw and st.trainCost and ("  📖 " .. cw.xp .. "/" .. cw.xpStar) or "")
 				if st.trainCost then
 					r.b1.Text = "📚 Train\n$" .. fmt(st.trainCost)
 					r.b1.BackgroundColor3 = s.cash >= st.trainCost and BLUE or GRAY
@@ -187,7 +200,7 @@ do
 		corner(c, 10)
 		local e = {}
 		e.name = label({Position = UDim2.fromOffset(0, 6), Size = UDim2.new(1, 0, 0, 26), TextSize = 18, Font = Enum.Font.GothamBlack}, c)
-		e.stats = label({Position = UDim2.fromOffset(8, 34), Size = UDim2.new(1, -16, 0, 90), TextSize = 14, TextYAlignment = Enum.TextYAlignment.Top, TextColor3 = GOLD}, c)
+		e.stats = label({Position = UDim2.fromOffset(8, 34), Size = UDim2.new(1, -16, 0, 110), TextSize = 13, TextWrapped = true, TextYAlignment = Enum.TextYAlignment.Top, TextColor3 = GOLD}, c)
 		e.btn = button({Position = UDim2.new(0.5, 0, 1, -8), AnchorPoint = Vector2.new(0.5, 1), Size = UDim2.new(1, -16, 0, 40), Text = "HIRE", TextSize = 15}, c)
 		e.btn.MouseButton1Click:Connect(function() play(SND.click) act("hire", curSlot, i) end)
 		cands[i] = e
@@ -203,7 +216,10 @@ do
 			for i, e in ipairs(cands) do
 				local cand = b[i]
 				e.name.Text = cand.name
+				local tr
+				for _, t in ipairs(catalog.traits or {}) do if t.key == cand.trait then tr = t end end
 				e.stats.Text = "Service  " .. stars(cand.service) .. "\nSpeed     " .. stars(cand.speed) .. "\nExp        " .. stars(cand.exp)
+					.. (tr and ("\n" .. tr.icon .. " " .. tr.name .. ": " .. tr.text) or "\n(no trait)")
 			end
 			cp.Visible = true
 		elseif kind == "closeCandidates" then

@@ -77,7 +77,7 @@ function F.bizMult(d, key)
 	if ev and ev.biz and ev.biz[key] then m *= ev.biz[key] end
 	if G.viralKey == key then m *= 3 end
 	local s = d.staff[key]
-	if s then m *= 1 + E.staffPerStar * staffStars(s) end
+	if s then m *= 1 + E.staffPerStar * staffStars(s) * (F.crewFactor and F.crewFactor(s) or 1) end   -- v14: shifts + traits (Crew)
 	for _, c in ipairs(COMBOS) do
 		if d.combos[c.key] and table.find(c.needs, key) then m *= c.mult end
 	end
@@ -92,7 +92,8 @@ function F.bizMult(d, key)
 	if F.stockMult then m *= F.stockMult(d, key) end
 	if G.megaBiz and G.megaBiz[key] then m *= G.megaBiz[key] end
 	if F.rushMult then m *= F.rushMult(d, key) end   -- v14: Rush Orders (Kitchen)
-	if F.theaterMult then m *= F.theaterMult(d, key) end   -- v14: how full the Movie Theater's shows are (Theater)
+	if F.theaterMult then m *= F.theaterMult(d, key) end
+	if F.rivalMult then m *= F.rivalMult(d, key) end   -- v14: market share against the AI rivals (Rivals)   -- v14: how full the Movie Theater's shows are (Theater)
 	if d.problems[key] then m *= 0.5 end
 	return m
 end
@@ -231,6 +232,7 @@ function F.satisfaction(d, key)
 	local s = 66
 	local st = d.staff[key]
 	if st then s += st.service * 3 end
+	if F.crewSatisfaction then s += F.crewSatisfaction(d, key) end   -- v14: a Charmer on staff
 	local n = 0
 	for _ in pairs(d.problems) do n += 1 end
 	if d.problems[key] then s -= 30 end
@@ -449,6 +451,7 @@ function F.buyUpgrade(plr, d, key)
 	end
 	if lvl == 0 and key ~= "lemonade" and F.storyEvent then F.storyEvent(plr, "newBusiness", key) end
 	if lvl == 0 and F.refreshDoors then F.refreshDoors(plr) end
+	if F.rivalAct then F.rivalAct(plr, "upgrade", key) end   -- v14: pushing rivals back (Rivals)
 	-- v10: a new business gets a name (the client asks; "keep the default" is fine too)
 	if lvl == 0 and F.askBizName then task.defer(F.askBizName, plr, key) end
 	-- v9: grand opening. Every first opening gets its signature moment; bigger businesses often draw a crowd.
@@ -534,6 +537,7 @@ function F.makeProblem(plr, d, now)
 	end
 	if #owned == 0 then return end
 	local key = owned[math.random(#owned)]
+	if F.crewSteady and F.crewSteady(d, key) and math.random() < 0.5 then return end   -- v14: Steady Hands on staff
 	local ti = math.random(C.PROBLEM_RANDOM)   -- (the story's inspection is a problem type too, but never a random one)
 	if d.rebirths >= 50 then
 		notify(plr, "🔧 Your crew auto-fixed a problem at your " .. BIZ[key].name .. " (" .. PROBLEMS[ti].text .. ")")
@@ -699,6 +703,7 @@ function F.runAd(plr, d, key, now)
 	d.adUntil = now + ad.dur
 	if ad.marketing then d.marketing = true end
 	F.buzz("📣", plr.Name .. "'s " .. ad.name .. " is live!", RGB(255, 170, 60))
+	if F.rivalAct then F.rivalAct(plr, "ad") end
 	F.checkCombos(plr, d)
 end
 
