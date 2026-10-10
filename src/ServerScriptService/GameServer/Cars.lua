@@ -381,6 +381,7 @@ function F.spawnCar(plr, key, at)
 	seat:SetAttribute("Brake", spec.brake or 1)
 	seat:SetAttribute("NitroPower", spec.nitro or 1.4)
 	seat:SetAttribute("Class", spec.class or "")
+	if F.applyTuning then F.applyTuning(plr, seat, key) end   -- v14: tuning + role (Vehicles)
 	-- keep the car upright WITHOUT locking its heading. (Before v8 this constraint held all three axes, so
 	-- every physics step it pulled the car back to the heading it had at the start of the frame and ate
 	-- most of the steering: cars barely turned and slid sideways instead. Now it only keeps the car's

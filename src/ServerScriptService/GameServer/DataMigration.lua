@@ -165,6 +165,8 @@ function M.v14Defaults()
 		coop = {biz = {}, of = {}},                              -- co-owned businesses: members of mine, partnerships I'm in
 		loft = {level = 0},                                      -- City Loft in the Skyline Lofts (0 = none)
 		party = {hosted = 0, guests = 0, best = 0, lastAt = 0, favorAt = 0},
+		tune = {},                                               -- car tuning levels per car
+		prestige = {stars = {}},                                 -- prestige goals reached (key -> time)
 	}
 end
 -- every new v13 field and its safe default

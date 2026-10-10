@@ -49,7 +49,7 @@ local function render()
 		cl.BackgroundTransparency = 0.1   -- (C.label always makes labels see-through: the colored pill never showed, so the dark class name was invisible on the dark card)
 		corner(cl, 6)
 		local price = c.pass and "🎟️ Game Pass" or (c.rebirths and ("👑 " .. c.rebirths .. " rebirths") or ("$" .. fmt(c.price)))
-		txt(row, c.speed .. " MPH  •  " .. price, UDim2.fromOffset(152, 31), UDim2.new(1, -350, 0, 18), 11, SUB)
+		txt(row, c.speed .. " MPH  •  " .. price .. (c.role and ("  •  " .. c.role.icon .. " " .. c.role.name) or ""), UDim2.fromOffset(152, 31), UDim2.new(1, -350, 0, 18), 11, SUB)
 		-- stat bars
 		for k, st in ipairs(STATS) do
 			local x = 62 + ((k - 1) % 4) * 112
@@ -130,7 +130,23 @@ local function renderCustom()
 	if not (info and c) then return end
 	for _, car in ipairs(info.cars) do if car.key == c.key then c = car cmCar = car end end
 	local mods = c.mods or {}
-	txt(cm.body, c.name .. "  •  looks only: customizing never changes speed.", UDim2.new(), UDim2.new(1, -8, 0, 20), 13, GOLD, true).LayoutOrder = 0
+	-- v14: the car's role and its performance tuning (the only thing that changes how it drives, checked on the server)
+	if c.role then
+		txt(cm.body, c.role.icon .. " " .. c.role.name .. ": " .. c.role.text, UDim2.new(), UDim2.new(1, -8, 0, 20), 13, WHITE, true).LayoutOrder = -20
+	end
+	if c.tune then
+		header(cm.body, "🔧 Performance tuning (small steps, up to +10% top speed)", -19)
+		local tf = new("Frame", {Size = UDim2.new(1, -8, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, LayoutOrder = -18}, cm.body)
+		new("UIGridLayout", {CellSize = UDim2.fromOffset(146, 52), CellPadding = UDim2.fromOffset(4, 4), SortOrder = Enum.SortOrder.LayoutOrder}, tf)
+		for i, t in ipairs(c.tune) do
+			local can = t.cost and (C.S and C.S.cash or 0) >= t.cost
+			local b = btn(tf, t.icon .. " " .. t.name .. " " .. string.rep("●", t.level) .. string.rep("○", t.max - t.level) .. "\n" .. (t.cost and ("$" .. fmt(t.cost) .. "  (+" .. t.bonus .. "% " .. t.what .. ")") or ("MAX  (+" .. t.bonus .. "%)")),
+				UDim2.new(), UDim2.new(), t.cost and (can and GREEN or GRAY) or GOLD, function() if t.cost then act("carTune", c.key, t.key) end end, i)
+			b.Name = "Tune_" .. t.key
+			b.TextSize = 11
+		end
+	end
+	txt(cm.body, c.name .. "  •  looks only: paint and parts never change speed.", UDim2.new(), UDim2.new(1, -8, 0, 20), 13, GOLD, true).LayoutOrder = 0
 	local order = 1
 	for _, k in ipairs(KINDS) do
 		header(cm.body, k[2] .. (mods[k[1]] and ("  —  " .. mods[k[1]]) or "  —  stock"), order)

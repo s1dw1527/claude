@@ -615,7 +615,7 @@ function F.npcArrest(unit, target)
 	local value = r.bag * (r.mult or 1)
 	local fine = 0
 	if d then
-		fine = math.floor(math.max(0, math.min(d.cash * HC.police.fineCash, value * HC.police.fineLoot)))
+		fine = math.floor(math.max(0, math.min(d.cash * HC.police.fineCash, value * HC.police.fineLoot)) * (F.vehicleBonus and F.vehicleBonus(target, "fine") or 1))   -- (v14: 🕶️ Getaway)
 		d.cash -= fine
 		rec(d).failed += 1
 	end

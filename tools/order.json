@@ -47,6 +47,8 @@
     "Ledger",
     "Partners",
     "HomeLife",
+    "Vehicles",
+    "Leaders",
     "Updates",
     "Players"
   ],
@@ -72,6 +74,7 @@
     "RivalsUI",
     "PartnersUI",
     "HomeLifeUI",
+    "LeadersUI",
     "ComputerUI",
     "GarageUI",
     "ArcadeUI",

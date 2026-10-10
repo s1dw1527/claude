@@ -93,7 +93,8 @@ function F.bizMult(d, key)
 	if G.megaBiz and G.megaBiz[key] then m *= G.megaBiz[key] end
 	if F.rushMult then m *= F.rushMult(d, key) end   -- v14: Rush Orders (Kitchen)
 	if F.theaterMult then m *= F.theaterMult(d, key) end
-	if F.rivalMult then m *= F.rivalMult(d, key) end   -- v14: market share against the AI rivals (Rivals)   -- v14: how full the Movie Theater's shows are (Theater)
+	if F.rivalMult then m *= F.rivalMult(d, key) end   -- v14: market share against the AI rivals (Rivals)
+	if F.prestigeMult then m *= F.prestigeMult(d) end   -- v14: +1% per prestige star (Leaders)   -- v14: how full the Movie Theater's shows are (Theater)
 	if d.problems[key] then m *= 0.5 end
 	return m
 end
@@ -173,6 +174,7 @@ function F.addRep(plr, amount)
 	if not d then return end
 	if amount > 0 and F.homeHood(d) == "hills" then amount *= 1.15 end
 	if amount > 0 and (d.viralUntil or 0) > os.clock() then amount *= 2 end
+	if amount > 0 and F.vehicleBonus then amount *= F.vehicleBonus(plr, "rep") end   -- v14: 🎩 VIP car
 	local old = F.tierIndex(d.rep)
 	d.rep = math.max(0, d.rep + amount)
 	d.war.rep += amount

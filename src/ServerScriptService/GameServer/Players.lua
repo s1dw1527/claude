@@ -43,7 +43,7 @@ local SAVE_KEYS = {"cash", "levels", "chains", "staff", "combos", "rep", "ep", "
 	-- v13
 	"city",
 	-- v14
-	"theater", "rivals", "xfer", "coop", "loft", "party"}
+	"theater", "rivals", "xfer", "coop", "loft", "party", "tune", "prestige"}
 -- everything this version writes itself; any OTHER field found in a save is kept as-is when saving
 local KNOWN_KEYS = {lots = true, props = true, SchemaVersion = true, saveSeq = true, gameVersion = true, savedAt = true}
 for _, k in ipairs(SAVE_KEYS) do KNOWN_KEYS[k] = true end

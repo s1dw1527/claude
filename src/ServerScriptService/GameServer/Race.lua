@@ -239,6 +239,7 @@ task.spawn(function()
 								local prize = math.floor(st.fee * math.clamp(1.6 * RACE.par / t, 0.3, 3))
 								local driftBonus = math.floor(prize * RACE.driftBonusMax * math.clamp((st.drift or 0) / 100, 0, 1))
 								prize += driftBonus
+								if F.vehicleBonus then prize = math.floor(prize * F.vehicleBonus(plr, "race")) end   -- v14: 🏁 Racer
 								d.cash += prize
 								F.earn(d, prize)
 								local pb = not d.raceBest or t < d.raceBest

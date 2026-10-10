@@ -87,7 +87,8 @@ function F.garageInfo(plr)
 		local owned = F.ownsCar(plr, c)
 		table.insert(list, {key = c.key, name = F.carName(d, c.key), model = c.name, class = c.class, price = c.price or 0, pass = c.pass, rebirths = c.rebirths, owned = owned,
 			fav = g.fav[c.key] == true, equipped = g.equipped == c.key, active = active ~= nil and active.key == c.key, stats = F.carStats(c), speed = c.speed, color = c.color,
-			delivery = c.delivery, mods = owned and d.carMods[c.key] or nil, sellFor = (owned and not c.pass and not c.rebirths) and math.floor((c.price or 0) * 0.5) or nil, order = i})
+			delivery = c.delivery, mods = owned and d.carMods[c.key] or nil, sellFor = (owned and not c.pass and not c.rebirths) and math.floor((c.price or 0) * 0.5) or nil, order = i,
+			role = F.vehicleRole and select(2, F.vehicleRole(c)) or nil, tune = owned and F.tuneInfo and F.tuneInfo(d, c) or nil})
 	end
 	-- favorites first, then owned, then the rest in showroom order
 	table.sort(list, function(x, y)
