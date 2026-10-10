@@ -196,7 +196,7 @@ local function dropRobber(plr, why, countFail)
 	end
 	if plr.Parent then
 		setBagVisual(plr, false)
-		setArrestPrompt(plr, false)
+		setArrestPrompt(plr)
 		plr:SetAttribute("Robber", nil)
 		if why then notify(plr, why) end
 		local d = data[plr]
@@ -558,7 +558,7 @@ local function soundAlarm(H, why)
 		R.Splash:FireClient(mate, "🚨 " .. string.upper(s.name) .. " ALARM TRIGGERED", "Get out and RETURN TO THE MOUNTAIN HQ with the loot!", RGB(255, 80, 60))
 		local r = robbers[mate]
 		if r and not r.alarmAt then r.alarmAt = H.alarmAt end
-		setArrestPrompt(mate, true)
+		setArrestPrompt(mate)
 		pushState(mate)
 		if F.guideTip then F.guideTip(mate, "returnToMountain") end
 	end
