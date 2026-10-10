@@ -46,6 +46,7 @@
     "Rivals",
     "Ledger",
     "Partners",
+    "HomeLife",
     "Updates",
     "Players"
   ],
@@ -70,6 +71,7 @@
     "TheaterUI",
     "RivalsUI",
     "PartnersUI",
+    "HomeLifeUI",
     "ComputerUI",
     "GarageUI",
     "ArcadeUI",

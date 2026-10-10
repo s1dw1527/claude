@@ -163,6 +163,8 @@ function M.v14Defaults()
 		rivals = {p = {}, wins = 0, losses = 0, moves = 0},
 		xfer = {out = {}, got = {}, log = {}, seq = 0},          -- secure transfers (Ledger): pending sends, credited ids, history
 		coop = {biz = {}, of = {}},                              -- co-owned businesses: members of mine, partnerships I'm in
+		loft = {level = 0},                                      -- City Loft in the Skyline Lofts (0 = none)
+		party = {hosted = 0, guests = 0, best = 0, lastAt = 0, favorAt = 0},
 	}
 end
 -- every new v13 field and its safe default

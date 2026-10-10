@@ -16,6 +16,7 @@ local AUDIO = {
 		business = {},    -- inside a business (café / restaurant / shop music)
 		home = {},        -- at home (calm lounge)
 		chase = {},       -- the police are after you (tense)
+		party = {},       -- v14: at a home party (dance)
 	},
 	ambience = {
 		city = "",        -- traffic + crowd murmur (downtown, midtown, the center)
@@ -76,6 +77,7 @@ local MOODS = {
 	business = {step = 0.32, chords = {0, 9, 5, 7}, minor = false, vol = 0.08},
 	home = {step = 0.48, chords = {0, 5, 9, 7}, minor = false, vol = 0.06},
 	chase = {step = 0.18, chords = {0, 0, 8, 7}, minor = true, vol = 0.10},
+	party = {step = 0.16, chords = {0, 5, 9, 7}, minor = false, vol = 0.11},
 }
 A.MOODS = MOODS
 local MAJOR, MINOR = {0, 4, 7, 12}, {0, 3, 7, 12}
@@ -182,7 +184,9 @@ function A.moodNow()
 	local plr = C.plr
 	if C.HeistUI and C.HeistUI.chasing then return "chase" end
 	local interior = plr:GetAttribute("Interior")
-	if interior == "home" then return "home" end
+	-- v14: a party in the room you're in (HomeLifeUI keeps the list of parties)
+	if interior and C.partyAt and C.partyAt(plr:GetAttribute("InteriorOwner"), interior) then return "party" end
+	if interior == "home" or interior == "loft" then return "home" end
 	if interior then return "business" end
 	local t = Lighting.ClockTime
 	if t >= 19.5 or t < 6 then return "night" end

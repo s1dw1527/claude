@@ -133,7 +133,7 @@ local function roomData(d, key)
 	d.interiors = type(d.interiors) == "table" and d.interiors or {}
 	local r = d.interiors[key]
 	if type(r) ~= "table" then
-		r = {wall = "white", floor = key == "home" and "wood" or "tile", light = "basic", spots = {}}
+		r = {wall = "white", floor = (key == "home" or key == "loft") and "wood" or "tile", light = "basic", spots = {}}
 		d.interiors[key] = r
 	end
 	r.spots = type(r.spots) == "table" and r.spots or {}
@@ -776,6 +776,7 @@ local function buildRoom(room)
 		end
 	end
 	if key == "home" and C.buildHomeExtras then C.buildHomeExtras(m, o, L, d, owner, accent) end
+	if F.partyDress then pcall(F.partyDress, owner, key, m, o, L) end   -- v14: a party going on here (HomeLife)
 	if key == "arcade" and C.arcadeRoom then pcall(C.arcadeRoom, m, o, L, owner) end
 	room.spawn = o * CF(0, 3, L.d / 2 - 4)
 end
@@ -790,7 +791,8 @@ local function roomFor(owner, key)
 		nextSlot += 1
 		local d = data[owner]
 		local px = d and d.plot.index or 1
-		local idx = BIZ[key] and BIZ[key].index or (isHQ(key) and (10 + (tonumber(string.match(key, "%d")) or 0)) or 9)
+		-- (v14: the home moved from row 9 to row 20 because the 9th business, the Movie Theater, took row 9; the City Loft is row 21)
+		local idx = BIZ[key] and BIZ[key].index or (isHQ(key) and (10 + (tonumber(string.match(key, "%d")) or 0)) or (key == "loft" and 21 or 20))
 		-- far above the eastern edge of the map, each owner in their own column, each room in its own row
 		room = {owner = owner, key = key, occupants = {}, origin = CF(1800 + px * 160, 400, -600 + idx * 70)}
 		rooms[id] = room
@@ -820,6 +822,8 @@ function F.enterInterior(plr, owner, key)
 		if (od.levels[key] or 0) <= 0 then return end
 	elseif isHQ(key) then
 		if F.hqLevel(od) < tonumber(string.match(key, "%d")) then return end
+	elseif key == "loft" then
+		if not (type(od.loft) == "table" and (tonumber(od.loft.level) or 0) > 0) then return end
 	elseif key ~= "home" or not (od.home and od.home.level and od.home.level > 0) then
 		return
 	end
@@ -848,6 +852,7 @@ function F.enterInterior(plr, owner, key)
 	plr:SetAttribute("InteriorOwner", owner.UserId)
 	-- walking into someone's home counts as a visit (the same once-a-day rule as house tours)
 	if owner ~= plr and key == "home" and F.countHomeVisit then F.countHomeVisit(plr, owner) end
+	if F.partyArrive then F.partyArrive(plr, owner, key) end   -- v14: walking into a party (HomeLife)
 end
 function F.leaveInterior(plr)
 	local w = where[plr]
@@ -861,6 +866,11 @@ function F.leaveInterior(plr)
 	if char then char:PivotTo(w.back + Vector3.new(0, 2, 0)) end
 end
 function F.interiorOf(plr) return where[plr] and where[plr].room end
+-- v14: the room model of an owner's interior if it's built right now (parties decorate it)
+function F.interiorModel(owner, key)
+	local room = rooms[roomId(owner, key)]
+	return room and room.model and room.model.Parent and room.model or nil
+end
 -- rebuild the room a player is standing in (the house builder calls this after every change)
 function F.rebuildInteriorOf(plr)
 	local w = where[plr]
@@ -921,7 +931,7 @@ end
 -- ===== customizing (owner only, while inside that room) =====
 local function allowedFor(it, key)
 	if it.for_ == "any" then return true end
-	if it.for_ == "home" then return key == "home" end
+	if it.for_ == "home" then return key == "home" or key == "loft" end
 	if it.for_ == "biz" then return BIZ[key] ~= nil end
 	return it.for_ == key
 end
