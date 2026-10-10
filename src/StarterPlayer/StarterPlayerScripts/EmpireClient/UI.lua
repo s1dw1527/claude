@@ -17,8 +17,16 @@ C.catalog = C.GetCatalog:InvokeServer("catalog")
 function C.act(...) C.R.Action:FireServer(...) end
 
 C.BG, C.CARD = RGB(22, 24, 34), RGB(36, 40, 56)
-C.GOLD, C.GREEN, C.GRAY, C.RED, C.BLUE, C.PURPLE = RGB(255, 205, 70), RGB(70, 200, 110), RGB(74, 78, 96), RGB(220, 70, 80), RGB(60, 130, 230), RGB(140, 90, 230)
+-- (v14: GREEN is a little deeper so white text on green buttons is readable (3.8:1, was 2.8:1); green text on the dark
+-- panels stays readable too (4.9:1))
+C.GOLD, C.GREEN, C.GRAY, C.RED, C.BLUE, C.PURPLE = RGB(255, 205, 70), RGB(46, 170, 90), RGB(74, 78, 96), RGB(220, 70, 80), RGB(60, 130, 230), RGB(140, 90, 230)
 C.WHITE, C.SUB = Color3.new(1, 1, 1), RGB(175, 182, 205)
+-- v14 THEME: what each color MEANS, used the same way on every screen (and never alone: always with its icon or a word)
+--   💰 money / cash ....... GOLD        📈 income, gains, "go" buttons ... GREEN
+--   ⭐ reputation .......... GOLD        ⚠️ danger, losses, police ......... RED (+ an icon)
+--   ℹ️ info, travel, maps .. BLUE        👑 premium, special, selected ..... PURPLE
+-- Panels are dark navy with white text (high contrast on any background); secondary text is SUB.
+C.THEME = {money = C.GOLD, income = C.GREEN, rep = C.GOLD, danger = C.RED, info = C.BLUE, premium = C.PURPLE, panel = C.BG, card = C.CARD, text = C.WHITE, sub = C.SUB}
 
 function C.fmt(n)
 	n = math.floor((n or 0) + 0.5)
@@ -82,7 +90,11 @@ function C.button(props, parent)
 	local sc = new("UIScale", {}, b)
 	b.MouseEnter:Connect(function() tween(sc, 0.12, {Scale = 1.05}) end)
 	b.MouseLeave:Connect(function() tween(sc, 0.12, {Scale = 1}) end)
-	b.MouseButton1Down:Connect(function() tween(sc, 0.06, {Scale = 0.93}) end)
+	-- every press answers right away: a squeeze and a soft tap sound (v14)
+	b.MouseButton1Down:Connect(function()
+		tween(sc, 0.06, {Scale = 0.93})
+		if C.SND and C.SND.tap then C.play(C.SND.tap) end
+	end)
 	b.MouseButton1Up:Connect(function() tween(sc, 0.2, {Scale = 1.05}, Enum.EasingStyle.Back) end)
 	return b
 end
@@ -120,10 +132,16 @@ C.SND = {
 	click = sound("rbxasset://sounds/switch.wav", 0.4),
 	event = sound("rbxasset://sounds/snap.mp3", 0.6),
 	msg = sound("rbxasset://sounds/electronicpingshort.wav", 0.3),
+	tap = sound("rbxasset://sounds/switch.wav", 0.18),
 }
 C.settings = {music = true, musicVol = 5, sfx = true, crowd = "high", weather = true, units = "MPH", spawnAt = "business", cinematics = "full"}
+-- the same sound twice within a moment plays once (a button's tap + its click handler, two toasts at once)
+local lastPlayed = {}
 function C.play(s)
-	if not C.settings.sfx then return end
+	if not (s and C.settings.sfx) then return end
+	local now = os.clock()
+	if lastPlayed[s] and now - lastPlayed[s] < 0.06 then return end
+	lastPlayed[s] = now
 	pcall(function() SoundService:PlayLocalSound(s) end)
 end
 

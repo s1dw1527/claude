@@ -273,20 +273,81 @@ do
 			toastCap = toastCap or new("UITextSizeConstraint", {MaxTextSize = 14, MinTextSize = 10}, toastL)
 		end
 	end)
+	-- v14 TOASTS: short, one at a time, never lost.
+	--   * each toast gets a category (money / reputation / warning / info) shown as a colored edge AND an icon
+	--   * it stays 2-4.5 s depending on its length, then slides away
+	--   * the same message again within 4 s just bumps a "×2" counter
+	--   * while one is showing, the next ones wait (3 at most); anything beyond that goes straight to the
+	--     🔔 Activity log (phone) without interrupting, and the phone button shows an unread count
+	local edge = new("Frame", {Size = UDim2.new(0, 6, 1, 0), BorderSizePixel = 0, BackgroundColor3 = GOLD, ZIndex = 52}, toast)
+	corner(edge, 3)
+	local CATS = {
+		{key = "warn", color = RGB(235, 80, 80), find = {"⚠️", "🚨", "❌", "🔒", "🚓", "💀", "🔥", "⌛", "Not ", "can't", "Can't", "need", "Need"}},
+		{key = "money", color = GOLD, find = {"💰", "💵", "+$", "$"}},
+		{key = "rep", color = RGB(255, 225, 120), find = {"⭐", "🏆", "🎉", "✨", "👑"}},
+	}
+	local function catOf(msg)
+		for _, c in ipairs(CATS) do
+			for _, f in ipairs(c.find) do if msg:find(f, 1, true) then return c end end
+		end
+		return {key = "info", color = RGB(120, 170, 255)}
+	end
+	U.activity = {}          -- the last 50 notifications {t, msg, cat}
+	U.unread = 0
+	local queue, current, shownAt, lastMsg, repeats = {}, nil, 0, nil, 0
 	local id = 0
-	function U.toast(msg)
+	local function logIt(msg, cat)
+		table.insert(U.activity, 1, {t = os.time(), msg = msg, cat = cat.key})
+		while #U.activity > 50 do table.remove(U.activity) end
+		if U.onActivity then U.onActivity() end
+	end
+	local function show(msg)
 		id += 1
 		local mine = id
+		current, shownAt, lastMsg, repeats = msg, os.clock(), msg, 1
+		local cat = catOf(msg)
+		edge.BackgroundColor3 = cat.color
 		toastL.Text = msg
 		toast.Visible = true
 		toast.Position = UDim2.new(0.5, 0, 0, -60)
-		tween(toast, 0.4, {Position = UDim2.new(0.5, 0, 0, toastY)}, Enum.EasingStyle.Back)
-		play(SND.event)
-		task.delay(5, function()
+		tween(toast, 0.35, {Position = UDim2.new(0.5, 0, 0, toastY)}, Enum.EasingStyle.Back)
+		play(cat.key == "warn" and (SND.warn or SND.event) or (cat.key == "money" and (SND.cash or SND.event) or SND.event))
+		local life = math.clamp(2 + #msg * 0.03, 2, 4.5)
+		task.delay(life, function()
 			if id ~= mine then return end
-			tween(toast, 0.3, {Position = UDim2.new(0.5, 0, 0, -60)}, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
-			task.delay(0.3, function() if id == mine then toast.Visible = false end end)
+			tween(toast, 0.25, {Position = UDim2.new(0.5, 0, 0, -60)}, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+			task.delay(0.25, function()
+				if id ~= mine then return end
+				toast.Visible = false
+				current = nil
+				local nxt = table.remove(queue, 1)
+				if nxt then show(nxt) end
+			end)
 		end)
+	end
+	U.toastQueue = queue
+	function U.toast(msg)
+		msg = tostring(msg or "")
+		if msg == "" then return end
+		local cat = catOf(msg)
+		logIt(msg, cat)
+		-- the same message again: count it instead of showing it again
+		if current and msg == lastMsg and os.clock() - shownAt < 4 then
+			repeats += 1
+			toastL.Text = msg .. "  ×" .. repeats
+			return
+		end
+		for _, q in ipairs(queue) do if q == msg then return end end
+		if current then
+			if #queue < 3 then
+				table.insert(queue, msg)
+			else
+				U.unread += 1
+				if U.onActivity then U.onActivity() end
+			end
+			return
+		end
+		show(msg)
 	end
 	R.Announce.OnClientEvent:Connect(U.toast)
 end

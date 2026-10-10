@@ -45,7 +45,8 @@ local function render()
 		label({Size = UDim2.fromScale(1, 1), Text = c.delivery and "🚚" or (c.key == "moped" and "🛵" or "🚗"), TextSize = 24}, sw)
 		txt(row, (c.fav and "⭐ " or "") .. c.name .. (c.name ~= c.model and ("  (" .. c.model .. ")") or "") .. (c.equipped and "  🔑" or ""), UDim2.fromOffset(62, 6), UDim2.new(1, -260, 0, 22), 16, c.owned and WHITE or SUB, true)
 		local cl = label({Position = UDim2.fromOffset(62, 30), Size = UDim2.fromOffset(84, 18), Text = c.class, TextSize = 11, Font = Enum.Font.GothamBlack, BackgroundColor3 = CLASS_COLOR[c.class] or GRAY,
-			BackgroundTransparency = 0.2, TextColor3 = RGB(20, 20, 24)}, row)
+			TextColor3 = RGB(20, 20, 24)}, row)
+		cl.BackgroundTransparency = 0.1   -- (C.label always makes labels see-through: the colored pill never showed, so the dark class name was invisible on the dark card)
 		corner(cl, 6)
 		local price = c.pass and "🎟️ Game Pass" or (c.rebirths and ("👑 " .. c.rebirths .. " rebirths") or ("$" .. fmt(c.price)))
 		txt(row, c.speed .. " MPH  •  " .. price, UDim2.fromOffset(152, 31), UDim2.new(1, -350, 0, 18), 11, SUB)
@@ -76,7 +77,7 @@ local function render()
 				end)
 			end
 		elseif c.pass then
-			btn(row, "🎫 Get pass", UDim2.new(1, -150, 0, 8), UDim2.fromOffset(140, 34), RGB(235, 170, 30), function() act("pass", c.pass) end)
+			btn(row, "🎫 Get pass", UDim2.new(1, -150, 0, 8), UDim2.fromOffset(140, 34), RGB(235, 170, 30), function() act("pass", c.pass) end).TextColor3 = RGB(35, 25, 5)
 		elseif c.rebirths then
 			btn(row, "👑 Rebirth " .. c.rebirths, UDim2.new(1, -150, 0, 8), UDim2.fromOffset(140, 34), GRAY, function() end)
 		else

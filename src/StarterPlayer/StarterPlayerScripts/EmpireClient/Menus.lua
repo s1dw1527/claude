@@ -389,7 +389,8 @@ do
 	local spFill = bar(sp, UDim2.fromOffset(12, 56), UDim2.new(1, -24, 0, 12), RGB(120, 220, 255))
 	local spP = label({Position = UDim2.fromOffset(12, 70), Size = UDim2.new(1, -24, 0, 18), TextSize = 13, TextColor3 = GOLD, TextXAlignment = Enum.TextXAlignment.Left}, sp)
 	for i, b in ipairs({{"+$1K", "k1"}, {"+$10K", "k10"}, {"+10% cash", "p10"}, {"+50% cash", "p50"}, {"📍 Go", "tp"}}) do
-		local bt = button({Position = UDim2.new((i - 1) / 5, 4, 0, 96), Size = UDim2.new(1 / 5, -8, 0, 44), Text = b[1], TextSize = 13, BackgroundColor3 = b[2] == "tp" and BLUE or RGB(235, 160, 30)}, sp)
+		local bt = button({Position = UDim2.new((i - 1) / 5, 4, 0, 96), Size = UDim2.new(1 / 5, -8, 0, 44), Text = b[1], TextSize = 13, BackgroundColor3 = b[2] == "tp" and BLUE or RGB(235, 160, 30),
+			TextColor3 = b[2] == "tp" and WHITE or RGB(35, 25, 5)}, sp)   -- (gold buttons get dark text: readable)
 		bt.MouseButton1Click:Connect(function()
 			play(SND.click)
 			if b[2] == "tp" then
