@@ -161,6 +161,8 @@ function M.v14Defaults()
 	return {
 		theater = {up = {}, sessions = 0, tickets = 0, best = 0, filmShows = 0, premiered = {}},
 		rivals = {p = {}, wins = 0, losses = 0, moves = 0},
+		xfer = {out = {}, got = {}, log = {}, seq = 0},          -- secure transfers (Ledger): pending sends, credited ids, history
+		coop = {biz = {}, of = {}},                              -- co-owned businesses: members of mine, partnerships I'm in
 	}
 end
 -- every new v13 field and its safe default

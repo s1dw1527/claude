@@ -44,6 +44,8 @@
     "Theater",
     "Crew",
     "Rivals",
+    "Ledger",
+    "Partners",
     "Updates",
     "Players"
   ],
@@ -67,6 +69,7 @@
     "KitchenUI",
     "TheaterUI",
     "RivalsUI",
+    "PartnersUI",
     "ComputerUI",
     "GarageUI",
     "ArcadeUI",

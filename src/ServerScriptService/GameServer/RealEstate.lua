@@ -436,7 +436,7 @@ function F.buildLot(lot)
 			if C.RECIPES and C.RECIPES[key] then
 				local spot = P(f, V3(1, 1, 1), o * CF(3, 3, size / 2 - 3), WHITE, MAT.SmoothPlastic, {Transparency = 1, Name = "Counter"})
 				C.prompt(spot, "🍳 Rush orders", BIZ[key].name, 14, 0.2, function(who)
-					if who == plr then F.cookStart(plr, key) else notify(who, "🍳 Only the owner runs this counter.") end
+					if who == plr or (F.coopCan and F.coopCan(who, plr, key, "counter")) then F.cookStart(who, key, plr) else notify(who, "🍳 Only the owner and their partners run this counter.") end
 				end)
 			end
 			if key == "theater" then

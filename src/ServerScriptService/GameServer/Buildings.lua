@@ -519,7 +519,8 @@ function F.refreshBuilding(plr, key, animate)
 	-- v14: the owner can run the counter (Rush Orders)
 	if C.RECIPES and C.RECIPES[key] then
 		C.prompt(base, "🍳 Rush orders", b.tiers[stage], 14, 0.2, function(who)
-			if who == plr then F.cookStart(plr, key) else C.notify(who, "🍳 Only the owner runs this counter.") end
+			-- (v14: partners and managers too)
+			if who == plr or (F.coopCan and F.coopCan(who, plr, key, "counter")) then F.cookStart(who, key, plr) else C.notify(who, "🍳 Only the owner and their partners run this counter.") end
 		end)
 	end
 	m:SetAttribute("Top", top)

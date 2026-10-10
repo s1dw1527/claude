@@ -54,8 +54,9 @@ local function doorOf(d, key)
 	if not (d and d.plot and F.slotCF) then return nil end
 	return (F.slotCF(d.plot, key) * CF(0, 0, 9)).Position
 end
-local function atBusiness(plr, d, key)
-	if plr:GetAttribute("Interior") == key and plr:GetAttribute("InteriorOwner") == plr.UserId then return true end
+-- (d is the OWNER's data: v14 partners and managers can run a partner's counter)
+local function atBusiness(plr, d, key, owner)
+	if plr:GetAttribute("Interior") == key and plr:GetAttribute("InteriorOwner") == (owner or plr).UserId then return true end
 	local root, door = rootOf(plr), doorOf(d, key)
 	return root and door and (V3(root.Position.X, 0, root.Position.Z) - V3(door.X, 0, door.Z)).Magnitude <= K.walkAway or false
 end
@@ -85,7 +86,8 @@ end
 local CUSTOMER_NAMES = {office = "Office worker", family = "Family", student = "Student", gym = "Gym fan", builder = "Builder", rich = "Rich regular", tourist = "Tourist", kid = "Kid"}
 
 local function newOrder(plr, sh)
-	local d = data[plr]
+	local d = data[sh.owner or plr]
+	if not d then return end
 	local key = sh.key
 	local rec = RECIPES[key]
 	local lvl = d.levels[key] or 1
@@ -125,13 +127,15 @@ local function endShift(plr, why)
 	end
 end
 F.cookEnd = endShift
-function F.cookStart(plr, key)
-	local d = data[plr]
-	if not (d and BIZ[key] and RECIPES[key]) then return false end
+function F.cookStart(plr, key, owner)
+	owner = owner or plr
+	local d = data[owner]
+	if not (d and data[plr] and BIZ[key] and RECIPES[key]) then return false end
+	if owner ~= plr and not (F.coopCan and F.coopCan(plr, owner, key, "counter")) then notify(plr, "🍳 Only the owner and their partners run this counter.") return false end
 	if (d.levels[key] or 0) <= 0 then notify(plr, "🍳 You don't own a " .. BIZ[key].name .. " yet.") return false end
-	if not atBusiness(plr, d, key) then notify(plr, "🍳 Go to your " .. BIZ[key].name .. " first.") return false end
+	if not atBusiness(plr, d, key, owner) then notify(plr, "🍳 Go to the " .. BIZ[key].name .. " first.") return false end
 	if shifts[plr] then endShift(plr) end
-	shifts[plr] = {key = key, streak = 0, best = 0, served = 0, tips = 0, misses = 0, tipWindow = {}}
+	shifts[plr] = {key = key, owner = owner, streak = 0, best = 0, served = 0, tips = 0, misses = 0, tipWindow = {}}
 	newOrder(plr, shifts[plr])
 	if F.guideTip then F.guideTip(plr, "rushOrders") end
 	return true
@@ -149,7 +153,9 @@ local function miss(plr, sh, why)
 end
 function F.cookDone(plr, id, seq)
 	local sh = shifts[plr]
-	local d = data[plr]
+	local cook = data[plr]
+	local d = sh and data[sh.owner or plr]   -- the business's owner (the tip goes to whoever cooked)
+	if not cook then return false end
 	local o = sh and sh.order
 	if not (o and d) or o.id ~= id or type(seq) ~= "table" or #seq > 10 then return false end
 	local now = os.clock()
@@ -179,17 +185,17 @@ function F.cookDone(plr, id, seq)
 	tip = math.floor(math.max(0, math.min(tip, math.max(5, perSec * K.tipCapSecs) - window)))
 	table.insert(sh.tipWindow, {t = now, a = tip})
 	if tip > 0 then
-		d.cash += tip
-		F.earn(d, tip)
+		cook.cash += tip
+		F.earn(cook, tip)
 	end
 	sh.tips += tip
 	rush[d] = rush[d] or {}
 	local r = rush[d][sh.key]
 	local cur = (r and now < r.untilT) and r.mult or 0
 	rush[d][sh.key] = {mult = math.min(K.rushMax, cur + K.rushPer), untilT = now + K.rushTime}
-	if sh.served % 3 == 0 and F.addRep then F.addRep(plr, 1) end
+	if sh.served % 3 == 0 and F.addRep then F.addRep(sh.owner or plr, 1) end
 	R.Menu:FireClient(plr, "cookResult", {ok = true, tip = tip, streak = sh.streak, rush = rush[d][sh.key].mult, served = sh.served})
-	if F.rivalAct then F.rivalAct(plr, "cook", sh.key) end
+	if F.rivalAct then F.rivalAct(sh.owner or plr, "cook", sh.key) end
 	-- the customer walks out happy, in the world
 	local door = doorOf(d, sh.key)
 	if door then C.burst(door + V3(0, 4, 0), BIZ[sh.key].color, 12) end
@@ -201,10 +207,13 @@ task.spawn(function()
 	while true do
 		task.wait(0.5)
 		for plr, sh in pairs(shifts) do
-			local d = data[plr]
-			if not (d and plr.Parent) then
+			local d = data[sh.owner or plr]
+			if not (d and data[plr] and plr.Parent and (sh.owner or plr).Parent) then
 				shifts[plr] = nil
-			elseif not atBusiness(plr, d, sh.key) then
+				if plr.Parent then R.Menu:FireClient(plr, "cookEnd", {served = sh.served, tips = sh.tips, best = sh.best}) end
+			elseif sh.owner and sh.owner ~= plr and not (F.coopCan and F.coopCan(plr, sh.owner, sh.key, "counter")) then
+				endShift(plr, "You're no longer on this counter's team.")
+			elseif not atBusiness(plr, d, sh.key, sh.owner) then
 				endShift(plr, "You walked away from the counter.")
 			elseif sh.order and os.clock() - sh.order.sentAt > sh.order.limit + 1.5 then
 				sh.order = nil
