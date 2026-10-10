@@ -309,7 +309,7 @@ H.main(function()
 	for _, bz in ipairs(C.BUSINESSES) do if (d.levels[bz.key] or 0) < 5 then d.levels[bz.key] = 5 end end
 	F.refreshDoors(a)
 	local folder = H.workspace:FindFirstChild("Interiors")
-	local expect = {lemonade = "CLASSIC", icecream = "SCOOP", bakery = "CROISSANT", coffee = "STAFF ONLY", pizza = "DELIVERY PICKUP", arcade = "HIGH SCORES", tech = "REPAIRS", factory = "LOADING DOCK"}
+	local expect = {lemonade = "CLASSIC", icecream = "SCOOP", bakery = "CROISSANT", coffee = "STAFF ONLY", pizza = "DELIVERY PICKUP", arcade = "HIGH SCORES", tech = "REPAIRS", factory = "LOADING DOCK", theater = "TICKETS"}
 	-- v10: menu boards list the business's own products
 	for _, k in ipairs({"lemonade", "icecream", "bakery"}) do expect[k] = F.productsOf(d, k)[1].name end
 	local sizes = {}

@@ -27,6 +27,9 @@ function T.startServer()
 	T.C = H.serverC
 	T.R = T.C.R
 	T.F = T.C.F
+	-- (v14: AI rivals make their own moves after a few minutes of play, which puts a challenge card in the
+	-- notification stack in the middle of unrelated tests. Tests start with them quiet; rivals_test makes moves itself.)
+	if T.C.RIVAL_CFG then T.C.RIVAL_CFG.firstMove, T.C.RIVAL_CFG.moveMin, T.C.RIVAL_CFG.moveMax = 1e7, 1e7, 1e7 + 1 end
 	return T.C
 end
 -- the slot DataStore the server really uses (in "Studio" that's the _StudioTest copy of the live store)
@@ -62,9 +65,18 @@ function T.announcesSince(mark, plr)
 	for _, e in ipairs(T.remotesSince(mark, "Announce", plr)) do table.insert(out, e.args[1]) end
 	return out
 end
+-- (v14: the 10-step onboarding pays small rewards on its own a few seconds after a step is done, which would land in
+-- the middle of other tests' cash checks. Test games start with it finished; journey_test turns it back on.)
+function T.quietOnboarding(d)
+	if not (d and T.C.ONBOARD_STEPS) then return end
+	local done = {}
+	for _, s in ipairs(T.C.ONBOARD_STEPS) do done[s.key] = 1 end
+	d.onboard = {seeded = true, finished = true, done = done, skip = {}, c = {}}
+end
 function T.newGame(plr, slot, starter)
 	T.act(plr, "menuNew", slot or 1, starter or 1)
 	H.task.wait(1)
+	T.quietOnboarding(T.data(plr))
 	return T.data(plr)
 end
 -- the latest state as the client sees it: heavy sections are only sent when they change, so those are

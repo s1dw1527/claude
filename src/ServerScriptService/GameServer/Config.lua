@@ -12,7 +12,6 @@ C.VERSION = {
 	NOTES = {
 		"⛰️ Rumors say something hums inside the mountain up north... find the lever",
 		"💰 Heists: rob the Corner Bank and 7 other targets, then get the loot back to the mountain",
-		"🚓 Go on duty as police and stop robbers before they reach their hideout",
 		"📱 New HEISTS phone app; the Arcade app no longer glitches",
 		"🛠️ 11.2: the mountain base and the heist targets are no longer buried in the hills",
 		"🕹️ 11.2: ▶ PLAY in the Arcade app — play the 🤖 Arcade Bot when nobody else is around",
@@ -22,6 +21,11 @@ C.VERSION = {
 		"🏆 12: the Empire Hall: top empires across the city, with verified milestones and a Visit button",
 		"🚶 13: the city is alive: people on every sidewalk, traffic that stops at red lights, buses, delivery vans, street musicians, beach life",
 		"🧭 13: new EXPLORE app: City Jobs (courier runs, lost pets, street clean-ups), 30 Golden Corners to find, and every place on the map to discover",
+		"🚓 14: the police are now the city's own officers: they patrol, respond to alarms, chase and arrest robbers",
+		"🍳 14: RUSH ORDERS: cook and serve at your own counter for tips and a sales rush; new music, sounds and a 🔔 Activity log",
+		"🎬 14: the MOVIE THEATER opens on a city plot: pick the films, premieres, upgrades. Plus 🥊 AI rivals and staff traits and shifts",
+		"🤝 14: PARTNERS: co-own a business with friends, send gifts safely. 🎉 Home parties and 🏢 City Lofts downtown",
+		"🔧 14: car roles and tuning, 📊 leaderboards and 🌟 prestige, 📅 special events, and a 🧭 Next Step guide",
 	},
 }
 
