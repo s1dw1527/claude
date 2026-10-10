@@ -250,6 +250,7 @@ task.spawn(function()
 								while #C.serverBest > 5 do table.remove(C.serverBest) end
 								updateBoard()
 								F.addRep(plr, 3)
+								if F.track then F.track(plr, "race") end
 								burst(pos + V3(0, 6, 0), RGB(255, 220, 80), 120)
 								shockwave(pos, RGB(255, 220, 80), 30)
 								R.Race:FireClient(plr, {state = "finished", time = t, prize = prize, best = d.raceBest, pb = pb, record = record, par = RACE.par, drift = math.floor(st.drift or 0), driftBonus = driftBonus})

@@ -153,6 +153,7 @@ function F.giftConfirm(plr, id, yes)
 		return false
 	end
 	sentToday(data[plr]).amt += o.amt
+	if F.track then F.track(plr, "gift") end
 	notify(plr, "💸 Sent $" .. fmt(o.amt) .. " to " .. o.to.Name .. ".")
 	R.Menu:FireClient(o.to, "giftClosed", {id = id, done = true})
 	return true
@@ -204,6 +205,7 @@ function F.coopAnswer(plr, id, yes)
 	blog(od, key, plr.Name .. " joined as " .. PT.roles[inv.role].name)
 	notify(owner, "🤝 " .. plr.Name .. " joined your " .. bizName(od, key) .. "!")
 	notify(plr, "🤝 You're now " .. PT.roles[inv.role].name .. " of " .. owner.Name .. "'s " .. bizName(od, key) .. ".")
+	if F.track then F.track(owner, "partner") F.track(plr, "partner") end
 	F.buzz("🤝", owner.Name .. " and " .. plr.Name .. " now run " .. owner.Name .. "'s " .. bizName(od, key) .. " together!", RGB(120, 200, 160))
 	return true
 end

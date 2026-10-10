@@ -202,6 +202,7 @@ local function checkCorners(plr, d, pos)
 			local dx, dz = pos.X - g.pos.X, pos.Z - g.pos.Z
 			if dx * dx + dz * dz < X.cornerRadius * X.cornerRadius and math.abs(pos.Y - g.pos.Y) < 12 then
 				c.corners[g.id] = os.time()
+				if F.track then F.track(plr, "corner") end
 				local cash = reward(d, X.cornerSecs, X.cornerMin)
 				pay(plr, d, cash, 2)
 				local n = count(c.corners)
@@ -381,6 +382,7 @@ local function endJob(plr, st, ok, why)
 		pay(plr, d, cash, J.rep)
 		c.jobs += 1
 		c.jobPay += cash
+		if F.track then F.track(plr, "job") end
 		c.streak += 1
 		R.Splash:FireClient(plr, a.icon .. " JOB DONE: " .. string.upper(a.name), (why or "Nice work!") .. "  +$" .. fmt(cash), RGB(120, 230, 150))
 		if c.jobs == 1 and F.achieve then F.achieve(plr, "jobFirst") end

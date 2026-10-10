@@ -49,6 +49,8 @@
     "HomeLife",
     "Vehicles",
     "Leaders",
+    "Occasions",
+    "Onboarding",
     "Updates",
     "Players"
   ],
@@ -75,6 +77,7 @@
     "PartnersUI",
     "HomeLifeUI",
     "LeadersUI",
+    "JourneyUI",
     "ComputerUI",
     "GarageUI",
     "ArcadeUI",

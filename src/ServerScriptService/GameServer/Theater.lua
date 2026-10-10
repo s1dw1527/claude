@@ -172,6 +172,7 @@ function F.theaterShow(plr)
 		F.buzz("🍿", plr.Name .. "'s " .. name .. " sold out " .. film.title .. "!", BIZ.theater.color)
 	end
 	marquee(plr, d)
+	if F.track then F.track(plr, "show") end
 	R.Menu:FireClient(plr, "theaterShow", {film = film.title, icon = film.icon, guests = guests, cap = cap, premiere = premiere, mult = t.mult})
 	return t.last, parts
 end

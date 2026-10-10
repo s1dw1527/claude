@@ -454,6 +454,7 @@ function F.buyUpgrade(plr, d, key)
 	if lvl == 0 and key ~= "lemonade" and F.storyEvent then F.storyEvent(plr, "newBusiness", key) end
 	if lvl == 0 and F.refreshDoors then F.refreshDoors(plr) end
 	if F.rivalAct then F.rivalAct(plr, "upgrade", key) end   -- v14: pushing rivals back (Rivals)
+	if F.track then F.track(plr, "upgrade") end   -- v14: occasions
 	-- v10: a new business gets a name (the client asks; "keep the default" is fine too)
 	if lvl == 0 and F.askBizName then task.defer(F.askBizName, plr, key) end
 	-- v9: grand opening. Every first opening gets its signature moment; bigger businesses often draw a crowd.

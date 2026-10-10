@@ -167,6 +167,8 @@ function M.v14Defaults()
 		party = {hosted = 0, guests = 0, best = 0, lastAt = 0, favorAt = 0},
 		tune = {},                                               -- car tuning levels per car
 		prestige = {stars = {}},                                 -- prestige goals reached (key -> time)
+		events = {inst = {}, keep = {}},                         -- special occasions: progress + claims per instance, keepsakes
+		onboard = {done = {}, skip = {}, c = {}},                -- the 10 next steps after the tutorial
 	}
 end
 -- every new v13 field and its safe default

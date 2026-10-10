@@ -184,6 +184,7 @@ function F.partyStart(host, venue)
 	R.Menu:FireAllClients("partyOn", {uid = host.UserId, host = host.Name, venue = venue, place = name, left = HL.partyTime, cap = parties[host].cap})
 	F.enterInterior(host, host, venue)
 	redress(host, venue)
+	if F.track then F.track(host, "party") end
 	return true
 end
 function F.partyJoin(guest, hostUid)
@@ -202,6 +203,7 @@ function F.partyArrive(plr, owner, key)
 	if pt.guests[uid] then return end
 	pt.guests[uid] = true
 	pt.n += 1
+	if F.track then F.track(plr, "party") end
 	local od, d = data[owner], data[plr]
 	if pt.n <= HL.maxRepGuests and od then
 		F.addRep(owner, HL.guestRep)

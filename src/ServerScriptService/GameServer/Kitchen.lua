@@ -176,7 +176,7 @@ function F.cookDone(plr, id, seq)
 	local _, per = F.income(d, now)
 	local perSec = math.max(0.5, per[sh.key] or 0)
 	local mult = math.min(K.streakMax, 1 + K.streakBonus * (sh.streak - 1))
-	local tip = math.max(5, perSec * K.tipSecs * mult)
+	local tip = math.max(5, perSec * K.tipSecs * mult) * (F.occasionMult and F.occasionMult("tips") or 1)   -- (v14: 🔥 Weekend Rush)
 	-- cap: in any minute, tips add up to at most tipCapSecs of this business's income
 	local window = 0
 	for i = #sh.tipWindow, 1, -1 do
@@ -196,6 +196,7 @@ function F.cookDone(plr, id, seq)
 	if sh.served % 3 == 0 and F.addRep then F.addRep(sh.owner or plr, 1) end
 	R.Menu:FireClient(plr, "cookResult", {ok = true, tip = tip, streak = sh.streak, rush = rush[d][sh.key].mult, served = sh.served})
 	if F.rivalAct then F.rivalAct(sh.owner or plr, "cook", sh.key) end
+	if F.track then F.track(plr, "cook") end   -- v14: occasions + onboarding
 	-- the customer walks out happy, in the world
 	local door = doorOf(d, sh.key)
 	if door then C.burst(door + V3(0, 4, 0), BIZ[sh.key].color, 12) end
