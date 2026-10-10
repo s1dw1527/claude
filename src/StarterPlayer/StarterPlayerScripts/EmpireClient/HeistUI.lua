@@ -1,5 +1,5 @@
 -- HEIST UI (v11): the 💰 HEISTS phone app, the bag HUD on a job ("RETURN TO MOUNTAIN HQ"), the security puzzles,
--- police alerts with an approximate search area, and hiding the [Arrest] prompt from anyone who isn't on duty.
+-- the police scanner and the "police chasing you" banner (v14: the police are NPC officers).
 -- Everything here only ASKS the server (GameServer > Heists); the server decides what happened.
 -- Lifecycle: the app window asks for data once when it opens (see Menus.openModal); the HUD and puzzle panels are
 -- built once and reused; temporary connections are kept in a list and disconnected when a puzzle closes.
@@ -113,15 +113,19 @@ RENDER.gear = function(a)
 		end, 46)
 	end
 end
+-- v14: the police are NPC officers; this tab is the police scanner (what the patrol cars are doing)
 RENDER.police = function(a)
-	local p = a.police
-	btn(m.body, p.on and "🚓 ON DUTY — tap to go off duty" or "🚓 Go on police duty", p.on and BLUE or GRAY, 0, function() act("hsPolice", not p.on) end, 46)
-	txt(m.body, "On duty you get robbery alerts and an approximate search area (never the exact spot). Hold [Arrest] next to a robber carrying loot. The city pays you; robbers lose only the loot.", 12, SUB, 1)
-	if p.count then txt(m.body, "👮 Police on duty in this server: " .. p.count, 13, GOLD, 2, true) end
-	header(m.body, "Alerts", 3)
-	if #p.alerts == 0 then txt(m.body, p.on and "Quiet... for now." or "Go on duty to see alerts.", 13, SUB, 4) end
-	for i, al in ipairs(p.alerts) do txt(m.body, "🚨 " .. al.icon .. " " .. al.text .. " — " .. al.area, 13, RGB(255, 140, 140), 4 + i, true) end
-	txt(m.body, "Arrests: " .. a.stats.arrests .. " • earned $" .. fmt(a.stats.policeEarned), 12, SUB, 40)
+	local p = a.police or {}
+	local st = p.status or {}
+	txt(m.body, "🚓 CITY POLICE SCANNER", 16, RGB(120, 170, 255), 0, true)
+	txt(m.body, string.format("%d patrol cars on the street  •  %d patrolling  •  %d responding  •  %d searching  •  %d in a chase",
+		st.total or 0, st.patrol or 0, st.respond or 0, st.search or 0, st.pursue or 0), 13, WHITE, 1)
+	txt(m.body, "After an alarm, units drive to the area and search it. They only chase someone they actually SEE. Stay out of sight, outrun them, or reach the mountain. Caught: the loot, a small fine, 20 s in a cell and a 2-minute break from jobs. Nothing else you own is touched.", 12, SUB, 2)
+	if (p.cooldown or 0) > 0 then txt(m.body, "⏳ Lie low: no new job for " .. p.cooldown .. " s.", 13, RGB(255, 170, 120), 3, true) end
+	header(m.body, "Recent alarms", 4)
+	if #(p.alerts or {}) == 0 then txt(m.body, "Quiet... for now.", 13, SUB, 5) end
+	for i, al in ipairs(p.alerts or {}) do txt(m.body, "🚨 " .. al.icon .. " " .. al.text .. " — " .. al.area, 13, RGB(255, 140, 140), 5 + i, true) end
+	txt(m.body, "Your record: " .. a.stats.done .. " jobs done • " .. a.stats.failed .. " failed", 12, SUB, 40)
 end
 function HU.render()
 	for k, b in pairs(tabBtns) do b.BackgroundColor3 = k == HU.tab and PURPLE or GRAY end
@@ -292,17 +296,19 @@ R.Menu.OnClientEvent:Connect(function(kind, a)
 		task.delay(20, function() if my == alertToken then alertBar.Visible = false end end)
 	end
 end)
--- the [Arrest] prompt rides on every robber carrying loot; only police see it
-task.spawn(function()
-	while true do
-		task.wait(0.5)
-		local cop = plr:GetAttribute("Police") == true
-		for _, p in ipairs(Players:GetPlayers()) do
-			local root = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
-			local pp = root and root:FindFirstChild("ArrestPrompt")
-			if pp then pp.Enabled = cop and p ~= plr end
-		end
-		if not cop and marker then setMarker(nil) end
+-- v14: a police unit is chasing YOU (sent by GameServer > Police)
+local chaseOn = false
+R.Menu.OnClientEvent:Connect(function(kind, a)
+	if kind ~= "policeChase" or type(a) ~= "table" then return end
+	if a.on then
+		alertToken += 1
+		alertL.Text = "🚓 POLICE CHASING YOU" .. ((a.units or 1) > 1 and (" (" .. a.units .. " cars)") or "") .. " — lose them or reach the mountain!"
+		alertBar.Visible = true
+		if not chaseOn then play(SND.siren or SND.event) end
+	elseif chaseOn then
+		alertBar.Visible = false
 	end
+	chaseOn = a.on == true
+	HU.chasing = chaseOn
 end)
 end

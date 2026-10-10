@@ -215,10 +215,10 @@ H.main(function()
 	H.check(r.bag == r.cap, "the bag fills up to its capacity ($" .. C.fmt(r.cap * r.mult) .. ") and no further")
 	H.check(math.abs(d.cash - cashBefore) < F.incomePerSec(d) * 30 + 1, "none of it is money yet")
 	H.check(r.heist.stage == "alarm" and splashed(a, "ALARM TRIGGERED"), "BANK ALARM TRIGGERED")
-	local arrestPP = a.Character.HumanoidRootPart:FindFirstChild("ArrestPrompt")
-	H.check(arrestPP ~= nil, "a robber with loot can be arrested")
-	H.task.wait(1)
-	H.check(arrestPP.Enabled == false, "...but Alice (not police) doesn't even see the [Arrest] prompt on screen")
+	H.check(a.Character.HumanoidRootPart:FindFirstChild("ArrestPrompt") == nil, "no [Arrest] prompt on robbers any more (the police are NPCs)")
+	local responding = 0
+	for _, u in ipairs(C.POLICE_UNITS) do if u.state == "respond" then responding += 1 end end
+	H.check(responding >= 2, responding .. " police units respond to the bank alarm")
 
 	H.section("The escape")
 	at(a, bank.entrance + Vector3.new(-120, 0, 0))
@@ -249,64 +249,101 @@ H.main(function()
 	F.heistStart(a, "bank")
 	H.check(HS.robbers[a] == nil, "the same target is on cooldown for you")
 
-	H.section("Police")
+	H.section("NPC police")
+	local U = C.POLICE_UNITS
+	C.HEIST_ADMIN.reset()
+	H.task.wait(1)
+	H.check(#U >= C.HEIST.police.units, #U .. " patrol cars on the street")
 	T.act(bob, "hsPolice", true)
-	H.check(HS.police[bob] ~= nil and bob:GetAttribute("Police"), "Bob goes on police duty")
-	db.heist.discovered = true
+	H.check(HS.police[bob] == nil and not bob:GetAttribute("Police"), "players can't go on police duty any more")
+	db.heist.discovered = true   -- (Bob found the hideout too; he joins crews below)
+	local carl = T.join("Carl", 103)
+	local dcarl = T.newGame(carl, 1, 1)
+	dcarl.tut = 0
 	F.heistOpen("jewelry")
 	local jw = HS.sites.jewelry
 	at(a, jw.entrance)
 	F.heistStart(a, "jewelry")
 	r = HS.robbers[a]
 	H.check(r ~= nil, "Alice starts the jewelry job")
-	at(bob, jw.entrance)
-	F.heistStart(bob, "jewelry")
-	H.check(HS.robbers[bob] == nil, "police can't join a robbery")
-	T.act(a, "hsPolice", true)
-	H.check(HS.police[a] == nil, "a robber can't go on duty mid-job")
-	-- solve the symbols panel straight on the server
 	at(a, jw.panels[1].pos)
 	mk = #H.remoteLog
 	F.heistPanel(a, "jewelry", 1)
 	pz = lastMenu(a, "heistPuzzle", mk)
 	T.act(a, "hsSolve", pz.seq)
-	H.check(r.heist.stage == "vault", "symbols puzzle solved")
-	mk = #H.remoteLog
 	for i = 1, 5 do
 		at(a, jw.stations[i].pos + Vector3.new(0, 0, -3))
 		F.heistGrab(a, "jewelry", i)
 		F.heistGrab(a, "jewelry", i)
 	end
 	H.check(r.heist.stage == "alarm", "alarm")
-	local alert = lastMenu(bob, "heistAlert", mk)
-	H.check(alert and alert.text:find("ROBBERY IN PROGRESS") and alert.radius > 0, "police get: " .. tostring(alert and alert.text))
-	at(a, jw.entrance + Vector3.new(150, 0, 0))
-	H.task.wait(17)
-	alert = lastMenu(bob, "heistAlert")
-	local exact = a.Character.HumanoidRootPart.Position
-	H.check(alert and alert.text:find("Suspect") and (alert.pos - exact).Magnitude > 0.5, "updates are approximate: \"" .. tostring(alert and alert.text) .. "\"")
-	-- a non-police player can't arrest
-	local carl = T.join("Carl", 103)
-	local dcarl = T.newGame(carl, 1, 1)
-	dcarl.tut = 0
-	at(carl, a.Character.HumanoidRootPart.Position + Vector3.new(3, 0, 0))
-	trigger(a.Character.HumanoidRootPart:FindFirstChild("ArrestPrompt"), carl)
-	H.check(HS.robbers[a] ~= nil, "only police can arrest")
-	-- police too far away can't
-	at(bob, a.Character.HumanoidRootPart.Position + Vector3.new(60, 0, 0))
-	trigger(a.Character.HumanoidRootPart:FindFirstChild("ArrestPrompt"), bob)
-	H.check(HS.robbers[a] ~= nil, "police have to be close")
-	at(bob, a.Character.HumanoidRootPart.Position + Vector3.new(4, 0, 0))
-	local aCash, bCash = d.cash, db.cash
-	trigger(a.Character.HumanoidRootPart:FindFirstChild("ArrestPrompt"), bob)
-	H.check(HS.robbers[a] == nil and splashed(a, "BUSTED"), "ARRESTED: the loot is gone")
-	H.check(math.abs(d.cash - aCash) < F.incomePerSec(d) * 3 + 1, "Alice keeps all her own money (only the loot is lost)")
-	H.check(db.cash > bCash and db.heist.arrests == 1, "Bob is paid by the city (+$" .. C.fmt(db.cash - bCash) .. ")")
+	H.task.wait(1)
+	local resp = {}
+	for _, u in ipairs(U) do if u.state == "respond" then table.insert(resp, u) end end
+	H.check(#resp >= 2, #resp .. " units respond to the jewelry alarm")
+	local goal = resp[1] and resp[1].path[#resp[1].path]
+	H.check(goal and (goal - Vector3.new(jw.center.X, 0, jw.center.Z)).Magnitude < 5, "they head for the alarm's area")
+	-- Alice slips away far from everything: the police only get an approximate area, so nobody chases her
+	local hide = Vector3.new(560, 4, 300)
+	at(a, hide)
+	H.task.wait(20)
+	local chasing = 0
+	for _, u in ipairs(U) do if u.state == "pursue" then chasing += 1 end end
+	H.check(r.escaped and chasing == 0, "out of sight, out of reach: no unit is chasing her (they search the area, never get her exact position)")
+	local searching = 0
+	for _, u in ipairs(U) do if u.state == "search" or u.state == "respond" then searching += 1 end end
+	H.check(searching >= 1, searching .. " unit(s) searching the area")
+	-- a unit sees her: the chase is on
+	local cop = U[1]
+	at(a, cop.pos + Vector3.new(30, 4, 0))
+	mk = #H.remoteLog
+	H.task.wait(1.2)
+	H.check(cop.state == "pursue" and cop.target == a, "a unit that SEES her gives chase")
+	local ch = lastMenu(a, "policeChase", mk)
+	H.check(ch and ch.on and splashed(a, "POLICE ON YOUR TAIL"), "Alice is told the police are on her tail")
+	H.check(HS.robbers[a] ~= nil, "being chased isn't being caught")
+	-- she gets away: far out of range for long enough
+	at(a, hide)
+	H.task.wait(C.HEIST.police.loseTime + 2)
+	H.check(cop.state == "search" and HS.robbers[a] ~= nil, "she got away: the unit searches where it last saw her")
+	ch = lastMenu(a, "policeChase")
+	H.check(ch and ch.on == false, "the chase banner goes away")
+	-- caught: standing still right next to a unit
+	local aCash = d.cash
+	local carried = HS.robbers[a].bag * HS.robbers[a].mult
+	at(a, cop.pos + Vector3.new(4, 4, 0))
+	for _ = 1, 12 do
+		if not HS.robbers[a] then break end
+		at(a, cop.pos + Vector3.new(4, 4, 0))
+		H.task.wait(0.5)
+	end
+	H.check(HS.robbers[a] == nil and splashed(a, "BUSTED"), "ARRESTED by an NPC unit: the loot is gone")
+	local fine = aCash - d.cash
+	H.check(fine >= 0 and fine <= aCash * C.HEIST.police.fineCash + F.incomePerSec(d) * 8 + 1 and fine <= carried * C.HEIST.police.fineLoot + F.incomePerSec(d) * 8 + 1,
+		"a modest fine ($" .. C.fmt(math.max(0, fine)) .. ": at most 2% of cash and a quarter of the loot); everything else is safe")
+	H.check(d.heist.failed >= 1, "it counts as a failed job")
 	H.check((a.Character.HumanoidRootPart.Position - C.POLICE_STATION.pos).Magnitude < 30, "Alice waits in a cell")
+	local ok, why = F.heistCanStart(a, "jewelry")
+	H.check(not ok, "no new job right away (" .. tostring(why) .. ")")
 	H.task.wait(C.HEIST.police.jail + 2)
 	H.check((a.Character.HumanoidRootPart.Position - C.POLICE_STATION.pos).Magnitude > 20, "...and is let out")
-	T.act(bob, "hsPolice", false)
-	H.check(HS.police[bob] ~= nil, "switching back right away is on a short cooldown")
+	ok, why = F.heistCanStart(a, "jewelry")
+	H.check(not ok and tostring(why):find("Lie low"), "...but has to lie low for a bit: " .. tostring(why))
+	C.HEIST_ADMIN.unarrest(a)
+	-- the mountain ends a chase
+	C.HEIST_ADMIN.giveBag(carl)
+	dcarl.heist.discovered = true
+	HS.robbers[carl].bag = 100
+	HS.robbers[carl].alarmAt = os.clock()
+	local cop2 = U[2]
+	at(carl, cop2.pos + Vector3.new(30, 4, 0))
+	H.task.wait(1.2)
+	H.check(cop2.state == "pursue" and cop2.target == carl, "a unit chases Carl")
+	at(carl, Vector3.new(300, 4, -720))
+	H.task.wait(2)
+	H.check(cop2.state ~= "pursue" or cop2.target ~= carl, "Carl reaches the mountain: the chase is over")
+	C.HEIST_ADMIN.reset()
+	H.task.wait(1)
 
 	H.section("Every way a job can fail")
 	C.HEIST_ADMIN.reset()
@@ -362,9 +399,6 @@ H.main(function()
 	at(a, mu.panels[1].pos)
 	F.heistPanel(a, "museum", 1)
 	H.check(lastMenu(a, "heistPuzzle") == nil or HS.robbers[a].heist.puzzles[a] == nil, "the museum needs 2+ people before the panels work")
-	T.act(bob, "hsPolice", false)
-	H.task.wait(C.HEIST.police.switchCooldown + 1)
-	T.act(bob, "hsPolice", false)
 	T.act(a, "hsInvite", bob.UserId)
 	at(bob, mu.entrance)
 	F.heistStart(bob, "museum")

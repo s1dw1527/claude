@@ -12,8 +12,10 @@
 --     the station still has loot. Puzzles are generated and checked here; timing puzzles are timed here.
 --   * a robbery's loot pool is fixed, so adding crew members never multiplies the money; each robber banks what
 --     they carried (scaled by their own progress so it stays meaningful but never beats the business empire).
---   * police are real players who go on duty. They get approximate, escalating information (never your exact
---     position), arrest with a short hold, and are paid by the city — never out of anyone's pocket.
+--   * police are NPC officers (v14, GameServer > Police): units respond to the alarm, search the APPROXIMATE area,
+--     chase a robber only once they actually see them, and arrest a robber who is slow or stopped right next to a
+--     unit. An arrest costs the loot, a modest fine (never more than a small part of your cash), a short time in a
+--     cell and a cooldown before the next job. Players no longer go on police duty.
 return function(C)
 local Players = game:GetService("Players")
 local F, data, R = C.F, C.data, C.R
@@ -41,12 +43,15 @@ C.HEIST = {
 	base = {
 		{name = "Hideout", cost = 0, perk = "Job board, the Fence, the Quartermaster"},
 		{name = "Garage Level", cost = 100000, perk = "Use the Escape Garage terminal"},
-		{name = "Command Center", cost = 1000000, perk = "Planning room shows how many police are on duty"},
+		{name = "Command Center", cost = 1000000, perk = "Police scanner: see what the city's patrol cars are doing"},
 		{name = "Storage Vaults", cost = 10000000, perk = "+10% bag capacity"},
 		{name = "Luxury Lair", cost = 100000000, perk = "The Fence pays +5%"},
 		{name = "Underground Empire", cost = 1000000000, perk = "The Fence pays +10% and a gold bag"},
 	},
-	police = {share = 0.3, range = 12, jail = 20, switchCooldown = 60, minTier = 2},
+	-- v14 NPC police. speed: studs/s per state (a sports car can outrun them on a straight; on foot you can't)
+	police = {jail = 20, cooldown = 120, fineCash = 0.02, fineLoot = 0.25, units = 2, perAlert = 2, maxUnits = 6,
+		detect = 70, lose = 170, loseTime = 5, direct = 60, arrestRange = 9, arrestSlow = 14, arrestHold = 1.5,
+		searchTime = 70, patrolRadius = 320, idleRemove = 60, speed = {patrol = 22, respond = 48, search = 30, pursue = 58}},
 	puzzleSeconds = 25,
 }
 local HC = C.HEIST
@@ -135,7 +140,8 @@ C.heistDistrictName = districtName
 -- =====================================================================
 local siteState = {}      -- [key] = {open = false, closesAt, cooldownUntil, heist = H or nil, model, stations, lasers, vaultDoor, sign}
 local robbers = {}        -- [plr] = {heist = H, bag = base units, cap, escaped, alarmAt, at}
-local police = {}         -- [plr] = {since}
+local police = {}         -- (v14: always empty: police are NPCs now; kept so old references stay harmless)
+local arrestedAt = {}     -- [plr] = when the NPC police last arrested them (job cooldown)
 local jailed = {}         -- [plr] = until
 local lastRob = {}        -- [plr] = {[site] = os.clock()}
 local invites = {}        -- [plr] = {from = plr, site, at}
@@ -143,8 +149,9 @@ local alerts = {}         -- list of {site, text, pos, radius, t}
 local G = {nextOpen = os.clock() + HC.firstOpen, opened = 0, completed = 0, arrests = 0}
 C.HEIST_STATE = {sites = siteState, robbers = robbers, police = police, G = G}
 
+-- v14: alarms go to the NPC police dispatcher (GameServer > Police)
 local function broadcastPolice(payload)
-	for p in pairs(police) do if p.Parent then R.Menu:FireClient(p, "heistAlert", payload) end end
+	if C.policeDispatch then C.policeDispatch(payload) end
 end
 local function pushState(plr)
 	if plr.Parent and F.heistState then R.Menu:FireClient(plr, "heist", F.heistState(plr)) end
@@ -170,14 +177,12 @@ local function setBagVisual(plr, on, gold)
 	bag.Parent = char
 end
 -- the arrest prompt every robber with loot carries (clients only show it to police)
-local function setArrestPrompt(plr, on)
+-- (v14: NPC police arrest on the server, so robbers no longer carry an [Arrest] prompt; this just cleans up one
+-- left over from an older server)
+local function setArrestPrompt(plr)
 	local root = rootOf(plr)
-	if not root then return end
-	local old = root:FindFirstChild("ArrestPrompt")
+	local old = root and root:FindFirstChild("ArrestPrompt")
 	if old then old:Destroy() end
-	if not on then return end
-	local pp = C.prompt(root, "Arrest", plr.Name, HC.police.range, 1.2, function(cop) F.arrest(cop, plr) end)
-	pp.Name = "ArrestPrompt"
 end
 
 -- ending a robbery for one robber: lost loot never becomes money anywhere
@@ -329,7 +334,10 @@ do
 	local sign = P(m, V3(20, 3, 0.5), CF(at + V3(0, 14.5, -14)), RGB(20, 30, 60))
 	surfaceText(sign, Enum.NormalId.Front, "🚓 CITY POLICE", RGB(255, 255, 255))
 	local desk = P(m, V3(6, 3.4, 2), CF(at + V3(-6, 1.7, -8)), RGB(40, 60, 110), MAT.Metal, SOLID)
-	C.prompt(desk, "Police duty", "On / off duty", 10, 0.4, function(plr) F.togglePolice(plr) end)
+	C.prompt(desk, "Ask the desk", "City Police", 10, 0.4, function(plr)
+		local st = C.policeStatus and C.policeStatus() or {total = 0}
+		C.notify(plr, "🚓 \"" .. st.total .. " units on the street. " .. ((st.pursue or 0) > 0 and "One's in a chase right now." or "Quiet day.") .. "\"")
+	end)
 	-- the cells (bars), behind the desk
 	for i = 0, 3 do
 		local cx = at.X - 9 + i * 6
@@ -396,8 +404,10 @@ function F.heistCanStart(plr, key)
 	local h = rec(d)
 	if not h.discovered then return false, "Word is, jobs come from somewhere in the mountains up north. Find the hideout first." end
 	if F.tierIndex(d.rep) < HC.unlockTier then return false, "Heists unlock at " .. C.REP_TIERS[HC.unlockTier].name .. " reputation." end
-	if police[plr] then return false, "You're on police duty." end
 	if jailed[plr] then return false, "You're in a cell." end
+	if arrestedAt[plr] and os.clock() - arrestedAt[plr] < HC.police.cooldown then
+		return false, "Lie low for a bit: the police know your face. (" .. math.ceil(HC.police.cooldown - (os.clock() - arrestedAt[plr])) .. " s)"
+	end
 	if robbers[plr] then return false, "Finish your current job first." end
 	local last = lastRob[plr] and lastRob[plr][key]
 	if last and os.clock() - last < HC.playerCooldown then return false, "This place is still on alert. Try again in " .. math.ceil((HC.playerCooldown - (os.clock() - last)) / 60) .. " min." end
@@ -558,7 +568,7 @@ local function soundAlarm(H, why)
 	for _, p in ipairs(Players:GetPlayers()) do
 		if not police[p] and not robbers[p] then notify(p, "🚨 " .. s.icon .. " " .. s.name .. " alarm! (" .. (why or "") .. ")") end
 	end
-	for p in pairs(police) do if F.guideTip then F.guideTip(p, "policeChase") end end
+	for _, mate in ipairs(H.crew) do if F.guideTip then F.guideTip(mate, "policeChase") end end
 end
 function F.heistGrab(plr, key, i)
 	local r = robbers[plr]
@@ -588,66 +598,39 @@ end
 -- POLICE
 -- =====================================================================
 local switchedAt = {}
-function F.togglePolice(plr, want)
-	local d = data[plr]
-	if not d then return false end
-	local on = want
-	if on == nil then on = not police[plr] end
-	if on == (police[plr] ~= nil) then return true end
-	if switchedAt[plr] and os.clock() - switchedAt[plr] < HC.police.switchCooldown then
-		notify(plr, "🚓 You just switched. Wait a minute.")
-		return false
-	end
-	if on then
-		if robbers[plr] then notify(plr, "🚓 Not while you're on a job.") return false end
-		if F.tierIndex(d.rep) < HC.police.minTier then notify(plr, "🚓 Police duty unlocks at " .. C.REP_TIERS[HC.police.minTier].name .. ".") return false end
-		police[plr] = {since = os.clock()}
-		plr:SetAttribute("Police", true)
-		notify(plr, "🚓 On duty. You'll get robbery alerts; hold [Arrest] next to a robber carrying loot.")
-		for _, a in ipairs(alerts) do R.Menu:FireClient(plr, "heistAlert", a) end
-		if F.guideTip then F.guideTip(plr, "policeChase") end
-	else
-		police[plr] = nil
-		plr:SetAttribute("Police", nil)
-		notify(plr, "🚓 Off duty.")
-	end
-	switchedAt[plr] = os.clock()
-	pushState(plr)
-	return true
+-- v14: police duty is gone (the police are NPCs); old clients asking for it get an explanation
+function F.togglePolice(plr)
+	C.notify(plr, "🚓 The city police are NPC officers now. Robbers: watch for patrol cars!")
+	return false
 end
-function F.arrest(cop, target)
+-- an NPC unit arrests a robber: the loot is gone, a modest fine, a short time in a cell, a cooldown.
+-- Nothing else the player owns is touched. (unit = the police unit from GameServer > Police)
+function F.npcArrest(unit, target)
 	local r = robbers[target]
-	if not (police[cop] and r and data[cop]) or cop == target then return false end
-	if r.bag <= 0 and not r.alarmAt then return false end
-	local a, b = rootOf(cop), rootOf(target)
-	if not (a and b) or (a.Position - b.Position).Magnitude > HC.police.range + 2 then return false end
+	if not r or (r.bag <= 0 and not r.alarmAt) then return false end
+	local b = rootOf(target)
+	if not b then return false end
 	local s = r.heist and r.heist.site
-	local value = r.bag
 	local d = data[target]
-	-- the police are paid by the city (scaled by the officer's own progress), never from the robber
-	local dc = data[cop]
-	local pay = math.floor(value * HC.police.share * mult(dc))
-	if pay > 0 then
-		dc.cash += pay
-		dc.earned += pay
+	local value = r.bag * (r.mult or 1)
+	local fine = 0
+	if d then
+		fine = math.floor(math.max(0, math.min(d.cash * HC.police.fineCash, value * HC.police.fineLoot)))
+		d.cash -= fine
+		rec(d).failed += 1
 	end
-	local hc = rec(dc)
-	hc.arrests += 1
-	hc.policeEarned += pay
 	G.arrests += 1
-	if d then rec(d).failed += 1 end
 	r.bag = 0
 	local where = districtName(b.Position)
-	dropRobber(target, "🚓 ARRESTED by " .. cop.Name .. ". The loot is gone (your own stuff is safe).", false)
-	-- a short time out in a cell
+	dropRobber(target, "🚓 ARRESTED. The loot is gone" .. (fine > 0 and (" and you paid a $" .. fmt(fine) .. " fine") or "") .. " (everything else you own is safe).", false)
 	F.despawnCar(target)
 	if F.leaveInterior then F.leaveInterior(target) end
 	jailed[target] = os.clock() + HC.police.jail
+	arrestedAt[target] = os.clock()
 	local cell = STATION.cells[(G.arrests % #STATION.cells) + 1]
 	if target.Character then target.Character:PivotTo(cell) end
-	R.Splash:FireClient(target, "🚓 BUSTED", "You'll be let out in " .. HC.police.jail .. " seconds.", RGB(80, 140, 255))
-	R.Splash:FireClient(cop, "🚓 ARREST!", "You stopped " .. target.Name .. (pay > 0 and (" (+$" .. fmt(pay) .. ")") or ""), RGB(80, 140, 255))
-	if F.buzz then F.buzz("🚓", "Police caught a robbery crew near " .. where .. (s and (" after the " .. s.name .. " job") or "") .. "!", RGB(80, 140, 255)) end
+	R.Splash:FireClient(target, "🚓 BUSTED", "Out in " .. HC.police.jail .. " s. No new job for " .. math.floor(HC.police.cooldown / 60) .. " min.", RGB(80, 140, 255))
+	if F.buzz then F.buzz("🚓", "City police caught a robbery crew near " .. where .. (s and (" after the " .. s.name .. " job") or "") .. "!", RGB(80, 140, 255)) end
 	return true
 end
 
@@ -753,14 +736,12 @@ local function step(now)
 			if r.alarmAt and now - r.alarmAt > HC.hotSeconds and r.bag > 0 then
 				r.bag = 0
 				dropRobber(plr, "🔥 The loot got too hot to move. It's gone.", true)
-			elseif r.escaped and next(police) and (not nextUpdate[plr] or now >= nextUpdate[plr]) then
-				-- escalating, approximate information for the police
+			elseif r.escaped and (not nextUpdate[plr] or now >= nextUpdate[plr]) then
+				-- escalating, APPROXIMATE information for the NPC police (an area, never the exact spot)
 				nextUpdate[plr] = now + 15
 				local pos = root.Position
 				local off = V3(math.random(-60, 60), 0, math.random(-60, 60))
-				local toBase = (V3(MC.center.X, 0, MC.center.Z) - V3(pos.X, 0, pos.Z)).Magnitude
-				local text = toBase < 300 and "Suspect approaching the mountain district." or ("Suspect last seen around " .. districtName(pos) .. ".")
-				broadcastPolice({site = H.site.key, name = H.site.name, icon = H.site.icon, text = text, pos = pos + off, radius = 90, level = H.site.alert, t = now, suspect = plr.Name})
+				if C.policeReport then C.policeReport(plr, pos + off, H.site.key) end
 			end
 		end
 	end
@@ -802,7 +783,7 @@ Players.PlayerRemoving:Connect(function(plr)
 		robbers[plr].bag = 0
 		dropRobber(plr, nil, false)
 	end
-	police[plr], jailed[plr], lastRob[plr], invites[plr], switchedAt[plr], nextUpdate[plr] = nil, nil, nil, nil, nil, nil
+	police[plr], jailed[plr], lastRob[plr], invites[plr], switchedAt[plr], nextUpdate[plr], arrestedAt[plr] = nil, nil, nil, nil, nil, nil, nil
 end)
 
 -- =====================================================================
@@ -876,7 +857,7 @@ function F.heistState(plr)
 	local h = rec(d)
 	local r = robbers[plr]
 	local m = mult(d)
-	local out = {active = r ~= nil, police = police[plr] ~= nil, discovered = h.discovered, tier = F.tierIndex(d.rep) >= HC.unlockTier, jailed = jailed[plr] and math.ceil(jailed[plr] - os.clock()) or nil}
+	local out = {active = r ~= nil, police = false, chase = C.policeChasing and C.policeChasing(plr) or false, discovered = h.discovered, tier = F.tierIndex(d.rep) >= HC.unlockTier, jailed = jailed[plr] and math.ceil(jailed[plr] - os.clock()) or nil}
 	if r then
 		local H = r.heist
 		local st = H and siteState[H.site.key]
@@ -918,13 +899,12 @@ function F.heistApp(plr)
 	if robbers[plr] then
 		for _, p in ipairs(Players:GetPlayers()) do if p ~= plr and not police[p] and not robbers[p] then table.insert(crewInvite, {id = p.UserId, name = p.Name}) end end
 	end
-	local onDuty = 0
-	for _ in pairs(police) do onDuty += 1 end
-	local myAlerts = {}
-	if police[plr] then for _, a in ipairs(alerts) do table.insert(myAlerts, {text = a.text, name = a.name, icon = a.icon, area = a.area}) end end
+	-- robbery alarms are public news; the police units' work is shown as a status
+	local news = {}
+	for _, a in ipairs(alerts) do if os.clock() - (a.t or 0) < 600 then table.insert(news, {text = a.text, name = a.name, icon = a.icon, area = a.area}) end end
 	return {state = F.heistState(plr), jobs = jobs, bags = bags, base = base, invite = crewInvite, inBase = plr:GetAttribute("InBase") == true,
 		stats = {done = h.done, failed = h.failed, earned = h.earned, best = h.best, arrests = h.arrests, policeEarned = h.policeEarned},
-		police = {on = police[plr] ~= nil, count = h.base >= 3 and onDuty or nil, alerts = myAlerts}, unlockTier = C.REP_TIERS[HC.unlockTier].name}
+		police = {npc = true, status = C.policeStatus and C.policeStatus() or nil, alerts = news, cooldown = arrestedAt[plr] and math.max(0, math.ceil(HC.police.cooldown - (os.clock() - arrestedAt[plr]))) or 0}, unlockTier = C.REP_TIERS[HC.unlockTier].name}
 end
 
 C.ACTIONS = C.ACTIONS or {}
@@ -993,11 +973,15 @@ C.HEIST_ADMIN = {
 	fillBag = function(plr) local r = robbers[plr] if not r then return false end r.bag = r.cap r.heist.grabbed = math.max(r.heist.grabbed, r.cap) soundAlarm(r.heist, "admin test") return true end,
 	alert = function() local s = C.HEIST_SITE.bank local a = {site = "bank", name = s.name, icon = s.icon, text = "TEST ALERT — " .. s.name, area = s.area, pos = siteState.bank.center, radius = 60, level = "TEST", t = os.clock()}
 		table.insert(alerts, a) broadcastPolice(a) return true end,
-	clearAlerts = function() table.clear(alerts) for p in pairs(police) do R.Menu:FireClient(p, "heistAlert", {clear = true}) end return true end,
+	clearAlerts = function() table.clear(alerts) if C.policeClear then C.policeClear() end return true end,
+	-- v14: give a player a clean slate (tests / admins): no arrest cooldown
+	unarrest = function(plr) arrestedAt[plr] = nil jailed[plr] = nil return true end,
 	reset = function()
 		for plr, r in pairs(robbers) do r.bag = 0 dropRobber(plr, "🛑 Robberies were reset by an admin.", false) end
 		for key, st in pairs(siteState) do F.heistFinishSite(key) st.cooldownUntil = 0 end
 		table.clear(alerts)
+		if C.policeClear then C.policeClear() end
+		table.clear(arrestedAt)
 		G.nextOpen = os.clock() + 30
 		return true
 	end,
