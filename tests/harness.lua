@@ -554,6 +554,7 @@ local function defaults(o, k)
 	if k == "Scale" then return 1 end
 	if k == "Volume" then return 0.5 end
 	if k == "IsPlaying" then return false end
+	if k == "IsLoaded" and cls == "Sound" then return false end   -- (nothing streams in the test engine: like an asset you can't use)
 	if k == "TimePosition" then return 0 end
 	if k == "Rate" then return 0 end
 	return nil
@@ -889,6 +890,12 @@ function Inst.Play(o)
 	end
 	rawget(o, "_p").IsPlaying = true
 	rawget(o, "_p").Playing = true
+	-- (for tests: which sounds started, at what pitch; the last 600)
+	if o.ClassName == "Sound" then
+		H.soundLog = H.soundLog or {}
+		table.insert(H.soundLog, {name = o.Name, id = rawget(o, "_p").SoundId, speed = rawget(o, "_p").PlaybackSpeed or 1, t = now})
+		if #H.soundLog > 600 then table.remove(H.soundLog, 1) end
+	end
 end
 function Inst.Stop(o) rawget(o, "_p").IsPlaying = false rawget(o, "_p").Playing = false end
 function Inst.Pause(o) rawget(o, "_p").IsPlaying = false end

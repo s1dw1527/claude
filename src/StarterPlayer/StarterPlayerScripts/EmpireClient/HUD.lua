@@ -311,7 +311,7 @@ do
 		toast.Visible = true
 		toast.Position = UDim2.new(0.5, 0, 0, -60)
 		tween(toast, 0.35, {Position = UDim2.new(0.5, 0, 0, toastY)}, Enum.EasingStyle.Back)
-		play(cat.key == "warn" and (SND.warn or SND.event) or (cat.key == "money" and (SND.cash or SND.event) or SND.event))
+		if cat.key == "money" and C.jingle then C.jingle("coin", 0.25) else play(SND.event) end
 		local life = math.clamp(2 + #msg * 0.03, 2, 4.5)
 		task.delay(life, function()
 			if id ~= mine then return end
@@ -405,6 +405,18 @@ do
 		end)
 	end
 	R.Splash.OnClientEvent:Connect(U.splash)
+	-- v14: celebrations get a fanfare, smaller wins a short "ta-da"
+	R.Splash.OnClientEvent:Connect(function(title)
+		if not C.jingle then return end
+		local t = tostring(title or "")
+		if t:find("MILLIONAIRE") or t:find("BILLIONAIRE") or t:find("GRAND") or t:find("LANDMARK") or t:find("EVERY CORNER") or t:find("MAX") then
+			C.jingle("milestone", 0.4)
+		elseif t:find("BUSTED") or t:find("ALARM") then
+			C.jingle("fail", 0.35)
+		else
+			C.jingle("success", 0.3)
+		end
+	end)
 	local war = panel({AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(520, 360), Visible = false, ZIndex = 65}, gui)
 	war.Name = "WarResults"
 	C.Layout.window("warResults", war, {fixed = true, major = false})

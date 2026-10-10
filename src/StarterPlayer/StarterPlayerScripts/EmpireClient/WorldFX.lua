@@ -272,6 +272,8 @@ RunService.RenderStepped:Connect(function(dt)
 			-- fans who recognize the owner (story chapter 3+)
 			if c.shout then table.insert(lines, 1, {"🗣️ " .. c.shout, RGB(255, 140, 200)}) end
 			floatBillboard(c.door + V3(0, 6, 0), lines, (c.review or c.shout) and 3.5 or 1.2)
+			-- a soft "ka-ching" when it happens near you (v14)
+			if C.jingle and (c.door - camPos).Magnitude < 70 then C.jingle("sale", 0.16) end
 		end
 	end
 	for _, p in ipairs(CollectionService:GetTagged("Spin")) do
