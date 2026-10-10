@@ -335,7 +335,11 @@ H.main(function()
 		local function stackProblems(o, name)
 			local r = rect(o)
 			local bad = {}
-			if o.Parent ~= L.box.top then table.insert(bad, name .. " is not in the stack (parent " .. tostring(o.Parent) .. ")") end
+			if o.Parent ~= L.box.top then
+				local others = {}
+				for _, x in ipairs(L.box.top:GetChildren()) do if x:IsA("GuiObject") and x.Visible then table.insert(others, x.Name) end end
+				table.insert(bad, name .. " is not in the stack (parent " .. tostring(o.Parent) .. "; in the stack: " .. table.concat(others, "/") .. ")")
+			end
 			if not inside(r, sc) then table.insert(bad, name .. " off screen " .. fmtR(r)) end
 			if scaleOf(o) < L.MIN_SCALE - 0.01 then table.insert(bad, name .. " scale " .. scaleOf(o)) end
 			if math.abs((r.x + r.w) - (w - L.safe.r)) > 2 then table.insert(bad, name .. " is not against the right edge " .. fmtR(r)) end
@@ -349,6 +353,12 @@ H.main(function()
 			else
 				local was = o.Visible
 				afterPacket()
+				-- (one card at a time: any other card that popped up on its own meanwhile, e.g. an achievement, waits)
+				local hidden = {}
+				for _, other in ipairs(CARDS) do
+					local x = other ~= name and find(other)
+					if x and x.Visible then x.Visible = false table.insert(hidden, x) end
+				end
 				o.Visible = true
 				H.task.wait(0.05)
 				local bad, r = stackProblems(o, name)
@@ -358,6 +368,7 @@ H.main(function()
 					if p.o ~= o and not p.name:find(name) and not p.name:find("BuzzFeed") and overlap(r, p.r) then table.insert(cbad, name .. " × " .. p.name) end
 				end
 				o.Visible = was
+				for _, x in ipairs(hidden) do x.Visible = true end
 				H.task.wait(0.05)
 			end
 		end
