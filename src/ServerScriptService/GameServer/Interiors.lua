@@ -108,6 +108,7 @@ local LAYOUTS = {
 	arcade = {w = 56, d = 38, fixtures = {"machines", "prizes", "seating"}, spots = grid({-16, -6, 6, 16}, {2, 9}, "floor")},
 	tech = {w = 48, d = 32, fixtures = {"displays", "computers", "checkout", "storage"}, spots = grid({-16, -6, 6, 16}, {3, 9}, "floor")},
 	factory = {w = 80, d = 52, fixtures = {"conveyor", "storage", "checkout"}, spots = grid({-20, -8, 8, 20}, {4, 11}, "floor")},
+	theater = {w = 64, d = 56, fixtures = {"screen", "seats", "concessions"}, spots = grid({-26, -18, 18, 26}, {14, 22}, "floor")},
 	home = {w = 60, d = 44, fixtures = {"homeRooms"}, spots = grid({-22, -12, 10, 22}, {-4, 6, 14}, "floor")},
 }
 for _, L in pairs(LAYOUTS) do
@@ -124,6 +125,7 @@ LAYOUTS.coffee.office = {17, 0, 6}
 LAYOUTS.pizza.office = {19, -1, 6}
 LAYOUTS.arcade.office = {22, 14, 8}
 LAYOUTS.tech.office = {-21, 4, 6}
+LAYOUTS.theater.office = {27, 6, 6}
 C.INTERIOR_LAYOUTS = LAYOUTS
 
 -- ===== saved data =====
@@ -568,6 +570,64 @@ THEMES.factory = function(m, o, L, lvl, accent, ownerName)
 	wp(m, o, "loading", hw - 9, hd - 9) wp(m, o, "storage", -hw + 6, hd - 4) wp(m, o, "office", hw - 6, -1)
 	wp(m, o, "register", 0, 6) wp(m, o, "order", 0, 9) wp(m, o, "trash", 0, hd - 3)
 end
+-- v14: the Movie Theater: an auditorium at the back (screen, rows of red seats that grow with the level, a
+-- projection booth), a lobby at the front with the ticket desk, the concession stand and film posters
+THEMES.theater = function(m, o, L, lvl, accent)
+	local hw, hd = L.w / 2, L.d / 2
+	-- the screen + its frame and curtains
+	local scr = box(m, V3(L.w * 0.7, 13, 0.3), o * CF(0, 9.5, -hd + 0.9), RGB(235, 235, 245), MAT.SmoothPlastic)
+	scr.Name = "Screen"
+	addLight(scr, RGB(200, 210, 255), 0.6, 26)
+	local film = FURN.film
+	C.surfaceText(scr, Enum.NormalId.Back, film and (film.icon .. "\n" .. string.upper(film.title)) or "🎬", RGB(60, 60, 90))
+	for _, sx in ipairs({-1, 1}) do box(m, V3(3, 15, 0.6), o * CF(sx * (L.w * 0.35 + 1.5), 9.5, -hd + 1.2), RGB(150, 20, 40), MAT.Fabric) end
+	box(m, V3(L.w * 0.7 + 6, 1.6, 0.6), o * CF(0, 16.6, -hd + 1.2), RGB(150, 20, 40), MAT.Fabric)
+	box(m, V3(L.w * 0.72, 1, 3), o * CF(0, 1.1, -hd + 2.5), RGB(40, 30, 34), MAT.WoodPlanks, SOLID)   -- the stage
+	-- rows of seats (more rows with every level), each row a step higher
+	local rows = math.min(6, 2 + math.floor(lvl / 2))
+	for r = 0, rows - 1 do
+		local z = -hd + 9 + r * 3.2
+		local y = 0.6 + r * 0.5
+		box(m, V3(L.w * 0.62, 0.5 + r * 0.5, 3.2), o * CF(0, (0.5 + r * 0.5) / 2 + 0.5, z), RGB(50, 40, 46), MAT.Carpet)
+		for k = -6, 6 do
+			if k ~= 0 then
+				box(m, V3(1.8, 1, 1.8), o * CF(k * 2.3, y + 0.9, z), RGB(190, 30, 50), MAT.Fabric)
+				box(m, V3(1.8, 1.8, 0.4), o * CF(k * 2.3, y + 1.8, z + 0.8), RGB(170, 25, 45), MAT.Fabric)
+			end
+		end
+		wp(m, o, "seat", -4.6, z) wp(m, o, "seat", 4.6, z)
+	end
+	-- the projection booth (the beam shows the film is running)
+	local booth = box(m, V3(8, 4, 3), o * CF(0, 10.5, -hd + 9 + rows * 3.2 + 1.5), RGB(30, 26, 30), MAT.SmoothPlastic)
+	booth.Name = "Booth"
+	for _, sx in ipairs({-3.6, 3.6}) do box(m, V3(0.6, 8.5, 0.6), o * CF(sx, 4.25 + 0.5, -hd + 9 + rows * 3.2 + 1.5), RGB(30, 26, 30), MAT.Metal) end
+	local beam = box(m, V3(0.8, 0.8, rows * 3.2 + 6), o * CF(0, 11, -hd + 5 + rows * 1.6), RGB(255, 250, 220), MAT.Neon, {Transparency = 0.85})
+	beam.Name = "ProjectorBeam"
+	-- the lobby: ticket desk, concessions, posters
+	local lz = hd - 9
+	FURN.counter(m, o, -14, lz, 10, accent)
+	FURN.register(m, o, -11, lz)
+	sign(m, V3(8, 1.2, 0.2), o * CF(-14, 7.2, lz - 1.3), "🎟️ TICKETS", Enum.NormalId.Front, RGB(255, 230, 120), RGB(30, 20, 26))
+	FURN.counter(m, o, 14, lz, 12, RGB(220, 40, 60))
+	for i = 0, math.min(2, math.floor(lvl / 3)) do   -- popcorn machines
+		local pm = box(m, V3(2.4, 2.6, 2), o * CF(10 + i * 3, 5.6, lz - 0.2), RGB(255, 236, 170), MAT.Glass, {Transparency = 0.3})
+		addLight(pm, RGB(255, 220, 140), 0.8, 8)
+		box(m, V3(2.6, 0.5, 2.2), o * CF(10 + i * 3, 7.1, lz - 0.2), RGB(220, 40, 60))
+	end
+	box(m, V3(2.4, 3, 1.6), o * CF(18.5, 5.7, lz - 0.2), RGB(40, 40, 46), MAT.Metal)   -- soda fountain
+	sign(m, V3(10, 1.2, 0.2), o * CF(14, 7.2, lz - 1.3), "🍿 CONCESSIONS", Enum.NormalId.Front, RGB(255, 230, 120), RGB(150, 20, 40))
+	sign(m, V3(12, 1.4, 0.2), o * CF(14, 9, lz - 1.3), FURN.menuText or "🍿 POPCORN  •  🥤 SODA  •  🧀 NACHOS", Enum.NormalId.Front, RGB(255, 245, 210), FURN.menuColor or RGB(25, 18, 30))
+	for i, txt in ipairs({"🦖 THE LAST\nDINOSAUR", "🚀 MOON\nPIRATES", "👻 HOUSE\nOF ECHOES", "💘 ROOFTOP\nROMANCE"}) do
+		sign(m, V3(0.2, 4.6, 3.2), o * CF((i <= 2 and -1 or 1) * (hw - 0.6), 5, hd - 5 - ((i - 1) % 2) * 5), txt, i <= 2 and Enum.NormalId.Right or Enum.NormalId.Left, RGB(255, 230, 140), RGB(25, 18, 30))
+	end
+	-- dim aisle lights
+	for _, sx in ipairs({-L.w * 0.33, L.w * 0.33}) do
+		for r = 0, rows - 1 do addLight(box(m, V3(0.4, 0.2, 0.4), o * CF(sx, 0.9 + r * 0.5, -hd + 9 + r * 3.2), RGB(255, 200, 120), MAT.Neon), RGB(255, 200, 120), 0.5, 6) end
+	end
+	FURN.staff(m, o, hw - 5, hd - 3)
+	wp(m, o, "register", -11, lz - 2) wp(m, o, "order", -11, lz + 3) wp(m, o, "prep", 11, lz - 2) wp(m, o, "prep", 16, lz - 2)
+	wp(m, o, "display", 14, lz + 3) wp(m, o, "machine", 0, -hd + 9 + rows * 3.2 + 1.5) wp(m, o, "trash", 0, hd - 3) wp(m, o, "staffroom", hw - 4, hd - 4)
+end
 local function buildFixtures(m, o, L, key, accent, lvl, ownerName, title, icon)
 	if key ~= "home" and THEMES[key] then
 		THEMES[key](m, o, L, lvl, accent, ownerName)
@@ -697,6 +757,7 @@ local function buildRoom(room)
 		end)
 	else
 		FURN.homeLayout = key == "home" and F.homeLayout and F.homeLayout(d) or nil
+		FURN.film = key == "theater" and F.theaterFilm and F.theaterFilm(d) or nil   -- v14: what's on the big screen
 		ok, err = pcall(buildFixtures, m, o, L, BIZ[key] and key or "home", accent, lvl, owner.Name, title, BIZ[key] and (d.brands and d.brands[key] and d.brands[key].logo or BIZ[key].icon) or "🏠")
 	end
 	FURN.menuText, FURN.menuColor = nil, nil

@@ -418,6 +418,20 @@ local SIGNATURE = {
 			scr.Color = RGB(80, 200, 255)
 		end
 	end,
+	theater = function(S, o)
+		-- the curtains part and the screen lights up
+		local scr = S:part(V3(8, 4.5, 0.2), RGB(20, 20, 26), Enum.Material.SmoothPlastic, o * CF(0, 5, -1))
+		local l = S:part(V3(4.2, 4.8, 0.3), RGB(160, 20, 40), Enum.Material.Fabric, o * CF(-2, 5, -0.8))
+		local r = S:part(V3(4.2, 4.8, 0.3), RGB(160, 20, 40), Enum.Material.Fabric, o * CF(2, 5, -0.8))
+		S:wait(0.4)
+		tween(l, 1.2, {CFrame = o * CF(-6, 5, -0.8)})
+		tween(r, 1.2, {CFrame = o * CF(6, 5, -0.8)})
+		S:wait(0.8)
+		scr.Material = Enum.Material.Neon
+		scr.Color = RGB(235, 240, 255)
+		play(SND.click)
+		S:wait(0.6)
+	end,
 	factory = function(S, o)
 		local gears = {}
 		for i = 1, 2 do gears[i] = S:part(V3(0.6, 3, 3), RGB(160, 160, 170), Enum.Material.Metal, o * CF(-3 + i * 3.5, 3, 1.5), Enum.PartType.Cylinder) end

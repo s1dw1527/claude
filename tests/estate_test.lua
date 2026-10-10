@@ -86,7 +86,7 @@ H.main(function()
 	H.check(#d.deeds == 1 and d.deeds[1].district == "suburbs" and s1.owner == a and math.abs((cashB - d.cash) - price) < 50, "BUY: a deed, the plot is Alice's, $" .. C.fmt(price) .. " paid")
 	local choose
 	for _, e in ipairs(T.remotesSince(mark, "Menu", a)) do if e.args[1] == "chooseBiz" then choose = e.args[2] end end
-	H.check(choose and #choose.options == 8, "then: CHOOSE YOUR BUSINESS with all 8 types")
+	H.check(choose and #choose.options == #C.BUSINESSES, "then: CHOOSE YOUR BUSINESS with all " .. #C.BUSINESSES .. " types")
 	H.check(findLike("CHOOSE YOUR BUSINESS") ~= nil, "the chooser opens on screen")
 	local s2 = lotIn("suburbs", true)
 	T.act(a, "plotBuy", s2.id)

@@ -41,6 +41,7 @@
     "EmpirePlaza",
     "Explore",
     "Kitchen",
+    "Theater",
     "Updates",
     "Players"
   ],
@@ -62,6 +63,7 @@
     "ExploreUI",
     "ActivityLog",
     "KitchenUI",
+    "TheaterUI",
     "ComputerUI",
     "GarageUI",
     "ArcadeUI",

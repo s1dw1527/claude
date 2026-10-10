@@ -51,10 +51,11 @@ C.OPENING_CROWD = {
 	arcade = {{"crowd1", "The lights. THE LIGHTS.", "shock"}, {"crowd2", "My mom said we're leaving at six.", "shrug"}, {"crowd1", "It's 5:59. RUN.", "hype"}},
 	tech = {{"crowd1", "Do they have the new phone?", "point"}, {"crowd2", "Which one?", "shrug"}, {"crowd1", "The one that's newer than mine.", "hype"}},
 	factory = {{"crowd1", "What do they even make here?", "think"}, {"crowd2", "Stuff. Big stuff.", "crossed"}, {"crowd1", "I NEED BIG STUFF.", "hype"}},
+	theater = {{"crowd1", "Is it the dinosaur movie?", "point"}, {"crowd2", "It's ALL the movies.", "shrug"}, {"crowd1", "I brought a pillow. I'm staying for all of them.", "hype"}},
 }
 C.OPENING_SIGNATURE = {
 	lemonade = "flips the OPEN sign", icecream = "opens the freezer", bakery = "opens the oven", coffee = "fires up the espresso machine",
-	pizza = "spins the first pizza", arcade = "turns the lights on", tech = "powers up the screens", factory = "starts the machines",
+	pizza = "spins the first pizza", arcade = "turns the lights on", tech = "powers up the screens", factory = "starts the machines", theater = "opens the curtains",
 }
 
 -- ===== eviction: cartoon slapstick, never violence =====

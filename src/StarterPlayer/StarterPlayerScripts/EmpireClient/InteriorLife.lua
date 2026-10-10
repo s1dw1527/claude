@@ -29,6 +29,7 @@ local UNI = {
 	arcade = {shirt = RGB(150, 80, 255), pants = RGB(30, 30, 40), work = "wave"},
 	tech = {shirt = RGB(40, 44, 58), pants = RGB(60, 70, 120), work = "type"},
 	factory = {shirt = RGB(90, 94, 102), pants = RGB(50, 60, 90), work = "lift"},
+	theater = {shirt = RGB(150, 20, 40), pants = RGB(30, 26, 30), work = "stir"},
 }
 local NAMES = {"Sam", "Riley", "Jordan", "Alex", "Casey", "Morgan", "Taylor", "Jamie", "Quinn", "Avery", "Rowan", "Drew"}
 local GOOD = {"Mmm!", "10/10 honestly.", "Okay this slaps.", "Coming back tomorrow.", "Worth it.", "Chef's kiss."}
@@ -36,8 +37,8 @@ local DECOR_GOOD = {"Okay... this place actually eats.", "Love the decor!", "The
 local BAD = {"Took forever...", "Hmm. It's fine I guess.", "Needs... something.", "The line was long."}
 local FUNNY = {"This {thing} changed my life.", "I waited 14 minutes. I have aged.", "My mom said we're leaving. I disagree.", "The bathroom deserves its own business.",
 	"Too much {thing}. Perfect amount, actually.", "I'm telling the group chat about this."}
-local THINGS = {lemonade = "lemonade", icecream = "ice cream", bakery = "croissant", coffee = "coffee", pizza = "pizza", arcade = "arcade", tech = "phone", factory = "factory tour"}
-local ORDER_PROP = {lemonade = "cup", icecream = "cup", bakery = "tray", coffee = "cup", pizza = "pizzabox", arcade = nil, tech = "phone", factory = nil}
+local THINGS = {lemonade = "lemonade", icecream = "ice cream", bakery = "croissant", coffee = "coffee", pizza = "pizza", arcade = "arcade", tech = "phone", factory = "factory tour", theater = "movie"}
+local ORDER_PROP = {lemonade = "cup", icecream = "cup", bakery = "tray", coffee = "cup", pizza = "pizzabox", arcade = nil, tech = "phone", factory = nil, theater = "cup"}
 
 local room = nil   -- the active room: {model, key, wps, staff = {}, customers = {}, seatsUsed = {}, ...}
 local folder = nil

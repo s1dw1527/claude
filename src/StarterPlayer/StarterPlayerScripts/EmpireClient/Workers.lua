@@ -30,6 +30,7 @@ local UNIFORMS = {
 	arcade = {shirt = RGB(150, 80, 255), pants = RGB(30, 30, 40), hat = "cap", hatColor = RGB(255, 60, 180), work = "wave"},
 	tech = {shirt = RGB(40, 44, 58), pants = RGB(60, 70, 120), hat = "headset", hatColor = RGB(90, 200, 255), work = "type", tool = "laptop"},
 	factory = {shirt = RGB(90, 94, 102), pants = RGB(50, 60, 90), vest = RGB(255, 140, 30), hat = "hardhat", hatColor = RGB(255, 205, 40), work = "lift", tool = "box"},
+	theater = {shirt = RGB(150, 20, 40), pants = RGB(30, 26, 30), tie = RGB(255, 205, 60), hat = "cap", hatColor = RGB(30, 20, 26), work = "pour"},
 	manager = {shirt = RGB(30, 36, 62), pants = RGB(30, 36, 62), tie = RGB(200, 40, 50), work = "clipboard", tool = "clipboard"},
 	marketer = {shirt = RGB(255, 110, 200), pants = RGB(245, 245, 250), hat = "cap", hatColor = RGB(255, 200, 60), work = "wave", tool = "megaphone"},
 	engineer = {shirt = RGB(60, 90, 140), pants = RGB(50, 50, 60), vest = RGB(255, 140, 30), hat = "hardhat", hatColor = RGB(255, 205, 40), work = "hammer", tool = "wrench"},

@@ -123,6 +123,30 @@ end
 PROPS.factory = function(m, o, s)
 	return 0.5
 end
+PROPS.theater = function(m, o, s)
+	-- a giant popcorn bucket on the roof
+	cyl(m, 3 * s, 2.2 * s, o * CF(0, 1.5 * s, 0), WHITE)
+	for k = 0, 5 do P(m, V3(0.36 * s, 3 * s, 0.1), o * CF(math.cos(k * math.pi / 3) * 1.1 * s, 1.5 * s, math.sin(k * math.pi / 3) * 1.1 * s) * CFrame.Angles(0, -k * math.pi / 3 + math.pi / 2, 0), RGB(220, 40, 60)) end
+	for k = 0, 6 do ball(m, V3(0.9, 0.8, 0.9) * s, o * CF(math.cos(k) * 0.6 * s, (3.2 + (k % 3) * 0.25) * s, math.sin(k) * 0.6 * s), RGB(255, 236, 170)) end
+	return 3.8 * s
+end
+-- the theater's lit marquee with the film that's showing (GameServer > Theater changes the title)
+local function marquee(m, o, w, y, z, title)
+	local box = P(m, V3(w, 2.2, 0.6), o * CF(0, y, z), RGB(30, 20, 26), MAT.SmoothPlastic)
+	box.Name = "Marquee"
+	surfaceText(box, Enum.NormalId.Back, "NOW SHOWING\n" .. string.upper(title or "COMING SOON"), RGB(255, 236, 160))
+	local bulbs = Instance.new("Model")
+	bulbs.Name = "MarqueeBulbs"
+	bulbs.Parent = m
+	local n = math.max(8, math.floor(w / 0.9))
+	for k = 0, n - 1 do
+		ball(bulbs, V3(0.32, 0.32, 0.32), o * CF(-w / 2 + (k + 0.5) * (w / n), y + 1.2, z + 0.32), RGB(255, 230, 120), MAT.Neon)
+		ball(bulbs, V3(0.32, 0.32, 0.32), o * CF(-w / 2 + (k + 0.5) * (w / n), y - 1.2, z + 0.32), RGB(255, 230, 120), MAT.Neon)
+	end
+	tag(bulbs, "ChaseLights")
+	return box
+end
+C.theaterMarquee = marquee
 
 -- ===== stage 1: small stands, carts and stalls =====
 local function stand(m, o, b, accent)
@@ -195,6 +219,21 @@ local function stand(m, o, b, accent)
 		local sb = P(m, V3(5, 1, 0.2), o * CF(0, 5.3, 2.55), RGB(40, 40, 50))
 		surfaceText(sb, Enum.NormalId.Back, b.signName and string.upper(b.signName) or "STARTUP", RGB(120, 200, 255))
 		return 7
+	elseif b.key == "theater" then
+		-- a pop-up outdoor screen: a big white screen on scaffolding, a ticket booth and folding chairs
+		for _, sx in ipairs({-5, 5}) do P(m, V3(0.4, 9, 0.4), o * CF(sx, 4.5, -4), DARK, MAT.Metal) end
+		P(m, V3(10.6, 0.4, 0.4), o * CF(0, 9, -4), DARK, MAT.Metal)
+		local scr = P(m, V3(9.6, 5.4, 0.2), o * CF(0, 6, -3.9), RGB(245, 245, 250), MAT.SmoothPlastic)
+		scr.Name = "Screen"
+		surfaceText(scr, Enum.NormalId.Back, "🎬", RGB(40, 40, 60))
+		P(m, V3(3.4, 3.4, 2.6), o * CF(-5.6, 1.9, 4.6), RGB(220, 40, 60), MAT.SmoothPlastic, SOLID)
+		local sb = P(m, V3(3.6, 0.8, 0.2), o * CF(-5.6, 4, 5.95), RGB(30, 20, 26))
+		surfaceText(sb, Enum.NormalId.Back, "🎟️ TICKETS", RGB(255, 230, 120))
+		for r = 0, 1 do
+			for k = -2, 2 do P(m, V3(1.2, 1, 1.2), o * CF(k * 1.8, 0.8, 1 + r * 2.4), RGB(40, 40, 50), MAT.Fabric) end
+		end
+		PROPS.theater(m, o * CF(5.6, 0.3, 4.6), 0.6)
+		return 10
 	else -- factory workshop
 		P(m, V3(9, 6, 8), o * CF(0, 3.3, -0.5), RGB(150, 84, 64), MAT.Brick, SOLID)
 		P(m, V3(4.5, 4.2, 0.2), o * CF(-1.5, 2.4, 3.55), RGB(120, 125, 135), MAT.DiamondPlate)
@@ -216,6 +255,7 @@ local THEME = {
 	arcade   = {mat = MAT.SmoothPlastic, trim = RGB(255, 60, 200), aw = {RGB(40, 30, 60), RGB(40, 30, 60), "solid"}, arcade = true},
 	tech     = {mat = MAT.Glass, trim = WHITE, aw = {RGB(40, 42, 52), RGB(40, 42, 52), "solid"}, tech = true},
 	factory  = {mat = MAT.Brick, trim = RGB(90, 94, 102), aw = {RGB(90, 94, 102), RGB(90, 94, 102), "solid"}, factory = true},
+	theater  = {mat = MAT.SmoothPlastic, trim = RGB(255, 210, 90), aw = {RGB(30, 20, 26), RGB(30, 20, 26), "solid"}, theater = true},
 }
 local DIMS = {nil, {12, 10, 1, 7.5}, {13, 11, 2, 6.5}, {14, 12, 3, 6}, {14.5, 12.5, 4, 6}, {15, 13, 5, 6}}
 
@@ -361,6 +401,23 @@ local function shop(m, o, b, st, accent)
 			cyl(m, 0.8, 4, base * CF(0, roofY + 7.4, d * 0.2), RGB(90, 60, 45), MAT.Wood)
 		end
 	end
+	if T.theater then
+		-- the marquee over the doors, a red carpet, velvet ropes, poster cases and searchlights at night
+		local film = b.film or "Coming Soon"
+		marquee(m, base, w * 0.9, 0.3 + sfH + 3.6, fz + 0.5, film)
+		P(m, V3(3, 0.08, 6), o * CF(0, 0.34, 4.4), RGB(180, 20, 40), MAT.Fabric)
+		for _, sx in ipairs({-1, 1}) do
+			for k = 0, 2 do P(m, V3(0.25, 1.6, 0.25), o * CF(sx * 2, 1.1, 2.2 + k * 2.2), GOLD, MAT.Foil) end
+			P(m, V3(0.2, 0.2, 4.6), o * CF(sx * 2, 1.7, 4.4), RGB(150, 20, 40), MAT.Fabric)
+			local pc = P(m, V3(2.4, 3.4, 0.2), base * CF(sx * w * 0.36, 2.6, fz + 0.25), RGB(20, 16, 22))
+			surfaceText(pc, Enum.NormalId.Back, sx < 0 and "🍿\nNOW\nSHOWING" or "🎞️\nCOMING\nSOON", RGB(255, 220, 120))
+		end
+		for _, sx in ipairs({-w * 0.35, w * 0.35}) do
+			local beam = P(m, V3(0.6, 14, 0.6), base * CF(sx, roofY + 7, 0) * CFrame.Angles(0, 0, math.rad(sx < 0 and 12 or -12)), RGB(255, 245, 210), MAT.Neon, {Transparency = 0.75})
+			beam.Name = "Searchlight"
+			cyl(m, 1, 1.4, base * CF(sx, roofY + 0.5, 0), DARK, MAT.Metal)
+		end
+	end
 	-- stage 5+: setback tower
 	local top = roofY
 	if st >= 5 then
@@ -413,6 +470,19 @@ function F.refreshBuilding(plr, key, animate)
 	local b = BIZ[key]
 	local lvl = d.levels[key] or 0
 	local chains = d.chains[key] or 0
+	if b.lotOnly then
+		-- v14: lives on a city plot (GameServer > RealEstate builds it there), never on the home plot
+		local lot = F.siteLot and F.siteLot(plr, key)
+		if lot and lvl > 0 then
+			F.buildLot(lot)
+			if animate then
+				local o = F.slotCF(plot, key)
+				burst(o.Position + V3(0, 8, 0), b.color, 50)
+				shockwave(o.Position + V3(0, 0.4, 0), b.color, 22)
+			end
+		end
+		return
+	end
 	if plot.slots[key] then
 		plot.slots[key]:Destroy()
 		plot.slots[key] = nil

@@ -121,12 +121,15 @@ H.main(function()
 	-- forged answers
 	H.task.wait(1.2)
 	order = KU.order
-	local before = d.cash
+	-- (judged by the shift itself: cash can move for other reasons, like a passing customer event)
+	local sh0 = F.cookShift(a)
+	local served0, tips0 = sh0.served, sh0.tips
 	T.act(a, "cookDone", "999", seq)
 	T.act(a, "cookDone", order.id, "nope")
 	T.act(a, "cookDone", order.id, {1, 2, 3})
 	H.task.wait(0.3)
-	H.check(d.cash - before < F.incomePerSec(d) * 2 + 1 and F.cookShift(a) ~= nil, "made-up answers do nothing")
+	local sh1 = F.cookShift(a)
+	H.check(sh1 ~= nil and sh1.served == served0 and sh1.tips == tips0, "made-up answers do nothing")
 	-- too slow
 	mk = #H.remoteLog
 	H.task.wait(order.limit + 2.5)

@@ -168,6 +168,23 @@ local function lotOfDeed(plr, deed)
 	return nil
 end
 F.lotOfDeed = lotOfDeed
+-- v14: the deed (and the placed plot, if any) a business runs on. Used for businesses that only exist on a city
+-- plot (the Movie Theater).
+function F.siteDeed(d, key)
+	for _, dd in ipairs(d and d.deeds or {}) do if dd.biz == key then return dd end end
+	return nil
+end
+function F.siteLot(plr, key)
+	local d = plr and data[plr]
+	if not d then return nil end
+	for _, dd in ipairs(d.deeds or {}) do
+		if dd.biz == key then
+			local lot = lotOfDeed(plr, dd)
+			if lot then return lot end
+		end
+	end
+	return nil
+end
 
 -- =====================================================================
 -- PLACING DEEDS (on join, and whenever plots free up)
@@ -261,8 +278,14 @@ function F.setDeedBiz(plr, deedId, key)
 			notify(plr, "🏙️ Opening a " .. b.name .. " costs $" .. fmt(cost) .. ".")
 			return false
 		end
+		-- (the plot is chosen first, so a business that needs a plot (the Movie Theater) opens right here)
+		local was = deed.biz
+		deed.biz = key
 		F.buyUpgrade(plr, d, key)
-		if (d.levels[key] or 0) <= 0 then return false end
+		if (d.levels[key] or 0) <= 0 then
+			deed.biz = was
+			return false
+		end
 	end
 	deed.biz = key
 	changedAt[deed] = now
@@ -347,7 +370,13 @@ end
 -- =====================================================================
 local function stars(n) return string.rep("★", n) .. string.rep("☆", 5 - n) end
 function F.buildLot(lot)
-	if lot.folder then lot.folder:Destroy() end
+	if lot.folder then
+		-- (a plot-only business's building is also its owner's "slot": forget it there)
+		local ref = lot.slotRef
+		if ref and ref.plot.slots[ref.key] == lot.folder then ref.plot.slots[ref.key] = nil end
+		lot.slotRef = nil
+		lot.folder:Destroy()
+	end
 	local dist = DISTRICT[lot.dkey]
 	local f = Instance.new("Model")
 	f.Name = "Plot" .. lot.id
@@ -388,6 +417,32 @@ function F.buildLot(lot)
 			return C.bizBuilders.shop(f, o, b, stage, accent)
 		end)
 		if ok and type(res) == "number" then top = res end
+		if BIZ[key].lotOnly then
+			-- v14: this plot IS the business (the Movie Theater): it's the owner's slot for it, and its counter runs here
+			owner.plot.slots[key] = f
+			lot.slotRef = {plot = owner.plot, key = key}
+			f:SetAttribute("Top", top)
+			local plr = lot.owner
+			if C.RECIPES and C.RECIPES[key] then
+				local spot = P(f, V3(1, 1, 1), o * CF(3, 3, size / 2 - 3), WHITE, MAT.SmoothPlastic, {Transparency = 1, Name = "Counter"})
+				C.prompt(spot, "🍳 Rush orders", BIZ[key].name, 14, 0.2, function(who)
+					if who == plr then F.cookStart(plr, key) else notify(who, "🍳 Only the owner runs this counter.") end
+				end)
+			end
+			if key == "theater" then
+				local box = P(f, V3(1, 1, 1), o * CF(-3, 3, size / 2 - 3), WHITE, MAT.SmoothPlastic, {Transparency = 1, Name = "BoxOffice"})
+				C.prompt(box, "🎬 Programme", BIZ[key].name, 14, 0, function(who)
+					if who == plr then
+						R.Menu:FireClient(plr, "openTheater")
+					else
+						local film = F.theaterFilm and F.theaterFilm(owner)
+						notify(who, "🎬 Now showing at " .. plr.Name .. "'s theater: " .. (film and (film.icon .. " " .. film.title) or "coming soon") .. ". Step inside!")
+					end
+				end)
+				if F.theaterMarquee then F.theaterMarquee(plr, owner) end
+			end
+			if owner.problems and owner.problems[key] and F.problemVisual then task.defer(F.problemVisual, plr, key, true) end
+		end
 	else
 		-- owned but vacant: a fenced construction site waiting for a business
 		for _, sx in ipairs({-size / 2 + 1, size / 2 - 1}) do P(f, V3(0.3, 2, size - 2), o * CF(sx, 1.4, 0), RGB(240, 150, 40)) end

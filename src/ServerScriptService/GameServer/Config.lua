@@ -4,9 +4,9 @@ local RGB = Color3.fromRGB
 
 -- ===== VERSION (bump these with every published update; see README "How to update Corner Empire") =====
 C.VERSION = {
-	VERSION = "13.0.0",
-	UPDATE_NAME = "Life & Empire: Living City",
-	SCHEMA_VERSION = 13,         -- the shape of a player's save. Raise it only together with a new step in DataMigration.
+	VERSION = "14.0.0",
+	UPDATE_NAME = "Life & Empire: Main Street",
+	SCHEMA_VERSION = 14,         -- the shape of a player's save. Raise it only together with a new step in DataMigration.
 	MIN_SUPPORTED_SCHEMA = 6,   -- saves older than v6 (no version field, no tutorial-reward tracking) are treated as v6
 	-- shown once to every returning player after an update (Messages app)
 	NOTES = {
@@ -112,7 +112,7 @@ C.CFG.MAX_CUSTOMERS_PER_SEC, C.CFG.SABOTAGE_COST = E.maxCustomers, E.sabotageCos
 C.REP_TIERS = {
 	{name = "UNKNOWN CORNER",     rep = 0,    unlocks = {"Lemonade Stand", "Ice Cream Cart", "Your home", "Phone & CityBuzz"}},
 	{name = "LOCAL FAVORITE",     rep = 100,  unlocks = {"Bakery & Coffee Shop", "Staff", "Cars & Deliveries", "Fun Park", "Downtown & Midtown plots"}},
-	{name = "HOTSPOT",            rep = 400,  unlocks = {"Pizza & Arcade", "Stock Market", "Ads", "Property Management", "Race Track", "Empire Tower", "Industrial & Entertainment plots", "Your HQ"}},
+	{name = "HOTSPOT",            rep = 400,  unlocks = {"Pizza & Arcade", "Movie Theater (on a city plot)", "Stock Market", "Ads", "Property Management", "Race Track", "Empire Tower", "Industrial & Entertainment plots", "Your HQ"}},
 	{name = "CITY ICON",          rep = 1200, unlocks = {"Tech Startup", "Business chains", "Rebirth", "Waterfront plots", "Oceanfront homes"}},
 	{name = "EMPIRE",             rep = 3500, unlocks = {"Factory", "Luxury Hills & Expansion plots", "Hillside homes"}},
 	{name = "LEGENDARY DISTRICT", rep = 9000, unlocks = {"Millionaire Row", "Legend status"}},
@@ -139,6 +139,11 @@ C.BUSINESSES = {
 		tiers = {"Garage Startup", "Tech Startup", "Tech Company", "Tech Campus", "Tech Giant", "💻 SILICON SPIRE"}},
 	{key = "factory",  name = "Factory",   cost = 600000000, income = 14000, unlock = 5, icon = "🏭", color = RGB(170, 175, 190), wall = RGB(150, 84, 64),   roof = RGB(90, 94, 102),   thing = "products",
 		tiers = {"Workshop", "Factory", "Big Factory", "Industrial Plant", "Mega Factory", "🏭 INDUSTRIAL TITAN"}},
+	-- v14: the MOVIE THEATER. lotOnly: it needs a city plot (Real Estate): your home plot has no room for a cinema.
+	-- Sessions, film schedule, seats / screen / sound / concessions upgrades and attendance: GameServer > Theater.
+	{key = "theater",  name = "Movie Theater", cost = 8000000, income = 620, unlock = 3, icon = "🎬", color = RGB(220, 40, 60), wall = RGB(60, 20, 30), roof = RGB(220, 40, 60), thing = "tickets",
+		lotOnly = true,
+		tiers = {"Pop-up Screen", "Neighborhood Cinema", "Twin Cinema", "Multiplex", "IMAX Palace", "🎬 GRAND PREMIERE HALL"}},
 }
 C.BIZ = {}
 for i, b in ipairs(C.BUSINESSES) do
@@ -333,6 +338,7 @@ C.STAFF_ROLES = {
 	bakery = {role = "Chef", icon = "👨‍🍳"}, coffee = {role = "Barista", icon = "☕"},
 	pizza = {role = "Pizza Chef", icon = "🍕"}, arcade = {role = "Game Host", icon = "🕹️"},
 	tech = {role = "Developer", icon = "🧑‍💻"}, factory = {role = "Warehouse Worker", icon = "📦"},
+	theater = {role = "Projectionist", icon = "🎞️"},
 	manager = {role = "Manager", icon = "💰", cost = 500000, desc = "+1.5% ALL income per star"},
 	marketer = {role = "Marketer", icon = "📣", cost = 120000, desc = "+6% customers per star"},
 	engineer = {role = "Engineer", icon = "🔧", cost = 30000, desc = "Fewer problems, cheaper repairs"},
@@ -351,12 +357,12 @@ C.PROBLEM_RANDOM = 10          -- random problems use the first 10 types
 C.INSPECTION_PROBLEM = 11
 
 C.NPC_TYPES = {
-	{key = "office",     icon = "💼", shirt = RGB(60, 75, 120),   pants = RGB(35, 35, 45),   likes = {coffee = 3, tech = 2, bakery = 1}},
-	{key = "family",     icon = "👪", shirt = RGB(90, 170, 90),   pants = RGB(60, 70, 120),  likes = {bakery = 3, pizza = 2, icecream = 2}, family = true},
-	{key = "student",    icon = "🎓", shirt = RGB(235, 125, 45),  pants = RGB(50, 60, 110),  likes = {arcade = 3, pizza = 2, lemonade = 2}},
+	{key = "office",     icon = "💼", shirt = RGB(60, 75, 120),   pants = RGB(35, 35, 45),   likes = {coffee = 3, tech = 2, bakery = 1, theater = 1}},
+	{key = "family",     icon = "👪", shirt = RGB(90, 170, 90),   pants = RGB(60, 70, 120),  likes = {bakery = 3, pizza = 2, icecream = 2, theater = 3}, family = true},
+	{key = "student",    icon = "🎓", shirt = RGB(235, 125, 45),  pants = RGB(50, 60, 110),  likes = {arcade = 3, pizza = 2, lemonade = 2, theater = 3}},
 	{key = "gym",        icon = "🏋️", shirt = RGB(220, 50, 60),   pants = RGB(30, 30, 30),   likes = {lemonade = 3, icecream = 1}},
 	{key = "builder",    icon = "🛠️", shirt = RGB(250, 170, 30),  pants = RGB(70, 80, 110),  likes = {factory = 3, bakery = 2, coffee = 1}},
-	{key = "rich",       icon = "💰", shirt = RGB(25, 25, 30),    pants = RGB(25, 25, 30),   likes = {tech = 2, coffee = 2, pizza = 1}, tip = 3, fancy = true},
+	{key = "rich",       icon = "💰", shirt = RGB(25, 25, 30),    pants = RGB(25, 25, 30),   likes = {tech = 2, coffee = 2, pizza = 1, theater = 2}, tip = 3, fancy = true},
 	{key = "influencer", icon = "🤳", shirt = RGB(255, 110, 200), pants = RGB(240, 240, 250), likes = {}, trendy = true},
 }
 C.REVIEWS = {

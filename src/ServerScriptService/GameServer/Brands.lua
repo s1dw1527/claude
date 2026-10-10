@@ -58,11 +58,15 @@ C.PRODUCT_TEMPLATES = {
 	factory = {fair = 500, list = {{k = "widgets", name = "Widget Batch", icon = "⚙️", desc = "1,000 widgets."}, {k = "toys", name = "Toy Line", icon = "🧸", desc = "Holiday best-sellers."},
 		{k = "crates", name = "Shipping Crates", icon = "📦", desc = "Sturdy and stackable."}, {k = "robots", name = "Robot Parts", icon = "🤖", desc = "Beep boop components."},
 		{k = "solar", name = "Solar Panels", icon = "☀️", desc = "Clean energy."}}},
+	theater = {fair = 18, list = {{k = "ticket", name = "Movie Ticket", icon = "🎟️", desc = "A seat and a story."}, {k = "popcorn", name = "Butter Popcorn", icon = "🍿", desc = "Extra butter. Always."},
+		{k = "nachos", name = "Cheesy Nachos", icon = "🧀", desc = "Crunchy, melty, loud."}, {k = "soda", name = "Giant Soda", icon = "🥤", desc = "Refills until the credits."},
+		{k = "vip", name = "VIP Recliner", icon = "🛋️", desc = "Reclines. Has a cup holder."}}},
 }
 C.SUPPLIES = {
 	lemonade = {"🍋 Lemons", "🍬 Sugar", "🥤 Cups"}, icecream = {"🥛 Cream", "🍫 Toppings", "🍦 Cones"}, bakery = {"🌾 Flour", "🧈 Butter", "📦 Boxes"},
 	coffee = {"☕ Coffee Beans", "🥛 Milk", "🥤 Cups"}, pizza = {"🌾 Dough", "🧀 Cheese", "📦 Boxes"}, arcade = {"🪙 Tokens", "🎁 Prizes", "🔧 Parts"},
 	tech = {"🔋 Batteries", "📟 Chips", "📦 Packaging"}, factory = {"🔩 Steel", "⚡ Power", "📦 Pallets"},
+	theater = {"🍿 Kernels", "🥤 Syrup", "🎞️ Film reels"},
 }
 C.INGREDIENTS = {{k = "std", name = "Standard", demand = 0, supply = 1}, {k = "prem", name = "Premium", demand = 0.04, supply = 1.3}, {k = "art", name = "Artisan", demand = 0.08, supply = 1.7}}
 C.BRANDING = {

@@ -380,6 +380,13 @@ function F.setPlotSign(plot, name, tier)
 end
 -- business slot layout: 2 rows of 4, 16x16 each
 function F.slotCF(plot, key)
+	-- v14: a business that lives on a city plot (the Movie Theater) stands on its owner's plot; until it has one,
+	-- its "slot" is the front of the home plot (customers and moments still have somewhere to go)
+	if C.BIZ[key].lotOnly then
+		local lot = F.siteLot and F.siteLot(plot.owner, key)
+		if lot then return CF(lot.pos) * CFrame.Angles(0, lot.yaw or 0, 0) end
+		return CF(plot.at(0, 1, 30)) * CFrame.Angles(0, plot.fz == 1 and 0 or math.pi, 0)
+	end
 	local i = C.BIZ[key].index
 	local col = (i - 1) % 4
 	local zl = i <= 4 and -28 or -6

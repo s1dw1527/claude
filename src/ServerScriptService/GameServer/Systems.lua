@@ -92,6 +92,7 @@ function F.bizMult(d, key)
 	if F.stockMult then m *= F.stockMult(d, key) end
 	if G.megaBiz and G.megaBiz[key] then m *= G.megaBiz[key] end
 	if F.rushMult then m *= F.rushMult(d, key) end   -- v14: Rush Orders (Kitchen)
+	if F.theaterMult then m *= F.theaterMult(d, key) end   -- v14: how full the Movie Theater's shows are (Theater)
 	if d.problems[key] then m *= 0.5 end
 	return m
 end
@@ -410,6 +411,12 @@ function F.buyUpgrade(plr, d, key)
 	if lvl >= CFG.MAX_LEVEL then return end
 	if not F.bizUnlocked(d, key) then
 		notify(plr, "🔒 " .. b.name .. " unlocks at " .. REP_TIERS[b.unlock].name .. " reputation.")
+		return
+	end
+	-- v14: the Movie Theater is too big for the home plot: it opens on a city plot (Properties → a plot → 🎬)
+	if lvl <= 0 and b.lotOnly and not (F.siteDeed and F.siteDeed(d, key)) then
+		notify(plr, b.icon .. " A " .. b.name .. " needs a city plot. Buy one in 🏙️ Properties, then choose " .. b.icon .. " on it.")
+		R.Menu:FireClient(plr, "needPlot", key)
 		return
 	end
 	local cost = F.upgradeCost(d, key)
