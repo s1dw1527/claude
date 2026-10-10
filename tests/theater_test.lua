@@ -143,8 +143,10 @@ H.main(function()
 	H.task.wait(0.3)
 	H.check(d.theater.film == other.key, "films not in release and made-up ones are refused")
 	-- it rotates: a few hours later different films are out (the same in every server)
-	local later = F.filmsNow(os.time() + C.THEATER.release)
-	H.check(later[1].key ~= films[1].key, "the release list rotates every " .. (C.THEATER.release / 3600) .. " h")
+	-- (the game's clock, not this machine's: the server runs on the simulated one)
+	local now = H.G.os.time()
+	local cur, later = F.filmsNow(now), F.filmsNow(now + C.THEATER.release)
+	H.check(cur[1].key == F.filmsNow()[1].key and later[1].key ~= cur[1].key, "the release list rotates every " .. (C.THEATER.release / 3600) .. " h")
 
 	H.section("Upgrades")
 	local cap0 = F.theaterInfo(a).capacity
