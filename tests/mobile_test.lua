@@ -329,7 +329,7 @@ H.main(function()
 		-- every notification card, one at a time: in the top-right stack, out of the middle, off the HUD and the right-hand buttons
 		local CARDS = {"TutorialCard", "GuideTip", "ProblemCard", "DeliveryCard", "AchievementCard", "RivalBubble", "HouseTourPanel",
 			"StoryPill", "BeefPill", "MegaBar", "HeistBagHUD", "PoliceAlertBar", "RacePanel", "InteriorBar", "ViralMomentPopup", "CityJobCard",
-			"RivalCard", "PartyCard", "NextStepCard", "BaseMenuCard"}   -- (v14, v15)
+			"RivalCard", "PartyCard", "NextStepCard", "BaseMenuCard", "DailyCard"}   -- (v14, v15, v16)
 		local cbad = {}
 		local rightCol = {x = L.rightX, y = L.rightColTop, w = L.RSIDE, h = L.rightColH}
 		local function stackProblems(o, name)
@@ -365,7 +365,10 @@ H.main(function()
 				for _, b in ipairs(bad) do table.insert(cbad, b) end
 				if overlap(r, charZone) then table.insert(cbad, name .. " reaches the middle " .. fmtR(r)) end
 				for _, p in ipairs(pieces) do
-					if p.o ~= o and not p.name:find(name) and not p.name:find("BuzzFeed") and overlap(r, p.r) then table.insert(cbad, name .. " × " .. p.name) end
+					-- (other stack cards that happened to be up when the HUD was measured share the stack: not HUD pieces)
+					local isCard = false
+					for _, other in ipairs(CARDS) do if p.name:find(other, 1, true) then isCard = true end end
+					if p.o ~= o and not isCard and not p.name:find("BuzzFeed") and overlap(r, p.r) then table.insert(cbad, name .. " × " .. p.name) end
 				end
 				o.Visible = was
 				for _, x in ipairs(hidden) do x.Visible = true end
