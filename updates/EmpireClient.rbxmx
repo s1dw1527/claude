@@ -1,8 +1,8 @@
 <roblox version="4">
-<Item class="LocalScript" referent="RBX57"><Properties><string name="Name">EmpireClient</string>
+<Item class="LocalScript" referent="RBX62"><Properties><string name="Name">EmpireClient</string>
 <ProtectedString name="Source"><![CDATA[--// CORNER EMPIRE v11.1 — CLIENT. All the code lives in the ModuleScripts inside this LocalScript.
-local modules = {"UI", "Layout", "Audio", "AnimationConfig", "Actors", "HUD", "WorldFX", "CityCrowd", "ParkFX", "PoliceCars", "Workers", "Menus", "BusinessUI", "HQUI", "EmpireUI", "ExploreUI", "ActivityLog", "KitchenUI", "TheaterUI", "LotShopUI", "ParkUI", "RivalsUI", "PartnersUI", "HomeLifeUI", "LeadersUI", "JourneyUI", "ComputerUI", "GarageUI", "ArcadeUI", "AdminPanel", "GuideUI", "HeistUI", "Phone", "Driving", "MiniGames", "PhotoMode", "Story", "Cinematics",
-	"MapApp", "InteriorUI", "InteriorLife", "BuilderUI", "MountainLife", "CityLife", "ViralApp", "MainMenu"}
+local modules = {"UI", "Layout", "Audio", "AnimationConfig", "Actors", "HUD", "WorldFX", "CityCrowd", "ParkFX", "PoliceCars", "Workers", "Menus", "BusinessUI", "HQUI", "EmpireUI", "ExploreUI", "ActivityLog", "KitchenUI", "TheaterUI", "LotShopUI", "ParkUI", "RivalsUI", "PartnersUI", "HomeLifeUI", "LeadersUI", "JourneyUI", "DailyUI", "RoadmapUI", "ShowcaseUI", "ComputerUI", "GarageUI", "ArcadeUI", "AdminPanel", "GuideUI", "HeistUI", "Phone", "Driving", "MiniGames", "PhotoMode", "Story", "Cinematics",
+	"MapApp", "InteriorUI", "InteriorLife", "BuilderUI", "MountainLife", "CityLife", "ViralApp", "IntroCinematic", "MainMenu"}
 local C = {}
 for _, name in ipairs(modules) do
 	local ok, err = pcall(function() require(script:WaitForChild(name))(C) end)
@@ -32,7 +32,7 @@ C.R.State.OnClientEvent:Connect(function(s)
 	end
 end)
 ]]></ProtectedString></Properties>
-<Item class="ModuleScript" referent="RBX58"><Properties><string name="Name">UI</string>
+<Item class="ModuleScript" referent="RBX63"><Properties><string name="Name">UI</string>
 <ProtectedString name="Source"><![CDATA[-- UI: theme, helper functions, sounds, the main ScreenGui. Everything else builds on this.
 return function(C)
 local Players = game:GetService("Players")
@@ -169,7 +169,7 @@ C.SND = {
 	msg = sound("rbxasset://sounds/electronicpingshort.wav", 0.3),
 	tap = sound("rbxasset://sounds/switch.wav", 0.18),
 }
-C.settings = {music = true, musicVol = 5, sfx = true, crowd = "high", weather = true, units = "MPH", spawnAt = "business", cinematics = "full"}
+C.settings = {music = true, musicVol = 5, sfx = true, crowd = "high", weather = true, units = "MPH", spawnAt = "business", cinematics = "full", alerts = "all", sfxVol = 7}
 -- the same sound twice within a moment plays once (a button's tap + its click handler, two toasts at once)
 local lastPlayed = {}
 function C.play(s)
@@ -198,7 +198,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX59"><Properties><string name="Name">Layout</string>
+<Item class="ModuleScript" referent="RBX64"><Properties><string name="Name">Layout</string>
 <ProtectedString name="Source"><![CDATA[-- LAYOUT (v11.1): the responsive layout manager (also C.UIManager).
 -- One place that knows the screen: viewport size and breakpoints, the safe area (notch, Roblox's top bar, the
 -- home indicator), where Roblox's touch controls sit, and which big window is open.
@@ -408,7 +408,7 @@ end
 -- opts.expanded: fn() → true while the card is open because the PLAYER opened it (the CityBuzz feed).
 local slots = {}
 -- Who gets a place first when more than L.STACK_MAX cards are showing. Cards that need an answer come first.
-local PRIORITY = {TutorialCard = 1, ProblemCard = 2, DeliveryCard = 3, PoliceAlertBar = 4, CityJobCard = 4.5, BaseMenuCard = 4.6, RivalCard = 4.7, PartyCard = 4.8, HeistBagHUD = 5, RacePanel = 6, MegaBar = 7, BeefPill = 8,
+local PRIORITY = {TutorialCard = 1, ProblemCard = 2, DeliveryCard = 3, PoliceAlertBar = 4, CityJobCard = 4.5, BaseMenuCard = 4.6, RivalCard = 4.7, PartyCard = 4.8, DailyCard = 6.8, HeistBagHUD = 5, RacePanel = 6, MegaBar = 7, BeefPill = 8,
 	ViralMomentPopup = 9, StoryPill = 10, InteriorBar = 11, AchievementCard = 12, GuideTip = 13, RivalBubble = 14, HouseTourPanel = 15, BuzzFeed = 99}
 local scheduleReflow, adaptOne
 function L.slot(frame, where, order, opts)
@@ -734,7 +734,7 @@ placeBoxes()
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX60"><Properties><string name="Name">Audio</string>
+<Item class="ModuleScript" referent="RBX65"><Properties><string name="Name">Audio</string>
 <ProtectedString name="Source"><![CDATA[-- AUDIO (v14): music that follows what you're doing, district and interior ambience, and musical feedback.
 --
 -- ================================================================
@@ -966,6 +966,13 @@ end)
 
 function C.applySettings()
 	local s = C.settings
+	-- v16: the sound effects volume (each effect keeps its own base volume)
+	for _, snd in pairs(C.SND or {}) do
+		if typeof(snd) == "Instance" and snd:IsA("Sound") then
+			if snd:GetAttribute("BaseVolume") == nil then snd:SetAttribute("BaseVolume", snd.Volume) end
+			snd.Volume = (tonumber(snd:GetAttribute("BaseVolume")) or 0.5) * (tonumber(s.sfxVol) or 7) / 7
+		end
+	end
 	music.Volume = s.music and musicVolume() or 0
 	amb.Volume = s.sfx and (amb.IsPlaying and 0.3 or 0) or 0
 	pcall(apply)
@@ -984,7 +991,7 @@ local _ = RunService
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX61"><Properties><string name="Name">AnimationConfig</string>
+<Item class="ModuleScript" referent="RBX66"><Properties><string name="Name">AnimationConfig</string>
 <ProtectedString name="Source"><![CDATA[-- ANIMATION CONFIG: every animation the game uses, in one place, with a safe fallback for each.
 --
 -- ✏️  TO USE YOUR OWN ANIMATIONS: upload them to Roblox (Animation Editor → Publish), copy the asset id and paste
@@ -1107,7 +1114,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX62"><Properties><string name="Name">Actors</string>
+<Item class="ModuleScript" referent="RBX67"><Properties><string name="Name">Actors</string>
 <ProtectedString name="Source"><![CDATA[-- ACTORS: the shared kit for every scripted character the client draws: the story cast, cinematic actors,
 -- the city's influencers, interior staff and customers, crowds and photographers.
 -- Actors are a handful of anchored, non-colliding parts posed every frame by a small procedural animation
@@ -1488,7 +1495,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX63"><Properties><string name="Name">HUD</string>
+<Item class="ModuleScript" referent="RBX68"><Properties><string name="Name">HUD</string>
 <ProtectedString name="Source"><![CDATA[-- HUD: top bar, events, toasts, splash, war results, collapsible business panel + leaderboard,
 -- problem card, delivery card, tutorial card.
 return function(C)
@@ -1817,20 +1824,47 @@ do
 		end)
 	end
 	U.toastQueue = queue
-	function U.toast(msg)
+	-- v16: opts from the server {pri = "critical" | "normal" | "low", cat, key}:
+	--   * critical (purchases, claims, arrests, save problems, mission results) is never dropped: it goes to the
+	--     front of the queue even when the queue is full, and it ignores "Pop-up alerts: important only"
+	--   * low ones with the same key close together are grouped ("×3") instead of queued again
+	--   * with Settings → Pop-up alerts: IMPORTANT ONLY, everything else only goes to the 🔔 Activity log
+	--     (warnings still pop up)
+	local groupKey, groupAt = nil, 0
+	function U.toast(msg, opts)
 		msg = tostring(msg or "")
 		if msg == "" then return end
+		opts = type(opts) == "table" and opts or {}
 		local cat = catOf(msg)
+		local critical = opts.pri == "critical" or cat.key == "warn"
 		logIt(msg, cat)
+		if not critical and C.settings.alerts == "important" then
+			U.unread += 1
+			if U.onActivity then U.onActivity() end
+			return
+		end
 		-- the same message again: count it instead of showing it again
 		if current and msg == lastMsg and os.clock() - shownAt < 4 then
 			repeats += 1
 			toastL.Text = msg .. "  ×" .. repeats
 			return
 		end
+		if opts.pri == "low" and opts.key and current and groupKey == opts.key and os.clock() - groupAt < 6 then
+			repeats += 1
+			toastL.Text = msg .. "  ×" .. repeats
+			return
+		end
+		groupKey, groupAt = opts.key, os.clock()
 		for _, q in ipairs(queue) do if q == msg then return end end
 		if current then
-			if #queue < 3 then
+			if critical then
+				table.insert(queue, 1, msg)
+				while #queue > 4 do
+					table.remove(queue)
+					U.unread += 1
+				end
+				if U.onActivity then U.onActivity() end
+			elseif #queue < 3 then
 				table.insert(queue, msg)
 			else
 				U.unread += 1
@@ -2636,7 +2670,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX64"><Properties><string name="Name">WorldFX</string>
+<Item class="ModuleScript" referent="RBX69"><Properties><string name="Name">WorldFX</string>
 <ProtectedString name="Source"><![CDATA[-- WORLD FX: customers, pedestrians, traffic, rides, traffic lights, marquees, weather, guide beams.
 return function(C)
 local RunService = game:GetService("RunService")
@@ -3078,7 +3112,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX65"><Properties><string name="Name">CityCrowd</string>
+<Item class="ModuleScript" referent="RBX70"><Properties><string name="Name">CityCrowd</string>
 <ProtectedString name="Source"><![CDATA[-- CITY CROWD (v13): the people and traffic that make the city feel alive, drawn by each client for itself.
 --
 -- The old version spread 30 walkers and 16 cars over the whole map on fixed rectangles, so wherever you stood you saw
@@ -4034,7 +4068,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX66"><Properties><string name="Name">ParkFX</string>
+<Item class="ModuleScript" referent="RBX71"><Properties><string name="Name">ParkFX</string>
 <ProtectedString name="Source"><![CDATA[-- PARK FX (v15): what makes the parks move on your screen.
 --   * TRACK MOVERS: roller-coaster trains (tag "TrackMover", built by GameServer > Park and the Fun Park). The
 --     track's points come in the Pts attribute; the train's place is worked out from the server clock, so every
@@ -4221,7 +4255,7 @@ end
 local function want(site)
 	local crowd = C.settings and C.settings.crowd or "high"
 	if crowd == "off" then return 0 end
-	local n = math.clamp(3 + math.floor((site:GetAttribute("Rating") or 0) / 7), 3, POOL_MAX)
+	local n = math.clamp(math.floor((3 + (site:GetAttribute("Rating") or 0) / 7) * (site:GetAttribute("Boost") or 1)), 3, POOL_MAX)   -- (v16: busier during city events)
 	return crowd == "low" and math.ceil(n / 2) or n
 end
 local function placeVisitor(v, gcf, cells, list)
@@ -4343,7 +4377,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX67"><Properties><string name="Name">PoliceCars</string>
+<Item class="ModuleScript" referent="RBX72"><Properties><string name="Name">PoliceCars</string>
 <ProtectedString name="Source"><![CDATA[-- POLICE CARS (v14): draws the city's NPC police units. The server (GameServer > Police) moves one invisible root
 -- part per unit ten times a second; here each one gets a black-and-white patrol car that glides smoothly to it, a
 -- light bar that flashes red/blue while the siren is on, and a siren you hear when you're near.
@@ -4441,7 +4475,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX68"><Properties><string name="Name">Workers</string>
+<Item class="ModuleScript" referent="RBX73"><Properties><string name="Name">Workers</string>
 <ProtectedString name="Source"><![CDATA[-- WORKERS: your hired staff, standing at their businesses in uniform and working.
 -- The server publishes a roster on each plot folder (attribute "Workers"); this module draws it.
 -- Everything here is client-only visuals: no physics, no collisions, capped count, frozen when far away.
@@ -4756,7 +4790,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX69"><Properties><string name="Name">Menus</string>
+<Item class="ModuleScript" referent="RBX74"><Properties><string name="Name">Menus</string>
 <ProtectedString name="Source"><![CDATA[-- MENUS: modal windows opened from the phone (and from world prompts).
 return function(C)
 local RGB = Color3.fromRGB
@@ -5506,6 +5540,13 @@ do
 		C.setSetting("cinematics", ({full = "short", short = "off", off = "full"})[st.cinematics or "full"] or "full")
 	end)
 	row(10, "🎓 Tutorial", function() return "Restart" end, function() act("tut", "restart") end)
+	-- v16
+	row(11, "🔕 Pop-up alerts", function() return st.alerts == "important" and "IMPORTANT ONLY" or "ALL" end, function()
+		C.setSetting("alerts", st.alerts == "important" and "all" or "important")
+	end)
+	row(12, "🔉 Effects volume", function() local v = tonumber(st.sfxVol) or 7 return string.rep("▮", v) .. string.rep("▯", 10 - v) end,
+		function() C.setSetting("sfxVol", ((tonumber(st.sfxVol) or 7) + 1) % 11) end)
+	row(13, "🎬 Opening movie", function() return "▶ Replay" end, function() if C.playIntro then C.closeModals() C.playIntro(true) end end)
 	row(9, "🏢 Panels", function() return "Show all" end, function()
 		if U.collapse_biz then U.collapse_biz(true) end
 		if U.collapse_board then U.collapse_board(true) end
@@ -5729,7 +5770,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX70"><Properties><string name="Name">BusinessUI</string>
+<Item class="ModuleScript" referent="RBX75"><Properties><string name="Name">BusinessUI</string>
 <ProtectedString name="Source"><![CDATA[-- BUSINESS UI (v10): property cards, choosing a business for a plot, naming it, the brand editor, products and
 -- supplies. Everything here only ASKS the server; the server checks and applies (GameServer > RealEstate, Brands).
 return function(C)
@@ -6105,7 +6146,7 @@ if C.bizCardFrame and C.bizCardCurrent then C.bizManageButtons(C.bizCardFrame, C
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX71"><Properties><string name="Name">HQUI</string>
+<Item class="ModuleScript" referent="RBX76"><Properties><string name="Name">HQUI</string>
 <ProtectedString name="Source"><![CDATA[-- HQ UI (v10): the HQ card (floors to build), the elevator, and the General Manager's contract panel.
 -- Everything here only ASKS the server (GameServer > HQ); the server checks reputation, cash and where you are.
 return function(C)
@@ -6294,7 +6335,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX72"><Properties><string name="Name">EmpireUI</string>
+<Item class="ModuleScript" referent="RBX77"><Properties><string name="Name">EmpireUI</string>
 <ProtectedString name="Source"><![CDATA[-- EMPIRE UI (v12): the Empire Hall window (your value, the four billionaire milestones, storefront makeovers, the Hall of
 -- Fame with Visit buttons). It only ASKS the server (GameServer > Empire): values, rewards and rankings all come from there.
 return function(C)
@@ -6440,7 +6481,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX73"><Properties><string name="Name">ExploreUI</string>
+<Item class="ModuleScript" referent="RBX78"><Properties><string name="Name">ExploreUI</string>
 <ProtectedString name="Source"><![CDATA[-- EXPLORE UI (v13): the 🧭 EXPLORE phone app (City Jobs, Golden Corners, Places), the active-job card in the
 -- notification stack, the guide beam to the next job stop, and the things only YOU see in the world: the Golden
 -- Corners you haven't collected yet, the parcel, the lost dog (who follows you home) and the litter piles.
@@ -6740,7 +6781,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX74"><Properties><string name="Name">ActivityLog</string>
+<Item class="ModuleScript" referent="RBX79"><Properties><string name="Name">ActivityLog</string>
 <ProtectedString name="Source"><![CDATA[-- ACTIVITY LOG (v14): every notification of the session, newest first, in the 🔔 Activity phone app. Toasts stay
 -- short and never pile up on screen (HUD); anything you might have missed is here. The phone button shows a small
 -- badge with the number of messages that were logged without being shown.
@@ -6812,7 +6853,7 @@ task.defer(updateBadge)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX75"><Properties><string name="Name">KitchenUI</string>
+<Item class="ModuleScript" referent="RBX80"><Properties><string name="Name">KitchenUI</string>
 <ProtectedString name="Source"><![CDATA[-- KITCHEN UI (v14): the RUSH ORDERS panel. A customer (with their type: 🎓 Student, 💼 Office worker...) orders one of
 -- your products; the ticket shows its recipe; tap the ingredient/step buttons in that order before the patience bar
 -- runs out. Every tap answers (a rising note when right, a buzz when wrong), a perfect dish plays a "ka-ching" and
@@ -6948,7 +6989,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX76"><Properties><string name="Name">TheaterUI</string>
+<Item class="ModuleScript" referent="RBX81"><Properties><string name="Name">TheaterUI</string>
 <ProtectedString name="Source"><![CDATA[-- THEATER UI (v14): the 🍿 THEATER phone app. What's showing, the next show, how full it will be (and why), the
 -- films in release to pick from, the upgrades (seats, screen, sound, concessions) and the theater's record.
 -- Before you have one: how to open it (buy a city plot, choose 🎬 on it). The server (GameServer > Theater)
@@ -7078,7 +7119,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX77"><Properties><string name="Name">LotShopUI</string>
+<Item class="ModuleScript" referent="RBX82"><Properties><string name="Name">LotShopUI</string>
 <ProtectedString name="Source"><![CDATA[-- LOT SHOP UI (v15): "open this business on a city plot", for businesses too big for the home plot (the 🎬 Movie
 -- Theater, the 🎢 Amusement Park). Lists your plots ("Open it here") and every district with its price, or why you
 -- can't buy there right now ("Buy a plot & open"). The server (GameServer > RealEstate: plotShop / plotOpenHere /
@@ -7168,7 +7209,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX78"><Properties><string name="Name">ParkUI</string>
+<Item class="ModuleScript" referent="RBX83"><Properties><string name="Name">ParkUI</string>
 <ProtectedString name="Source"><![CDATA[-- PARK UI (v15): the 🎢 PARK phone app. Before you have one: how to open it (a city plot for the ticket gate,
 -- then your own site at the Funland Grounds). After: the park's rating and why, its sales boost, visitors and
 -- rides, "go to my park", other players' parks to visit, and the BUILD tab: a top-down plan of your site (tap a
@@ -7209,8 +7250,26 @@ local function renderClosed(info)
 		.. "Opening costs $" .. fmt(info.cost) .. " + the plot.  " .. (info.unlocked and "You can open one now." or ("🔒 Unlocks at " .. tostring(info.need) .. " reputation.")),
 		UDim2.fromOffset(14, 40), UDim2.new(1, -28, 0, 110), 12, WHITE)
 	btn(c, "🏙️ Choose a plot", UDim2.new(1, -184, 1, -48), UDim2.fromOffset(170, 38), info.unlocked and GREEN or GRAY, function() if C.openLotShop then C.openLotShop("park") end end, "ParkPlots")
+	PU.renderList()   -- (v16: visit other players' parks before you have one)
 end
 
+-- other parks in this server (anyone can visit, with or without a park of their own)
+function PU.renderList()
+	local h = card(m.body, 30, 10, RGB(26, 28, 40))
+	txt(h, "👀 PARKS IN THIS SERVER", UDim2.fromOffset(12, 6), UDim2.new(1, -24, 0, 20), 13, GOLD, true)
+	if #(PU.list or {}) == 0 then
+		local c = card(m.body, 34, 11)
+		txt(c, "No parks open in this server yet.", UDim2.fromOffset(12, 8), UDim2.new(1, -24, 0, 20), 12, SUB)
+	end
+	for i, p in ipairs(PU.list or {}) do
+		local c = card(m.body, 58, 10 + i)
+		txt(c, "🎢 " .. p.park .. "  (" .. p.name .. ")  ⭐ " .. p.rating, UDim2.fromOffset(12, 6), UDim2.new(1, -200, 0, 20), 13, WHITE, true)
+		-- (v16: visitors and the star ride; a visit pays a small reward the first time each day)
+		txt(c, "👥 " .. fmt(p.visitors or 0) .. " visitors" .. (p.featured and ("  •  " .. p.featured) or ""), UDim2.fromOffset(12, 30), UDim2.new(1, -200, 0, 18), 11, SUB)
+		btn(c, "🪪", UDim2.new(1, -186, 0.5, -16), UDim2.fromOffset(52, 32), GRAY, function() if C.openShowcase then C.openShowcase(p.userId) end end, "ParkProfile_" .. p.userId)
+		if not p.mine then btn(c, "Visit", UDim2.new(1, -126, 0.5, -16), UDim2.fromOffset(114, 32), BLUE, function() act("parkGo", p.userId) C.closeModals() end, "ParkVisit_" .. p.userId) end
+	end
+end
 local function renderOverview(info)
 	local top = card(m.body, 116, 2, RGB(50, 30, 40))
 	stroke(top, GOLD, 2, 0.4)
@@ -7227,14 +7286,7 @@ local function renderOverview(info)
 		local w = card(m.body, 40, 4, RGB(70, 40, 20))
 		txt(w, "📍 Your park has no city plot right now: open it on one of your plots to sell tickets again.", UDim2.fromOffset(12, 6), UDim2.new(1, -24, 1, -10), 12, GOLD)
 	end
-	-- other parks in this server
-	local h = card(m.body, 30, 10, RGB(26, 28, 40))
-	txt(h, "👀 PARKS IN THIS SERVER", UDim2.fromOffset(12, 6), UDim2.new(1, -24, 0, 20), 13, GOLD, true)
-	for i, p in ipairs(PU.list or {}) do
-		local c = card(m.body, 46, 10 + i)
-		txt(c, "🎢 " .. p.park .. "  (" .. p.name .. ")  ⭐ " .. p.rating, UDim2.fromOffset(12, 12), UDim2.new(1, -140, 0, 20), 13, WHITE, true)
-		btn(c, "Visit", UDim2.new(1, -120, 0.5, -16), UDim2.fromOffset(108, 32), BLUE, function() act("parkGo", p.userId) C.closeModals() end, "ParkVisit_" .. p.userId)
-	end
+	PU.renderList()
 	local n = card(m.body, 58, 40, RGB(26, 28, 40))
 	txt(n, "The rating comes from exciting rides (new kinds count most), food stalls to go with them, decorations and paths. "
 		.. "It boosts the park's sales up to ×1.8 and brings more visitors. Every ride has a 🎢 Ride prompt: step up and ride it.",
@@ -7378,13 +7430,13 @@ R.Menu.OnClientEvent:Connect(function(kind, a)
 		if m.frame.Visible then PU.render() end
 	elseif kind == "parkList" and type(a) == "table" then
 		PU.list = a
-		if m.frame.Visible and PU.tab == "park" and PU.info then PU.render() end
+		if m.frame.Visible and (PU.tab == "park" or not (PU.info and PU.info.open)) and PU.info then PU.render() end
 	end
 end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX79"><Properties><string name="Name">RivalsUI</string>
+<Item class="ModuleScript" referent="RBX84"><Properties><string name="Name">RivalsUI</string>
 <ProtectedString name="Source"><![CDATA[-- RIVALS UI (v14): the 🥊 RIVALS phone app (your market share per business against the AI companies, the active
 -- challenge, your record, who the rivals are) and the challenge card in the notification stack while a rival's
 -- challenge is running. The server (GameServer > Rivals) decides everything.
@@ -7495,7 +7547,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX80"><Properties><string name="Name">PartnersUI</string>
+<Item class="ModuleScript" referent="RBX85"><Properties><string name="Name">PartnersUI</string>
 <ProtectedString name="Source"><![CDATA[-- PARTNERS UI (v14): the 🤝 PARTNERS phone app (send a gift, your businesses' partners and managers, the
 -- partnerships you're in, your transfer history) and the yes/no dialogs: a gift offered to you, "they accepted:
 -- send it?", an invitation to someone's business. The server (GameServer > Partners + Ledger) checks and does
@@ -7693,7 +7745,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX81"><Properties><string name="Name">HomeLifeUI</string>
+<Item class="ModuleScript" referent="RBX86"><Properties><string name="Name">HomeLifeUI</string>
 <ProtectedString name="Source"><![CDATA[-- HOME LIFE UI (v14): the 🎉 HOME & PARTY phone app: parties going on now (Join), throwing your own party (at
 -- your house/mansion or your loft), the City Loft (lease / move up / go inside), and the three ways to live side by
 -- side (loft, house, mansion). Plus the "party!" card in the notification stack when someone starts one.
@@ -7846,7 +7898,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX82"><Properties><string name="Name">LeadersUI</string>
+<Item class="ModuleScript" referent="RBX87"><Properties><string name="Name">LeadersUI</string>
 <ProtectedString name="Source"><![CDATA[-- LEADERS UI (v14): the 📊 LEADERS phone app. Eight leaderboards (Net Worth, Revenue, Popularity, Properties,
 -- Fastest Lap, Heists, Explorer, Prestige) in three views (this server, global, friends), your place, and your
 -- PRESTIGE: the ten goals, your stars and title. The server (GameServer > Leaders) computes everything.
@@ -7953,7 +8005,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX83"><Properties><string name="Name">JourneyUI</string>
+<Item class="ModuleScript" referent="RBX88"><Properties><string name="Name">JourneyUI</string>
 <ProtectedString name="Source"><![CDATA[-- JOURNEY UI (v14): the 📅 EVENTS phone app (the special occasions on now, their three tasks, Claim, what's
 -- coming next, the Weekend Rush, your keepsakes) and the 🧭 NEXT STEP card: after the tutorial, one step at a time
 -- out of ten, with "Show me" (opens the right app) and "Later" (skip for now). The server (GameServer >
@@ -8089,7 +8141,444 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX84"><Properties><string name="Name">ComputerUI</string>
+<Item class="ModuleScript" referent="RBX89"><Properties><string name="Name">DailyUI</string>
+<ProtectedString name="Source"><![CDATA[-- DAILY UI (v16): the 🎁 DAILY phone app (the 7-day login rewards with today's highlighted, the streak and its
+-- 🛡️ shield, the countdown to the next UTC day, today's 3 missions, the weekly challenge and the live city
+-- event), plus a small 🎁 card in the notification stack, once a session, when something is waiting to be
+-- claimed. Never full-screen. The server (GameServer > Daily / LiveEvents) decides and pays everything.
+return function(C)
+local RGB = Color3.fromRGB
+local new, label, button, card, clear, stroke, panel, corner = C.new, C.label, C.button, C.card, C.clear, C.stroke, C.panel, C.corner
+local fmt, play, SND, act, R, gui = C.fmt, C.play, C.SND, C.act, C.R, C.gui
+local GOLD, GREEN, GRAY, BLUE, PURPLE, WHITE, SUB = C.GOLD, C.GREEN, C.GRAY, C.BLUE, C.PURPLE, C.WHITE, C.SUB
+local Lay = C.Layout
+local modal = C.makeModal
+if not modal then return end
+local DU = {info = nil, cardShown = false}
+C.DailyUI = DU
+local NAVY = RGB(18, 24, 48)
+
+local function txt(parent, text, pos, size, px, color, bold)
+	return label({Position = pos, Size = size, Text = text, TextSize = px or 13, TextColor3 = color or WHITE, TextWrapped = true,
+		Font = bold and Enum.Font.GothamBlack or Enum.Font.GothamBold, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top}, parent)
+end
+local function btn(parent, text, pos, size, color, fn, name)
+	local b = button({Position = pos, Size = size, Text = text, TextSize = 13, TextWrapped = true, BackgroundColor3 = color or BLUE}, parent)
+	if name then b.Name = name end
+	b.MouseButton1Click:Connect(function() play(SND.click) fn(b) end)
+	return b
+end
+local function bar(parent, pos, size, f, color)
+	local bg = new("Frame", {Position = pos, Size = size, BackgroundColor3 = RGB(50, 54, 70), BorderSizePixel = 0}, parent)
+	corner(bg, 5)
+	corner(new("Frame", {Size = UDim2.fromScale(math.clamp(f, 0, 1), 1), BackgroundColor3 = color or BLUE, BorderSizePixel = 0}, bg), 5)
+	return bg
+end
+local function hm(s)
+	s = math.max(0, math.floor(s or 0))
+	if s >= 86400 then return math.floor(s / 86400) .. "d " .. math.floor(s % 86400 / 3600) .. "h" end
+	return math.floor(s / 3600) .. "h " .. math.floor(s % 3600 / 60) .. "m"
+end
+local PATH_ICON = {mogul = "💼", under = "🕶️", any = "🏙️"}
+
+local m = modal("daily", "🎁  DAILY", 560, 640)
+local function render()
+	local info = DU.info
+	clear(m.body)
+	if type(info) ~= "table" then return end
+	local o = 0
+	local function nx() o += 1 return o end
+	-- the streak + the 7 days
+	local top = card(m.body, 168, nx(), NAVY)
+	stroke(top, GOLD, 2, 0.3)
+	txt(top, "🔥 STREAK " .. info.streak .. " day" .. (info.streak == 1 and "" or "s") .. "   •   best " .. info.best .. "   •   🛡️ shield " .. (info.shield >= 1 and "ready" or "used this week"),
+		UDim2.fromOffset(12, 8), UDim2.new(1, -24, 0, 20), 13, GOLD, true)
+	local strip = new("Frame", {Position = UDim2.fromOffset(10, 32), Size = UDim2.new(1, -20, 0, 76), BackgroundTransparency = 1}, top)
+	new("UIListLayout", {FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder}, strip)
+	for _, r in ipairs(info.rewards) do
+		local isToday = r.day == info.today
+		local past = r.day < info.today or (isToday and info.claimedToday)
+		local c = new("Frame", {Size = UDim2.new(1 / 7, -4, 1, 0), BackgroundColor3 = isToday and RGB(90, 70, 20) or RGB(34, 38, 56), BorderSizePixel = 0, LayoutOrder = r.day}, strip)
+		c.Name = "Day" .. r.day
+		corner(c, 6)
+		if isToday then stroke(c, GOLD, 2, 0) end
+		label({Size = UDim2.new(1, 0, 0, 16), Text = "DAY " .. r.day, TextSize = 10, Font = Enum.Font.GothamBlack, TextColor3 = isToday and GOLD or SUB}, c)
+		label({Position = UDim2.fromOffset(0, 16), Size = UDim2.new(1, 0, 0, 30), Text = past and "✅" or r.icon, TextSize = 22}, c)
+		local l = label({Position = UDim2.fromOffset(2, 46), Size = UDim2.new(1, -4, 0, 28), Text = r.name, TextSize = 9, TextWrapped = true, TextColor3 = WHITE}, c)
+		l.TextScaled = true
+	end
+	local tr = info.rewards[info.today]
+	if info.claimedToday then
+		txt(top, "✅ Today's reward is claimed. Next reward in " .. hm(info.nextIn) .. " (midnight UTC).", UDim2.fromOffset(12, 116), UDim2.new(1, -24, 0, 40), 12, GREEN, true)
+	elseif tr then
+		txt(top, "Today: " .. tr.icon .. " " .. tr.name .. (tr.text and (" — " .. tr.text) or "") .. "  + $" .. fmt(tr.cash) .. (info.shieldUsedIfClaim and "  (🛡️ your shield saves the streak)" or ""),
+			UDim2.fromOffset(12, 112), UDim2.new(1, -170, 0, 50), 11, WHITE)
+		btn(top, "🎁 Claim", UDim2.new(1, -150, 1, -50), UDim2.fromOffset(138, 40), info.canSave and GREEN or GRAY, function() if info.canSave then act("dailyClaim") end end, "DailyClaim")
+	end
+	-- the live city event
+	local ev = info.event
+	if type(ev) == "table" then
+		local c = card(m.body, 92, nx(), RGB(40, 26, 50))
+		stroke(c, ev.color or PURPLE, 2, 0.3)
+		txt(c, ev.icon .. "  CITY EVENT: " .. string.upper(ev.name) .. "   •   ends in " .. hm(ev.endsIn), UDim2.fromOffset(12, 8), UDim2.new(1, -24, 0, 20), 13, GOLD, true)
+		txt(c, ev.text, UDim2.fromOffset(12, 30), UDim2.new(1, -24, 0, 30), 11, WHITE)
+		if ev.goal then
+			txt(c, "🎯 " .. ev.goal .. "  " .. ev.p .. "/" .. ev.n, UDim2.fromOffset(12, 62), UDim2.new(0.6, 0, 0, 20), 11, SUB)
+			if ev.claimed then
+				txt(c, "✅ Claimed", UDim2.new(1, -150, 0, 60), UDim2.fromOffset(138, 22), 12, GREEN, true)
+			else
+				btn(c, ev.done and ("🎁 $" .. fmt(ev.cash)) or (ev.p .. "/" .. ev.n), UDim2.new(1, -150, 0, 54), UDim2.fromOffset(138, 32), ev.done and GREEN or GRAY,
+					function() if ev.done then act("liveClaim") end end, "LiveClaim")
+			end
+		end
+		if ev.nextName then txt(c, "Next: " .. ev.nextIcon .. " " .. ev.nextName .. " in " .. hm(ev.endsIn), UDim2.fromOffset(12, 78), UDim2.new(0.6, 0, 0, 14), 10, SUB) end
+	end
+	-- missions
+	local h = card(m.body, 30, nx(), RGB(26, 28, 40))
+	txt(h, "🎯 TODAY'S MISSIONS   (new ones in " .. hm(info.nextIn) .. ")", UDim2.fromOffset(12, 6), UDim2.new(1, -24, 0, 20), 13, GOLD, true)
+	for _, ms in ipairs(info.missions) do
+		local c = card(m.body, 62, nx(), ms.claimed and RGB(30, 50, 36) or nil)
+		txt(c, (PATH_ICON[ms.path] or "🎯") .. "  " .. ms.text, UDim2.fromOffset(12, 8), UDim2.new(1, -170, 0, 22), 13, WHITE, true)
+		bar(c, UDim2.fromOffset(12, 38), UDim2.new(1, -184, 0, 10), ms.p / math.max(1, ms.n), ms.done and GREEN or BLUE)
+		txt(c, fmt(ms.p) .. "/" .. fmt(ms.n), UDim2.new(1, -168, 0, 34), UDim2.fromOffset(60, 18), 11, SUB)
+		if ms.claimed then
+			txt(c, "✅ Done", UDim2.new(1, -104, 0.5, -10), UDim2.fromOffset(92, 20), 13, GREEN, true)
+		else
+			btn(c, ms.done and ("🎁 $" .. fmt(ms.cash)) or "In progress", UDim2.new(1, -112, 0.5, -17), UDim2.fromOffset(100, 34), ms.done and GREEN or GRAY,
+				function() if ms.done then act("missionClaim", ms.i) end end, "Mission_" .. ms.i)
+		end
+	end
+	-- weekly
+	local w = info.weekly
+	if type(w) == "table" then
+		local c = card(m.body, 74, nx(), RGB(36, 30, 20))
+		stroke(c, GOLD, 1, 0.5)
+		txt(c, "🏆 WEEKLY: " .. w.text .. "   (" .. hm(w.endsIn) .. " left)", UDim2.fromOffset(12, 8), UDim2.new(1, -170, 0, 36), 12, GOLD, true)
+		bar(c, UDim2.fromOffset(12, 50), UDim2.new(1, -184, 0, 10), w.p / math.max(1, w.n), w.done and GREEN or GOLD)
+		txt(c, fmt(w.p) .. "/" .. fmt(w.n) .. "  •  " .. w.badge, UDim2.new(1, -168, 0, 46), UDim2.fromOffset(150, 18), 10, SUB)
+		if w.claimed then
+			txt(c, "✅ Claimed", UDim2.new(1, -104, 0, 14), UDim2.fromOffset(92, 20), 13, GREEN, true)
+		else
+			btn(c, w.done and ("🎁 $" .. fmt(w.cash)) or "In progress", UDim2.new(1, -112, 0, 8), UDim2.fromOffset(100, 34), w.done and GREEN or GRAY,
+				function() if w.done then act("weeklyClaim") end end, "WeeklyClaim")
+		end
+	end
+	local n = card(m.body, 44, nx(), RGB(26, 28, 40))
+	txt(n, "Days are UTC calendar days. Miss one day and your 🛡️ shield keeps the streak (once a week); miss more and the 7-day strip steps back a little, never all the way.",
+		UDim2.fromOffset(12, 6), UDim2.new(1, -24, 1, -10), 10, SUB)
+end
+DU.render = render
+local asked = false
+m.frame:GetPropertyChangedSignal("Visible"):Connect(function() if not m.frame.Visible then asked = false end end)
+m.update = function()
+	if not asked then
+		asked = true
+		act("dailyInfo")
+	end
+end
+
+-- ===== the 🎁 card (once a session, only when something is waiting) =====
+local dc = panel({Position = UDim2.new(1, -12, 1, -480), AnchorPoint = Vector2.new(1, 1), Size = UDim2.fromOffset(290, 76), BackgroundColor3 = NAVY, Visible = false}, gui)
+stroke(dc, GOLD, 2, 0)
+dc.Name = "DailyCard"
+Lay.slot(dc, "top", 6.5)
+local dt = label({Position = UDim2.fromOffset(10, 4), Size = UDim2.new(1, -20, 0, 34), TextSize = 12, TextWrapped = true, Font = Enum.Font.GothamBlack, TextColor3 = GOLD,
+	TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top}, dc)
+local open = button({Position = UDim2.new(0, 8, 1, -32), Size = UDim2.new(0.6, -12, 0, 26), Text = "🎁 Open", TextSize = 12, BackgroundColor3 = GREEN}, dc)
+open.Name = "DailyOpen"
+local later = button({Position = UDim2.new(0.6, 0, 1, -32), Size = UDim2.new(0.4, -8, 0, 26), Text = "Later", TextSize = 12, BackgroundColor3 = GRAY}, dc)
+later.Name = "DailyLater"
+open.MouseButton1Click:Connect(function()
+	play(SND.click)
+	dc.Visible = false
+	C.openModal("daily", true)
+end)
+later.MouseButton1Click:Connect(function() play(SND.click) dc.Visible = false end)
+DU.card = dc
+local function waiting(info)
+	if not info.claimedToday and info.canSave then return "🎁 Day " .. info.today .. " reward is ready  •  🔥 streak " .. info.streak end
+	for _, ms in ipairs(info.missions) do if ms.done and not ms.claimed then return "🎯 A daily mission is done: claim it!" end end
+	if info.weekly and info.weekly.done and not info.weekly.claimed then return "🏆 Weekly challenge done: claim it!" end
+	return nil
+end
+R.Menu.OnClientEvent:Connect(function(kind, a)
+	if kind == "daily" and type(a) == "table" then
+		DU.info = a
+		if m.frame.Visible then render() end
+		local w = waiting(a)
+		if w and not DU.cardShown and not m.frame.Visible then
+			DU.cardShown = true
+			dt.Text = w
+			dc.Visible = true
+		elseif not w then
+			dc.Visible = false
+		end
+	elseif kind == "dailyPing" then
+		if m.frame.Visible then act("dailyInfo") end
+	elseif kind == "play" then
+		-- a few seconds after the game starts (after the welcome-back messages), see if anything's waiting
+		DU.cardShown = false
+		task.delay(6, function() if not C.inMainMenu then act("dailyInfo") end end)
+	elseif kind == "mainmenu" then
+		dc.Visible = false
+	end
+end)
+end
+]]></ProtectedString></Properties>
+</Item>
+<Item class="ModuleScript" referent="RBX90"><Properties><string name="Name">RoadmapUI</string>
+<ProtectedString name="Source"><![CDATA[-- ROADMAP UI (v16): the 🗺️ ROADMAP phone app. Seven stages from Street Starter to Empire Legend (built by the
+-- server from the game's real rules: GameServer > Roadmap), where you are, what you need for the next one with
+-- progress bars, what each stage opens up; your three paths (💼 Mogul, 🕶️ Underworld, 👑 Legend) with levels
+-- and titles; your contracts (collect when done); and "change my starting attitude". Reaching a new stage gets a
+-- celebration once (the server sends it once). The START CHOICE card after the intro also lives here.
+return function(C)
+local RGB = Color3.fromRGB
+local new, label, button, card, clear, stroke, panel, corner = C.new, C.label, C.button, C.card, C.clear, C.stroke, C.panel, C.corner
+local fmt, play, SND, act, R, gui, U = C.fmt, C.play, C.SND, C.act, C.R, C.gui, C.U
+local GOLD, GREEN, GRAY, BLUE, PURPLE, WHITE, SUB = C.GOLD, C.GREEN, C.GRAY, C.BLUE, C.PURPLE, C.WHITE, C.SUB
+local modal = C.makeModal
+if not modal then return end
+local RU = {info = nil}
+C.RoadmapUI = RU
+local NAVY = RGB(18, 24, 48)
+
+local function txt(parent, text, pos, size, px, color, bold)
+	return label({Position = pos, Size = size, Text = text, TextSize = px or 13, TextColor3 = color or WHITE, TextWrapped = true,
+		Font = bold and Enum.Font.GothamBlack or Enum.Font.GothamBold, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top}, parent)
+end
+local function btn(parent, text, pos, size, color, fn, name)
+	local b = button({Position = pos, Size = size, Text = text, TextSize = 13, TextWrapped = true, BackgroundColor3 = color or BLUE}, parent)
+	if name then b.Name = name end
+	b.MouseButton1Click:Connect(function() play(SND.click) fn(b) end)
+	return b
+end
+local function bar(parent, pos, size, f, color)
+	local bg = new("Frame", {Position = pos, Size = size, BackgroundColor3 = RGB(50, 54, 70), BorderSizePixel = 0}, parent)
+	corner(bg, 5)
+	corner(new("Frame", {Size = UDim2.fromScale(math.clamp(f, 0, 1), 1), BackgroundColor3 = color or BLUE, BorderSizePixel = 0}, bg), 5)
+end
+local function money(r, v) return r.money and ("$" .. fmt(v)) or fmt(v) end
+
+-- ===== the start choice (after the intro on a new game; again any time from here) =====
+local CHOICES = {
+	{key = "smart", icon = "💼", name = "PLAY IT SMART", text = "Build your business first: your first goal is a perfect Rush Order.", color = RGB(255, 205, 60)},
+	{key = "risk", icon = "🎲", name = "TAKE A RISK", text = "Hit the streets: your first goal is a City Job. Some say the mountain up north hides more...", color = RGB(170, 90, 255)},
+	{key = "explore", icon = "🧭", name = "EXPLORE THE CITY", text = "Look around first: Golden Corners, places to discover, the Fun Park.", color = RGB(80, 200, 255)},
+}
+local choiceM = modal("startChoice", "🏙️  HOW WILL YOU START?", 540, 420)
+for i, ch in ipairs(CHOICES) do
+	local c = card(choiceM.body, 96, i, NAVY)
+	stroke(c, ch.color, 2, 0.2)
+	txt(c, ch.icon .. "  " .. ch.name, UDim2.fromOffset(14, 10), UDim2.new(1, -170, 0, 24), 17, ch.color, true)
+	txt(c, ch.text, UDim2.fromOffset(14, 38), UDim2.new(1, -170, 0, 50), 12, WHITE)
+	btn(c, "Choose", UDim2.new(1, -146, 0.5, -20), UDim2.fromOffset(132, 40), GREEN, function()
+		act("startChoice", ch.key)
+		choiceM.frame.Visible = false
+	end, "Choice_" .. ch.key)
+end
+local cn = card(choiceM.body, 36, 9, RGB(26, 28, 40))
+txt(cn, "This only picks your first goal. Nothing is locked: business, risk or both, any time.", UDim2.fromOffset(12, 6), UDim2.new(1, -24, 1, -10), 11, SUB)
+choiceM.update = function() end
+function C.openStartChoice() C.openModal("startChoice", true) end
+
+-- ===== the roadmap =====
+local m = modal("roadmap", "🗺️  EMPIRE ROADMAP", 580, 660)
+local function render()
+	local info = RU.info
+	clear(m.body)
+	if type(info) ~= "table" then return end
+	local o = 0
+	local function nx() o += 1 return o end
+	local cur = info.stages[info.stage]
+	local nxt = info.stages[info.stage + 1]
+	local top = card(m.body, nxt and 120 or 70, nx(), NAVY)
+	stroke(top, GOLD, 2, 0.3)
+	txt(top, "YOU ARE: " .. cur.icon .. " " .. string.upper(cur.name) .. "   (stage " .. info.stage .. " of " .. #info.stages .. ")", UDim2.fromOffset(12, 8), UDim2.new(1, -24, 0, 22), 15, GOLD, true)
+	txt(top, cur.text, UDim2.fromOffset(12, 32), UDim2.new(1, -24, 0, 18), 12, SUB)
+	if nxt then
+		txt(top, "NEXT: " .. nxt.icon .. " " .. nxt.name .. "  •  reaching it pays $" .. fmt(info.reward) .. " + a title", UDim2.fromOffset(12, 54), UDim2.new(1, -24, 0, 18), 12, WHITE, true)
+		local y = 76
+		for _, r in ipairs(nxt.reqs) do
+			if not r.done then
+				txt(top, r.label, UDim2.fromOffset(12, y), UDim2.new(0.45, 0, 0, 16), 10, WHITE)
+				bar(top, UDim2.new(0.46, 0, 0, y + 3), UDim2.new(0.36, 0, 0, 8), r.have / math.max(1, r.need), GOLD)
+				txt(top, money(r, r.have) .. " / " .. money(r, r.need), UDim2.new(0.83, 0, 0, y), UDim2.new(0.17, -8, 0, 16), 9, SUB)
+				y += 20
+			end
+		end
+	end
+	for _, st in ipairs(info.stages) do
+		local c = card(m.body, 74, nx(), st.current and RGB(60, 50, 20) or (st.done and RGB(30, 46, 36) or RGB(30, 32, 44)))
+		c.Name = "Stage_" .. st.i
+		if st.current then stroke(c, GOLD, 2, 0) end
+		txt(c, (st.done and "✅ " or "🔒 ") .. st.i .. ". " .. st.icon .. " " .. st.name, UDim2.fromOffset(12, 6), UDim2.new(1, -24, 0, 20), 14, st.done and WHITE or SUB, true)
+		local req = {}
+		for _, r in ipairs(st.reqs) do table.insert(req, (r.done and "✓ " or "") .. r.label:gsub("^%S+ ", "") .. " " .. money(r, r.need)) end
+		txt(c, #req > 0 and ("Needs: " .. table.concat(req, "  •  ")) or "Where every empire starts.", UDim2.fromOffset(12, 28), UDim2.new(1, -24, 0, 16), 10, SUB)
+		txt(c, "Opens: " .. table.concat(st.unlocks or {}, ", "), UDim2.fromOffset(12, 46), UDim2.new(1, -24, 0, 26), 10, st.done and RGB(170, 230, 170) or RGB(200, 200, 210))
+	end
+	-- paths
+	local p = info.paths
+	if type(p) == "table" then
+		local h = card(m.body, 30, nx(), RGB(26, 28, 40))
+		txt(h, "🛤️ YOUR PATHS (no choice is final: do both!)", UDim2.fromOffset(12, 6), UDim2.new(1, -24, 0, 20), 13, GOLD, true)
+		for _, path in ipairs(p.paths) do
+			local c = card(m.body, 56, nx())
+			c.Name = "Path_" .. path.key
+			txt(c, path.icon .. " " .. path.name .. "  Lv " .. path.level .. ": " .. path.title, UDim2.fromOffset(12, 6), UDim2.new(1, -24, 0, 20), 13, WHITE, true)
+			if path.nextXP then
+				bar(c, UDim2.fromOffset(12, 32), UDim2.new(0.6, 0, 0, 8), (path.xp - path.thisXP) / math.max(1, path.nextXP - path.thisXP), path.key == "under" and PURPLE or GOLD)
+				txt(c, fmt(path.xp) .. "/" .. fmt(path.nextXP) .. " XP → " .. tostring(path.nextTitle), UDim2.new(0.62, 6, 0, 28), UDim2.new(0.38, -18, 0, 16), 10, SUB)
+			else
+				txt(c, "MAX LEVEL", UDim2.fromOffset(12, 30), UDim2.new(1, -24, 0, 16), 11, GOLD, true)
+			end
+		end
+		if not p.underOpen then
+			local c = card(m.body, 36, nx(), RGB(30, 24, 40))
+			txt(c, "🕶️ Underworld contracts open when you find what hums inside the mountain up north.", UDim2.fromOffset(12, 8), UDim2.new(1, -24, 1, -12), 11, RGB(200, 170, 255))
+		end
+		local h2 = card(m.body, 30, nx(), RGB(26, 28, 40))
+		txt(h2, "📜 CONTRACTS (" .. p.done .. " done)", UDim2.fromOffset(12, 6), UDim2.new(1, -24, 0, 20), 13, GOLD, true)
+		for _, ct in ipairs(p.contracts) do
+			local c = card(m.body, 60, nx(), ct.done and RGB(30, 50, 36) or nil)
+			txt(c, ct.icon .. "  " .. ct.text, UDim2.fromOffset(12, 6), UDim2.new(1, -170, 0, 22), 13, WHITE, true)
+			local pr = {}
+			for _, x in ipairs(ct.progress) do table.insert(pr, fmt(x.p) .. "/" .. fmt(x.n)) end
+			txt(c, table.concat(pr, "  +  "), UDim2.fromOffset(12, 32), UDim2.new(1, -170, 0, 18), 11, SUB)
+			btn(c, ct.done and ("📜 Collect $" .. fmt(ct.cash)) or "In progress", UDim2.new(1, -152, 0.5, -18), UDim2.fromOffset(140, 36), ct.done and GREEN or GRAY,
+				function() if ct.done then act("contractClaim", ct.slot) end end, "Contract_" .. ct.slot)
+		end
+	end
+	local ch = card(m.body, 50, nx(), RGB(26, 28, 40))
+	txt(ch, "Starting attitude: " .. ((p and p.choice) and p.choice or "not chosen"), UDim2.fromOffset(12, 14), UDim2.new(1, -340, 0, 20), 12, SUB)
+	btn(ch, "🪪 My showcase", UDim2.new(1, -328, 0.5, -17), UDim2.fromOffset(150, 34), PURPLE, function() if C.openShowcase then C.openShowcase(nil) end end, "MyShowcase")
+	btn(ch, "🏙️ Change it", UDim2.new(1, -170, 0.5, -17), UDim2.fromOffset(158, 34), BLUE, function() C.openStartChoice() end, "ChangeStart")
+end
+RU.render = render
+local asked = false
+m.frame:GetPropertyChangedSignal("Visible"):Connect(function() if not m.frame.Visible then asked = false end end)
+m.update = function()
+	if not asked then
+		asked = true
+		act("roadmapInfo")
+	end
+end
+R.Menu.OnClientEvent:Connect(function(kind, a)
+	if kind == "roadmap" and type(a) == "table" then
+		RU.info = a
+		if m.frame.Visible then render() end
+	elseif kind == "roadmapStage" and type(a) == "table" then
+		-- a new stage: celebrated once (the server only sends this when the stage really goes up)
+		RU.celebrated = (RU.celebrated or 0) + 1
+		if U.confetti then U.confetti(60) end
+		if U.splash then U.splash("🗺️ " .. a.icon .. " " .. string.upper(a.name), a.text .. "  •  +$" .. fmt(a.cash) .. "  •  opens: " .. table.concat(a.unlocks or {}, ", "), GOLD) end
+		if C.jingle then C.jingle("milestone", 0.5) end
+		if m.frame.Visible then act("roadmapInfo") end
+	elseif kind == "startChosen" and type(a) == "table" then
+		if U.toast then U.toast("🏙️ " .. a.name .. ": " .. a.text) end
+		if a.app then task.delay(0.6, function() C.openModal(a.app, true) end) end
+	elseif kind == "play" then
+		RU.wantChoice = type(a) == "table" and a.isNew == true
+	elseif kind == "onboard" and RU.wantChoice and type(a) == "table" then
+		-- a new game: once the tutorial is over and the next steps begin, pick how to start (if not chosen yet).
+		-- It waits until no window is open and no cutscene is playing, so it never interrupts anything.
+		RU.wantChoice = false
+		if a.choice then return end
+		task.spawn(function()
+			for _ = 1, 60 do
+				task.wait(2)
+				if C.inMainMenu then return end
+				local busy = C.cinematicPlaying and C.cinematicPlaying()
+				for _, md in pairs(C.modals) do if md.frame.Visible then busy = true end end
+				if not busy then
+					C.openStartChoice()
+					return
+				end
+			end
+		end)
+	end
+end)
+end
+]]></ProtectedString></Properties>
+</Item>
+<Item class="ModuleScript" referent="RBX91"><Properties><string name="Name">ShowcaseUI</string>
+<ProtectedString name="Source"><![CDATA[-- SHOWCASE UI (v16): the 🪪 profile card. Anyone's (from the park visit list) or your own (from the Roadmap),
+-- with what the server lets everyone see: empire stage, businesses, net-worth tier, park rating, prestige,
+-- paths, and the title + badge being worn. On your own card you choose which title and badge to wear.
+return function(C)
+local RGB = Color3.fromRGB
+local new, label, button, card, clear, stroke = C.new, C.label, C.button, C.card, C.clear, C.stroke
+local play, SND, act, R = C.play, C.SND, C.act, C.R
+local GOLD, GREEN, GRAY, BLUE, WHITE, SUB = C.GOLD, C.GREEN, C.GRAY, C.BLUE, C.WHITE, C.SUB
+local modal = C.makeModal
+if not modal then return end
+local SU = {info = nil}
+C.ShowcaseUI = SU
+local NAVY = RGB(18, 24, 48)
+
+local function txt(parent, text, pos, size, px, color, bold)
+	return label({Position = pos, Size = size, Text = text, TextSize = px or 13, TextColor3 = color or WHITE, TextWrapped = true,
+		Font = bold and Enum.Font.GothamBlack or Enum.Font.GothamBold, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top}, parent)
+end
+local function btn(parent, text, size, color, fn, name, order)
+	local b = button({Size = size, Text = text, TextSize = 12, TextWrapped = true, BackgroundColor3 = color or BLUE, LayoutOrder = order}, parent)
+	if name then b.Name = name end
+	b.MouseButton1Click:Connect(function() play(SND.click) fn(b) end)
+	return b
+end
+
+local m = modal("showcase", "🪪  SHOWCASE", 520, 600)
+local function render()
+	local s = SU.info
+	clear(m.body)
+	if type(s) ~= "table" then return end
+	local top = card(m.body, 150, 1, NAVY)
+	stroke(top, GOLD, 2, 0.2)
+	txt(top, string.upper(s.name), UDim2.fromOffset(14, 10), UDim2.new(1, -28, 0, 26), 20, GOLD, true)
+	txt(top, (s.title or "No title worn") .. (s.badge and ("   •   " .. s.badge) or ""), UDim2.fromOffset(14, 38), UDim2.new(1, -28, 0, 20), 13, WHITE, true)
+	local lines = {"🗺️ " .. s.stageName .. " (stage " .. s.stage .. "/7)", "🏪 " .. s.businesses .. " businesses   •   " .. s.worth,
+		"🌟 " .. s.prestige .. " prestige stars" .. (s.park and ("   •   🎢 park ⭐ " .. s.park) or "")}
+	txt(top, table.concat(lines, "\n"), UDim2.fromOffset(14, 64), UDim2.new(1, -28, 0, 80), 12, SUB)
+	local pc = card(m.body, 30 + #s.paths * 22, 2)
+	local pl = {}
+	for _, p in ipairs(s.paths) do table.insert(pl, p.icon .. " " .. p.name .. ": Lv " .. p.level .. " " .. p.title) end
+	txt(pc, table.concat(pl, "\n"), UDim2.fromOffset(14, 10), UDim2.new(1, -28, 1, -16), 12, WHITE)
+	local w = s.wardrobe
+	if type(w) == "table" then
+		for k, kind in ipairs({"title", "badge"}) do
+			local list = kind == "title" and w.titles or w.badges
+			local h = card(m.body, 30, 10 + k * 10, RGB(26, 28, 40))
+			txt(h, kind == "title" and "👑 WEAR A TITLE" or "🏅 WEAR A BADGE", UDim2.fromOffset(12, 6), UDim2.new(1, -24, 0, 20), 13, GOLD, true)
+			local row = new("Frame", {Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1, LayoutOrder = 11 + k * 10}, m.body)
+			new("UIGridLayout", {CellSize = UDim2.fromOffset(160, 36), CellPadding = UDim2.fromOffset(6, 6), SortOrder = Enum.SortOrder.LayoutOrder}, row)
+			if #list == 0 then
+				txt(row, kind == "title" and "Earn titles from paths, Roadmap stages and the 7-day streak." or "Earn badges from weekly challenges.", UDim2.new(), UDim2.fromOffset(320, 36), 11, SUB)
+			end
+			for i, it in ipairs(list) do
+				local on = w[kind] == it.key
+				btn(row, (on and "✅ " or "") .. it.name, UDim2.fromOffset(160, 36), on and GREEN or BLUE, function() act("wear", kind, on and "" or it.key) end, "Wear_" .. kind .. "_" .. it.key, i)
+			end
+		end
+	end
+end
+SU.render = render
+m.update = function() end
+function C.openShowcase(userId)
+	SU.info = nil
+	C.openModal("showcase", true)
+	act("showcase", userId)
+end
+R.Menu.OnClientEvent:Connect(function(kind, a)
+	if kind == "showcase" and type(a) == "table" then
+		SU.info = a
+		if m.frame.Visible then render() end
+	end
+end)
+end
+]]></ProtectedString></Properties>
+</Item>
+<Item class="ModuleScript" referent="RBX92"><Properties><string name="Name">ComputerUI</string>
 <ProtectedString name="Source"><![CDATA[-- COMPUTER UI (v10): the desktop that opens when you use a computer you own (home or HQ office).
 -- The server sends the data (GameServer > Computer) only while you're standing at the computer; locked apps show
 -- which computer tier unlocks them. Actions (remote restock, manager contract) are checked again on the server.
@@ -8290,7 +8779,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX85"><Properties><string name="Name">GarageUI</string>
+<Item class="ModuleScript" referent="RBX93"><Properties><string name="Name">GarageUI</string>
 <ProtectedString name="Source"><![CDATA[-- GARAGE UI (v10): "OWNED: 7 / 16" — every car with its class and stats; drive, equip, favorite, rename,
 -- customize and sell. The server (GameServer > Garage) checks ownership, prices and names.
 return function(C)
@@ -8478,7 +8967,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX86"><Properties><string name="Name">ArcadeUI</string>
+<Item class="ModuleScript" referent="RBX94"><Properties><string name="Name">ArcadeUI</string>
 <ProtectedString name="Source"><![CDATA[-- ARCADE UI (v10): the 2-player duel window (Reaction Duel, Button Battle, Hoop Duel, Kart Sprint), the game picker
 -- for arcade machines, and the prize counter. The server (GameServer > Arcade) runs the games: this window only
 -- sends taps and shots and shows what the server says.
@@ -8854,7 +9343,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX87"><Properties><string name="Name">AdminPanel</string>
+<Item class="ModuleScript" referent="RBX95"><Properties><string name="Name">AdminPanel</string>
 <ProtectedString name="Source"><![CDATA[-- ADMIN PANEL (v10): only built after the server says you're an admin ("adminHello"). Every button just ASKS the
 -- server (GameServer > Admin), which checks your role again on every request. Dangerous tools come back with a
 -- confirmation the server issued; nothing dangerous happens from one tap. Fly / noclip only work while the
@@ -9213,7 +9702,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX88"><Properties><string name="Name">GuideUI</string>
+<Item class="ModuleScript" referent="RBX96"><Properties><string name="Name">GuideUI</string>
 <ProtectedString name="Source"><![CDATA[-- GUIDE UI (v10): contextual tip cards (from GameServer > Guide), the "What's this?" help window every big
 -- window can open (C.showHelp), and a Tips on/off switch in Settings.
 return function(C)
@@ -9299,7 +9788,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX89"><Properties><string name="Name">HeistUI</string>
+<Item class="ModuleScript" referent="RBX97"><Properties><string name="Name">HeistUI</string>
 <ProtectedString name="Source"><![CDATA[-- HEIST UI (v11): the 💰 HEISTS phone app, the bag HUD on a job ("RETURN TO MOUNTAIN HQ"), the security puzzles,
 -- the police scanner and the "police chasing you" banner (v14: the police are NPC officers).
 -- Everything here only ASKS the server (GameServer > Heists); the server decides what happened.
@@ -9639,7 +10128,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX90"><Properties><string name="Name">Phone</string>
+<Item class="ModuleScript" referent="RBX98"><Properties><string name="Name">Phone</string>
 <ProtectedString name="Source"><![CDATA[-- PHONE: app launcher + CityBuzz social media + Messages + Map (press P).
 return function(C)
 local UserInputService = game:GetService("UserInputService")
@@ -9810,7 +10299,7 @@ do
 		{"🏢", "Properties", "modal", "properties", RGB(120, 150, 240), "properties"}, {"📈", "Stocks", "modal", "market", RGB(60, 160, 90), "market"}, {"📣", "Marketing", "modal", "marketing", RGB(235, 130, 40), "ads"},
 		{"🎡", "Fun & Race", "modal", "fun", RGB(255, 110, 190), "funpark"}, {"♻️", "Rebirth", "modal", "rebirth", RGB(200, 80, 220)}, {"🏙️", "City", "modal", "city", RGB(60, 150, 200)},
 		{"📖", "Archive", "modal", "archive", RGB(140, 90, 230)}, {"🛒", "Store", "modal", "passes", RGB(235, 170, 30)}, {"🏆", "Weekly", "modal", "weekly", RGB(230, 150, 40)},
-		{"🎬", "Story", "view", "story", RGB(200, 50, 120)}, {"🔥", "Viral", "view", "viral", RGB(255, 90, 60)}, {"🏛️", "HQ", "modal", "hq", RGB(90, 120, 200)}, {"👑", "Empire", "modal", "empireHall", RGB(210, 160, 30)}, {"🧭", "Explore", "modal", "explore", RGB(40, 170, 140)}, {"🍿", "Theater", "modal", "theater", RGB(200, 40, 60)}, {"🎢", "Park", "modal", "park", RGB(255, 120, 40)}, {"🥊", "Rivals", "modal", "rivals", RGB(170, 50, 60)}, {"🤝", "Partners", "modal", "partners", RGB(50, 150, 120)}, {"🎉", "Party", "modal", "party", RGB(220, 70, 180)}, {"📊", "Leaders", "modal", "leaders", RGB(210, 150, 40)}, {"📅", "Events", "modal", "occasions", RGB(240, 120, 40)}, {"🔔", "Activity", "modal", "activity", RGB(230, 90, 100)}, {"🕹️", "Arcade", "modal", "arcadeInfo", RGB(150, 80, 255)}, {"💰", "Heists", "modal", "heists", RGB(40, 40, 46)},
+		{"🎬", "Story", "view", "story", RGB(200, 50, 120)}, {"🔥", "Viral", "view", "viral", RGB(255, 90, 60)}, {"🏛️", "HQ", "modal", "hq", RGB(90, 120, 200)}, {"👑", "Empire", "modal", "empireHall", RGB(210, 160, 30)}, {"🧭", "Explore", "modal", "explore", RGB(40, 170, 140)}, {"🍿", "Theater", "modal", "theater", RGB(200, 40, 60)}, {"🎢", "Park", "modal", "park", RGB(255, 120, 40)}, {"🥊", "Rivals", "modal", "rivals", RGB(170, 50, 60)}, {"🤝", "Partners", "modal", "partners", RGB(50, 150, 120)}, {"🎉", "Party", "modal", "party", RGB(220, 70, 180)}, {"📊", "Leaders", "modal", "leaders", RGB(210, 150, 40)}, {"📅", "Events", "modal", "occasions", RGB(240, 120, 40)}, {"🎁", "Daily", "modal", "daily", RGB(240, 180, 40)}, {"🗺️", "Roadmap", "modal", "roadmap", RGB(60, 140, 220)}, {"🔔", "Activity", "modal", "activity", RGB(230, 90, 100)}, {"🕹️", "Arcade", "modal", "arcadeInfo", RGB(150, 80, 255)}, {"💰", "Heists", "modal", "heists", RGB(40, 40, 46)},
 		{"⚙️", "Settings", "modal", "settings", RGB(100, 104, 124)},
 	}
 	local icons = {}
@@ -10222,7 +10711,7 @@ C.phoneView("home")
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX91"><Properties><string name="Name">Driving</string>
+<Item class="ModuleScript" referent="RBX99"><Properties><string name="Name">Driving</string>
 <ProtectedString name="Source"><![CDATA[-- DRIVING: smooth client-side car physics (you own your car's physics), speedometer, race HUD.
 return function(C)
 local RunService = game:GetService("RunService")
@@ -10767,7 +11256,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX92"><Properties><string name="Name">MiniGames</string>
+<Item class="ModuleScript" referent="RBX100"><Properties><string name="Name">MiniGames</string>
 <ProtectedString name="Source"><![CDATA[-- MINI-GAMES: Hoop Shot, Lemonade Rush, Memory Match + the Ferris wheel camera ride.
 return function(C)
 local RunService = game:GetService("RunService")
@@ -11048,7 +11537,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX93"><Properties><string name="Name">PhotoMode</string>
+<Item class="ModuleScript" referent="RBX101"><Properties><string name="Name">PhotoMode</string>
 <ProtectedString name="Source"><![CDATA[-- PHOTO MODE ("Empire Flex"): hide the UI, fly a free camera, cinematic orbits, poses and framing guides.
 -- Open with V, the 📸 button, or D-pad Up on a controller. Everything here is local to this player.
 return function(C)
@@ -11395,7 +11884,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX94"><Properties><string name="Name">Story</string>
+<Item class="ModuleScript" referent="RBX102"><Properties><string name="Name">Story</string>
 <ProtectedString name="Source"><![CDATA[-- STORY: cutscenes with the rival (Lil Clipz), his speech bubbles, the on-screen story tracker and the
 -- phone's Story app. Everything here is local to this player: other players never get pulled into
 -- your cutscene, and all the parts are client-side (cleaned up when the scene ends).
@@ -12056,7 +12545,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX95"><Properties><string name="Name">Cinematics</string>
+<Item class="ModuleScript" referent="RBX103"><Properties><string name="Name">Cinematics</string>
 <ProtectedString name="Source"><![CDATA[-- CINEMATIC CONTROLLER: plays the short interaction cinematics the server sends (GameServer > Cinematics):
 -- evictions, grand openings, hires, inspections, influencer visits...
 --
@@ -12819,7 +13308,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX96"><Properties><string name="Name">MapApp</string>
+<Item class="ModuleScript" referent="RBX104"><Properties><string name="Name">MapApp</string>
 <ProtectedString name="Source"><![CDATA[-- MAP APP: a real city map in the phone. Roads and districts are drawn from the server's world data; markers show
 -- your businesses, home, properties and land, other players' empires, attractions, the Mystery Lot, your delivery
 -- and the tutorial objective. You are the arrow. Tap a marker (or a place in the list) to see what it is, whether
@@ -13048,7 +13537,7 @@ C.openMap = function() if C.togglePhone then C.togglePhone(true) C.phoneView("ma
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX97"><Properties><string name="Name">InteriorUI</string>
+<Item class="ModuleScript" referent="RBX105"><Properties><string name="Name">InteriorUI</string>
 <ProtectedString name="Source"><![CDATA[-- INTERIOR UI: while you're inside a business or a home: a small bar (whose place, interior score, Leave) and,
 -- in your own rooms, the Decorate panel: numbered spots for furniture and decorations, walls, floors and lighting.
 -- Every change is a request; the server checks the price, the spot and the unlocks.
@@ -13270,7 +13759,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX98"><Properties><string name="Name">InteriorLife</string>
+<Item class="ModuleScript" referent="RBX106"><Properties><string name="Name">InteriorLife</string>
 <ProtectedString name="Source"><![CDATA[-- INTERIOR LIFE: staff at work and customers living their lives inside the business you're standing in.
 --
 -- Staff (by business level): a cashier at the register, a cook at the prep area / ovens, a cleaner from level 5,
@@ -13734,7 +14223,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX99"><Properties><string name="Name">BuilderUI</string>
+<Item class="ModuleScript" referent="RBX107"><Properties><string name="Name">BuilderUI</string>
 <ProtectedString name="Source"><![CDATA[-- BUILDER UI (v10): the furniture shop, the home builder (a top-down grid of your home: tap a cell to place,
 -- move or pick up furniture), house styles and who may visit you. The server (GameServer > HomeBuilder)
 -- validates every placement; this only shows the plan and asks.
@@ -14066,7 +14555,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX100"><Properties><string name="Name">MountainLife</string>
+<Item class="ModuleScript" referent="RBX108"><Properties><string name="Name">MountainLife</string>
 <ProtectedString name="Source"><![CDATA[-- MOUNTAIN LIFE (v11): the Blackrock Syndicate crew inside the hideout — The Boss, Wheels, Hawk, Sparks, Velvet,
 -- Glitch, Crates and Static (all fictional). The server lists them on the Mountain folder; this draws them on your
 -- screen only while you're near the base (built once when you arrive, removed when you leave), with idle moves and
@@ -14157,7 +14646,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX101"><Properties><string name="Name">CityLife</string>
+<Item class="ModuleScript" referent="RBX109"><Properties><string name="Name">CityLife</string>
 <ProtectedString name="Source"><![CDATA[-- CITY LIFE: what the whole server sees when something happens in the city.
 --   influencer sightings (the influencer standing there, a 🚨 marker you can find from anywhere)
 --   THE CROWD outside a business, PAPARAZZI following a player, EVERYONE KNOWS YOU passers-by
@@ -14535,7 +15024,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX102"><Properties><string name="Name">ViralApp</string>
+<Item class="ModuleScript" referent="RBX110"><Properties><string name="Name">ViralApp</string>
 <ProtectedString name="Source"><![CDATA[-- VIRAL APP (phone): your Viral Score, your moments, the city's trending moments, influencer sightings,
 -- the funniest recent events, top CityBuzz posts and the weekly Most Viral leaderboards.
 return function(C)
@@ -14652,7 +15141,342 @@ C.viralRender = render
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX103"><Properties><string name="Name">MainMenu</string>
+<Item class="ModuleScript" referent="RBX111"><Properties><string name="Name">IntroCinematic</string>
+<ProtectedString name="Source"><![CDATA[-- INTRO CINEMATIC (v16): "GET RICH OR GO BROKE". About 20 seconds over the REAL city (scripted camera, a few
+-- small temporary props), played once per account before the save slots (GameServer > Players keeps the
+-- introSeen flag in the account record), and any time from Settings → Opening movie.
+--   1 THE STRUGGLE  a rainy night over the skyline, down to a street corner: "EVERY EMPIRE STARTS WITH NOTHING."
+--   2 THE CHOICE    a lemonade stand and paying customers, a busy shop, a fancy car; a (fictional) briefcase swap
+--                   in an alley, police lights far away: "BUILD IT LEGIT." "TAKE BIG RISKS." "OR RULE BOTH SIDES."
+--   3 THE RISE      the Fun Park's Big Dipper, the Funland Grounds, the mountain, the Empire Spire, counters climbing:
+--                   "YOUR CITY. YOUR EMPIRE. YOUR RULES."
+--   4 THE TITLE     CORNER EMPIRE / Build Your Fortune. Risk Everything. Leave a Legacy. → START MY EMPIRE / SKIP
+-- SKIP is on screen from the first frame (and Esc / the gamepad's B or Start). Only one intro can play at a
+-- time. Whatever ends it (finished, skipped, an error, a respawn, the window being closed) runs ONE cleanup that
+-- puts the camera, field of view, HUD and controls back and removes every temporary part, effect, sound and
+-- connection. Sound uses the game's own effects and jingles only (no music asset IDs are invented).
+return function(C)
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
+local Lighting = game:GetService("Lighting")
+local Players = game:GetService("Players")
+local V3, CF, RGB = Vector3.new, CFrame.new, Color3.fromRGB
+local new, label, button, corner, stroke, tween = C.new, C.label, C.button, C.corner, C.stroke, C.tween
+local play, SND, plr = C.play, C.SND, C.plr
+local GOLD, WHITE = RGB(255, 205, 60), C.WHITE
+local NAVY, BLACK = RGB(12, 18, 40), RGB(8, 8, 12)
+local IN = {playing = false, conns = {}, shotIndex = 0, failAt = nil, ended = nil}
+C.Intro = IN
+
+-- ===== the shots: camera from → to over dur seconds, text shown at the start, an optional action =====
+local function look(from, at) return CFrame.lookAt(from, at) end
+local SHOTS = {
+	-- 1 THE STRUGGLE (0-4 s)
+	{dur = 2.2, scene = 1, from = look(V3(-260, 160, 300), V3(0, 60, 0)), to = look(V3(-180, 110, 220), V3(0, 40, 0)), fov = 60,
+		text = "EVERY EMPIRE STARTS WITH NOTHING.", sound = "event"},
+	{dur = 1.8, scene = 1, from = look(V3(-40, 30, 150), V3(-20, 2, 136)), to = look(V3(-26, 8, 142), V3(-20, 2, 136)), fov = 55, props = "corner"},
+	-- 2 THE CHOICE (4-9.5 s)
+	{dur = 1.4, scene = 2, from = look(V3(-14, 6, 152), V3(-20, 2.5, 144)), to = look(V3(-16, 5, 149), V3(-20, 2.5, 144)), fov = 50, props = "stand", text = "BUILD IT LEGIT.", sound = "buy"},
+	{dur = 1.3, scene = 2, from = look(V3(60, 18, 40), V3(62, 6, 62)), to = look(V3(50, 12, 50), V3(62, 6, 62)), fov = 55, props = "car"},
+	{dur = 1.5, scene = 2, from = look(V3(214, 8, -48), V3(220, 3, -60)), to = look(V3(217, 5, -52), V3(220, 3, -60)), fov = 45, props = "alley", text = "TAKE BIG RISKS.", sound = "event"},
+	{dur = 1.3, scene = 2, from = look(V3(150, 60, -150), V3(0, 30, 0)), to = look(V3(110, 70, -110), V3(0, 40, 0)), fov = 60, text = "OR RULE BOTH SIDES.", sound = "buy"},
+	-- 3 THE RISE (9.5-15.5 s)
+	{dur = 1.5, scene = 3, from = look(V3(-400, 40, 140), V3(-470, 15, 95)), to = look(V3(-450, 30, 130), V3(-500, 15, 90)), fov = 60, text = "YOUR CITY. YOUR EMPIRE. YOUR RULES.",
+		counters = true, sound = "msg"},
+	{dur = 1.4, scene = 3, from = look(V3(-640, 40, -110), V3(-750, 5, -150)), to = look(V3(-660, 60, -190), V3(-780, 5, -150)), fov = 60},
+	{dur = 1.4, scene = 3, from = look(V3(300, 120, -300), V3(300, 60, -700)), to = look(V3(300, 160, -380), V3(300, 60, -760)), fov = 60},
+	{dur = 1.7, scene = 3, from = look(V3(70, 20, 70), V3(0, 120, 0)), to = look(V3(30, 10, 30), V3(0, 200, 0)), fov = 70},
+	-- 4 THE TITLE (15.5 s →): a slow orbit behind the card until the player chooses
+	{dur = 60, scene = 4, from = look(V3(-300, 150, 260), V3(0, 60, 0)), to = look(V3(260, 150, 300), V3(0, 60, 0)), fov = 60, title = true, sound = "msg"},
+}
+IN.SHOTS = SHOTS
+local function lengthTo(scene)
+	local t = 0
+	for _, s in ipairs(SHOTS) do if s.scene < scene then t += s.dur end end
+	return t
+end
+IN.titleAt = lengthTo(4)
+
+-- ===== temporary props (client-only, no collision, all in one folder that cleanup removes) =====
+local function part(folder, size, cf, color, mat, shape)
+	local p = Instance.new("Part")
+	p.Anchored, p.CanCollide, p.CanQuery, p.CanTouch, p.CastShadow = true, false, false, false, false
+	p.Size, p.CFrame, p.Color, p.Material = size, cf, color, mat or Enum.Material.SmoothPlastic
+	if shape then p.Shape = shape end
+	p.Parent = folder
+	return p
+end
+local function person(folder, cf, shirt)
+	local CC = C.CityCrowd
+	if CC and CC.buildPerson then
+		local n = CC.buildPerson()
+		CC.dress(n, "casual")
+		n.torso.Color, n.la.Color, n.ra.Color = shirt, shirt, shirt
+		for _, k in ipairs({"torso", "head", "hair", "la", "ra", "ll", "rl", "acc", "dog"}) do n[k].Parent = folder end
+		CC.showPerson(n)
+		n.acc.Transparency, n.dog.Transparency = 1, 1
+		CC.pose(n, cf, 0, "chat")
+		return n
+	end
+	return part(folder, V3(2, 5, 1), cf * CF(0, 2.5, 0), shirt)
+end
+local PROPS = {}
+PROPS.corner = function(f)
+	-- an empty wallet on the curb and a run-down storefront
+	part(f, V3(1.2, 0.2, 0.8), CF(-20, 0.6, 136), RGB(90, 60, 40), Enum.Material.Leather)
+	local shop = part(f, V3(14, 9, 1), CF(-20, 4.5, 128), RGB(90, 84, 80), Enum.Material.Brick)
+	local sign = part(f, V3(8, 1.6, 0.2), CF(-20, 7.5, 128.7), RGB(40, 40, 46))
+	sign.Name = "ForRent"
+	local g = Instance.new("SurfaceGui")
+	g.Face, g.LightInfluence = Enum.NormalId.Back, 0
+	g.Parent = sign
+	local t = Instance.new("TextLabel")
+	t.Size, t.BackgroundTransparency, t.TextScaled, t.Text, t.TextColor3, t.Font = UDim2.fromScale(1, 1), 1, true, "FOR RENT", RGB(255, 90, 90), Enum.Font.GothamBlack
+	t.Parent = g
+	local _ = shop
+end
+PROPS.stand = function(f)
+	-- a lemonade stand and a paying customer
+	part(f, V3(5, 2.2, 2.4), CF(-20, 1.4, 144), RGB(150, 105, 62), Enum.Material.Wood)
+	part(f, V3(5.4, 0.25, 2.8), CF(-20, 2.6, 144), RGB(196, 146, 84), Enum.Material.WoodPlanks)
+	for _, sx in ipairs({-2.4, 2.4}) do part(f, V3(0.25, 4.5, 0.25), CF(-20 + sx, 4.6, 143), RGB(150, 105, 62), Enum.Material.Wood) end
+	for k = 0, 5 do part(f, V3(5.4 / 6, 0.2, 2.6), CF(-20 - 2.7 + (k + 0.5) * 0.9, 6.9, 143.5), k % 2 == 0 and RGB(255, 214, 60) or WHITE, Enum.Material.Fabric) end
+	person(f, CF(-20, 0.2, 142) * CFrame.Angles(0, math.pi, 0), RGB(255, 200, 60))
+	person(f, CF(-19, 0.2, 147), RGB(90, 120, 200))
+	local cash = part(f, V3(0.9, 0.1, 0.5), CF(-19.4, 3.1, 145.4), RGB(120, 200, 110))
+	cash.Name = "Cash"
+end
+PROPS.car = function(f)
+	-- a luxury car pulls up
+	local body = part(f, V3(5, 1.6, 10), CF(56, 1.4, 70), RGB(20, 20, 26), Enum.Material.SmoothPlastic)
+	part(f, V3(4.4, 1.2, 5), CF(56, 2.8, 70.5), RGB(40, 50, 70), Enum.Material.Glass)
+	for _, sx in ipairs({-2.6, 2.6}) do
+		for _, sz in ipairs({-3.4, 3.4}) do part(f, V3(1, 2, 2), CF(56 + sx, 1, 70 + sz) * CFrame.Angles(0, 0, math.pi / 2), BLACK, Enum.Material.SmoothPlastic, Enum.PartType.Cylinder) end
+	end
+	part(f, V3(4.6, 0.3, 0.2), CF(56, 1.6, 64.95), RGB(255, 245, 210), Enum.Material.Neon)
+	IN.carBody = body
+end
+PROPS.alley = function(f)
+	-- a fictional, suspicious briefcase swap in an alley; police lights flash far away
+	person(f, CF(218, 0.2, -60) * CFrame.Angles(0, -math.pi / 2, 0), RGB(30, 30, 36))
+	person(f, CF(222, 0.2, -60) * CFrame.Angles(0, math.pi / 2, 0), RGB(60, 40, 70))
+	part(f, V3(1.6, 1.2, 0.4), CF(220, 2.6, -60), RGB(70, 45, 30), Enum.Material.Leather).Name = "Briefcase"
+	local red = part(f, V3(1, 0.6, 1), CF(250, 4, -110), RGB(255, 40, 40), Enum.Material.Neon)
+	local blue = part(f, V3(1, 0.6, 1), CF(252, 4, -110), RGB(40, 90, 255), Enum.Material.Neon)
+	IN.siren = {red, blue}
+end
+
+-- ===== the overlay (letterbox, words, counters, the title card, SKIP) =====
+local gui, letterTop, letterBot, words, skipB, counters, titleCard, startB, skip2B
+local function buildGui()
+	gui = new("ScreenGui", {Name = "IntroGui", ResetOnSpawn = false, IgnoreGuiInset = true, DisplayOrder = 40, Enabled = true}, plr:WaitForChild("PlayerGui"))
+	letterTop = new("Frame", {Size = UDim2.new(1, 0, 0.11, 0), BackgroundColor3 = BLACK, BorderSizePixel = 0}, gui)
+	letterBot = new("Frame", {AnchorPoint = Vector2.new(0, 1), Position = UDim2.fromScale(0, 1), Size = UDim2.new(1, 0, 0.11, 0), BackgroundColor3 = BLACK, BorderSizePixel = 0}, gui)
+	words = label({Name = "IntroWords", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.7), Size = UDim2.new(0.9, 0, 0.12, 0), Text = "", TextScaled = true,
+		Font = Enum.Font.GothamBlack, TextColor3 = GOLD, TextTransparency = 1, TextStrokeTransparency = 0.3}, gui)
+	new("UITextSizeConstraint", {MaxTextSize = 54, MinTextSize = 16}, words)
+	skipB = button({Name = "IntroSkip", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -16, 0, 16), Size = UDim2.fromOffset(132, 44), Text = "SKIP INTRO ⏭", TextSize = 15,
+		BackgroundColor3 = RGB(30, 34, 52)}, gui)
+	stroke(skipB, GOLD, 1, 0.3)
+	-- counters (scene 3): cash, reputation, empire value
+	counters = new("Frame", {Name = "IntroCounters", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.fromScale(0.5, 0.14), Size = UDim2.new(0.9, 0, 0, 44), BackgroundTransparency = 1, Visible = false}, gui)
+	new("UIListLayout", {FillDirection = Enum.FillDirection.Horizontal, HorizontalAlignment = Enum.HorizontalAlignment.Center, Padding = UDim.new(0, 10)}, counters)
+	IN.counterLabels = {}
+	for i, c in ipairs({{"💰", "Cash"}, {"⭐", "Rep"}, {"👑", "Empire"}}) do
+		local l = label({Size = UDim2.new(0.3, -8, 1, 0), Text = c[1] .. " 0", TextScaled = true, Font = Enum.Font.GothamBlack, TextColor3 = WHITE, BackgroundColor3 = NAVY, BackgroundTransparency = 0.2, LayoutOrder = i}, counters)
+		corner(l, 8)
+		new("UITextSizeConstraint", {MaxTextSize = 24, MinTextSize = 10}, l)
+		IN.counterLabels[i] = l
+	end
+	-- the title card
+	titleCard = new("Frame", {Name = "IntroTitle", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.new(0.9, 0, 0.62, 0), BackgroundColor3 = NAVY,
+		BackgroundTransparency = 0.12, Visible = false}, gui)
+	new("UISizeConstraint", {MaxSize = Vector2.new(720, 420)}, titleCard)
+	corner(titleCard, 18)
+	stroke(titleCard, GOLD, 3, 0)
+	new("UIGradient", {Color = ColorSequence.new(RGB(24, 32, 70), BLACK), Rotation = 90}, titleCard)
+	local t = label({Name = "TitleText", Position = UDim2.fromScale(0.05, 0.06), Size = UDim2.fromScale(0.9, 0.34), Text = "CORNER EMPIRE", TextScaled = true, Font = Enum.Font.GothamBlack, TextColor3 = GOLD}, titleCard)
+	new("UITextSizeConstraint", {MaxTextSize = 80, MinTextSize = 22}, t)
+	new("UIStroke", {Thickness = 3, Color = RGB(60, 40, 0)}, t)
+	local tag = label({Name = "Tagline", Position = UDim2.fromScale(0.05, 0.42), Size = UDim2.fromScale(0.9, 0.14), Text = "Build Your Fortune. Risk Everything. Leave a Legacy.", TextScaled = true,
+		TextColor3 = WHITE, Font = Enum.Font.GothamBold}, titleCard)
+	new("UITextSizeConstraint", {MaxTextSize = 24, MinTextSize = 11}, tag)
+	startB = button({Name = "IntroStart", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.fromScale(0.5, 0.62), Size = UDim2.fromScale(0.62, 0.18), Text = "START MY EMPIRE",
+		TextScaled = true, BackgroundColor3 = RGB(200, 150, 30), TextColor3 = BLACK}, titleCard)
+	new("UISizeConstraint", {MinSize = Vector2.new(180, 48)}, startB)
+	new("UITextSizeConstraint", {MaxTextSize = 26, MinTextSize = 14}, startB)
+	skip2B = button({Name = "IntroSkip2", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.fromScale(0.5, 0.83), Size = UDim2.fromScale(0.36, 0.12), Text = "SKIP INTRO",
+		TextScaled = true, BackgroundColor3 = RGB(40, 44, 64)}, titleCard)
+	new("UISizeConstraint", {MinSize = Vector2.new(130, 40)}, skip2B)
+	new("UITextSizeConstraint", {MaxTextSize = 18, MinTextSize = 12}, skip2B)
+end
+
+-- ===== cleanup: the ONE way out =====
+local cam = Workspace.CurrentCamera
+local saved
+local folder, grade, rain
+local function controls(on)
+	pcall(function()
+		local pm = plr:FindFirstChild("PlayerScripts") and plr.PlayerScripts:FindFirstChild("PlayerModule")
+		if pm then
+			local c = require(pm):GetControls()
+			if on then c:Enable() else c:Disable() end
+		end
+	end)
+end
+local function finish(reason)
+	if not IN.playing then return end
+	IN.playing = false
+	IN.ended = reason
+	for _, cn in ipairs(IN.conns) do pcall(function() cn:Disconnect() end) end
+	IN.conns = {}
+	for _, x in ipairs({gui, folder, grade, rain}) do if x then pcall(function() x:Destroy() end) end end
+	gui, folder, grade, rain = nil, nil, nil, nil
+	IN.siren, IN.carBody = nil, nil
+	if saved then
+		pcall(function()
+			cam.CameraType = saved.type == Enum.CameraType.Scriptable and Enum.CameraType.Custom or saved.type
+			cam.FieldOfView = saved.fov
+			if saved.subject and saved.subject.Parent then cam.CameraSubject = saved.subject end
+		end)
+	end
+	if saved and saved.hud ~= nil and C.gui then C.gui.Enabled = saved.hud end
+	controls(true)
+	plr:SetAttribute("InCinematic", nil)
+	local cb = IN.onDone
+	IN.onDone = nil
+	saved = nil
+	if cb then task.spawn(cb, reason) end
+end
+IN.finish = finish
+
+local function fmtBig(n)
+	if n >= 1e9 then return string.format("$%.1fB", n / 1e9) end
+	if n >= 1e6 then return string.format("$%.1fM", n / 1e6) end
+	if n >= 1e3 then return string.format("$%.0fK", n / 1e3) end
+	return "$" .. math.floor(n)
+end
+local function showWords(text)
+	if not words then return end
+	words.Text = text
+	words.TextTransparency = 1
+	words.Position = UDim2.fromScale(0.5, 0.74)
+	tween(words, 0.35, {TextTransparency = 0, Position = UDim2.fromScale(0.5, 0.7)})
+end
+local function ease(a) return a * a * (3 - 2 * a) end
+
+-- play the intro. returnToMenu = played from the main menu (the HUD stays as it is). Returns false if one is
+-- already playing.
+function C.playIntro(replay, onDone)
+	if IN.playing then return false end
+	IN.playing = true
+	IN.ended = nil
+	IN.onDone = onDone
+	IN.shotIndex = 0
+	saved = {type = cam.CameraType, fov = cam.FieldOfView, subject = cam.CameraSubject, hud = C.gui and C.gui.Enabled}
+	if C.gui and not C.inMainMenu then C.gui.Enabled = false end
+	if C.closeModals then pcall(C.closeModals) end
+	controls(false)
+	plr:SetAttribute("InCinematic", true)
+	folder = Instance.new("Folder")
+	folder.Name = "IntroProps"
+	folder.Parent = Workspace
+	grade = Instance.new("ColorCorrectionEffect")
+	grade.Name = "IntroGrade"
+	grade.TintColor, grade.Brightness, grade.Contrast, grade.Saturation = RGB(150, 170, 230), -0.12, 0.15, -0.15
+	grade.Parent = Lighting
+	-- rain (only with crowds/effects on, so low-end devices skip it)
+	if C.settings.weather ~= false and C.settings.crowd ~= "off" then
+		rain = part(Workspace, V3(60, 1, 60), cam.CFrame, WHITE)
+		rain.Name = "IntroRain"
+		rain.Transparency = 1
+		local e = Instance.new("ParticleEmitter")
+		e.Rate = C.settings.crowd == "low" and 60 or 160
+		e.Lifetime = NumberRange.new(0.6, 0.9)
+		e.Speed = NumberRange.new(70, 90)
+		e.EmissionDirection = Enum.NormalId.Bottom
+		e.Size = NumberSequence.new(0.08)
+		e.Transparency = NumberSequence.new(0.35)
+		e.Color = ColorSequence.new(RGB(190, 210, 255))
+		e.Parent = rain
+	end
+	local okGui = pcall(buildGui)
+	if not okGui then finish("error") return false end
+	skipB.MouseButton1Click:Connect(function() play(SND.click) finish("skip") end)
+	skip2B.MouseButton1Click:Connect(function() play(SND.click) finish("skip") end)
+	startB.MouseButton1Click:Connect(function() play(SND.buy) finish("start") end)
+	table.insert(IN.conns, UserInputService.InputBegan:Connect(function(input)
+		local k = input.KeyCode
+		if k == Enum.KeyCode.Escape or k == Enum.KeyCode.ButtonB or k == Enum.KeyCode.ButtonStart then finish("skip") end
+	end))
+	table.insert(IN.conns, plr.CharacterAdded:Connect(function() finish("respawn") end))
+	cam.CameraType = Enum.CameraType.Scriptable
+	-- "cinematics: off" (Settings) goes straight to the title card
+	local start = C.settings.cinematics == "off" and IN.titleAt or 0
+	local t = start
+	local shotAt = 0
+	local function shotFor(time)
+		local acc = 0
+		for i, s in ipairs(SHOTS) do
+			if time < acc + s.dur or i == #SHOTS then return i, s, time - acc end
+			acc += s.dur
+		end
+	end
+	table.insert(IN.conns, RunService.RenderStepped:Connect(function(dt)
+		local ok, err = pcall(function()
+			t += math.min(dt, 0.1)
+			local i, s, local_t = shotFor(t)
+			if i ~= IN.shotIndex then
+				IN.shotIndex = i
+				shotAt = t
+				if IN.failAt == i then error("simulated intro failure") end
+				if s.props and PROPS[s.props] then PROPS[s.props](folder) end
+				if s.text then showWords(s.text) end
+				if s.sound and SND[s.sound] then play(SND[s.sound]) end
+				if s.counters then counters.Visible = true end
+				if s.scene == 4 then
+					counters.Visible = false
+					words.Visible = false
+					titleCard.Visible = true
+					letterTop.Visible, letterBot.Visible = false, false
+					if grade then grade.Brightness, grade.TintColor = 0, RGB(255, 245, 230) end
+					if C.jingle then C.jingle("milestone", 0.5) end
+				end
+			end
+			local a = ease(math.clamp(local_t / s.dur, 0, 1))
+			cam.CameraType = Enum.CameraType.Scriptable
+			cam.CFrame = s.from:Lerp(s.to, a)
+			cam.FieldOfView = s.fov or 60
+			if rain then rain.CFrame = cam.CFrame * CF(0, 18, -20) end
+			if IN.siren then
+				local on = math.floor(t * 6) % 2 == 0
+				IN.siren[1].Transparency, IN.siren[2].Transparency = on and 0 or 1, on and 1 or 0
+			end
+			if IN.carBody and s.props == "car" then IN.carBody.CFrame = CF(56, 1.4, 70 - (1 - a) * 18) end
+			if counters.Visible then
+				local f = math.clamp((t - lengthTo(3)) / (IN.titleAt - lengthTo(3)), 0, 1)
+				local g = f ^ 3
+				IN.counterLabels[1].Text = "💰 " .. fmtBig(40 + g * 1e9)
+				IN.counterLabels[2].Text = "⭐ " .. math.floor(g * 9000)
+				IN.counterLabels[3].Text = "👑 " .. fmtBig(g * 2.5e9)
+			end
+			local _ = shotAt
+		end)
+		if not ok then
+			warn("[Intro] stopped: " .. tostring(err))
+			finish("error")
+		end
+	end))
+	return true
+end
+-- the menu closes / the player leaves the menu for a game: never leave the intro running underneath
+function IN.stop(reason) finish(reason or "stopped") end
+local _ = Players
+end
+]]></ProtectedString></Properties>
+</Item>
+<Item class="ModuleScript" referent="RBX112"><Properties><string name="Name">MainMenu</string>
 <ProtectedString name="Source"><![CDATA[-- MAIN MENU: cinematic camera, 3 save slots, new game (pick a starter home), delete.
 return function(C)
 local RunService = game:GetService("RunService")
@@ -14685,6 +15509,14 @@ musicB.MouseButton1Click:Connect(function()
 	if U.refreshSettings then U.refreshSettings() end
 end)
 
+-- v16: WELCOME BACK (returning accounts): continue the save you played last, or watch the opening again
+local welcome = new("Frame", {Name = "WelcomeBack", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -64), Size = UDim2.fromOffset(560, 58),
+	BackgroundColor3 = RGB(18, 24, 48), BackgroundTransparency = 0.1, Visible = false}, mg)
+corner(welcome, 12)
+stroke(welcome, GOLD, 2, 0.2)
+local continueB = button({Name = "ContinueEmpire", Position = UDim2.new(0, 8, 0, 7), Size = UDim2.new(0.6, -12, 1, -14), Text = "▶ CONTINUE EMPIRE", TextSize = 18, BackgroundColor3 = RGB(200, 150, 30)}, welcome)
+local replayB = button({Name = "ReplayIntro", Position = UDim2.new(0.6, 0, 0, 7), Size = UDim2.new(0.4, -8, 1, -14), Text = "🎬 Replay intro", TextSize = 15, BackgroundColor3 = GRAY}, welcome)
+
 -- overlay for starter homes + delete confirm
 local overlay = new("Frame", {Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.new(0, 0, 0), BackgroundTransparency = 0.3, Visible = false, ZIndex = 10}, mg)
 local ovPanel = panel({AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.55), Size = UDim2.fromOffset(860, 420), ZIndex = 11}, overlay)
@@ -14711,6 +15543,7 @@ local function fitMenu(L)
 		row.Size = UDim2.fromOffset((vp.X - 16) / rowScale.Scale, 330)
 		local a = L.win
 		ovPanel.Size = UDim2.fromOffset(math.min(860, a.w), math.min(420, a.h))
+		welcome.Size = UDim2.new(0.94, 0, 0, 58)
 	else
 		subtitle.Size, subtitle.TextScaled = UDim2.fromOffset(700, 30), false
 		status.Size = UDim2.fromOffset(700, 24)
@@ -14718,12 +15551,14 @@ local function fitMenu(L)
 		rowScale.Scale = 1
 		row.Size = UDim2.fromOffset(880, 330)
 		ovPanel.Size = UDim2.fromOffset(860, 420)
+		welcome.Size = UDim2.fromOffset(560, 58)
 	end
 end
 Lay.onChange(fitMenu)
 
 local payload = nil
 local busy = false
+local menuIntroDone = false
 local function setBusy(text)
 	busy = true
 	status.Text = text
@@ -14841,6 +15676,37 @@ local function stopCamera()
 	cam.CameraType = Enum.CameraType.Custom
 end
 
+-- v16: the opening movie, before the save slots (once per account; any time from "Replay intro")
+local function playIntro(first)
+	if not C.playIntro then return false end
+	mg.Enabled = false
+	stopCamera()
+	local ok = C.playIntro(not first, function()
+		if first then act("introSeen") end
+		if C.inMainMenu then
+			mg.Enabled = true
+			render()
+			startCamera()
+		end
+	end)
+	if not ok then
+		mg.Enabled = true
+		startCamera()
+	end
+	return ok
+end
+C.menuPlayIntro = playIntro
+continueB.MouseButton1Click:Connect(function()
+	if busy or not (payload and payload.lastSlot) then return end
+	play(SND.buy)
+	setBusy("Loading Save " .. payload.lastSlot .. "... 🏗️")
+	act("menuPlay", payload.lastSlot)
+end)
+replayB.MouseButton1Click:Connect(function()
+	if busy then return end
+	play(SND.click)
+	playIntro(false)
+end)
 R.Menu.OnClientEvent:Connect(function(kind, a)
 	if kind == "mainmenu" then
 		payload = a
@@ -14861,7 +15727,14 @@ R.Menu.OnClientEvent:Connect(function(kind, a)
 		mg.Enabled = true
 		render()
 		startCamera()
+		-- v16: a first-ever visit gets the opening; a returning one gets "welcome back"
+		welcome.Visible = a.introSeen == true and a.lastSlot ~= nil
+		if a.introSeen == false and not (C.Intro and C.Intro.playing) and not menuIntroDone then
+			menuIntroDone = true
+			playIntro(true)
+		end
 	elseif kind == "play" then
+		if C.Intro and C.Intro.playing then C.Intro.stop("play") end
 		mg.Enabled = false
 		overlay.Visible = false
 		stopCamera()

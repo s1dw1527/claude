@@ -2,7 +2,7 @@
 <Item class="Script" referent="RBX1"><Properties><string name="Name">GameServer</string>
 <ProtectedString name="Source"><![CDATA[--// CORNER EMPIRE v10 — SERVER. All the code lives in the ModuleScripts inside this Script.
 --// Edit "Config" to change prices, names, game pass IDs, cars, neighborhoods and more.
-local modules = {"Config", "DataMigration", "StoryData", "Util", "World", "Buildings", "Housing", "Rentals", "RealEstate", "Brands", "Cars", "Garage", "Race", "Activities", "Social", "Reviews", "Systems", "Mega", "Legacy", "Weekly", "Story", "Messages", "MapData", "Interiors", "HQ", "Computer", "HomeBuilder", "Arcade", "Admin", "Guide", "Mountain", "Heists", "Police", "Cinematics", "ViralMoments", "Influencers", "CityEvents", "Empire", "EmpirePlaza", "Explore", "Kitchen", "Theater", "Park", "FunPark", "Crew", "Rivals", "Ledger", "Partners", "HomeLife", "Vehicles", "Leaders", "Occasions", "Onboarding", "Updates", "Players"}
+local modules = {"Config", "DataMigration", "StoryData", "Util", "World", "Buildings", "Housing", "Rentals", "RealEstate", "Brands", "Cars", "Garage", "Race", "Activities", "Social", "Reviews", "Systems", "Mega", "Legacy", "Weekly", "Story", "Messages", "MapData", "Interiors", "HQ", "Computer", "HomeBuilder", "Arcade", "Admin", "Guide", "Mountain", "Heists", "Police", "Cinematics", "ViralMoments", "Influencers", "CityEvents", "Empire", "EmpirePlaza", "Explore", "Kitchen", "Theater", "Park", "FunPark", "Crew", "Rivals", "Ledger", "Partners", "HomeLife", "Vehicles", "Leaders", "Occasions", "Onboarding", "Daily", "Paths", "Roadmap", "LiveEvents", "Showcase", "Updates", "Players"}
 local C = {F = {}, data = {}, plots = {}}
 for _, name in ipairs(modules) do
 	local ok, err = pcall(function() require(script:WaitForChild(name))(C) end)
@@ -17,9 +17,9 @@ local RGB = Color3.fromRGB
 
 -- ===== VERSION (bump these with every published update; see README "How to update Corner Empire") =====
 C.VERSION = {
-	VERSION = "15.0.0",
-	UPDATE_NAME = "Life & Empire: Funland",
-	SCHEMA_VERSION = 15,         -- the shape of a player's save. Raise it only together with a new step in DataMigration.
+	VERSION = "16.0.0",
+	UPDATE_NAME = "Life & Empire: Rise to Riches",
+	SCHEMA_VERSION = 16,         -- the shape of a player's save. Raise it only together with a new step in DataMigration.
 	MIN_SUPPORTED_SCHEMA = 6,   -- saves older than v6 (no version field, no tutorial-reward tracking) are treated as v6
 	-- shown once to every returning player after an update (Messages app)
 	NOTES = {
@@ -42,6 +42,9 @@ C.VERSION = {
 		"🎢 15: the AMUSEMENT PARK: open it on a city plot, then build your own park at the Funland Grounds: coasters, Ferris wheels, cotton candy",
 		"🎡 15: the Fun Park gets a giant roller coaster you can ride, a drop tower, swings and cotton-candy stands",
 		"🛠️ 15: no more cars, benches or trees in the street; the mountain base stations open again; the Movie Theater can be bought from its menu",
+		"🎁 16: DAILY rewards (a 7-day streak with a shield), 3 daily missions and a weekly challenge in the new 🎁 Daily app",
+		"🗺️ 16: the EMPIRE ROADMAP, three paths (💼 Mogul, 🕶️ Underworld, 👑 Legend) with titles and contracts",
+		"🎪 16: a city event every few hours (Restaurant Rush, Funland Night, Double Delivery...), park visit rewards and a 🪪 showcase card",
 	},
 }
 
@@ -760,6 +763,17 @@ M.steps = {
 		end
 		return notes
 	end,
+	[15] = function(t)
+		local notes = {}
+		-- v16: paths, the roadmap stage, account rewards already paid into this save, reward tokens. All new.
+		for k, v in pairs(M.v16Defaults()) do
+			if t[k] == nil then
+				t[k] = v
+				table.insert(notes, k)
+			end
+		end
+		return notes
+	end,
 	[14] = function(t)
 		local notes = {}
 		-- v15: the Amusement Park's record (the rides you built, its stats). New; a save that already has one keeps it.
@@ -772,6 +786,125 @@ M.steps = {
 		return notes
 	end,
 }
+-- =====================================================================
+-- v16: THE ACCOUNT RECORD (lives in the account's meta key next to the slot list and the settings, not in a slot):
+-- the intro flag, the daily login streak, today's missions, the weekly challenge, the wardrobe (titles, badges)
+-- and pending rewards ("grants") waiting to be paid into a save slot. The meta key has no schema version of its
+-- own: every field is checked on its own each time it's read, and anything else stored there is kept as it is.
+-- =====================================================================
+function M.acctDefaults()
+	return {
+		introSeen = false,
+		daily = {claimed = 0, cycle = 0, streak = 0, best = 0, shield = 1, shieldWeek = 0},
+		missions = {day = 0, picks = {}, p = {}, done = {}},
+		weekly = {week = 0, key = "", p = 0, claimed = false},
+		wardrobe = {titles = {}, badges = {}, title = "", badge = ""},
+		grants = {},
+		seq = 0,
+		events = {},     -- live-event windows already rewarded (id -> true), only the recent ones are kept
+		coop = {},       -- co-op / visit rewards already given today (key -> day)
+	}
+end
+local function nonNeg(v, def) v = tonumber(v) return (v and v == v and v >= 0 and v < 1e15) and math.floor(v) or def end
+-- a stored account record → a clean one (each field repaired on its own; the result is always usable)
+function M.repairAcct(t)
+	local def = M.acctDefaults()
+	t = type(t) == "table" and t or {}
+	local out = {}
+	out.introSeen = t.introSeen == true
+	local dl = type(t.daily) == "table" and t.daily or {}
+	out.daily = {}
+	for k, v in pairs(def.daily) do out.daily[k] = nonNeg(dl[k], v) end
+	out.daily.cycle = math.clamp(out.daily.cycle, 0, 7)
+	out.daily.shield = math.clamp(out.daily.shield, 0, 1)
+	local ms = type(t.missions) == "table" and t.missions or {}
+	out.missions = {day = nonNeg(ms.day, 0), picks = {}, p = {}, done = {}, t = {}}
+	if type(ms.picks) == "table" then
+		for i = 1, 3 do if type(ms.picks[i]) == "string" and #ms.picks[i] <= 24 then out.missions.picks[i] = ms.picks[i] end end
+	end
+	for i = 1, 3 do
+		out.missions.p[i] = nonNeg(type(ms.p) == "table" and ms.p[i], 0)
+		out.missions.done[i] = type(ms.done) == "table" and ms.done[i] == true or false
+		out.missions.t[i] = type(ms.t) == "table" and nonNeg(ms.t[i], 0) > 0 and nonNeg(ms.t[i], 0) or nil
+	end
+	local wk = type(t.weekly) == "table" and t.weekly or {}
+	out.weekly = {week = nonNeg(wk.week, 0), key = type(wk.key) == "string" and #wk.key <= 24 and wk.key or "", p = nonNeg(wk.p, 0), claimed = wk.claimed == true,
+		t = nonNeg(wk.t, 0) > 0 and nonNeg(wk.t, 0) or nil}
+	local wr = type(t.wardrobe) == "table" and t.wardrobe or {}
+	out.wardrobe = {titles = {}, badges = {}, title = "", badge = ""}
+	for _, k in ipairs({"titles", "badges"}) do
+		if type(wr[k]) == "table" then
+			for key, v in pairs(wr[k]) do if type(key) == "string" and #key <= 24 and v then out.wardrobe[k][key] = true end end
+		end
+	end
+	out.wardrobe.title = type(wr.title) == "string" and out.wardrobe.titles[wr.title] and wr.title or ""
+	out.wardrobe.badge = type(wr.badge) == "string" and out.wardrobe.badges[wr.badge] and wr.badge or ""
+	out.grants = {}
+	if type(t.grants) == "table" then
+		for _, g in ipairs(t.grants) do
+			if type(g) == "table" and type(g.id) == "string" and #g.id <= 24 and C.int(g.slot, 1, 9) and #out.grants < 60 then
+				table.insert(out.grants, {id = g.id, slot = g.slot, cash = nonNeg(g.cash, 0), rep = nonNeg(g.rep, 0), what = type(g.what) == "string" and g.what:sub(1, 80) or "",
+					item = type(g.item) == "string" and g.item:sub(1, 24) or nil, t = nonNeg(g.t, 0)})
+			end
+		end
+	end
+	out.seq = nonNeg(t.seq, 0)
+	out.events = {}
+	if type(t.events) == "table" then for k, v in pairs(t.events) do if type(k) == "string" and #k <= 32 and v then out.events[k] = nonNeg(v, 1) end end end
+	out.coop = {}
+	if type(t.coop) == "table" then for k, v in pairs(t.coop) do if type(k) == "string" and #k <= 40 then out.coop[k] = nonNeg(v, 0) end end end
+	return out
+end
+-- what's stored + what this server has in memory → one record. Nothing claimed anywhere is ever un-claimed,
+-- progress never goes backwards, and a grant this server already paid out (`paid`) is dropped.
+function M.mergeAcct(stored, mem, paid)
+	local a, b = M.repairAcct(stored), M.repairAcct(mem)
+	local out = M.repairAcct(nil)
+	out.introSeen = a.introSeen or b.introSeen
+	out.daily = (a.daily.claimed > b.daily.claimed or (a.daily.claimed == b.daily.claimed and a.daily.streak > b.daily.streak)) and a.daily or b.daily
+	if a.missions.day ~= b.missions.day then
+		out.missions = a.missions.day > b.missions.day and a.missions or b.missions
+	else
+		out.missions = b.missions
+		if #b.missions.picks == 0 then out.missions.picks, out.missions.t = a.missions.picks, a.missions.t end
+		for i = 1, 3 do
+			out.missions.p[i] = math.max(a.missions.p[i], b.missions.p[i])
+			out.missions.done[i] = a.missions.done[i] or b.missions.done[i]
+		end
+	end
+	if a.weekly.week ~= b.weekly.week then
+		out.weekly = a.weekly.week > b.weekly.week and a.weekly or b.weekly
+	else
+		out.weekly = b.weekly
+		if b.weekly.key == "" then out.weekly.key, out.weekly.t = a.weekly.key, a.weekly.t end
+		out.weekly.p = math.max(a.weekly.p, b.weekly.p)
+		out.weekly.claimed = a.weekly.claimed or b.weekly.claimed
+	end
+	out.wardrobe = b.wardrobe
+	for _, k in ipairs({"titles", "badges"}) do for key in pairs(a.wardrobe[k]) do out.wardrobe[k][key] = true end end
+	out.seq = math.max(a.seq, b.seq)
+	local seen = {}
+	for _, src in ipairs({a.grants, b.grants}) do
+		for _, g in ipairs(src) do
+			if not seen[g.id] and not (paid and paid[g.id]) then
+				seen[g.id] = true
+				table.insert(out.grants, g)
+			end
+		end
+	end
+	for _, src in ipairs({a.events, b.events}) do for k, v in pairs(src) do out.events[k] = math.max(out.events[k] or 0, v) end end
+	for _, src in ipairs({a.coop, b.coop}) do for k, v in pairs(src) do out.coop[k] = math.max(out.coop[k] or 0, v) end end
+	return out
+end
+-- every new v16 field and its safe default
+function M.v16Defaults()
+	return {
+		path = {xp = {mogul = 0, under = 0, legend = 0}, contracts = {}, done = 0},   -- the three ways to build an empire (GameServer > Paths)
+		roadmap = {stage = 0},                                                         -- the last Empire Roadmap stage celebrated
+		grantsGot = {},                                                                -- account rewards already paid into this save (id -> time)
+		tokens = {upgrade = 0, carmod = 0},                                            -- reward tokens: -25% on an upgrade, a free car mod
+	}
+end
 -- every new v15 field and its safe default
 function M.v15Defaults()
 	return {
@@ -819,6 +952,7 @@ function M.featureDefaults()
 	for k, v in pairs(M.v13Defaults()) do out[k] = v end
 	for k, v in pairs(M.v14Defaults()) do out[k] = v end
 	for k, v in pairs(M.v15Defaults()) do out[k] = v end
+	for k, v in pairs(M.v16Defaults()) do out[k] = v end
 	return out
 end
 -- the 16 land lots of v5-v9, in the order the world built them (4 per district)
@@ -1044,6 +1178,12 @@ function M.sampleSaves()
 		v14 = {SchemaVersion = 14, cash = 9.1e9, earned = 3e10, levels = {lemonade = 10, pizza = 10, tech = 9, theater = 4}, rep = 14000, tut = 0, tutPaid = 7,
 			deeds = {{id = "d5", district = "entertainment", plot = 1, paid = 2e6, biz = "theater"}}, theater = {up = {seats = 3}, sessions = 40, tickets = 5000, best = 300, filmShows = 2, premiered = {dino = true}},
 			rivals = {p = {pixel = 0.98}, wins = 3, losses = 1, moves = 9}, loft = {level = 2}, prestige = {stars = {shows100 = 1}}, cars = {coupe = true}, unknownFuture4 = {keep = "me four"}},
+		v15 = {SchemaVersion = 15, cash = 1.2e10, earned = 4e10, levels = {lemonade = 10, pizza = 10, theater = 5, park = 3}, rep = 15000, tut = 0, tutPaid = 7,
+			deeds = {{id = "d6", district = "downtown", plot = 1, paid = 3e6, biz = "park"}}, park = {items = {{id = 1, k = "carousel", x = 2, z = 2, r = 0}}, stats = {}, visitors = 900, rides = 40, guestRides = 7, best = 55, seq = 1},
+			theater = {up = {seats = 2}, sessions = 12, tickets = 900, best = 120, filmShows = 1, premiered = {}}, staff = {pizza = {name = "Sam", stars = 3, trait = "fast", xp = 40}},
+			prestige = {stars = {cinema = 1}}, coop = {biz = {}, of = {}}, xfer = {out = {}, got = {x1 = true}, log = {}, seq = 3}, unknownFuture5 = {keep = "me five"}},
+		brokenV16 = {SchemaVersion = 16, cash = 1357, earned = 9000, levels = {lemonade = 5}, rep = 12, tut = 0, tutPaid = 7,
+			path = {xp = "lots", contracts = {}, done = -1}, roadmap = "stage 9", tokens = {upgrade = -4}},
 		brokenV15 = {SchemaVersion = 15, cash = 2468, earned = 9000, levels = {lemonade = 5, park = 1}, rep = 12, tut = 0, tutPaid = 7,
 			park = {items = "rides!", visitors = -10, rides = 7, stats = {}}},
 		brokenV14 = {SchemaVersion = 14, cash = 4321, earned = 9000, levels = {lemonade = 5, theater = 2}, rep = 11, tut = 0, tutPaid = 7, theater = {up = "big", sessions = -2, premiered = {dino = true}}},
@@ -1160,6 +1300,41 @@ function M.selfTest()
 		local ok, t, log = M.migrate(samples.brokenV15)
 		add(ok and t.cash == 2468 and t.levels.park == 1 and type(t.park.items) == "table" and t.parkRecovered == nil and t.park.visitors == 0 and t.park.rides == 7,
 			"a damaged v15 park record is repaired field by field; the rest of the save loads (" .. table.concat(log, " | ") .. ")")
+	end
+	do
+		local orig = samples.v15
+		local before = deepCopy(orig)
+		local ok, t, log = M.migrate(orig)
+		add(ok and t.SchemaVersion == V.SCHEMA_VERSION and t.cash == before.cash and t.earned == before.earned and t.levels.park == 3 and t.park.items[1].k == "carousel"
+			and t.park.guestRides == 7 and t.theater.sessions == 12 and t.staff.pizza.xp == 40 and t.prestige.stars.cinema == 1 and t.xfer.got.x1 == true
+			and t.unknownFuture5.keep == "me five" and type(t.path) == "table" and t.path.xp.mogul == 0 and type(t.grantsGot) == "table" and orig.path == nil and orig.SchemaVersion == 15,
+			"v15 save keeps cash, businesses, the park, theater, staff, prestige, ledger and unknown fields, and gets the v16 records (" .. table.concat(log, " | ") .. ")")
+	end
+	do
+		local ok, t, log = M.migrate(samples.brokenV16)
+		add(ok and t.cash == 1357 and type(t.path.xp) == "table" and type(t.roadmap) == "table" and t.path.done == 0 and t.tokens.upgrade == 0,
+			"a damaged v16 record is repaired field by field; the rest of the save loads (" .. table.concat(log, " | ") .. ")")
+	end
+	do
+		local broken = deepCopy(samples.v15)
+		local real = M.steps[15]
+		M.steps[15] = function() error("simulated bug in the v16 step") end
+		local ok, _, _, err = M.migrate(broken)
+		M.steps[15] = real
+		add(not ok and tostring(err):find("15 %-> 16") ~= nil and samples.v15.path == nil, "a crashing v16 step is refused and the stored v15 save is untouched: " .. tostring(err))
+	end
+	do
+		-- the account record: junk is repaired field by field; a merge never un-claims or loses progress
+		local junk = {introSeen = "yes", daily = {claimed = -3, streak = "x", cycle = 99}, missions = "?", weekly = {week = 5, p = 0 / 0}, wardrobe = {titles = {legend = true}, title = "nope"},
+			grants = {{id = "g1", slot = 1, cash = 50}, "junk", {id = 5}}}
+		local r = M.repairAcct(junk)
+		add(r.introSeen == false and r.daily.claimed == 0 and r.daily.cycle == 7 and r.weekly.p == 0 and r.wardrobe.titles.legend and r.wardrobe.title == "" and #r.grants == 1,
+			"a damaged account record is repaired field by field (" .. #r.grants .. " good grant kept)")
+		local stored = {daily = {claimed = 100, streak = 4}, missions = {day = 100, picks = {"serve"}, p = {3}, done = {true}}, grants = {{id = "g1", slot = 1, cash = 5}}, seq = 1}
+		local mem = {daily = {claimed = 99, streak = 3}, missions = {day = 100, picks = {"serve"}, p = {1}, done = {false}}, grants = {{id = "g2", slot = 2, cash = 7}}, seq = 2}
+		local mg = M.mergeAcct(stored, mem, {g1 = true})
+		add(mg.daily.claimed == 100 and mg.missions.p[1] == 3 and mg.missions.done[1] and #mg.grants == 1 and mg.grants[1].id == "g2" and mg.seq == 2,
+			"merging the stored and in-memory account records keeps every claim and the most progress, and drops paid grants")
 	end
 	do
 		local broken = deepCopy(samples.v14)
@@ -1720,7 +1895,9 @@ C.R = {}
 for _, n in ipairs({"State", "Announce", "Splash", "Customer", "Buzz", "BuzzUpdate", "Msg", "WarResults", "Menu", "Action", "Race", "Mega", "Cinematic", "Viral"}) do
 	C.R[n] = remote(n)
 end
-function C.notify(plr, msg) C.R.Announce:FireClient(plr, msg) end
+-- opts (v16, optional): {pri = "critical" | "normal" | "low", cat = "money" | "rep" | "warn" | "info", key = "..."}
+-- critical ones are never dropped and jump the queue; low ones are grouped, and can be muted in Settings
+function C.notify(plr, msg, opts) C.R.Announce:FireClient(plr, msg, type(opts) == "table" and opts or nil) end
 function C.announceAll(msg) C.R.Announce:FireAllClients(msg) end
 
 -- ===== LIGHTING =====
@@ -6468,9 +6645,17 @@ function F.customizeCar(plr, key, kind, value)
 			if not opt then return false end
 			if mods[kind] == value then return false end
 			local cost = F.modCost(spec, opt)
+			-- v16: a 🎨 free-makeover token from the daily rewards pays for one part
+			local token = cost > 0 and type(d.tokens) == "table" and (tonumber(d.tokens.carmod) or 0) > 0
+			if token then
+				cost = 0
+				d.tokens.carmod -= 1
+				notify(plr, "🎨 Free makeover token used.", {pri = "normal", cat = "money"})
+			end
 			if d.cash < cost then notify(plr, "🎨 " .. opt.name .. " costs $" .. fmt(cost) .. ".") return false end
 			d.cash -= cost
 			mods[kind] = value
+			if F.track then F.track(plr, "carmod") end   -- v16: 🏎️ Luxury Showcase
 			notify(plr, "🎨 " .. opt.name .. (cost > 0 and (" (-$" .. fmt(cost) .. ")") or ""))
 		end
 	else
@@ -7885,6 +8070,7 @@ function F.customerRate(d, now)
 	if mk then r *= 1 + 0.06 * staffStars(mk) end
 	if G.event and G.event.customers then r *= G.event.customers end
 	if G.megaCustomers then r *= G.megaCustomers end
+	if F.liveMult then r *= F.liveMult("customers") end   -- v16: 🍽️ Restaurant Rush
 	r *= F.comboPerk(d, "customers")
 	if F.mysteryPerk then r *= F.mysteryPerk(d, "customers") end
 	if (d.viralUntil or 0) > now then r *= 3 end
@@ -7963,6 +8149,7 @@ function F.serveCustomer(plr, d, key, t, review)
 	if lvl <= 0 then return end
 	d.served += 1
 	d.war.customers += 1
+	if F.track then F.track(plr, "serve") end   -- v16: daily missions, paths
 	d.bizServed = d.bizServed or {}
 	d.bizServed[key] = (d.bizServed[key] or 0) + 1
 	if F.revisitReviews then F.revisitReviews(plr, d, key) end
@@ -8037,7 +8224,7 @@ function F.goViral(plr, d, key, quote)
 end
 
 -- ===== BUSINESS UPGRADES + CHAINS =====
-function F.buyUpgrade(plr, d, key)
+function F.buyUpgrade(plr, d, key, noToken)
 	local b = BIZ[key]
 	local lvl = d.levels[key] or 0
 	if lvl >= CFG.MAX_LEVEL then return end
@@ -8052,8 +8239,16 @@ function F.buyUpgrade(plr, d, key)
 		return
 	end
 	local cost = F.upgradeCost(d, key)
+	-- v16: a 🏷️ discount token from the daily rewards takes 25% off (used up only when the upgrade happens)
+	-- (not when a partner pays for it: GameServer > Partners puts in the full price)
+	local token = not noToken and type(d.tokens) == "table" and (tonumber(d.tokens.upgrade) or 0) > 0
+	if token then cost = math.floor(cost * 0.75) end
 	if d.cash < cost then return end
 	d.cash -= cost
+	if token then
+		d.tokens.upgrade -= 1
+		notify(plr, "🏷️ Discount token used: 25% off this upgrade.", {pri = "normal", cat = "money"})
+	end
 	d.levels[key] = lvl + 1
 	local ch = d.chains[key] or 0
 	local oldStage, newStage = stageOf(lvl, ch), stageOf(lvl + 1, ch)
@@ -16129,7 +16324,7 @@ function F.heistTurnIn(plr)
 	-- clear the bag FIRST: a second call (or a double prompt) finds nothing
 	local value = r.bag
 	r.bag = 0
-	local pay = math.floor(value * r.mult * fenceBonus(d))
+	local pay = math.floor(value * r.mult * fenceBonus(d) * (F.liveMult and F.liveMult("heistPay") or 1))   -- (v16: 🚨 Underworld Alert)
 	d.cash += pay
 	d.earned += pay
 	local h = rec(d)
@@ -16146,8 +16341,10 @@ function F.heistTurnIn(plr)
 		F.buzz(s.icon, lines[math.random(#lines)], s.color)
 	end
 	if F.addRep then F.addRep(plr, 5) end
+	if F.track then F.track(plr, "heist") end   -- v16: missions + the Underworld path (only a heist that got home counts)
 	return true
 end
+F.heistActive = function(plr) return robbers[plr] ~= nil end   -- (v16: no announcements mid-heist)
 F.heistEnteredBase = function(plr) if robbers[plr] and robbers[plr].bag > 0 then F.heistTurnIn(plr) end end
 
 -- =====================================================================
@@ -19149,7 +19346,8 @@ local function endJob(plr, st, ok, why)
 	local c = rec(d)
 	if ok then
 		local J = X.jobs[a.kind]
-		local cash = math.floor(reward(d, J.secs, J.min) * (a.bonus or 1) * (F.vehicleBonus and F.vehicleBonus(plr, "jobs") or 1))   -- (v14: 🚚 Hauler)
+		local cash = math.floor(reward(d, J.secs, J.min) * (a.bonus or 1) * (F.vehicleBonus and F.vehicleBonus(plr, "jobs") or 1)   -- (v14: 🚚 Hauler)
+			* (F.liveMult and F.liveMult("jobPay") or 1))   -- (v16: 📦 Double Delivery Day)
 		pay(plr, d, cash, J.rep)
 		c.jobs += 1
 		c.jobPay += cash
@@ -20114,6 +20312,7 @@ local function refreshSign(site)
 	local d = site.owner and data[site.owner]
 	s.Parent:SetAttribute("Rating", d and (F.parkScore(d)) or 0)
 	s.Parent:SetAttribute("GridCF", site.cf)
+	s.Parent:SetAttribute("Boost", F.liveMult and F.liveMult("parkVisitors") or 1)   -- (v16: Funland Night / Community Weekend crowds)
 end
 for _, site in ipairs(SITES) do
 	buildSiteBase(site)
@@ -20640,6 +20839,7 @@ end
 
 -- ===== riding =====
 local riding, rodeAt, repHour = {}, {}, {}
+function F.isRiding(plr) return riding[plr] == true end
 -- play a ride for one player: checks they're free and close enough, holds them in place, the client's camera
 -- rides the model's RideSeat for dur seconds. Returns true or false, why.
 function F.playRide(plr, m, spot, dur, show)
@@ -20686,8 +20886,10 @@ function F.parkRide(plr, owner, id)
 	op.rides += 1
 	if plr ~= owner then
 		op.guestRides += 1
+		if F.track then F.track(plr, "visitPark") end   -- v16: daily missions
+		if F.parkVisit then F.parkVisit(plr, owner) end   -- v16: visitor + host rewards (GameServer > Showcase)
 		-- the owner earns a ticket (and a little reputation, a few times an hour)
-		local ticket = math.floor(math.max(BIZ.park.income, (F.incomePerSec and F.incomePerSec(od) or 0) * 0.05) * PK.ticketSecs)
+		local ticket = math.floor(math.max(BIZ.park.income, (F.incomePerSec and F.incomePerSec(od) or 0) * 0.05) * PK.ticketSecs * (F.liveMult and F.liveMult("parkTicket") or 1))
 		od.cash += ticket
 		local h = math.floor(os.time() / 3600)
 		repHour[owner] = (repHour[owner] and repHour[owner].h == h) and repHour[owner] or {h = h, n = 0}
@@ -20769,8 +20971,15 @@ C.ACTIONS.parkList = function(plr)
 	local out = {}
 	for _, site in ipairs(SITES) do
 		if site.owner and data[site.owner] then
-			table.insert(out, {userId = site.owner.UserId, name = site.owner.Name, park = F.bizName and F.bizName(data[site.owner], "park") or BIZ.park.name,
-				rating = (F.parkScore(data[site.owner])), site = site.i})
+			-- (v16: visitors so far and the most exciting ride, for the visit list)
+			local od = data[site.owner]
+			local best
+			for _, it in ipairs(rec(od).items) do
+				local def = ITEM[it.k]
+				if def.kind == "ride" and (not best or def.excite > best.excite) then best = def end
+			end
+			table.insert(out, {userId = site.owner.UserId, name = site.owner.Name, park = F.bizName and F.bizName(od, "park") or BIZ.park.name,
+				rating = (F.parkScore(od)), site = site.i, visitors = rec(od).visitors, featured = best and (best.icon .. " " .. best.name) or nil, mine = site.owner == plr})
 		end
 	end
 	R.Menu:FireClient(plr, "parkList", out)
@@ -20793,7 +21002,7 @@ task.spawn(function()
 				if site and t % PK.statEvery == 0 then
 					local p = rec(d)
 					local rating = F.parkScore(d)
-					local v = math.floor(rating * (1 + (d.levels.park or 0) * 0.3) / 4)
+					local v = math.floor(rating * (1 + (d.levels.park or 0) * 0.3) / 4 * (F.liveMult and F.liveMult("parkVisitors") or 1))
 					p.visitors += v
 					p.best = math.max(p.best, rating)
 					refreshSign(site)
@@ -21212,7 +21421,8 @@ local function win(plr, d, t)
 	t.p[ch.key] = math.max(0, pressure(t, ch.key) - RV.winDrop)
 	t.wins += 1
 	local _, per = F.income(d, os.clock())
-	local prize = math.max(100, math.floor((per and per[ch.key] or 0) * RV.rewardSecs))
+	local prize = math.max(100, math.floor((per and per[ch.key] or 0) * RV.rewardSecs * (F.liveMult and F.liveMult("rivalPrize") or 1)))   -- (v16: 🥊 Rival Takeover)
+	if F.track then F.track(plr, "rivalWin") end
 	d.cash += prize
 	F.earn(d, prize)
 	if F.addRep then F.addRep(plr, 5) end
@@ -21814,7 +22024,7 @@ function F.coopContribute(plr, ownerUid, key)
 	-- the payer's cash goes in, the owner's business upgrades, the owner's own cash is untouched
 	d.cash -= cost
 	od.cash += cost
-	F.buyUpgrade(owner, od, key)
+	F.buyUpgrade(owner, od, key, true)
 	if (od.levels[key] or 0) <= lvl then
 		od.cash -= cost
 		d.cash += cost
@@ -21825,6 +22035,7 @@ function F.coopContribute(plr, ownerUid, key)
 	blog(od, key, plr.Name .. " paid for level " .. (lvl + 1) .. " ($" .. fmt(cost) .. ")")
 	notify(owner, "🤝 " .. plr.Name .. " paid for your " .. bizName(od, key) .. "'s level " .. (lvl + 1) .. " upgrade!")
 	notify(plr, "🤝 You paid $" .. fmt(cost) .. " for " .. owner.Name .. "'s " .. bizName(od, key) .. " (level " .. (lvl + 1) .. ").")
+	if F.coopCredit then F.coopCredit(plr, owner, bizName(od, key)) end   -- v16: a co-op bonus for both, once a day
 	return true
 end
 -- revenue shares: out of the business's own income, while the owner plays
@@ -22974,6 +23185,10 @@ local function rec(d)
 end
 -- the step to show: the first not-done, not-skipped one (skipped ones come back once the rest are done)
 local function current(d, o)
+	-- v16: the starting attitude picked after the intro puts its step first (GameServer > Paths)
+	if type(o.first) == "string" then
+		for i, s in ipairs(STEPS) do if s.key == o.first and not o.done[s.key] and not o.skip[s.key] then return i, s end end
+	end
 	for i, s in ipairs(STEPS) do if not o.done[s.key] and not o.skip[s.key] then return i, s end end
 	for i, s in ipairs(STEPS) do if not o.done[s.key] then return i, s end end
 	return nil
@@ -22981,10 +23196,11 @@ end
 local function view(plr, d)
 	local o = rec(d)
 	local i, s = current(d, o)
-	if not s then return {finished = true, done = count(o.done), total = #STEPS} end
+	local choice = type(d.path) == "table" and d.path.choice or nil   -- (v16: the starting attitude, if chosen)
+	if not s then return {finished = true, done = count(o.done), total = #STEPS, choice = choice} end
 	local locked = F.tierIndex(d.rep) < s.tier
 	return {step = i, total = #STEPS, done = count(o.done), key = s.key, icon = s.icon, title = s.title, text = s.text, app = s.app,
-		locked = locked, need = locked and C.REP_TIERS[s.tier].name or nil, reward = math.floor(math.max(OB.rewardMin, F.incomePerSec(d) * OB.rewardSecs))}
+		locked = locked, need = locked and C.REP_TIERS[s.tier].name or nil, reward = math.floor(math.max(OB.rewardMin, F.incomePerSec(d) * OB.rewardSecs)), choice = choice}
 end
 local last = {}
 local function push(plr, d, force)
@@ -23046,6 +23262,15 @@ function F.onboardSkip(plr)
 	push(plr, d, true)
 	return true
 end
+-- v16: put a step first (it pays nothing by itself; the step pays its usual small reward when it's done)
+function F.onboardFirst(plr, key)
+	local d = data[plr]
+	if not d then return false end
+	local o = rec(d)
+	o.first = key
+	push(plr, d, true)
+	return true
+end
 C.ACTIONS = C.ACTIONS or {}
 C.ACTIONS.onboardSkip = function(plr) F.onboardSkip(plr) end
 C.ACTIONS.onboardInfo = function(plr) F.onboardCheck(plr, true) end
@@ -23062,7 +23287,1089 @@ Players.PlayerRemoving:Connect(function(plr) last[plr] = nil end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX55"><Properties><string name="Name">Updates</string>
+<Item class="ModuleScript" referent="RBX55"><Properties><string name="Name">Daily</string>
+<ProtectedString name="Source"><![CDATA[-- DAILY (v16): reasons to come back tomorrow. All of it belongs to the ACCOUNT (the meta key, GameServer >
+-- Players: F.acct / F.acctCommit), so the three save slots share one streak, and every reward is written ahead
+-- as a "grant" before it's paid into the slot being played (no duplicate or lost rewards; see F.payGrants).
+--   * LOGIN REWARDS: a 7-day cycle on UTC calendar days. One claim per UTC day. Missing ONE day is forgiven
+--     by the streak shield (it recharges every UTC week); more missed days step the cycle back by the days
+--     missed, never below day 1 (it never resets from scratch)
+--   * DAILY MISSIONS: 3 a day, picked for this account and this UTC day from the pool, only from what the
+--     player's reputation tier can actually do; they move only from real server events (F.track)
+--   * WEEKLY CHALLENGE: one bigger goal per UTC week (Monday to Sunday)
+-- Definitions are data (C.DAILY_REWARDS, C.MISSION_POOL, C.WEEKLY_POOL): balance them there.
+return function(C)
+local Players = game:GetService("Players")
+local RGB = Color3.fromRGB
+local F, data, R = C.F, C.data, C.R
+local fmt, notify = C.fmt, C.notify
+local DAY = 86400
+C.dailyClock = C.dailyClock or nil   -- (tests can set a function returning the time)
+local function now() return C.dailyClock and C.dailyClock() or os.time() end
+function F.utcDay(t) return math.floor((t or now()) / DAY) end
+-- weeks start on Monday (1970-01-01 was a Thursday)
+function F.utcWeek(t) return math.floor((F.utcDay(t) + 3) / 7) end
+
+-- ===== rewards (cash = max(min, income × secs)) =====
+C.DAILY_REWARDS = {
+	{icon = "💵", name = "Cash bonus", secs = 300, min = 1000},
+	{icon = "🏷️", name = "Upgrade discount", text = "25% off your next business upgrade", item = "tokUpgrade", secs = 120, min = 500},
+	{icon = "🎨", name = "Free car makeover", text = "your next car part or paint is free", item = "tokCarmod", secs = 120, min = 500},
+	{icon = "🎓", name = "Staff training", text = "every employee gains experience", item = "training", secs = 180, min = 800},
+	{icon = "🏺", name = "Rare decoration", text = "a Golden Statue for your home", item = "decor", secs = 180, min = 800},
+	{icon = "📜", name = "Bonus contract", text = "an extra contract on your 🗺️ Roadmap", item = "contract", secs = 300, min = 1500},
+	{icon = "👑", name = "Legacy reward", text = "the 👑 Week Champion title + a big cash bonus", item = "titleWeek", secs = 1200, min = 6000, rep = 10},
+}
+local DR = C.DAILY_REWARDS
+
+-- ===== missions =====
+-- kind = the F.track event; n = target (money targets scale with income: n = max(n, income × incomeSecs));
+-- tier = the reputation tier needed (1 = everyone); path = mogul / under / any (for the Roadmap's paths)
+C.MISSION_POOL = {
+	{key = "serve30", kind = "serve", n = 30, text = "Serve %d customers", tier = 1, path = "mogul"},
+	{key = "serve80", kind = "serve", n = 80, text = "Serve %d customers", tier = 2, path = "mogul"},
+	{key = "cook2", kind = "cook", n = 2, text = "Serve %d perfect 🍳 Rush Orders", tier = 1, path = "mogul"},
+	{key = "cook5", kind = "cook", n = 5, text = "Serve %d perfect 🍳 Rush Orders", tier = 2, path = "mogul"},
+	{key = "upgrade2", kind = "upgrade", n = 2, text = "Upgrade a business %d times", tier = 1, path = "mogul"},
+	{key = "earn", kind = "earnLegit", n = 5000, incomeSecs = 900, text = "Earn $%s from your businesses", tier = 1, path = "mogul", money = true},
+	{key = "job1", kind = "job", n = 1, text = "Finish %d 💼 City Job", tier = 1, path = "any"},
+	{key = "job3", kind = "job", n = 3, text = "Finish %d 💼 City Jobs", tier = 2, path = "any"},
+	{key = "corner1", kind = "corner", n = 1, text = "Find %d ✨ Golden Corner", tier = 1, path = "any"},
+	{key = "drive", kind = "drive", n = 3000, text = "Drive %s studs in your car", tier = 2, path = "any"},
+	{key = "ride3", kind = "ride", n = 3, text = "Take %d 🎢 rides (any park or the Fun Park)", tier = 2, path = "any"},
+	{key = "visit", kind = "visitPark", n = 1, text = "Ride at %d other player's 🎢 park", tier = 2, path = "any"},
+	{key = "race1", kind = "race", n = 1, text = "Finish %d 🏁 race", tier = 3, path = "any"},
+	{key = "show2", kind = "show", n = 2, text = "Run %d 🎬 theater shows", tier = 3, path = "mogul"},
+	{key = "party1", kind = "party", n = 1, text = "Throw or join %d 🎉 party", tier = 1, path = "any"},
+	{key = "heist1", kind = "heist", n = 1, text = "Pull off %d heist and get the loot to the base", tier = 3, path = "under", needs = "heist"},
+	{key = "heist2", kind = "heist", n = 2, text = "Pull off %d heists without getting caught", tier = 4, path = "under", needs = "heist"},
+	{key = "gift1", kind = "gift", n = 1, text = "Send someone a 💸 gift", tier = 2, path = "any"},
+}
+C.WEEKLY_POOL = {
+	{key = "w_serve", kind = "serve", n = 100, text = "Serve %d customers this week", secs = 1800, min = 8000, rep = 20, badge = "weekServe", badgeName = "🧾 Crowd Pleaser"},
+	{key = "w_cook", kind = "cook", n = 15, text = "Serve %d perfect 🍳 Rush Orders this week", secs = 1800, min = 8000, rep = 20, badge = "weekCook", badgeName = "🍳 Line Cook"},
+	{key = "w_jobs", kind = "job", n = 5, text = "Finish %d 💼 City Jobs this week", secs = 1800, min = 8000, rep = 20, badge = "weekJobs", badgeName = "💼 Hustler"},
+	{key = "w_earn", kind = "earnLegit", n = 50000, incomeSecs = 7200, text = "Earn $%s from your businesses this week", money = true, secs = 1800, min = 8000, rep = 20, badge = "weekEarn", badgeName = "💹 Money Maker"},
+	{key = "w_park", kind = "parkRating", n = 70, max = true, tier = 4, text = "Build a 🎢 park rated %d or more", secs = 2400, min = 10000, rep = 25, badge = "weekPark", badgeName = "🎢 Thrill Builder"},
+	{key = "w_ride", kind = "ride", n = 12, text = "Take %d 🎢 rides this week", secs = 1500, min = 6000, rep = 15, badge = "weekRide", badgeName = "🎡 Ride Fanatic"},
+}
+local MISSION, WEEKLY = {}, {}
+for _, m in ipairs(C.MISSION_POOL) do MISSION[m.key] = m end
+for _, m in ipairs(C.WEEKLY_POOL) do WEEKLY[m.key] = m end
+C.DAILY = {missionSecs = 240, missionMin = 1200, missionRep = 3, claimGap = 1}
+
+local function cashFor(d, secs, minimum)
+	return math.max(minimum or 0, math.floor((F.incomePerSec and F.incomePerSec(d) or 0) * (secs or 0)))
+end
+local function targetOf(d, def)
+	if def.money then return math.max(def.n, math.floor((F.incomePerSec(d) or 0) * (def.incomeSecs or 0) / 100) * 100) end
+	return def.n
+end
+local function fill(def, n) return string.format(def.text, def.money and fmt(n) or (def.kind == "drive" and fmt(n) or n)) end
+
+-- ===== the login streak =====
+-- what claiming today would do: returns the cycle day (1-7), the new streak, whether the shield is used,
+-- and the shield state after
+local function streakToday(dl, today)
+	local shield, shieldWeek = dl.shield, dl.shieldWeek
+	local wk = F.utcWeek(today * DAY)
+	if shieldWeek < wk then shield, shieldWeek = 1, wk end
+	if dl.claimed <= 0 then return 1, 1, false, shield, shieldWeek end
+	local gap = today - dl.claimed
+	if gap <= 0 then return nil end
+	local missed = gap - 1
+	local used = false
+	if missed >= 1 and shield >= 1 then
+		missed -= 1
+		shield = 0
+		used = true
+	end
+	local nextDay = dl.cycle % 7 + 1
+	if missed <= 0 then return nextDay, dl.streak + 1, used, shield, shieldWeek end
+	return math.max(1, nextDay - missed), 1, used, shield, shieldWeek
+end
+F.dailyStreakToday = streakToday
+
+-- ===== today's missions + this week's challenge (rolled when the day / week changes) =====
+local function roll(plr, d, acct)
+	local today, wk = F.utcDay(), F.utcWeek()
+	local m = acct.missions
+	if m.day ~= today then
+		local tier = F.tierIndex(d.rep)
+		local heistOK = type(d.heist) == "table" and d.heist.discovered == true
+		local pool = {}
+		for _, def in ipairs(C.MISSION_POOL) do
+			if def.tier <= tier and (def.needs ~= "heist" or heistOK) then table.insert(pool, def) end
+		end
+		local rng = Random.new((plr.UserId % 100000) * 1000 + today % 1000)
+		local picks, used = {}, {}
+		while #picks < 3 and #pool > 0 do
+			local i = rng:NextInteger(1, #pool)
+			local def = table.remove(pool, i)
+			if not used[def.kind] then
+				used[def.kind] = true
+				table.insert(picks, def.key)
+			end
+		end
+		acct.missions = {day = today, picks = picks, p = {0, 0, 0}, done = {false, false, false}, t = {}}
+		for i, key in ipairs(picks) do acct.missions.t[i] = targetOf(d, MISSION[key]) end
+	end
+	local w = acct.weekly
+	if w.week ~= wk then
+		local tier = F.tierIndex(d.rep)
+		local pool = {}
+		for _, def in ipairs(C.WEEKLY_POOL) do if (def.tier or 1) <= tier then table.insert(pool, def) end end
+		local def = pool[(wk % #pool) + 1]
+		acct.weekly = {week = wk, key = def.key, p = 0, claimed = false, t = targetOf(d, def)}
+	end
+end
+local function missionTarget(acct, i)
+	local key = acct.missions.picks[i]
+	return (acct.missions.t and acct.missions.t[i]) or (MISSION[key] and MISSION[key].n) or 1
+end
+
+-- ===== progress: only from F.track (server code), never from the client =====
+local lastNote = {}
+function F.dailyTrack(plr, kind, n)
+	local d = data[plr]
+	local acct = F.acct and F.acct(plr)
+	if not (d and acct) then return end
+	n = tonumber(n) or 1
+	if n ~= n or n <= 0 then return end
+	roll(plr, d, acct)
+	local m = acct.missions
+	for i, key in ipairs(m.picks) do
+		local def = MISSION[key]
+		local target = missionTarget(acct, i)
+		if def and def.kind == kind and not m.done[i] and m.p[i] < target then
+			m.p[i] = math.min(target, def.max and math.max(m.p[i], math.floor(n)) or (m.p[i] + math.floor(n)))
+			if m.p[i] >= target then
+				notify(plr, "✅ Daily mission done: " .. fill(def, target) .. "  (claim it in 🎁 Daily)", {pri = "critical", cat = "rep", key = "mission" .. i})
+				R.Menu:FireClient(plr, "dailyPing", {what = "mission"})
+			end
+		end
+	end
+	local w = acct.weekly
+	local wdef = WEEKLY[w.key]
+	if wdef and wdef.kind == kind and not w.claimed then
+		local target = w.t or wdef.n
+		if w.p < target then
+			w.p = math.min(target, wdef.max and math.max(w.p, math.floor(n)) or (w.p + math.floor(n)))
+			if w.p >= target then
+				notify(plr, "🏆 Weekly challenge done: " .. fill(wdef, target) .. "  (claim it in 🎁 Daily)", {pri = "critical", cat = "rep", key = "weekly"})
+				R.Menu:FireClient(plr, "dailyPing", {what = "weekly"})
+			end
+		end
+	end
+	local _ = lastNote
+end
+-- chain onto the game's event bus (GameServer > Occasions' F.track feeds occasions + onboarding)
+do
+	local base = F.track
+	F.track = function(plr, kind, n)
+		if base then base(plr, kind, n) end
+		F.dailyTrack(plr, kind, n)
+		if F.pathTrack then F.pathTrack(plr, kind, n) end
+		if F.liveTrack then F.liveTrack(plr, kind, n) end
+	end
+end
+
+-- ===== reward items (paid with a grant into the slot being played) =====
+C.GRANT_ITEMS = C.GRANT_ITEMS or {}
+local GI = C.GRANT_ITEMS
+GI.tokUpgrade = function(plr, d)
+	d.tokens = type(d.tokens) == "table" and d.tokens or {}
+	d.tokens.upgrade = math.min(5, (tonumber(d.tokens.upgrade) or 0) + 1)
+end
+GI.tokCarmod = function(plr, d)
+	d.tokens = type(d.tokens) == "table" and d.tokens or {}
+	d.tokens.carmod = math.min(5, (tonumber(d.tokens.carmod) or 0) + 1)
+end
+GI.training = function(plr, d)
+	for _, st in pairs(d.staff or {}) do
+		if type(st) == "table" then st.xp = (tonumber(st.xp) or 0) + 40 end
+	end
+end
+GI.decor = function(plr, d)
+	d.furniture = type(d.furniture) == "table" and d.furniture or {}
+	local key = C.DAILY_DECOR or "goldstatue"
+	d.furniture[key] = (tonumber(d.furniture[key]) or 0) + 1
+end
+GI.contract = function(plr, d)
+	if F.pathBonusContract then F.pathBonusContract(plr, d) end
+end
+GI.titleWeek = function() end   -- (the title goes into the account wardrobe when it's claimed)
+
+-- ===== claims =====
+local claimAt = {}
+local function gap(plr)
+	local t = os.clock()
+	if claimAt[plr] and t - claimAt[plr] < C.DAILY.claimGap then return false end
+	claimAt[plr] = t
+	return true
+end
+function F.dailyClaim(plr)
+	local d = data[plr]
+	if not (d and F.acct(plr)) or d.noSave then
+		if d and d.noSave then notify(plr, "⚠️ Rewards can't be claimed while your save isn't loading properly. Rejoin to try again.", {pri = "critical", cat = "warn"}) end
+		return false
+	end
+	if not gap(plr) then return false end
+	local today = F.utcDay()
+	local got
+	local ok = F.acctCommit(plr, function(acct)
+		local dl = acct.daily
+		local day, streak, used, shield, shieldWeek = streakToday(dl, today)
+		if not day then return false end
+		local r = DR[day]
+		acct.daily = {claimed = today, cycle = day, streak = streak, best = math.max(dl.best, streak), shield = shield, shieldWeek = shieldWeek}
+		if r.item == "titleWeek" then acct.wardrobe.titles.weekChamp = true end
+		F.addGrant(plr, acct, {cash = cashFor(d, r.secs, r.min), rep = r.rep or 0, item = r.item, what = "Day " .. day .. ": " .. r.icon .. " " .. r.name})
+		got = {day = day, used = used}
+		return true
+	end)
+	if not ok then
+		notify(plr, "🎁 Today's reward is already claimed. Next one in " .. F.dailyCountdown() .. ".", {pri = "normal", cat = "info"})
+		return false
+	end
+	if got.used then notify(plr, "🛡️ Your streak shield saved your streak!", {pri = "critical", cat = "rep"}) end
+	F.payGrants(plr)
+	return true
+end
+function F.missionClaim(plr, i)
+	local d = data[plr]
+	if not (d and F.acct(plr)) or d.noSave or not C.int(i, 1, 3) then return false end
+	if not gap(plr) then return false end
+	local today = F.utcDay()
+	local ok = F.acctCommit(plr, function(acct)
+		local m = acct.missions
+		local key = m.picks[i]
+		local def = MISSION[key]
+		if m.day ~= today or not def or m.done[i] or m.p[i] < missionTarget(acct, i) then return false end
+		m.done[i] = true
+		local DC = C.DAILY
+		F.addGrant(plr, acct, {cash = cashFor(d, DC.missionSecs, DC.missionMin), rep = DC.missionRep, item = "path_" .. def.path, what = "Mission: " .. fill(def, missionTarget(acct, i))})
+		return true
+	end)
+	if ok then F.payGrants(plr) end
+	return ok
+end
+function F.weeklyClaim(plr)
+	local d = data[plr]
+	if not (d and F.acct(plr)) or d.noSave then return false end
+	if not gap(plr) then return false end
+	local wk = F.utcWeek()
+	local ok = F.acctCommit(plr, function(acct)
+		local w = acct.weekly
+		local def = WEEKLY[w.key]
+		if w.week ~= wk or not def or w.claimed or w.p < (w.t or def.n) then return false end
+		w.claimed = true
+		acct.wardrobe.badges[def.badge] = true
+		F.addGrant(plr, acct, {cash = cashFor(d, def.secs, def.min), rep = def.rep, what = "Weekly: " .. def.badgeName})
+		return true
+	end)
+	if ok then F.payGrants(plr) end
+	return ok
+end
+-- (path XP from a mission: the mission's path, or "any" → nothing extra)
+for _, p in ipairs({"mogul", "under", "any"}) do
+	GI["path_" .. p] = function(plr, d) if F.pathXP and p ~= "any" then F.pathXP(plr, d, p, 25) end end
+end
+
+function F.dailyCountdown()
+	local left = (F.utcDay() + 1) * DAY - now()
+	return string.format("%dh %02dm", math.floor(left / 3600), math.floor(left % 3600 / 60))
+end
+function F.dailyInfo(plr)
+	local d = data[plr]
+	local acct = F.acct and F.acct(plr)
+	if not (d and acct) then return nil end
+	roll(plr, d, acct)
+	local today = F.utcDay()
+	local dl = acct.daily
+	local day, streak, used = streakToday(dl, today)
+	local info = {claimedToday = dl.claimed == today, today = day or dl.cycle, streak = dl.streak, best = dl.best, shield = (day and select(4, streakToday(dl, today))) or dl.shield,
+		shieldUsedIfClaim = used == true, nextIn = (today + 1) * DAY - now(), rewards = {}, missions = {}, weekly = nil, canSave = not d.noSave}
+	for i, r in ipairs(DR) do
+		table.insert(info.rewards, {day = i, icon = r.icon, name = r.name, text = r.text, cash = cashFor(d, r.secs, r.min)})
+	end
+	local _ = streak
+	local m = acct.missions
+	for i, key in ipairs(m.picks) do
+		local def = MISSION[key]
+		if def then
+			local target = missionTarget(acct, i)
+			table.insert(info.missions, {i = i, text = fill(def, target), p = m.p[i], n = target, done = m.p[i] >= target, claimed = m.done[i], path = def.path,
+				cash = cashFor(d, C.DAILY.missionSecs, C.DAILY.missionMin)})
+		end
+	end
+	local w = acct.weekly
+	local wdef = WEEKLY[w.key]
+	if wdef then
+		local target = w.t or wdef.n
+		info.weekly = {text = fill(wdef, target), p = w.p, n = target, done = w.p >= target, claimed = w.claimed, badge = wdef.badgeName, cash = cashFor(d, wdef.secs, wdef.min),
+			endsIn = (math.floor((F.utcDay() + 3) / 7) + 1) * 7 * DAY - 3 * DAY - now()}
+	end
+	if F.liveInfo then info.event = F.liveInfo(plr) end
+	return info
+end
+
+C.ACTIONS = C.ACTIONS or {}
+local function send(plr)
+	local info = F.dailyInfo(plr)
+	if info then R.Menu:FireClient(plr, "daily", info) end
+end
+C.ACTIONS.dailyInfo = function(plr) send(plr) end
+C.ACTIONS.dailyClaim = function(plr) F.dailyClaim(plr) send(plr) end
+C.ACTIONS.missionClaim = function(plr, d, a) F.missionClaim(plr, a) send(plr) end
+C.ACTIONS.weeklyClaim = function(plr) F.weeklyClaim(plr) send(plr) end
+
+-- ===== server-side sources the bus didn't have yet =====
+-- driving: sampled every 2 s while the player sits in their own spawned car; a jump faster than any car can
+-- go (a teleport) doesn't count
+local lastPos = {}
+task.spawn(function()
+	while true do
+		task.wait(2)
+		for _, plr in ipairs(Players:GetPlayers()) do
+			local car = F.activeCar and F.activeCar(plr)
+			local seat = car and car.seat
+			local hum = plr.Character and plr.Character:FindFirstChildOfClass("Humanoid")
+			if seat and hum and seat.Occupant == hum and data[plr] then
+				local p = seat.Position
+				local prev = lastPos[plr]
+				lastPos[plr] = p
+				if prev then
+					local dist = (p - prev).Magnitude
+					if dist > 1 and dist < 2 * 160 then F.track(plr, "drive", math.floor(dist)) end
+				end
+			else
+				lastPos[plr] = nil
+			end
+		end
+		-- the park's rating, for "build a park rated N" (max-type: it only counts the best value)
+		for plr, d in pairs(data) do
+			if (d.levels.park or 0) > 0 and F.parkScore then
+				local rating = F.parkScore(d)
+				if rating > 0 then F.dailyTrack(plr, "parkRating", rating) end
+			end
+		end
+	end
+end)
+Players.PlayerRemoving:Connect(function(plr) lastPos[plr], claimAt[plr] = nil, nil end)
+end
+]]></ProtectedString></Properties>
+</Item>
+<Item class="ModuleScript" referent="RBX56"><Properties><string name="Name">Paths</string>
+<ProtectedString name="Source"><![CDATA[-- PATHS (v16): three ways to build an empire, on the SAME economy (no new currency, nothing locked for good):
+--   💼 BUSINESS MOGUL    serve customers, Rush Orders, upgrades, theater shows, building your park
+--   🕶️ UNDERWORLD OPERATOR  heists that make it home to the mountain base (the existing heist system; fictional)
+--   👑 EMPIRE LEGEND     both on the same day, and mixed contracts
+-- Each path has XP and levels (with titles for your 🪪 showcase and a little reputation per level) and one
+-- CONTRACT at a time: a bigger goal than a daily mission that pays more. The Underworld board opens once the
+-- player has found the mountain base. Path progress lives in the save slot (d.path) and moves only from real
+-- server events (F.track). The starting attitude chosen after the intro only picks the first suggested step.
+return function(C)
+local Players = game:GetService("Players")
+local RGB = Color3.fromRGB
+local F, data, R = C.F, C.data, C.R
+local fmt, notify = C.fmt, C.notify
+
+C.PATHS_DEF = {
+	{key = "mogul", icon = "💼", name = "Business Mogul", color = RGB(255, 205, 60),
+		levels = {"Shopkeeper", "Entrepreneur", "Business Owner", "Executive", "Tycoon", "Mogul", "Magnate", "Business Legend"}},
+	{key = "under", icon = "🕶️", name = "Underworld Operator", color = RGB(150, 90, 255),
+		levels = {"Lookout", "Runner", "Crew Member", "Fixer", "Planner", "Mastermind", "Kingpin", "Underworld Legend"}},
+	{key = "legend", icon = "👑", name = "Empire Legend", color = RGB(255, 120, 60),
+		levels = {"Double Life", "Two-Faced", "Power Broker", "Shadow Tycoon", "Kingmaker", "City Legend", "Untouchable", "Empire Legend"}},
+}
+local PD = {}
+for _, p in ipairs(C.PATHS_DEF) do PD[p.key] = p end
+C.PATH_XP = {0, 100, 300, 700, 1500, 3000, 6000, 12000}
+-- XP per event (only real server events)
+C.PATH_GAIN = {serve = {"mogul", 1}, cook = {"mogul", 6}, upgrade = {"mogul", 10}, show = {"mogul", 5}, parkBuild = {"mogul", 4}, heist = {"under", 45}}
+C.PATH_CFG = {legendDaily = 25, levelRep = 5, contractSecs = 900, contractMin = 4000, contractXP = 80}
+-- contracts: kind = an F.track event (or parts = several), n scales with the tier (n × tier for "scale" ones)
+C.CONTRACTS = {
+	mogul = {
+		{key = "m_serve", text = "Serve %d customers", kind = "serve", n = 40, scale = true},
+		{key = "m_cook", text = "Serve %d perfect 🍳 Rush Orders", kind = "cook", n = 6},
+		{key = "m_up", text = "Upgrade your businesses %d times", kind = "upgrade", n = 4},
+		{key = "m_show", text = "Run %d 🎬 theater shows", kind = "show", n = 4, tier = 3},
+		{key = "m_park", text = "Build %d things in your 🎢 park", kind = "parkBuild", n = 6, tier = 4},
+	},
+	under = {
+		{key = "u_one", text = "Get %d heist home to the base", kind = "heist", n = 1},
+		{key = "u_two", text = "Pull off %d heists without getting caught", kind = "heist", n = 2, tier = 4},
+	},
+	legend = {
+		{key = "l_mix", text = "1 heist home + 8 perfect Rush Orders", parts = {{kind = "heist", n = 1}, {kind = "cook", n = 8}}},
+		{key = "l_mix2", text = "1 heist home + serve 60 customers", parts = {{kind = "heist", n = 1}, {kind = "serve", n = 60}}},
+	},
+}
+local CT = {}
+for path, list in pairs(C.CONTRACTS) do for _, c in ipairs(list) do c.path = path CT[c.key] = c end end
+
+local function rec(d)
+	if type(d.path) ~= "table" then d.path = {} end
+	local p = d.path
+	p.xp = type(p.xp) == "table" and p.xp or {}
+	for _, def in ipairs(C.PATHS_DEF) do p.xp[def.key] = math.max(0, math.floor(tonumber(p.xp[def.key]) or 0)) end
+	p.contracts = type(p.contracts) == "table" and p.contracts or {}
+	p.done = math.max(0, math.floor(tonumber(p.done) or 0))
+	p.day = type(p.day) == "table" and p.day or {}
+	return p
+end
+F.pathRec = rec
+function F.pathLevel(xp)
+	local lv = 1
+	for i, need in ipairs(C.PATH_XP) do if xp >= need then lv = i end end
+	return lv
+end
+local function underOpen(d) return type(d.heist) == "table" and d.heist.discovered == true end
+
+-- a new contract for a path (the first one the save's tier allows that isn't the one just finished)
+local function newContract(d, path, avoid)
+	local tier = F.tierIndex(d.rep)
+	local opts = {}
+	for _, c in ipairs(C.CONTRACTS[path]) do
+		if (c.tier or 1) <= tier and c.key ~= avoid then table.insert(opts, c) end
+	end
+	if #opts == 0 then return nil end
+	local c = opts[math.random(#opts)]
+	local entry = {key = c.key, p = {}, n = {}}
+	if c.parts then
+		for i, part in ipairs(c.parts) do entry.p[i], entry.n[i] = 0, part.n end
+	else
+		entry.p[1], entry.n[1] = 0, c.scale and c.n * tier or c.n
+	end
+	return entry
+end
+local function ensure(d)
+	local p = rec(d)
+	for _, path in ipairs({"mogul", "under", "legend"}) do
+		local ok = path == "mogul" or underOpen(d)
+		if ok and (type(p.contracts[path]) ~= "table" or not CT[p.contracts[path].key]) then p.contracts[path] = newContract(d, path) end
+	end
+	if p.bonus == true and type(p.contracts.bonus) ~= "table" then p.contracts.bonus = newContract(d, "mogul") end
+	return p
+end
+local function contractDone(e) for i, need in ipairs(e.n) do if (tonumber(e.p[i]) or 0) < need then return false end end return true end
+
+function F.pathXP(plr, d, path, amount)
+	local p = rec(d)
+	if not PD[path] then return end
+	local before = F.pathLevel(p.xp[path])
+	p.xp[path] += math.max(0, math.floor(amount))
+	local after = F.pathLevel(p.xp[path])
+	if after > before then
+		local def = PD[path]
+		local title = def.levels[after]
+		F.addRep(plr, C.PATH_CFG.levelRep)
+		local acct = F.acct and F.acct(plr)
+		if acct then acct.wardrobe.titles[path .. after] = true end
+		notify(plr, def.icon .. " " .. def.name .. " level " .. after .. ": " .. title .. "!", {pri = "critical", cat = "rep"})
+		R.Splash:FireClient(plr, def.icon .. " " .. string.upper(title), def.name .. " level " .. after .. "  •  new title for your 🪪 showcase", def.color)
+	end
+	-- 👑 Legend: progress on BOTH sides on the same day
+	if path ~= "legend" then
+		local today = F.utcDay and F.utcDay() or 0
+		p.day[path] = today
+		if p.day.mogul == today and p.day.under == today and p.day.legend ~= today then
+			p.day.legend = today
+			F.pathXP(plr, d, "legend", C.PATH_CFG.legendDaily)
+			notify(plr, "👑 Both sides of the city in one day: +" .. C.PATH_CFG.legendDaily .. " Empire Legend XP", {pri = "normal", cat = "rep"})
+		end
+	end
+end
+function F.pathTrack(plr, kind, n)
+	local d = data[plr]
+	if not d then return end
+	n = math.max(0, math.floor(tonumber(n) or 1))
+	if n <= 0 then return end
+	local g = C.PATH_GAIN[kind]
+	if g then F.pathXP(plr, d, g[1], g[2] * math.min(n, 50)) end
+	local p = ensure(d)
+	for slotName, e in pairs(p.contracts) do
+		local c = type(e) == "table" and CT[e.key]
+		if c and not contractDone(e) then
+			local parts = c.parts or {{kind = c.kind}}
+			local moved = false
+			for i, part in ipairs(parts) do
+				if part.kind == kind and (tonumber(e.p[i]) or 0) < e.n[i] then
+					e.p[i] = math.min(e.n[i], (tonumber(e.p[i]) or 0) + n)
+					moved = true
+				end
+			end
+			if moved and contractDone(e) then
+				notify(plr, "📜 Contract complete: " .. string.format(c.text, e.n[1]) .. "  (collect it in 🗺️ Roadmap)", {pri = "critical", cat = "rep", key = "contract" .. slotName})
+			end
+		end
+	end
+end
+-- collect a finished contract: paid straight into this slot (the contract lives in the slot's save too)
+function F.contractClaim(plr, slotName)
+	local d = data[plr]
+	if not d or type(slotName) ~= "string" then return false end
+	local p = ensure(d)
+	local e = p.contracts[slotName]
+	local c = type(e) == "table" and CT[e.key]
+	if not (c and contractDone(e)) then return false end
+	local cash = math.max(C.PATH_CFG.contractMin, math.floor(F.incomePerSec(d) * C.PATH_CFG.contractSecs))
+	d.cash += cash
+	F.earn(d, cash)
+	p.done += 1
+	local xpPath = slotName == "bonus" and "mogul" or slotName
+	if slotName == "bonus" then
+		p.contracts.bonus = nil
+		p.bonus = nil
+	else
+		p.contracts[slotName] = newContract(d, slotName, e.key)
+	end
+	F.pathXP(plr, d, xpPath, C.PATH_CFG.contractXP)
+	notify(plr, "📜 Contract paid: +$" .. fmt(cash) .. " and +" .. C.PATH_CFG.contractXP .. " " .. PD[xpPath].name .. " XP", {pri = "critical", cat = "money"})
+	return true
+end
+-- daily reward day 6: an extra contract
+function F.pathBonusContract(plr, d)
+	local p = rec(d)
+	p.bonus = true
+	ensure(d)
+end
+
+function F.pathInfo(plr)
+	local d = data[plr]
+	if not d then return nil end
+	local p = ensure(d)
+	local out = {choice = p.choice, done = p.done, paths = {}, contracts = {}, underOpen = underOpen(d)}
+	for _, def in ipairs(C.PATHS_DEF) do
+		local xp = p.xp[def.key]
+		local lv = F.pathLevel(xp)
+		table.insert(out.paths, {key = def.key, icon = def.icon, name = def.name, level = lv, title = def.levels[lv], xp = xp, nextXP = C.PATH_XP[lv + 1],
+			thisXP = C.PATH_XP[lv], nextTitle = def.levels[lv + 1]})
+	end
+	for _, slotName in ipairs({"mogul", "under", "legend", "bonus"}) do
+		local e = p.contracts[slotName]
+		local c = type(e) == "table" and CT[e.key]
+		if c then
+			local prog = {}
+			for i, need in ipairs(e.n) do table.insert(prog, {p = tonumber(e.p[i]) or 0, n = need}) end
+			table.insert(out.contracts, {slot = slotName, text = c.parts and c.text or string.format(c.text, e.n[1]), progress = prog, done = contractDone(e),
+				icon = (PD[c.path] or PD.mogul).icon, cash = math.max(C.PATH_CFG.contractMin, math.floor(F.incomePerSec(d) * C.PATH_CFG.contractSecs))})
+		end
+	end
+	return out
+end
+
+-- ===== the starting attitude (after the intro; can be changed from the Roadmap) =====
+C.START_CHOICES = {
+	smart = {icon = "💼", name = "Play It Smart", step = "cook", text = "Start with your business: serve a perfect 🍳 Rush Order."},
+	risk = {icon = "🎲", name = "Take a Risk", step = "job", text = "Hit the streets: take a 💼 City Job. (Rumors say something hums inside the mountain up north...)"},
+	explore = {icon = "🧭", name = "Explore the City", step = "corner", text = "Look around: Golden Corners, places to discover, the Fun Park.", app = "explore"},
+}
+function F.startChoice(plr, key)
+	local d = data[plr]
+	local ch = type(key) == "string" and C.START_CHOICES[key]
+	if not (d and ch) then return false end
+	rec(d).choice = key
+	if F.onboardFirst then F.onboardFirst(plr, ch.step) end
+	R.Menu:FireClient(plr, "startChosen", {key = key, name = ch.name, text = ch.text, app = ch.app})
+	return true
+end
+
+C.ACTIONS = C.ACTIONS or {}
+C.ACTIONS.startChoice = function(plr, d, a) F.startChoice(plr, a) end
+C.ACTIONS.contractClaim = function(plr, d, a)
+	if F.contractClaim(plr, a) and F.roadmapSend then F.roadmapSend(plr) end
+end
+local _ = Players
+end
+]]></ProtectedString></Properties>
+</Item>
+<Item class="ModuleScript" referent="RBX57"><Properties><string name="Name">Roadmap</string>
+<ProtectedString name="Source"><![CDATA[-- ROADMAP (v16): the 🗺️ Empire Roadmap. Seven stages from a street corner to a legend, each built from the
+-- game's REAL rules (reputation tiers from C.REP_TIERS, the businesses you run, your city plots, the empire
+-- value), so it never promises something the game doesn't do. Each stage shows what you need, how far along you
+-- are, and what opens up. Reaching a new stage is celebrated once (with a small cash gift); a save that was
+-- already past some stages when v16 arrived is placed on the map without replaying (or paying) them.
+return function(C)
+local Players = game:GetService("Players")
+local RGB = Color3.fromRGB
+local F, data, R = C.F, C.data, C.R
+local fmt, notify = C.fmt, C.notify
+local REP_TIERS = C.REP_TIERS
+
+local function bizOpen(d)
+	local n = 0
+	for _, b in ipairs(C.BUSINESSES) do if (d.levels[b.key] or 0) > 0 then n += 1 end end
+	return n
+end
+local function rep(t) return {label = "⭐ Reputation: " .. REP_TIERS[t].name, have = function(d) return math.floor(d.rep) end, need = REP_TIERS[t].rep} end
+-- each stage: requirements (all of them), what it opens up, the reward for reaching it
+C.ROADMAP = {
+	{key = "street", icon = "🛒", name = "Street Starter", text = "A lemonade stand and a dream.", reqs = {},
+		unlocks = REP_TIERS[1].unlocks},
+	{key = "local", icon = "🏪", name = "Local Owner", text = "The neighborhood knows your name.", reqs = {rep(2)},
+		unlocks = REP_TIERS[2].unlocks},
+	{key = "builder", icon = "🏗️", name = "Business Builder", text = "Four businesses running at once.", reqs = {rep(2), {label = "🏪 Businesses open", have = bizOpen, need = 4}},
+		unlocks = {"More customers and combos between your businesses", "Staff for every business"}},
+	{key = "player", icon = "🏙️", name = "City Player", text = "The whole city is your market.", reqs = {rep(3)},
+		unlocks = REP_TIERS[3].unlocks},
+	{key = "property", icon = "🏢", name = "Property Mogul", text = "Your name on the city's best corners.",
+		reqs = {rep(3), {label = "🏙️ City plots owned", have = function(d) return #(d.deeds or {}) end, need = 2}},
+		unlocks = {"Businesses in two districts (location bonuses)", "The 🎬 Movie Theater on a city plot"}},
+	{key = "icon", icon = "🌆", name = "City Icon", text = "A skyline with your logo on it.", reqs = {rep(4)},
+		unlocks = REP_TIERS[4].unlocks},
+	{key = "legend", icon = "👑", name = "Empire Legend", text = "A billion-dollar empire. Your legacy.",
+		reqs = {rep(5), {label = "💎 Empire value", have = function(d) return F.empireValue and math.floor(F.empireValue(d)) or 0 end, need = 1e9, money = true}},
+		unlocks = REP_TIERS[5].unlocks},
+}
+local STAGES = C.ROADMAP
+C.ROADMAP_REWARD = {secs = 600, min = 2000}
+
+-- how far along the map a save is (stages are reached in order)
+function F.roadmapStage(d)
+	local stage = 1
+	for i = 2, #STAGES do
+		local ok = true
+		for _, r in ipairs(STAGES[i].reqs) do
+			local okH, have = pcall(r.have, d)
+			if not okH or (tonumber(have) or 0) < r.need then ok = false break end
+		end
+		if not ok then break end
+		stage = i
+	end
+	return stage
+end
+local function rec(d)
+	if type(d.roadmap) ~= "table" then d.roadmap = {} end
+	d.roadmap.stage = math.max(0, math.floor(tonumber(d.roadmap.stage) or 0))
+	return d.roadmap
+end
+local function rewardOf(d) return math.max(C.ROADMAP_REWARD.min, math.floor(F.incomePerSec(d) * C.ROADMAP_REWARD.secs)) end
+function F.roadmapCheck(plr)
+	local d = data[plr]
+	if not d or (d.tut or 0) ~= 0 then return end
+	local rm = rec(d)
+	local stage = F.roadmapStage(d)
+	if not rm.seeded then
+		-- first look at this save: place it on the map, nothing replayed
+		rm.seeded = true
+		rm.stage = stage
+		return
+	end
+	while rm.stage < stage do
+		rm.stage += 1
+		local st = STAGES[rm.stage]
+		local cash = rewardOf(d)
+		d.cash += cash
+		F.earn(d, cash)
+		local acct = F.acct and F.acct(plr)
+		if acct then acct.wardrobe.titles["stage" .. rm.stage] = true end
+		notify(plr, "🗺️ New stage: " .. st.icon .. " " .. st.name .. "  +$" .. fmt(cash), {pri = "critical", cat = "rep"})
+		R.Menu:FireClient(plr, "roadmapStage", {stage = rm.stage, icon = st.icon, name = st.name, text = st.text, cash = cash, unlocks = st.unlocks})
+	end
+end
+
+function F.roadmapInfo(plr)
+	local d = data[plr]
+	if not d then return nil end
+	local rm = rec(d)
+	local now = F.roadmapStage(d)
+	local out = {stage = now, celebrated = rm.stage, stages = {}, reward = rewardOf(d)}
+	for i, st in ipairs(STAGES) do
+		local reqs = {}
+		for _, r in ipairs(st.reqs) do
+			local okH, have = pcall(r.have, d)
+			have = okH and (tonumber(have) or 0) or 0
+			table.insert(reqs, {label = r.label, have = have, need = r.need, money = r.money, done = have >= r.need})
+		end
+		table.insert(out.stages, {i = i, key = st.key, icon = st.icon, name = st.name, text = st.text, reqs = reqs, unlocks = st.unlocks, done = i <= now, current = i == now})
+	end
+	if F.pathInfo then out.paths = F.pathInfo(plr) end
+	return out
+end
+function F.roadmapSend(plr)
+	local info = F.roadmapInfo(plr)
+	if info then R.Menu:FireClient(plr, "roadmap", info) end
+end
+C.ACTIONS = C.ACTIONS or {}
+C.ACTIONS.roadmapInfo = function(plr) F.roadmapSend(plr) end
+
+task.spawn(function()
+	while true do
+		task.wait(4)
+		for _, plr in ipairs(Players:GetPlayers()) do
+			if data[plr] then pcall(F.roadmapCheck, plr) end
+		end
+	end
+end)
+end
+]]></ProtectedString></Properties>
+</Item>
+<Item class="ModuleScript" referent="RBX58"><Properties><string name="Name">LiveEvents</string>
+<ProtectedString name="Source"><![CDATA[-- LIVE EVENTS (v16): something always going on in the city. One CITY EVENT at a time on a fixed UTC schedule
+-- (4-hour windows), worked out from the clock alone, so every server runs the same event at the same time:
+--   weekdays rotate through 🍽️ Restaurant Rush, 🎡 Funland Night, 🥊 Rival Takeover, 📦 Double Delivery,
+--   🚨 Underworld Alert and 🏎️ Luxury Showcase; Saturdays and Sundays (UTC) are 🤝 Community Weekend.
+-- Each event boosts something (F.liveMult, read by the systems it touches; events only ever ADD, nothing is
+-- taken away when one ends) and has an optional goal with a reward: claimed once per event window per account
+-- (written ahead like every account reward). The plaza board shows the event; a player hears about a new one
+-- when they're not busy (riding, mid-heist, cooking, in a cutscene). Definitions are data: C.LIVE_EVENTS.
+return function(C)
+local Players = game:GetService("Players")
+local RGB = Color3.fromRGB
+local F, data, R = C.F, C.data, C.R
+local fmt, notify = C.fmt, C.notify
+local P, surfaceText = C.P, C.surfaceText
+local V3, CF, MAT = Vector3.new, CFrame.new, Enum.Material
+
+C.LIVE_WINDOW = 4 * 3600
+C.LIVE_PAUSED = false   -- true: no boosts, no goals, no announcements (e.g. to pause events in a live game)
+C.LIVE_EVENTS = {
+	{key = "rush", icon = "🍽️", name = "Restaurant Rush", color = RGB(255, 140, 60), text = "Hungry crowds: +25% customers at every business.",
+		mult = {customers = 1.25}, goal = {kind = "cook", n = 5, text = "Serve 5 perfect 🍳 Rush Orders"}, reward = {secs = 600, min = 3000}},
+	{key = "funland", icon = "🎡", name = "Funland Night", color = RGB(255, 90, 200), text = "Parks are packed: twice the visitors, ride tickets ×1.5.",
+		mult = {parkVisitors = 2, parkTicket = 1.5}, goal = {kind = "ride", n = 3, text = "Take 3 🎢 rides"}, reward = {secs = 600, min = 3000}},
+	{key = "rival", icon = "🥊", name = "Rival Takeover", color = RGB(230, 70, 70), text = "The rivals are pushing hard: rival challenge prizes ×2.",
+		mult = {rivalPrize = 2}, goal = {kind = "rivalWin", n = 1, text = "Win a 🥊 rival challenge"}, reward = {secs = 900, min = 4000}},
+	{key = "delivery", icon = "📦", name = "Double Delivery Day", color = RGB(90, 200, 120), text = "City Jobs pay double.",
+		mult = {jobPay = 2}, goal = {kind = "job", n = 3, text = "Finish 3 💼 City Jobs"}, reward = {secs = 600, min = 3000}},
+	{key = "underworld", icon = "🚨", name = "Underworld Alert", color = RGB(150, 90, 255), text = "Big scores out there: heist payouts +30% (the police are watching too). Optional!",
+		mult = {heistPay = 1.3}, goal = {kind = "heist", n = 1, text = "Get 1 heist home to the base", needs = "heist"}, reward = {secs = 900, min = 5000}},
+	{key = "luxury", icon = "🏎️", name = "Luxury Showcase", color = RGB(255, 210, 90), text = "Show off your ride: customize your cars.",
+		mult = {}, goal = {kind = "carmod", n = 2, text = "Customize your car twice (paint or parts)"}, reward = {secs = 600, min = 3000}},
+	{key = "community", icon = "🤝", name = "Community Weekend", color = RGB(80, 200, 255), text = "Visit each other's parks: visitor rewards ×2, more park visitors.",
+		mult = {visitReward = 2, parkVisitors = 1.5}, goal = {kind = "visitPark", n = 2, text = "Ride at 2 other players' parks"}, reward = {secs = 900, min = 4000}, weekend = true},
+}
+local LIST, BYKEY = {}, {}
+for _, e in ipairs(C.LIVE_EVENTS) do
+	BYKEY[e.key] = e
+	if not e.weekend then table.insert(LIST, e) end
+end
+local function now() return C.dailyClock and C.dailyClock() or os.time() end
+-- the event at time t (and its window): the same answer on every server
+function F.liveAt(t)
+	t = t or now()
+	local win = math.floor(t / C.LIVE_WINDOW)
+	local day = math.floor(t / 86400)
+	local weekday = (day + 4) % 7   -- 0 = Sunday (1970-01-01 was a Thursday)
+	local ev
+	if weekday == 0 or weekday == 6 then ev = BYKEY.community
+	else ev = LIST[(win * 5 + 3) % #LIST + 1] end
+	return ev, win, win * C.LIVE_WINDOW, (win + 1) * C.LIVE_WINDOW
+end
+function F.liveMult(kind)
+	if C.LIVE_PAUSED then return 1 end
+	local ev = F.liveAt()
+	return ev and ev.mult[kind] or 1
+end
+
+-- ===== the goal (progress this session, per window; the reward is claimed once per window per account) =====
+local prog = {}   -- [plr] = {id, p}
+local function evId(ev, win) return ev.key .. win end
+function F.liveTrack(plr, kind, n)
+	if C.LIVE_PAUSED then return end
+	local ev, win = F.liveAt()
+	if not (ev and ev.goal and ev.goal.kind == kind) then return end
+	local id = evId(ev, win)
+	local pr = prog[plr]
+	if not pr or pr.id ~= id then
+		pr = {id = id, p = 0}
+		prog[plr] = pr
+	end
+	if pr.p >= ev.goal.n then return end
+	pr.p = math.min(ev.goal.n, pr.p + math.max(1, math.floor(tonumber(n) or 1)))
+	if pr.p >= ev.goal.n then
+		notify(plr, ev.icon .. " " .. ev.name .. " goal done! Claim it in 🎁 Daily.", {pri = "critical", cat = "rep", key = "liveGoal"})
+		R.Menu:FireClient(plr, "dailyPing", {what = "event"})
+	end
+end
+function F.liveClaim(plr)
+	local d = data[plr]
+	if not d or d.noSave then return false end
+	local ev, win = F.liveAt()
+	local id = evId(ev, win)
+	local pr = prog[plr]
+	if not (ev.goal and pr and pr.id == id and pr.p >= ev.goal.n) then return false end
+	local ok = F.acctCommit(plr, function(acct)
+		if acct.events[id] then return false end
+		acct.events[id] = win
+		-- keep only the recent windows (a week's worth)
+		for k, w in pairs(acct.events) do if (tonumber(w) or 0) < win - 42 then acct.events[k] = nil end end
+		F.addGrant(plr, acct, {cash = math.max(ev.reward.min, math.floor(F.incomePerSec(d) * ev.reward.secs)), rep = 5, what = ev.icon .. " " .. ev.name})
+		return true
+	end)
+	if ok then F.payGrants(plr) end
+	return ok
+end
+function F.liveInfo(plr)
+	local ev, win, t0, t1 = F.liveAt()
+	local nxt = F.liveAt(t1 + 1)
+	local pr = prog[plr]
+	local id = evId(ev, win)
+	local acct = F.acct and F.acct(plr)
+	local p = (pr and pr.id == id) and pr.p or 0
+	local d = data[plr]
+	return {key = ev.key, icon = ev.icon, name = ev.name, text = ev.text, color = ev.color, startsAt = t0, endsAt = t1, endsIn = t1 - now(),
+		goal = ev.goal and ev.goal.text or nil, p = p, n = ev.goal and ev.goal.n or 0, done = ev.goal ~= nil and p >= ev.goal.n,
+		claimed = acct ~= nil and acct.events[id] ~= nil, cash = d and math.max(ev.reward.min, math.floor(F.incomePerSec(d) * ev.reward.secs)) or 0,
+		nextName = nxt.name, nextIcon = nxt.icon}
+end
+C.ACTIONS = C.ACTIONS or {}
+C.ACTIONS.liveClaim = function(plr)
+	F.liveClaim(plr)
+	if C.ACTIONS.dailyInfo then C.ACTIONS.dailyInfo(plr) end
+end
+
+-- ===== is a player in the middle of something? (no announcements then) =====
+function F.playerBusy(plr)
+	if F.isRiding and F.isRiding(plr) then return true end
+	if F.heistActive and F.heistActive(plr) then return true end
+	if F.cookShift and F.cookShift(plr) ~= nil then return true end
+	if plr:GetAttribute("InCinematic") or plr:GetAttribute("Racing") then return true end
+	return false
+end
+
+-- ===== the plaza board =====
+local board
+do
+	local f = C.WORLD
+	local post = P(f, V3(0.8, 10, 0.8), CF(30, 5, 112), RGB(40, 42, 48), MAT.Metal)
+	post.Name = "EventBoardPost"
+	board = P(f, V3(14, 6, 0.6), CF(30, 12, 112), RGB(18, 24, 48), MAT.SmoothPlastic)
+	board.Name = "EventBoard"
+end
+local shown
+local function refreshBoard()
+	local ev, win = F.liveAt()
+	if shown == win then return end
+	shown = win
+	for _, x in ipairs(board:GetChildren()) do if x:IsA("SurfaceGui") then x:Destroy() end end
+	surfaceText(board, Enum.NormalId.Front, ev.icon .. " CITY EVENT: " .. string.upper(ev.name) .. "\n" .. ev.text, ev.color)
+	surfaceText(board, Enum.NormalId.Back, ev.icon .. " CITY EVENT: " .. string.upper(ev.name) .. "\n" .. ev.text, ev.color)
+	game:GetService("Workspace"):SetAttribute("LiveEvent", ev.key)
+end
+refreshBoard()
+
+-- ===== hearing about it (once per window, when not busy) =====
+local told = {}
+task.spawn(function()
+	while true do
+		task.wait(5)
+		refreshBoard()
+		local ev, win = F.liveAt()
+		for _, plr in ipairs(C.LIVE_PAUSED and {} or Players:GetPlayers()) do
+			local d = data[plr]
+			if d and (d.tut or 0) == 0 and told[plr] ~= win and not F.playerBusy(plr) then
+				told[plr] = win
+				notify(plr, ev.icon .. " City event: " .. ev.name .. "! " .. ev.text, {pri = "normal", cat = "info", key = "live"})
+			end
+		end
+	end
+end)
+-- ===== moments with a reason: a tour bus at a well-rated park =====
+-- A park rated 60+ sometimes gets a tour bus: for 2 minutes twice the visitors walk round it (the visitor count
+-- really goes up). At most once every 20 minutes per park; never while the owner is busy.
+C.MOMENTS = {parkRushRating = 60, parkRushChance = 0.35, parkRushEvery = 300, parkRushGap = 1200, parkRushTime = 120, parkRushVisitors = 40}
+local rushAt = {}
+task.spawn(function()
+	while true do
+		task.wait(C.MOMENTS.parkRushEvery)
+		for _, plr in ipairs(Players:GetPlayers()) do
+			local d = data[plr]
+			local site = d and F.parkSite and F.parkSite(plr)
+			if site and F.parkScore and (F.parkScore(d)) >= C.MOMENTS.parkRushRating and os.clock() - (rushAt[plr] or -1e9) > C.MOMENTS.parkRushGap
+				and not F.playerBusy(plr) and math.random() < C.MOMENTS.parkRushChance then
+				rushAt[plr] = os.clock()
+				F.parkRush(plr)
+			end
+		end
+	end
+end)
+function F.parkRush(plr)
+	local d = data[plr]
+	local site = d and F.parkSite and F.parkSite(plr)
+	if not site then return false end
+	local p = F.parkRec(d)
+	p.visitors += C.MOMENTS.parkRushVisitors
+	site.folder:SetAttribute("Boost", 2 * (F.liveMult("parkVisitors") or 1))
+	notify(plr, "🚌 A tour bus just pulled up at your park: +" .. C.MOMENTS.parkRushVisitors .. " visitors!", {pri = "normal", cat = "rep", key = "parkRush"})
+	task.delay(C.MOMENTS.parkRushTime, function()
+		if site.folder.Parent and F.parkSite(plr) == site then site.folder:SetAttribute("Boost", F.liveMult("parkVisitors") or 1) end
+	end)
+	return true
+end
+Players.PlayerRemoving:Connect(function(plr) prog[plr], told[plr], rushAt[plr] = nil, nil, nil end)
+end
+]]></ProtectedString></Properties>
+</Item>
+<Item class="ModuleScript" referent="RBX59"><Properties><string name="Name">Showcase</string>
+<ProtectedString name="Source"><![CDATA[-- SHOWCASE (v16): playing together.
+--   * PARK VISITS: riding at another player's 🎢 park pays the visitor a small reward the first time each day at
+--     each park (3 parks a day at most), and the owner a small "a friend dropped by" bonus once per visitor per
+--     day (on top of the usual capped ride tickets). Both are account rewards, written ahead (no duplicates)
+--   * CO-OP: partners who put money into a shared business (GameServer > Partners) both get a co-op bonus, once
+--     per pair per day
+--   * 🪪 SHOWCASE: a public profile card: empire stage, how many businesses, a net-worth TIER (never the exact
+--     cash), park rating, prestige stars, paths, and the title + badge the player chose to wear. Nothing private
+--     (no settings, no exact money, no account details) is in it.
+return function(C)
+local Players = game:GetService("Players")
+local RGB = Color3.fromRGB
+local F, data, R = C.F, C.data, C.R
+local fmt, notify = C.fmt, C.notify
+
+C.SOCIAL = {visitSecs = 120, visitMin = 600, visitCap = 3, hostSecs = 90, hostMin = 400, coopSecs = 180, coopMin = 800}
+local S = C.SOCIAL
+
+-- display names for wardrobe keys (titles come from paths, stages, daily rewards; badges from weekly challenges)
+function F.titleName(key)
+	if type(key) ~= "string" or key == "" then return nil end
+	if key == "weekChamp" then return "👑 Week Champion" end
+	local path, lv = string.match(key, "^(%a+)(%d+)$")
+	if path == "stage" and C.ROADMAP and C.ROADMAP[tonumber(lv)] then local st = C.ROADMAP[tonumber(lv)] return st.icon .. " " .. st.name end
+	for _, def in ipairs(C.PATHS_DEF or {}) do
+		if def.key == path and def.levels[tonumber(lv)] then return def.icon .. " " .. def.levels[tonumber(lv)] end
+	end
+	return nil
+end
+function F.badgeName(key)
+	for _, w in ipairs(C.WEEKLY_POOL or {}) do if w.badge == key then return w.badgeName end end
+	return nil
+end
+
+local function today() return F.utcDay and F.utcDay() or math.floor(os.time() / 86400) end
+local function countToday(acct, prefix)
+	local n, t = 0, today()
+	for k, v in pairs(acct.coop) do if string.sub(k, 1, #prefix) == prefix and v == t then n += 1 end end
+	return n
+end
+-- old keys go (only today's matter)
+local function prune(acct)
+	local t = today()
+	for k, v in pairs(acct.coop) do if v < t - 1 then acct.coop[k] = nil end end
+end
+
+-- a guest rode at owner's park (called by GameServer > Park after a real, server-checked ride)
+function F.parkVisit(guest, owner)
+	if guest == owner then return end
+	local gd, od = data[guest], data[owner]
+	if not (gd and od) or gd.noSave then return end
+	local t = today()
+	local key = "v" .. owner.UserId
+	local mult = F.liveMult and F.liveMult("visitReward") or 1
+	task.spawn(function()
+		local ok = F.acctCommit(guest, function(acct)
+			prune(acct)
+			if acct.coop[key] == t or countToday(acct, "v") >= S.visitCap then return false end
+			acct.coop[key] = t
+			F.addGrant(guest, acct, {cash = math.floor(math.max(S.visitMin, F.incomePerSec(gd) * S.visitSecs) * mult), rep = 2, what = "🎢 Visited " .. owner.Name .. "'s park"})
+			return true
+		end)
+		if ok then F.payGrants(guest) end
+		if od.noSave then return end
+		local hkey = "h" .. guest.UserId
+		local ok2 = F.acctCommit(owner, function(acct)
+			prune(acct)
+			if acct.coop[hkey] == t then return false end
+			acct.coop[hkey] = t
+			F.addGrant(owner, acct, {cash = math.floor(math.max(S.hostMin, F.incomePerSec(od) * S.hostSecs) * mult), rep = 1, what = "🤝 " .. guest.Name .. " visited your park"})
+			return true
+		end)
+		if ok2 then
+			F.payGrants(owner)
+			if F.track then F.track(owner, "coop") end
+		end
+	end)
+end
+-- two partners worked on a shared business together (called by GameServer > Partners)
+function F.coopCredit(a, b, what)
+	if a == b then return end
+	for _, pair in ipairs({{a, b}, {b, a}}) do
+		local me, other = pair[1], pair[2]
+		local d = data[me]
+		if d and not d.noSave then
+			local key = "c" .. other.UserId
+			task.spawn(function()
+				local ok = F.acctCommit(me, function(acct)
+					prune(acct)
+					if acct.coop[key] == today() then return false end
+					acct.coop[key] = today()
+					F.addGrant(me, acct, {cash = math.max(S.coopMin, math.floor(F.incomePerSec(d) * S.coopSecs)), rep = 2, what = "🤝 Co-op with " .. other.Name .. (what and (": " .. what) or "")})
+					return true
+				end)
+				if ok then
+					F.payGrants(me)
+					if F.track then F.track(me, "coop") end
+				end
+			end)
+		end
+	end
+end
+
+-- ===== 🪪 the public profile =====
+local WORTH = {{1e10, "💎 $10B+"}, {1e9, "💎 $1B+"}, {1e8, "💰 $100M+"}, {1e6, "💰 $1M+"}, {1e5, "💵 $100K+"}, {1e3, "💵 $1K+"}, {0, "🪙 Just starting"}}
+local function worthTier(v)
+	for _, w in ipairs(WORTH) do if v >= w[1] then return w[2] end end
+	return WORTH[#WORTH][2]
+end
+function F.showcase(target)
+	local d = data[target]
+	if not d then return nil end
+	local acct = F.acct and F.acct(target)
+	local stage = F.roadmapStage and F.roadmapStage(d) or 1
+	local st = C.ROADMAP and C.ROADMAP[stage]
+	local biz = 0
+	for _, b in ipairs(C.BUSINESSES) do if (d.levels[b.key] or 0) > 0 then biz += 1 end end
+	local out = {name = target.Name, stage = stage, stageName = st and (st.icon .. " " .. st.name) or "", businesses = biz, worth = worthTier(F.empireValue and F.empireValue(d) or d.cash),
+		park = (d.levels.park or 0) > 0 and F.parkScore and (F.parkScore(d)) or nil, prestige = F.prestigeStars and F.prestigeStars(d) or 0,
+		title = acct and F.titleName(acct.wardrobe.title) or nil, badge = acct and F.badgeName(acct.wardrobe.badge) or nil, paths = {}}
+	if F.pathRec then
+		local p = F.pathRec(d)
+		for _, def in ipairs(C.PATHS_DEF) do
+			local lv = F.pathLevel(p.xp[def.key])
+			table.insert(out.paths, {icon = def.icon, name = def.name, level = lv, title = def.levels[lv]})
+		end
+	end
+	return out
+end
+-- what I can wear (my own titles and badges only)
+function F.wardrobeInfo(plr)
+	local acct = F.acct and F.acct(plr)
+	if not acct then return nil end
+	local out = {titles = {}, badges = {}, title = acct.wardrobe.title, badge = acct.wardrobe.badge}
+	for k in pairs(acct.wardrobe.titles) do local n = F.titleName(k) if n then table.insert(out.titles, {key = k, name = n}) end end
+	for k in pairs(acct.wardrobe.badges) do local n = F.badgeName(k) if n then table.insert(out.badges, {key = k, name = n}) end end
+	table.sort(out.titles, function(x, y) return x.name < y.name end)
+	table.sort(out.badges, function(x, y) return x.name < y.name end)
+	return out
+end
+function F.wear(plr, kind, key)
+	local acct = F.acct and F.acct(plr)
+	if not acct or (kind ~= "title" and kind ~= "badge") or type(key) ~= "string" then return false end
+	local owned = kind == "title" and acct.wardrobe.titles or acct.wardrobe.badges
+	if key ~= "" and not owned[key] then return false end
+	acct.wardrobe[kind] = key
+	return true
+end
+
+C.ACTIONS = C.ACTIONS or {}
+C.ACTIONS.showcase = function(plr, d, a)
+	local target = C.int(a, 1) and Players:GetPlayerByUserId(a) or plr
+	local sc = target and F.showcase(target)
+	if sc then
+		if target == plr then sc.wardrobe = F.wardrobeInfo(plr) end
+		R.Menu:FireClient(plr, "showcase", sc)
+	end
+end
+C.ACTIONS.wear = function(plr, d, a, b)
+	if C.str(a, 8) and C.str(b, 24) and F.wear(plr, a, b) then C.ACTIONS.showcase(plr, d) end
+end
+end
+]]></ProtectedString></Properties>
+</Item>
+<Item class="ModuleScript" referent="RBX60"><Properties><string name="Name">Updates</string>
 <ProtectedString name="Source"><![CDATA[-- UPDATES: tells players on an older server that a newer version of the game has been published.
 -- Every server records its place version in a tiny DataStore key and announces it over MessagingService.
 -- When an old server hears about a newer one, it saves everyone and shows a notice; the restart itself is done
@@ -23131,7 +24438,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX56"><Properties><string name="Name">Players</string>
+<Item class="ModuleScript" referent="RBX61"><Properties><string name="Name">Players</string>
 <ProtectedString name="Source"><![CDATA[-- PLAYERS: save slots + main menu, loading/unloading, state sync, button actions, main loops.
 return function(C)
 local Players = game:GetService("Players")
@@ -23179,13 +24486,16 @@ local SAVE_KEYS = {"cash", "levels", "chains", "staff", "combos", "rep", "ep", "
 	-- v14
 	"theater", "rivals", "xfer", "coop", "loft", "party", "tune", "prestige", "events", "onboard",
 	-- v15
-	"park"}
+	"park",
+	-- v16
+	"path", "roadmap", "grantsGot", "tokens"}
 -- everything this version writes itself; any OTHER field found in a save is kept as-is when saving
 local KNOWN_KEYS = {lots = true, props = true, SchemaVersion = true, saveSeq = true, gameVersion = true, savedAt = true}
 for _, k in ipairs(SAVE_KEYS) do KNOWN_KEYS[k] = true end
 local function metaKey(plr) return "u" .. plr.UserId .. "_meta" end
 local function slotKey(plr, slot) return "u" .. plr.UserId .. "_s" .. slot end
-local DEFAULT_SETTINGS = {music = true, musicVol = 5, sfx = true, crowd = "high", weather = true, units = "MPH", spawnAt = "business", cinematics = "full"}
+local DEFAULT_SETTINGS = {music = true, musicVol = 5, sfx = true, crowd = "high", weather = true, units = "MPH", spawnAt = "business", cinematics = "full",
+	alerts = "all", sfxVol = 7}   -- v16: "important" = only important toasts pop up (the rest go to the 🔔 Activity log)
 -- every setting has a validator, so a client can't store junk (NaN, huge numbers, unknown words) in the save
 local function oneOf(...)
 	local ok = {}
@@ -23198,6 +24508,7 @@ local SETTING_OK = {
 	musicVol = function(v) return C.int(v, 1, 10) ~= nil end,
 	crowd = oneOf("high", "low", "off"), units = oneOf("MPH", "KMH"), spawnAt = oneOf("business", "home"),
 	cinematics = oneOf("full", "short", "off"),
+	alerts = oneOf("all", "important"), sfxVol = function(v) return C.int(v, 0, 10) ~= nil end,
 }
 local function applySettings(target, incoming)
 	if type(incoming) ~= "table" then return end
@@ -23228,25 +24539,134 @@ local function loadMeta(plr)
 		applySettings(meta.settings, saved.settings)
 		meta.lastVersion = type(saved.lastVersion) == "string" and saved.lastVersion or nil
 	end
+	-- v16: the account record (intro flag, daily streak, missions, weekly, wardrobe, pending rewards)
+	meta.acct = C.DataMigration.repairAcct(type(saved) == "table" and saved.acct or nil)
+	-- players who already had an empire before v16 have seen the game: no forced intro for them
+	if not meta.acct.introSeen and (next(meta.slots) ~= nil or meta.lastVersion) then meta.acct.introSeen = true end
 	return meta, false
+end
+-- the meta record as stored + this session's changes (a slot list, settings, the account record merged so that
+-- nothing claimed anywhere is lost and no progress goes backwards)
+local function metaTransform(s, old, mutate)
+	local out = type(old) == "table" and old or {}
+	out.slots = type(out.slots) == "table" and out.slots or {}
+	for k, v in pairs(s.meta.slots) do out.slots[k] = v end
+	for k in pairs(out.slots) do
+		if s.meta.deleted and s.meta.deleted[k] then out.slots[k] = nil end
+	end
+	out.settings = s.meta.settings
+	out.lastVersion = s.meta.lastVersion or out.lastVersion
+	local acct = C.DataMigration.mergeAcct(out.acct, s.meta.acct, s.paid)
+	if mutate and not mutate(acct) then return nil, acct end
+	out.acct = acct
+	return out, acct
 end
 local function saveMeta(plr)
 	local s = session[plr]
 	if not store or not s or s.metaFail then return end
 	-- UpdateAsync: merge with what's stored, so slots another server wrote meanwhile aren't lost
-	pcall(function()
+	local merged
+	local ok = pcall(function()
 		store:UpdateAsync(metaKey(plr), function(old)
-			local out = type(old) == "table" and old or {}
-			out.slots = type(out.slots) == "table" and out.slots or {}
-			for k, v in pairs(s.meta.slots) do out.slots[k] = v end
-			for k in pairs(out.slots) do
-				if s.meta.deleted and s.meta.deleted[k] then out.slots[k] = nil end
-			end
-			out.settings = s.meta.settings
-			out.lastVersion = s.meta.lastVersion or out.lastVersion
+			local out, acct = metaTransform(s, old)
+			merged = acct
 			return out
 		end)
 	end)
+	if ok and merged and session[plr] == s then
+		s.meta.acct = merged
+		s.paid = {}
+	end
+end
+
+-- =====================================================================
+-- v16: ACCOUNT REWARDS, written ahead. A claim (daily reward, mission, event...) is decided INSIDE the meta
+-- key's UpdateAsync against what's really stored (so two claims, two servers or a retry can't both win), and
+-- it records a "grant" there. Only once that write has succeeded is the grant paid into the save slot being
+-- played (and its id noted in the slot, d.grantsGot). A grant that couldn't be paid yet (a crash, the slot
+-- couldn't save) is paid the next time that slot loads; a paid grant is dropped from the account record on the
+-- next meta write.
+-- =====================================================================
+function F.acct(plr)
+	local s = session[plr]
+	return s and s.meta.acct or nil
+end
+-- mutate(acct) → true to commit (it may add grants with F.addGrant). Returns true when it's stored.
+function F.acctCommit(plr, mutate)
+	local s = session[plr]
+	if not s or s.metaFail then return false, "saving is unavailable" end
+	if s.committing then return false, "busy" end
+	s.committing = true
+	local okAll, why = true, nil
+	if not store then
+		-- (no DataStore, e.g. Studio without API access: the claim lives in memory for this session only)
+		local acct = C.DataMigration.mergeAcct(s.meta.acct, s.meta.acct, s.paid)
+		if mutate(acct) then s.meta.acct = acct else okAll, why = false, "refused" end
+	else
+		local merged, refused
+		local ok, err = pcall(function()
+			store:UpdateAsync(metaKey(plr), function(old)
+				local out, acct = metaTransform(s, old, mutate)
+				refused = out == nil
+				merged = acct
+				return out
+			end)
+		end)
+		if not ok then okAll, why = false, "error: " .. tostring(err)
+		elseif refused then okAll, why = false, "refused"
+		elseif session[plr] == s then
+			s.meta.acct = merged
+			s.paid = {}
+		end
+	end
+	s.committing = false
+	return okAll, why
+end
+function F.addGrant(plr, acct, g)
+	local s = session[plr]
+	acct.seq += 1
+	g.id = "g" .. acct.seq
+	g.slot = s and s.slot or 1
+	g.t = os.time()
+	g.cash, g.rep = math.max(0, math.floor(g.cash or 0)), math.max(0, math.floor(g.rep or 0))
+	table.insert(acct.grants, g)
+	return g.id
+end
+C.GRANT_ITEMS = C.GRANT_ITEMS or {}   -- item key -> function(plr, d) (tokens, furniture, titles...), filled in by Daily / Paths
+-- pay every grant for the slot being played that this slot hasn't had yet; returns how many were paid
+function F.payGrants(plr)
+	local d, s = data[plr], session[plr]
+	if not (d and s and s.slot) or d.noSave then return 0 end
+	d.grantsGot = type(d.grantsGot) == "table" and d.grantsGot or {}
+	s.paid = s.paid or {}
+	local n = 0
+	s.pendingPaid = s.pendingPaid or {}
+	for _, g in ipairs(s.meta.acct.grants) do
+		if d.grantsGot[g.id] then
+			-- (paid before; once a slot save has it, the account record can drop it)
+			if not s.pendingPaid[g.id] then s.paid[g.id] = true end
+		elseif g.slot == s.slot then
+			d.grantsGot[g.id] = os.time()
+			s.pendingPaid[g.id] = true   -- dropped from the account record only after the slot has saved it (F.save)
+			if g.cash > 0 then
+				d.cash += g.cash
+				F.earn(d, g.cash)
+			end
+			if g.rep > 0 then F.addRep(plr, g.rep) end
+			if g.item and C.GRANT_ITEMS[g.item] then pcall(C.GRANT_ITEMS[g.item], plr, d) end
+			n += 1
+			notify(plr, "🎁 " .. (g.what ~= "" and g.what or "Reward") .. (g.cash > 0 and ("  +$" .. fmt(g.cash)) or "") .. (g.rep > 0 and ("  +" .. g.rep .. " ⭐") or ""), {pri = "critical", cat = "money"})
+		end
+	end
+	-- keep only the 40 newest ids in the slot
+	local ids = {}
+	for id, t in pairs(d.grantsGot) do table.insert(ids, {id, tonumber(t) or 0}) end
+	if #ids > 40 then
+		table.sort(ids, function(x, y) return x[2] > y[2] end)
+		for i = 41, #ids do d.grantsGot[ids[i][1]] = nil end
+	end
+	if n > 0 then F.save(plr) end
+	return n
 end
 local function serializeProps(d)
 	local out = {}
@@ -23315,6 +24735,11 @@ function F.save(plr)
 		warn("[CornerEmpire] not saving " .. plr.Name .. ": " .. why)
 		notify(plr, "⚠️ Your save was updated somewhere else (" .. why .. "). To protect it, this server won't save. Please rejoin.")
 		return false
+	end
+	-- v16: grants this save now holds can leave the account record
+	if s.pendingPaid then
+		for id in pairs(s.pendingPaid) do s.paid[id] = true end
+		s.pendingPaid = nil
 	end
 	local hood = F.homeHood(d)
 	if s.meta.deleted then s.meta.deleted["s" .. s.slot] = nil end
@@ -23782,8 +25207,14 @@ local function sendMenu(plr)
 		local h = HOOD[st.hood]
 		starters[i] = {name = st.name, desc = st.desc, hood = h.name, icon = h.icon, color = h.color}
 	end
+	-- (v16: the intro plays once per account; "Continue" picks the slot played last)
+	local last, lastT = nil, -1
+	for k, v in pairs(s.meta.slots) do
+		local i = tonumber(string.match(k, "^s(%d)$"))
+		if i and type(v) == "table" and (tonumber(v.played) or 0) > lastT then last, lastT = i, tonumber(v.played) or 0 end
+	end
 	R.Menu:FireClient(plr, "mainmenu", {slots = s.meta.slots, settings = s.meta.settings, saving = store ~= nil and not s.metaFail,
-		starters = starters, count = CFG.SAVE_SLOTS, studio = RunService:IsStudio()})
+		starters = starters, count = CFG.SAVE_SLOTS, studio = RunService:IsStudio(), introSeen = s.meta.acct.introSeen, lastSlot = last})
 end
 
 function F.startGame(plr, slot, starterIdx)
@@ -23866,7 +25297,9 @@ function F.startGame(plr, slot, starterIdx)
 		ls.Parent = plr
 	end
 	F.pushMsg(plr, {icon = "👋", from = "Corner Empire", text = isNew and "Welcome! Follow the tutorial card at the bottom of your screen to get started." or "Welcome back! Your empire missed you."})
-	R.Menu:FireClient(plr, "play")
+	R.Menu:FireClient(plr, "play", {isNew = isNew})
+	-- v16: account rewards waiting for this slot (written ahead; see F.payGrants)
+	task.defer(function() if data[plr] == d then F.payGrants(plr) end end)
 	-- returning players see what's new once per version (Messages + a splash)
 	if s.meta.lastVersion ~= C.VERSION.VERSION then
 		if s.meta.lastVersion or not isNew then
@@ -24080,6 +25513,13 @@ R.Action.OnServerEvent:Connect(function(plr, action, a, b, c)
 		return
 	elseif action == "settings" then
 		applySettings(s.meta.settings, a)
+		return
+	elseif action == "introSeen" then
+		-- v16: the opening was shown (or skipped): it won't play by itself again on this account
+		if not s.meta.acct.introSeen then
+			s.meta.acct.introSeen = true
+			task.spawn(saveMeta, plr)
+		end
 		return
 	end
 	local d = data[plr]
@@ -24350,7 +25790,7 @@ local function onPlayerAdded(plr)
 		return
 	end
 	local meta, fail = loadMeta(plr)
-	session[plr] = {meta = meta, metaFail = fail, slot = nil}
+	session[plr] = {meta = meta, metaFail = fail, slot = nil, paid = {}}
 	plr.CharacterAdded:Connect(function(char)
 		local d = data[plr]
 		if not d then return end
@@ -24500,6 +25940,7 @@ task.spawn(function()
 					local inc = F.income(d, now)
 					d.cash += inc
 					F.earn(d, inc)
+					if inc > 0 and F.track then F.track(plr, "earnLegit", inc) end   -- v16: daily missions (business income only)
 					d.war.earned += inc
 				end
 				d.custAcc = math.min(5, d.custAcc + F.customerRate(d, now))
