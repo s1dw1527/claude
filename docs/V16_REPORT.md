@@ -221,7 +221,22 @@ Also:
 
 ## 4. Tests — SIMULATED (not Roblox Studio)
 
-**Final run: TBD**
+**Final run, on the final code: 47 suites, 2,102 checks, 0 failed** (simulated engine, every suite in parallel,
+4 at a time, including the 40-minute 4-player soak test `perf_test`). Static checks pass: `tools/check.sh` reports
+only the known `WorldFX.lua(59,4)` false positive, and `tools/propcheck.py` reports 0 problems. The place file
+round-trips exactly.
+
+Earlier full runs during development turned up these problems, all fixed:
+- `mobile_test`: the new 🎁 card wasn't in the stack-card list. Added, and it's now measured like the others.
+- Live events boosting payouts in unrelated tests, depending on the simulated clock (e.g. a heist paying 30% more
+  during an Underworld Alert). Fix: `C.LIVE_PAUSED`, which also works as a real switch for pausing events. Tests
+  start paused, and `events_test` turns events on.
+- The "🪪 My showcase" button failed the contrast check. Its colour was changed.
+- A first-run partner-paid upgrade could have used the owner's discount token, letting the owner keep the
+  difference. Partner-paid upgrades now never use it.
+- The park visit list was hidden from players without a park. Everyone sees it now.
+- One parallel run measured a slow frame (9.75 ms against an 8 ms budget). On its own the same test takes 4.34 ms;
+  earlier runs ranged from 3 to 7 ms.
 
 | suite | checks |
 |---|---|
