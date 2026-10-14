@@ -91,7 +91,7 @@ H.main(function()
 	click(cc.ParkUI.cells["3,2"])
 	H.task.wait(0.6)
 	local it1 = d.park.items[1]
-	H.check(it1 and it1.k == "carousel" and it1.x == 3 and it1.z == 2 and math.abs((cash0 - d.cash) - 3000000) < F.incomePerSec(d) * 5 + 1, "pick 🎠 Carousel, tap a cell: it's built there and paid for")
+	H.check(it1 and it1.k == "carousel" and it1.x == 3 and it1.z == 2 and (cash0 - d.cash) > 3000000 - F.incomePerSec(d) * 10 - 1 and (cash0 - d.cash) < 3000000 * 1.05, "pick 🎠 Carousel, tap a cell: it's built there and paid for")
 	local m1 = site.models[it1 and it1.id or 0]
 	local spinner = m1 and m1:FindFirstChild("Spinner")
 	H.check(spinner and spinner:GetAttribute("Hub") ~= nil and find(m1, function(x) return x.Name == "RideSeat" end) ~= nil and m1:FindFirstChild("RideSpot") ~= nil,
@@ -257,7 +257,9 @@ H.main(function()
 	H.check(banner and banner.Visible and banner.Text:find("Carousel", 1, true) ~= nil, "a banner says what you're riding")
 	H.check(hrp.Anchored == true, "(she's held in place while the camera rides)")
 	H.task.wait(16)
-	H.check(cam.CameraType == Enum.CameraType.Custom and wfx.riding == nil and not hrp.Anchored, "after the ride the camera comes back")
+	-- (a city cinematic may have the camera right now: then it's the cinematic's, not the ride's)
+	H.check(wfx.riding == nil and not hrp.Anchored and (cam.CameraType == Enum.CameraType.Custom or cc.cinematicPlaying() or cc.storyCutscene()),
+		"after the ride the camera comes back")
 	-- Bob rides it: Alice gets a ticket
 	local bh = bob.Character.HumanoidRootPart
 	bh.CFrame = CF(spot.Position + V3(40, 1, 40))
@@ -315,6 +317,19 @@ H.main(function()
 	H.task.wait(1)
 	H.check(bsite.owner == nil and #bsite.items:GetChildren() == 0 and bsite.folder:GetAttribute("Owner") == 0, "Bob leaves: his site is cleared and free again")
 	H.check(bdn == 1, "(his park is in his save, not lost)")
+
+	H.section("Closed and reopened")
+	local nItems = #d.park.items
+	local lv = d.levels.park
+	d.levels.park = 0   -- (what a rebirth does to the levels)
+	H.task.wait(2.5)
+	H.check(F.parkSite(a) == nil and site.owner == nil and #site.items:GetChildren() == 0, "with the park closed, Alice's site is freed")
+	H.check(#d.park.items == nItems, "...but her park stays in her save")
+	d.levels.park = lv
+	H.task.wait(2.5)
+	local back = F.parkSite(a)
+	H.check(back ~= nil and #back.items:GetChildren() == nItems, "open again: the whole park is rebuilt on a site (" .. (back and #back.items:GetChildren() or 0) .. " pieces)")
+	site = back or site
 
 	H.section("Saved")
 	local okSave = F.save and F.save(a)

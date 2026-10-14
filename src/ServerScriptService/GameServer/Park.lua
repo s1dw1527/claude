@@ -674,6 +674,7 @@ local function clearItems(site)
 	site.models = {}
 end
 local function buildAll(site, d)
+	site.d = d
 	clearItems(site)
 	for _, it in ipairs(rec(d).items) do buildItem(site, d, it) end
 	refreshSign(site)
@@ -681,7 +682,12 @@ end
 function F.parkEnsure(plr)
 	local d = data[plr]
 	if not d or (d.levels.park or 0) <= 0 then return nil end
-	if siteOf[plr] then return siteOf[plr] end
+	local mine = siteOf[plr]
+	if mine then
+		-- (another save slot was loaded: build that save's park)
+		if mine.d ~= d then buildAll(mine, d) end
+		return mine
+	end
 	for _, site in ipairs(SITES) do
 		if not site.owner then
 			site.owner = plr
@@ -937,6 +943,10 @@ task.spawn(function()
 		t += 2
 		for _, plr in ipairs(Players:GetPlayers()) do
 			local d = data[plr]
+			if siteOf[plr] and (not d or (d.levels.park or 0) <= 0) then
+				-- (a rebirth, or a save slot without a park: the site goes back to the pool; the park stays in the save)
+				release(plr)
+			end
 			if d and (d.levels.park or 0) > 0 then
 				local site = F.parkEnsure(plr)
 				if site and t % PK.statEvery == 0 then

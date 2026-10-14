@@ -1,9 +1,40 @@
 # Corner Empire
 
-A 1–4 player Roblox business tycoon. **`CornerEmpire_v14.rbxlx` is the current place file**; open it in Roblox Studio.
-`CornerEmpire_v13.rbxlx`, `CornerEmpire_v12.rbxlx`, `CornerEmpire_v11_3.rbxlx`, `CornerEmpire_v11_2.rbxlx` … `CornerEmpire_v5.rbxlx` are earlier versions, kept for reference. The full v11 write-up is
+A 1–4 player Roblox business tycoon. **`CornerEmpire_v15.rbxlx` is the current place file**; open it in Roblox Studio.
+`CornerEmpire_v14.rbxlx`, `CornerEmpire_v13.rbxlx`, `CornerEmpire_v12.rbxlx`, `CornerEmpire_v11_3.rbxlx`, `CornerEmpire_v11_2.rbxlx` … `CornerEmpire_v5.rbxlx` are earlier versions, kept for reference. The full v11 write-up is
 `docs/V11_REPORT.md`; install steps and the real-Studio test list are in `docs/V11_STUDIO_CHECKLIST.md`. The v11.1
 mobile UI overhaul (client only) is in `docs/V11_1_MOBILE_REPORT.md`.
+
+## What's new in v15 — Life & Empire: Funland (server + client)
+
+- **Fixes from Studio testing**
+  - Nothing stands in the street any more: plaza benches, trees and rocks on the mountain road and heist driveways,
+    the race gantry pole, a showroom car and the Hillside gate were all moved. A new `layout_test` checks every
+    solid part in the city against every lane and reserved path.
+  - Traffic and police no longer drive through the Empire Spire. Traffic cars are placed before they appear, and a
+    car stuck at a dead end is recycled.
+  - Mountain base stations (job board, computer, planning room, gear): each prompt now sits in front of its counter
+    where you can reach it, the crew stand behind the counters, and a ⛰️ BASE MENU card opens the same screens while
+    you're inside.
+  - The 🎬 Movie Theater can be bought from its own menu: a new plot picker lets you open it on a plot you own, or buy
+    a plot and open it there in one step.
+- **🎢 Amusement Park** (10th business): its ticket gate goes on a city plot, and you build the park itself on your
+  own site at the new Funland Grounds (west of the Fun Park).
+  - 9 rides, including two roller coasters with a loop, plus food stalls, paths and decorations.
+  - A tap-to-place build plan in the 🎢 Park app. The server checks every placement.
+  - The park's rating raises its sales (up to ×1.8). Other players pay you a ticket when they ride.
+  - Visitors with cotton candy and balloons walk your paths.
+- **🎡 Fun Park makeover**
+  - New rides: 🎢 the Big Dipper roller coaster (lift hill, drop, loop; you ride in the front car), 🗼 Sky Drop and
+    🌀 the Whirl.
+  - Food stalls with queues, people with cotton candy and balloons, and string lights.
+- **Graphics**
+  - A sky with sun, moon and stars.
+  - Warm sunrises and sunsets, blue nights, and neon that glows after dark.
+  - Street trees and bins along the sidewalks.
+
+Same `CornerEmpire_v5` DataStore; save schema 15 (adds only the park record). Install both drop-ins. Details,
+migration notes, test results and the Studio checklist: `docs/V15_REPORT.md`. **Not tested in real Studio.**
 
 ## What's new in v14 — Life & Empire: Main Street (server + client)
 
@@ -271,7 +302,7 @@ uses `Config.lua` from the repository, so put your pass IDs in `src/ServerScript
 - `src/` holds every script from the place, one file per script, mirroring the Explorer:
   - `ServerScriptService/GameServer.server.lua` + `GameServer/*.lua` (server modules)
   - `StarterPlayer/StarterPlayerScripts/EmpireClient.client.lua` + `EmpireClient/*.lua` (client modules)
-- `tools/build.py` rebuilds the place file from `src/` (`python3 tools/build.py CornerEmpire_v14.rbxlx`).
+- `tools/build.py` rebuilds the place file from `src/` (`python3 tools/build.py CornerEmpire_v15.rbxlx`).
 - `tools/extract.py` pulls the scripts back out of a place file; `tools/compare.py` compares two place files.
 - `tools/propcheck.py <globalTypes.d.luau>` checks every property name the scripts set against the Roblox API.
 - `tools/check.sh` compiles every script, type-checks it against the Roblox API and flags unknown globals (needs the Luau tools).
@@ -305,6 +336,11 @@ uses `Config.lua` from the repository, so put your pass IDs in `src/ServerScript
     `theater_test`, `rivals_test` (rivals + crew), `partners_test` (ledger failure recovery, gifts, co-ownership),
     `homelife_test` (lofts, parties), `leaders_test` (car roles + tuning, leaderboards, prestige), `journey_test`
     (special occasions, onboarding)
+  - v15: `layout_test` (nothing solid in a lane or on a reserved path, plaza benches, no traffic through the Spire,
+    clear mountain road), `park_test` (Amusement Park: menus, build plan, refusals, rating, rides, riding, visitors,
+    sites, save), `funpark_test` (Big Dipper, Sky Drop, Whirl, stalls and crowd), `graphics_test` (sky, time-of-day
+    grade, street props, light LOD); `heist_test` (stations reachable, BASE MENU), `theater_test` (buying it through
+    the menus)
   - `python3 tests/run.py tests/smoke_test.lua`: quick boot check
   - `python3 tests/run.py tests/tutorial_test.lua`: the whole tutorial through the real client, with extra focus on step 4
   - `python3 tests/run.py tests/story_test.lua`: story chapters, rewards paid once, cutscenes, multiplayer, old saves

@@ -225,8 +225,8 @@ local function nextCell(v)
 end
 local checkT = 0
 function PF.refreshVisitors()
-	ensurePool()
 	local site, gcf = siteNear(camera.CFrame.Position)
+	if site then ensurePool() end   -- (built the first time you visit a park)
 	PF.site = site
 	local n = site and want(site) or 0
 	local cells, list = {}, {}

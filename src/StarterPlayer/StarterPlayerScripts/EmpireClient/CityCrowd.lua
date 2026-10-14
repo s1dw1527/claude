@@ -697,7 +697,7 @@ local function walkNear(zone)
 	end
 	return best
 end
-local function addSpot(kind, cf)
+local function addSpot(kind, cf, lazy)
 	local s = {kind = kind, cf = cf, parts = {}, people = {}}
 	local function add(size, off, color, mat, shape)
 		local p = part(size, color, mat, shape)
@@ -705,89 +705,94 @@ local function addSpot(kind, cf)
 		table.insert(s.parts, p)
 		return p
 	end
-	if kind == "musician" then
-		local n = buildPerson()
-		dress(n, "casual")
-		table.insert(s.people, {n = n, off = CF(0, 0, 0), mode = "chat"})
-		add(V3(1.6, 0.7, 1), CF(1.6, 0.65, -0.6), RGB(90, 50, 30), Enum.Material.Wood)   -- guitar case
-		local note = add(V3(0.2, 0.2, 0.2), CF(0, 7, 0), RGB(255, 255, 255))
-		note.Transparency = 1
-		local bb = Instance.new("BillboardGui")
-		bb.Size, bb.MaxDistance, bb.LightInfluence = UDim2.fromOffset(60, 40), 70, 0
-		bb.Parent = note
-		local t = Instance.new("TextLabel")
-		t.Size, t.BackgroundTransparency, t.TextScaled, t.Text, t.TextColor3 = UDim2.fromScale(1, 1), 1, true, "♪ ♫", RGB(255, 230, 120)
-		t.Parent = bb
-		s.note = note
-		for i = 1, 3 do
-			local w = buildPerson()
-			dress(w, "tourist")
-			table.insert(s.people, {n = w, off = CF(-3 + i * 2.2, 0, -4.2) * CFrame.Angles(0, math.pi, 0), mode = "stand"})
+	-- (v15: a lazy scene is only built the first time you come near it)
+	function s.build()
+		s.built = true
+		if kind == "musician" then
+			local n = buildPerson()
+			dress(n, "casual")
+			table.insert(s.people, {n = n, off = CF(0, 0, 0), mode = "chat"})
+			add(V3(1.6, 0.7, 1), CF(1.6, 0.65, -0.6), RGB(90, 50, 30), Enum.Material.Wood)   -- guitar case
+			local note = add(V3(0.2, 0.2, 0.2), CF(0, 7, 0), RGB(255, 255, 255))
+			note.Transparency = 1
+			local bb = Instance.new("BillboardGui")
+			bb.Size, bb.MaxDistance, bb.LightInfluence = UDim2.fromOffset(60, 40), 70, 0
+			bb.Parent = note
+			local t = Instance.new("TextLabel")
+			t.Size, t.BackgroundTransparency, t.TextScaled, t.Text, t.TextColor3 = UDim2.fromScale(1, 1), 1, true, "♪ ♫", RGB(255, 230, 120)
+			t.Parent = bb
+			s.note = note
+			for i = 1, 3 do
+				local w = buildPerson()
+				dress(w, "tourist")
+				table.insert(s.people, {n = w, off = CF(-3 + i * 2.2, 0, -4.2) * CFrame.Angles(0, math.pi, 0), mode = "stand"})
+			end
+		elseif kind == "hotdog" then
+			add(V3(4, 2.6, 2.4), CF(0, 1.6, 0), RGB(220, 60, 50))
+			add(V3(4.6, 0.3, 3), CF(0, 5.4, 0), RGB(255, 230, 120), Enum.Material.Fabric)
+			add(V3(0.25, 2.6, 0.25), CF(0, 4.1, 0), RGB(200, 200, 205), Enum.Material.Metal)
+			local sign = add(V3(3.6, 0.9, 0.2), CF(0, 3.4, -1.25), RGB(255, 255, 255))
+			local g = Instance.new("SurfaceGui")
+			g.Face, g.LightInfluence = Enum.NormalId.Front, 0
+			g.Parent = sign
+			local t = Instance.new("TextLabel")
+			t.Size, t.BackgroundTransparency, t.TextScaled, t.Text, t.TextColor3, t.Font = UDim2.fromScale(1, 1), 1, true, "🌭 HOT DOGS", RGB(200, 40, 40), Enum.Font.GothamBlack
+			t.Parent = g
+			local v = buildPerson()
+			dress(v, "casual")
+			v.torso.Color = RGB(250, 250, 250)
+			table.insert(s.people, {n = v, off = CF(0, 0, 2) * CFrame.Angles(0, math.pi, 0), mode = "stand"})
+			for i = 1, 3 do
+				local q = buildPerson()
+				dress(q, i == 1 and "suit" or "casual")
+				table.insert(s.people, {n = q, off = CF(0, 0, -2.6 - i * 2.1), mode = i == 1 and "stand" or "phone"})
+			end
+		elseif kind == "umbrella" then
+			add(V3(0.3, 8, 0.3), CF(0, 4, 0), RGB(240, 240, 240))
+			add(V3(9, 0.6, 9), CF(0, 8, 0), Color3.fromHSV(math.random(), 0.55, 1), Enum.Material.Fabric, Enum.PartType.Cylinder).CFrame = cf * CF(0, 8, 0) * CFrame.Angles(0, 0, math.rad(90))
+			for i = -1, 1, 2 do
+				add(V3(2.6, 0.15, 6), CF(i * 2, 0.2, 2.5), Color3.fromHSV(math.random(), 0.5, 1), Enum.Material.Fabric)
+				local b = buildPerson()
+				dress(b, "swim")
+				b.accKind = nil
+				table.insert(s.people, {n = b, off = CF(i * 2, 0.6, 2.5) * CFrame.Angles(-math.pi / 2, 0, 0) * CF(0, -3, 0), mode = "lie"})
+			end
+		elseif kind == "stallqueue" then
+			-- v15: the vendor behind a Fun Park stall (built by the server) and a little queue, treats in hand
+			local v = buildPerson()
+			dress(v, "casual")
+			v.torso.Color, v.la.Color, v.ra.Color = RGB(255, 150, 200), RGB(255, 150, 200), RGB(255, 150, 200)
+			v.accKind = nil
+			table.insert(s.people, {n = v, off = CF(0, 0, -2.2), mode = "chat"})
+			for i = 1, 3 do
+				local q = buildPerson()
+				dress(q, i == 3 and "balloon" or "candy")
+				table.insert(s.people, {n = q, off = CF((i % 2) * 0.6, 0, 2 + i * 2.1) * CFrame.Angles(0, math.pi, 0), mode = i == 1 and "chat" or "stand"})
+			end
+		elseif kind == "parkgroup" then
+			-- v15: friends at the Fun Park with cotton candy and balloons, chatting
+			for i = 0, 2 do
+				local q = buildPerson()
+				dress(q, ({"candy", "balloon", "candy"})[i + 1])
+				local a = i / 3 * math.pi * 2
+				table.insert(s.people, {n = q, off = CF(math.cos(a) * 2, 0, math.sin(a) * 2) * CFrame.Angles(0, -a - math.pi / 2, 0), mode = "chat"})
+			end
+		elseif kind == "volley" then
+			add(V3(0.3, 8, 0.3), CF(-8, 4, 0), RGB(240, 240, 240))
+			add(V3(0.3, 8, 0.3), CF(8, 4, 0), RGB(240, 240, 240))
+			add(V3(16, 2.5, 0.1), CF(0, 6.5, 0), RGB(250, 250, 250), Enum.Material.Fabric).Transparency = 0.4
+			s.ball = add(V3(1.2, 1.2, 1.2), CF(0, 9, 0), RGB(255, 240, 120), nil, Enum.PartType.Ball)
+			for i = -1, 1, 2 do
+				local b = buildPerson()
+				dress(b, "swim")
+				b.accKind = nil
+				table.insert(s.people, {n = b, off = CF(0, 0, i * 7) * CFrame.Angles(0, i == 1 and 0 or math.pi, 0), mode = "chat"})
+			end
 		end
-	elseif kind == "hotdog" then
-		add(V3(4, 2.6, 2.4), CF(0, 1.6, 0), RGB(220, 60, 50))
-		add(V3(4.6, 0.3, 3), CF(0, 5.4, 0), RGB(255, 230, 120), Enum.Material.Fabric)
-		add(V3(0.25, 2.6, 0.25), CF(0, 4.1, 0), RGB(200, 200, 205), Enum.Material.Metal)
-		local sign = add(V3(3.6, 0.9, 0.2), CF(0, 3.4, -1.25), RGB(255, 255, 255))
-		local g = Instance.new("SurfaceGui")
-		g.Face, g.LightInfluence = Enum.NormalId.Front, 0
-		g.Parent = sign
-		local t = Instance.new("TextLabel")
-		t.Size, t.BackgroundTransparency, t.TextScaled, t.Text, t.TextColor3, t.Font = UDim2.fromScale(1, 1), 1, true, "🌭 HOT DOGS", RGB(200, 40, 40), Enum.Font.GothamBlack
-		t.Parent = g
-		local v = buildPerson()
-		dress(v, "casual")
-		v.torso.Color = RGB(250, 250, 250)
-		table.insert(s.people, {n = v, off = CF(0, 0, 2) * CFrame.Angles(0, math.pi, 0), mode = "stand"})
-		for i = 1, 3 do
-			local q = buildPerson()
-			dress(q, i == 1 and "suit" or "casual")
-			table.insert(s.people, {n = q, off = CF(0, 0, -2.6 - i * 2.1), mode = i == 1 and "stand" or "phone"})
-		end
-	elseif kind == "umbrella" then
-		add(V3(0.3, 8, 0.3), CF(0, 4, 0), RGB(240, 240, 240))
-		add(V3(9, 0.6, 9), CF(0, 8, 0), Color3.fromHSV(math.random(), 0.55, 1), Enum.Material.Fabric, Enum.PartType.Cylinder).CFrame = cf * CF(0, 8, 0) * CFrame.Angles(0, 0, math.rad(90))
-		for i = -1, 1, 2 do
-			add(V3(2.6, 0.15, 6), CF(i * 2, 0.2, 2.5), Color3.fromHSV(math.random(), 0.5, 1), Enum.Material.Fabric)
-			local b = buildPerson()
-			dress(b, "swim")
-			b.accKind = nil
-			table.insert(s.people, {n = b, off = CF(i * 2, 0.6, 2.5) * CFrame.Angles(-math.pi / 2, 0, 0) * CF(0, -3, 0), mode = "lie"})
-		end
-	elseif kind == "stallqueue" then
-		-- v15: the vendor behind a Fun Park stall (built by the server) and a little queue, treats in hand
-		local v = buildPerson()
-		dress(v, "casual")
-		v.torso.Color, v.la.Color, v.ra.Color = RGB(255, 150, 200), RGB(255, 150, 200), RGB(255, 150, 200)
-		v.accKind = nil
-		table.insert(s.people, {n = v, off = CF(0, 0, -2.2), mode = "chat"})
-		for i = 1, 3 do
-			local q = buildPerson()
-			dress(q, i == 3 and "balloon" or "candy")
-			table.insert(s.people, {n = q, off = CF((i % 2) * 0.6, 0, 2 + i * 2.1) * CFrame.Angles(0, math.pi, 0), mode = i == 1 and "chat" or "stand"})
-		end
-	elseif kind == "parkgroup" then
-		-- v15: friends at the Fun Park with cotton candy and balloons, chatting
-		for i = 0, 2 do
-			local q = buildPerson()
-			dress(q, ({"candy", "balloon", "candy"})[i + 1])
-			local a = i / 3 * math.pi * 2
-			table.insert(s.people, {n = q, off = CF(math.cos(a) * 2, 0, math.sin(a) * 2) * CFrame.Angles(0, -a - math.pi / 2, 0), mode = "chat"})
-		end
-	elseif kind == "volley" then
-		add(V3(0.3, 8, 0.3), CF(-8, 4, 0), RGB(240, 240, 240))
-		add(V3(0.3, 8, 0.3), CF(8, 4, 0), RGB(240, 240, 240))
-		add(V3(16, 2.5, 0.1), CF(0, 6.5, 0), RGB(250, 250, 250), Enum.Material.Fabric).Transparency = 0.4
-		s.ball = add(V3(1.2, 1.2, 1.2), CF(0, 9, 0), RGB(255, 240, 120), nil, Enum.PartType.Ball)
-		for i = -1, 1, 2 do
-			local b = buildPerson()
-			dress(b, "swim")
-			b.accKind = nil
-			table.insert(s.people, {n = b, off = CF(0, 0, i * 7) * CFrame.Angles(0, i == 1 and 0 or math.pi, 0), mode = "chat"})
-		end
+		for _, pp in ipairs(s.people) do hidePerson(pp.n) end
+		for _, p in ipairs(s.parts) do p:SetAttribute("T", p.Transparency) p.Transparency = 1 end
 	end
-	for _, pp in ipairs(s.people) do hidePerson(pp.n) end
-	for _, p in ipairs(s.parts) do p:SetAttribute("T", p.Transparency) p.Transparency = 1 end
+	if not lazy then s.build() end
 	s.on = false
 	table.insert(SPOTS, s)
 	return s
@@ -812,8 +817,8 @@ do
 	addSpot("volley", CF(97, 0.2, 405))
 	-- v15: the Fun Park: a queue at every food stall (same places as GameServer > FunPark's C.FUNPARK_STALLS),
 	-- and groups of friends with cotton candy along the walkway
-	for _, st in ipairs(CC.FUNPARK_STALLS) do addSpot("stallqueue", CF(st[2], 0.2, st[3]) * CFrame.Angles(0, st[4], 0)) end
-	for _, at in ipairs({{-440, -34}, {-490, 36}, {-530, -34}, {-420, -48}, {-520, -55}, {-430, 40}}) do addSpot("parkgroup", CF(at[1], 0.2, at[2])) end
+	for _, st in ipairs(CC.FUNPARK_STALLS) do addSpot("stallqueue", CF(st[2], 0.2, st[3]) * CFrame.Angles(0, st[4], 0), true) end
+	for _, at in ipairs({{-440, -34}, {-490, 36}, {-530, -34}, {-420, -48}, {-520, -55}, {-430, 40}}) do addSpot("parkgroup", CF(at[1], 0.2, at[2]), true) end
 end
 local function spotPose(s, now)
 	for i, pp in ipairs(s.people) do
@@ -912,6 +917,7 @@ RunService.RenderStepped:Connect(function(dt)
 		-- the little scenes: only built into view when you're close
 		for _, s in ipairs(SPOTS) do
 			local near = (s.cf.Position - f).Magnitude < 160 and C.settings.crowd ~= "off"
+			if near and not s.built then s.build() end
 			if near ~= s.on then
 				s.on = near
 				for _, p in ipairs(s.parts) do p.Transparency = near and (p:GetAttribute("T") or 0) or 1 end
