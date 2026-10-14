@@ -329,7 +329,7 @@ H.main(function()
 		-- every notification card, one at a time: in the top-right stack, out of the middle, off the HUD and the right-hand buttons
 		local CARDS = {"TutorialCard", "GuideTip", "ProblemCard", "DeliveryCard", "AchievementCard", "RivalBubble", "HouseTourPanel",
 			"StoryPill", "BeefPill", "MegaBar", "HeistBagHUD", "PoliceAlertBar", "RacePanel", "InteriorBar", "ViralMomentPopup", "CityJobCard",
-			"RivalCard", "PartyCard", "NextStepCard"}   -- (v14)
+			"RivalCard", "PartyCard", "NextStepCard", "BaseMenuCard"}   -- (v14, v15)
 		local cbad = {}
 		local rightCol = {x = L.rightX, y = L.rightColTop, w = L.RSIDE, h = L.rightColH}
 		local function stackProblems(o, name)

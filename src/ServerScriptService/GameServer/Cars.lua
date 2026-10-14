@@ -553,7 +553,8 @@ do
 	for i, key in ipairs(parked) do
 		local spec = table.clone(CAR[key])
 		spec.color = Color3.fromHSV((i * 0.17) % 1, 0.55, 0.85)
-		local m = C.buildCar(spec, CF(-50 + (i - 1) * 20 + 5, 0.2, -142) * CFrame.Angles(0, math.rad(90), 0), "CITY" .. i)
+		-- (v15: none parked across the end of Central Ave, x -6..6)
+		local m = C.buildCar(spec, CF(({-55, -35, -15, 15, 35, 55})[i], 0.2, -142) * CFrame.Angles(0, math.rad(90), 0), "CITY" .. i)
 		for _, p in ipairs(m:GetDescendants()) do
 			if p:IsA("BasePart") then p.Anchored = true end
 		end

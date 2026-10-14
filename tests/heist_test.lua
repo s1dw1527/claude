@@ -498,6 +498,75 @@ H.main(function()
 	H.check(saved.heist.loot == nil and saved.bag == nil, "loot is never saved")
 	H.check(type(saved.deeds) == "table" and type(saved.levels) == "table", "business and property data untouched")
 
+	H.section("v15: every base station can be reached and opens something")
+	do
+		local MC2 = C.MOUNTAIN
+		local function solidBetween(from, to)
+			for _, p in ipairs(H.workspace:GetDescendants()) do
+				if p:IsA("BasePart") and p.CanCollide and p.Transparency < 0.99 then
+					-- (sample the segment: is any point inside this part's box?)
+					for k = 1, 9 do
+						local q = from:Lerp(to, k / 10)
+						local lp = p.CFrame:PointToObjectSpace(q)
+						if math.abs(lp.X) < p.Size.X / 2 and math.abs(lp.Y) < p.Size.Y / 2 and math.abs(lp.Z) < p.Size.Z / 2 then return p:GetFullName() .. " " .. tostring(p.Position) .. " size " .. tostring(p.Size) end
+					end
+				end
+			end
+		end
+		local opened = {}
+		for key, st in pairs(MC2.stations) do
+			local spot = st.spot or st.part
+			local pp = st.prompt
+			-- where a player stands: in front of the counter, beside the floor mark
+			local stand = spot.Position + (spot.Position - st.part.Position).Unit * 2 + Vector3.new(0, -0.4, 0)
+			stand = Vector3.new(stand.X, 3, stand.Z)
+			local dist = (stand - spot.Position).Magnitude
+			local blocker = solidBetween(stand, spot.Position)
+			H.check(pp.Parent == spot and dist <= pp.MaxActivationDistance - 1 and pp.RequiresLineOfSight == false and blocker == nil and spot.CanQuery,
+				key .. ": the prompt is in front of the counter, " .. string.format("%.1f", dist) .. " studs from where you stand, nothing in between" .. (blocker and (" (blocked by " .. blocker .. ")") or ""))
+			if key ~= "fence" and key ~= "garage" then
+				cc.closeModals()
+				a.Character:PivotTo(CFrame.new(stand))
+				H.task.wait(0.3)
+				H.signalOf(pp, "Triggered"):Fire(a)
+				H.task.wait(0.8)
+				opened[key] = cc.modals.heists.frame.Visible and cc.HeistUI.tab
+			end
+		end
+		H.check(opened.jobs == "jobs" and opened.planning == "jobs" and opened.quartermaster == "gear" and opened.base == "gear" and opened.computer == "police",
+			"job board, planning room, quartermaster, base upgrades and computer each open the Heists window on their tab")
+		cc.closeModals()
+		-- even if the Heists module failed to hook the stations up, they still open the app
+		local real = MC2.onStation
+		MC2.onStation = nil
+		H.signalOf(MC2.stations.jobs.prompt, "Triggered"):Fire(a)
+		H.task.wait(0.8)
+		MC2.onStation = real
+		H.check(cc.modals.heists.frame.Visible, "without the Heists module's handler the job board still opens the app (safety net)")
+		cc.closeModals()
+		-- the crew stand behind the counters, not inside them
+		local inside = {}
+		for _, n in ipairs(C.SYNDICATE) do
+			for key, st in pairs(MC2.stations) do
+				local q = st.part.Position
+				if math.abs(n[3] - q.X) < st.part.Size.X / 2 and math.abs(n[4] - q.Z) < st.part.Size.Z / 2 then table.insert(inside, n[2] .. " in " .. key) end
+			end
+		end
+		H.check(#inside == 0, "no crew member stands inside a counter" .. (#inside > 0 and (": " .. table.concat(inside, ", ")) or ""))
+		-- the base menu card
+		a.Character:PivotTo(CFrame.new(MC2.center + Vector3.new(0, 3, 40)))
+		H.task.wait(1.6)
+		H.check(a:GetAttribute("InBase") == true and cc.HeistUI.baseCard.Visible, "inside the base: a ⛰️ BASE MENU card in the stack")
+		local b = cc.HeistUI.baseCard:FindFirstChild("BaseMenu_gear")
+		H.signalOf(b, "MouseButton1Click"):Fire()
+		H.task.wait(0.6)
+		H.check(cc.modals.heists.frame.Visible and cc.HeistUI.tab == "gear", "its 🎒 Gear button opens the Heists app on Gear")
+		cc.closeModals()
+		a.Character:PivotTo(CFrame.new(0, 3, 60))
+		H.task.wait(1.6)
+		H.check(not cc.HeistUI.baseCard.Visible, "outside: the card goes away")
+	end
+
 	T.assertClean("mountain + heists")
 	print("\n" .. H.passed .. " passed, " .. H.failed .. " failed")
 end)

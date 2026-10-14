@@ -300,16 +300,17 @@ local function buildSite(s)
 end
 -- v11.2: the targets sit near the edge of the map, where the terrain's random edge hills are: clear the hills out of
 -- each target's lot and its way in (in v11 they could half-bury a building in Studio)
+local clearTerrain = C.clearTerrain or function() end   -- (v15: guarded; Mountain loads first and defines it)
 for _, s in ipairs(SITES) do
 	local x, z = s.pos.X, s.pos.Z
-	C.clearTerrain(x - 42, z - 42, x + 42, z + 42, 70)
+	clearTerrain(x - 42, z - 42, x + 42, z + 42, 70)
 	if math.abs(x) > 600 then
 		-- east / west edge: a lane back towards the city
 		local inner = x > 0 and 640 or -640
-		C.clearTerrain(math.min(inner, x), z - 12, math.max(inner, x), z + 12, 50)
+		clearTerrain(math.min(inner, x), z - 12, math.max(inner, x), z + 12, 50)
 	else
 		-- north edge: a lane south, out of the hills
-		C.clearTerrain(x - 12, z, x + 12, -550, 50)
+		clearTerrain(x - 12, z, x + 12, -550, 50)
 	end
 end
 for _, s in ipairs(SITES) do buildSite(s) end
@@ -318,6 +319,16 @@ P(FOLDER, V3(90, 0.2, 12), CF(695, 0.12, 0), RGB(52, 54, 60), MAT.Asphalt)
 P(FOLDER, V3(90, 0.2, 12), CF(-695, 0.12, 0), RGB(52, 54, 60), MAT.Asphalt)
 P(FOLDER, V3(90, 0.2, 12), CF(695, 0.12, -300), RGB(52, 54, 60), MAT.Asphalt)
 P(FOLDER, V3(90, 0.2, 12), CF(-695, 0.12, -300), RGB(52, 54, 60), MAT.Asphalt)
+-- v15: keep the driveways and the north lanes clear of scattered trees and rocks
+for _, sx in ipairs({-1, 1}) do
+	for _, z in ipairs({0, -300}) do C.path("Heist driveway", sx * 640, z - 9, sx * 696, z + 9) end
+end
+for _, s in ipairs(SITES) do
+	if math.abs(s.pos.X) <= 600 then
+		-- (from the site's gate to the edge of the district in front of it; the district has its own streets)
+		C.path("Heist lane", s.pos.X - 9, s.pos.Z + 42, s.pos.X + 9, -620)
+	end
+end
 
 -- the police station (go on duty here; the cells are where arrested robbers wait)
 local STATION

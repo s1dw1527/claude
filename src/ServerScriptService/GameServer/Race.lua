@@ -67,7 +67,9 @@ end
 -- start/finish gantry + checkered line
 do
 	local a, b = S[startIdx], S[startIdx % N + 1]
-	local cf = CF(a, b)
+	-- (v15: 10 studs further along the track, so the gantry's pole doesn't stand in the middle of the entrance road;
+	-- the finish is detected within 15 studs of the start point, so the line still matches)
+	local cf = CF(a, b) * CF(0, 0, -10)
 	for r = 0, 1 do
 		for c = 0, 12 do
 			P(f, V3(2, 0.05, 2), cf * CF(-WIDTH / 2 + 1 + c * 2, 0.33, -1 + r * 2), ((r + c) % 2 == 0) and DARK or WHITE)

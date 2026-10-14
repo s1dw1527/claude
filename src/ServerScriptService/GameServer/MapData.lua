@@ -45,7 +45,9 @@ function C.mapCatalog()
 	local roads = {}
 	-- (v13: [6] = where other roads cross it; the client's traffic and pedestrians use the same network)
 	for _, r in ipairs(C.ROADS or {}) do table.insert(roads, {r[1], r[2], r[3], r[4], r[5], r[6]}) end
-	return {places = places, roads = roads, bounds = {-660, -560, 660, 500}, lights = C.TRAFFIC_LIGHTS or {}}
+	local traffic = {}
+	for _, r in ipairs(C.trafficRoads and C.trafficRoads() or {}) do table.insert(traffic, {r[1], r[2], r[3], r[4], r[5], r[6]}) end
+	return {places = places, roads = roads, traffic = traffic, bounds = {-660, -560, 660, 500}, lights = C.TRAFFIC_LIGHTS or {}}
 end
 
 -- live part of the map for one player (in the state packet)

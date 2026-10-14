@@ -654,7 +654,13 @@ function F.buildEraDecor(era)
 		for k = 0, 13 do
 			local x = -620 + k * 95
 			local h = 110 + ((k * 37) % 5) * 30
-			C.skyscraper(eraFolder, x, -700 - (k % 2) * 30, 34, 30, h, Color3.fromHSV(0.6, 0.3, 0.45 + (k % 3) * 0.08), RGB(200, 210, 230))
+			local z = -700 - (k % 2) * 30
+			-- (v15: not on top of anything: two of these used to land inside the mountain base)
+			local clear = true
+			for _, c in ipairs({{0, 0}, {-17, -15}, {17, -15}, {-17, 15}, {17, 15}}) do
+				if not C.isFree(x + c[1], z + c[2], 2) then clear = false end
+			end
+			if clear then C.skyscraper(eraFolder, x, z, 34, 30, h, Color3.fromHSV(0.6, 0.3, 0.45 + (k % 3) * 0.08), RGB(200, 210, 230)) end
 		end
 		for _, x in ipairs({-200, 200}) do
 			local bb = P(eraFolder, V3(30, 12, 1), CF(x, 30, -14), RGB(20, 20, 30), MAT.SmoothPlastic)

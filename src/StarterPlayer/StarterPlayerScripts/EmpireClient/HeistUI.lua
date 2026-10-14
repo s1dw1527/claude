@@ -258,6 +258,28 @@ local alertL = label({Size = UDim2.fromScale(1, 1), TextSize = 15, Font = Enum.F
 HU.alertBar, HU.alertLabel = alertBar, alertL
 alertBar.Name = "PoliceAlertBar"
 C.Layout.slot(alertBar, "top", 6)
+-- v15: the BASE MENU card while you're inside the mountain base: the same things the stations open, one tap away
+-- (so the base works even if you can't reach a station's prompt)
+local baseCard = panel({Position = UDim2.new(1, -12, 1, -372), AnchorPoint = Vector2.new(1, 1), Size = UDim2.fromOffset(290, 78), BackgroundColor3 = RGB(50, 34, 24), Visible = false}, gui)
+baseCard.Name = "BaseMenuCard"
+stroke(baseCard, RGB(255, 140, 60), 2, 0)
+C.Layout.slot(baseCard, "top", 6)
+label({Position = UDim2.fromOffset(10, 4), Size = UDim2.new(1, -20, 0, 20), Text = "⛰️ BASE MENU", TextSize = 13, Font = Enum.Font.GothamBlack, TextColor3 = RGB(255, 170, 90),
+	TextXAlignment = Enum.TextXAlignment.Left}, baseCard)
+for i, t in ipairs({{"jobs", "📋 Jobs"}, {"gear", "🎒 Gear"}, {"police", "💻 Scanner"}}) do
+	local b = button({Position = UDim2.new((i - 1) / 3, 6, 0, 28), Size = UDim2.new(1 / 3, -8, 0, 42), Text = t[2], TextSize = 13, BackgroundColor3 = RGB(110, 60, 30)}, baseCard)
+	b.Name = "BaseMenu_" .. t[1]
+	b.MouseButton1Click:Connect(function()
+		play(SND.click)
+		HU.tab = t[1]
+		C.openModal("heists", true)
+		HU.render()
+	end)
+end
+HU.baseCard = baseCard
+local function syncBase() baseCard.Visible = plr:GetAttribute("InBase") == true end
+plr:GetAttributeChangedSignal("InBase"):Connect(syncBase)
+syncBase()
 local alertToken = 0
 R.Menu.OnClientEvent:Connect(function(kind, a)
 	if kind == "heist" and type(a) == "table" then
@@ -266,8 +288,9 @@ R.Menu.OnClientEvent:Connect(function(kind, a)
 		HU.app = a
 		if a.state then showState(a.state) end
 		if m.frame.Visible then HU.render() end
-	elseif kind == "heistApp" and type(a) == "table" then
-		HU.tab = (a.tab and RENDER[a.tab]) and a.tab or "jobs"   -- (an unknown tab used to leave the window empty)
+	elseif kind == "heistApp" and (type(a) == "table" or type(a) == "string") then
+		local tab = type(a) == "table" and a.tab or a
+		HU.tab = (tab and RENDER[tab]) and tab or "jobs"   -- (an unknown tab used to leave the window empty)
 		if not m.frame.Visible then C.openModal("heists", true) end
 		HU.render()
 	elseif kind == "heistPuzzle" and type(a) == "table" then

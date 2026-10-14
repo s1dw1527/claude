@@ -30,7 +30,7 @@ addLots("rich", 40, 0, {{385, -180, math.pi}, {455, -180, math.pi}, {525, -180, 
 C.gate(FOLDER, V3(-420, 0, 225), true, "🏚️ OLD TOWN", "Homes from $" .. fmt(HOOD.oldtown.price), HOOD.oldtown.color)
 C.gate(FOLDER, V3(-300, 0, 225), true, "🏡 MAPLE SUBURBS", "Homes from $" .. fmt(HOOD.suburbs.price), HOOD.suburbs.color)
 C.gate(FOLDER, V3(560, 0, 335), true, "🌊 OCEANFRONT", "Needs " .. REP_TIERS[HOOD.ocean.tier].name, HOOD.ocean.color)
-C.gate(FOLDER, V3(-230, 0, -296), false, "⛰️ HILLSIDE", "Needs " .. REP_TIERS[HOOD.hills.tier].name, HOOD.hills.color)
+C.gate(FOLDER, V3(-230, 0, -283), false, "⛰️ HILLSIDE", "Needs " .. REP_TIERS[HOOD.hills.tier].name, HOOD.hills.color)
 C.gate(FOLDER, V3(345, 0, -215), true, "💎 MILLIONAIRE ROW", "Needs " .. REP_TIERS[HOOD.rich.tier].name, HOOD.rich.color)
 P(FOLDER, V3(150, 2.2, 8), CF(-235, 17.1, -200), RGB(52, 54, 60), MAT.Asphalt, SOLID)
 P(FOLDER, V3(8, 2.2, 50), CF(-230, 17.1, -225), RGB(52, 54, 60), MAT.Asphalt, SOLID)

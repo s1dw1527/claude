@@ -17,6 +17,13 @@ C.LOTS, C.DESTS, C.LAMPS, C.RESERVED = {}, {}, {}, {}
 function C.reserve(x1, z1, x2, z2)
 	table.insert(C.RESERVED, {math.min(x1, x2), math.min(z1, z2), math.max(x1, x2), math.max(z1, z2)})
 end
+-- v15: paths that aren't roads (dirt roads, driveways, park walkways): reserved, and listed so the layout test can
+-- check nothing was built on them
+C.PATHS = {}
+function C.path(name, x1, z1, x2, z2)
+	table.insert(C.PATHS, {name = name, math.min(x1, x2), math.min(z1, z2), math.max(x1, x2), math.max(z1, z2)})
+	C.reserve(x1, z1, x2, z2)
+end
 function C.isFree(x, z, pad)
 	pad = pad or 0
 	for _, r in ipairs(C.RESERVED) do
@@ -177,6 +184,26 @@ local function road(axis, c, a, b, w, crosses)
 		end
 	end
 end
+-- v15: the roads cars (crowd traffic and the police) may drive on. Main St and Central Ave cross the plaza, where the
+-- Empire Spire stands right on the crossing: inside the plaza ring (|x|, |z| < 128) they're for walking, so traffic
+-- goes round on the ring roads instead of through the Spire.
+function C.trafficRoads()
+	local out = {}
+	for _, r in ipairs(C.ROADS) do
+		if r[2] == 0 and r[3] < 0 and r[4] > 0 then
+			for _, span in ipairs({{r[3], -128}, {128, r[4]}}) do
+				if span[2] - span[1] > 30 then
+					local cr = {}
+					for _, x in ipairs(r[6] or {}) do if x >= span[1] and x <= span[2] then table.insert(cr, x) end end
+					table.insert(out, {r[1], r[2], span[1], span[2], r[5], cr})
+				end
+			end
+		else
+			table.insert(out, r)
+		end
+	end
+	return out
+end
 C.ROADS = {
 	{"x", 0, -650, 650, 14, {-330, -128, 0, 128, 330}},          -- Main St
 	{"z", 0, -140, 335, 12, {-128, 0, 128, 225, 335}},           -- Central Ave
@@ -291,8 +318,9 @@ do
 		hydrant(x + 8, -10.5)
 		bench(x - 16, 11, math.pi)
 	end
-	for _, pos in ipairs({{-60, -123}, {60, -123}, {-60, 123}, {60, 123}, {-123, -60}, {123, 60}}) do
-		bench(pos[1], pos[2], 0)
+	-- plaza benches: on the plaza's own sidewalk, facing in (v15: they used to stand 1 stud into the ring road)
+	for _, pos in ipairs({{-60, -118.5, math.pi}, {60, -118.5, math.pi}, {-60, 118.5, 0}, {60, 118.5, 0}, {-118.5, -60, math.pi / 2}, {118.5, 60, -math.pi / 2}}) do
+		bench(pos[1], pos[2], pos[3])
 	end
 end
 

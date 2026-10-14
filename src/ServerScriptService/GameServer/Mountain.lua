@@ -115,6 +115,10 @@ do
 	-- dirt road from North Rd up to the ravine
 	P(f, V3(12, 0.2, 320), CF(300, 0.15, -466), RGB(130, 100, 70), MAT.Ground)
 	P(f, V3(30, 0.2, 40), CF(300, 0.15, -610), RGB(120, 92, 66), MAT.Ground)
+	-- v15: keep it clear (before v15 nothing reserved it, so the scattered trees and rocks landed on the road)
+	C.path("Mountain road", 291, -626, 309, -300)
+	C.path("Mountain apron", 285, -624, 315, -588)
+	if C.clearTerrain then C.clearTerrain(291, -632, 309, -300, 40) end
 	-- ravine walls in front of the culvert
 	for _, sx in ipairs({-1, 1}) do
 		for k = 0, 3 do
@@ -375,7 +379,8 @@ do
 	-- catwalk around the north half, with stairs
 	P(f, V3(CH.x1 - CH.x0 - 20, 0.6, 10), CF(cx, 14, CH.z0 + 8), RGB(70, 72, 78), MAT.DiamondPlate, SOLID)
 	P(f, V3(CH.x1 - CH.x0 - 20, 2, 0.3), CF(cx, 15.6, CH.z0 + 13), RGB(200, 60, 40), MAT.Metal, SOLID)
-	wedge(f, V3(8, 14, 22), CF(CH.x0 + 18, 7, CH.z0 + 24) * CFrame.Angles(0, math.pi, 0), RGB(70, 72, 78), MAT.DiamondPlate, SOLID)
+	-- (v15: the stairs and the crates moved east: they used to stand in the Quartermaster's counter and in front of it)
+	wedge(f, V3(8, 14, 22), CF(CH.x0 + 34, 7, CH.z0 + 24) * CFrame.Angles(0, math.pi, 0), RGB(70, 72, 78), MAT.DiamondPlate, SOLID)
 	-- big pipes, warning lights, crates
 	for _, z in ipairs({-700, -740, -790}) do C.xcyl(f, CH.x1 - CH.x0 - 4, 3, CF(cx, CH.h - 8, z), RGB(90, 96, 100), MAT.Metal) end
 	for _, p in ipairs({{CH.x0 + 2, -700}, {CH.x1 - 2, -700}, {CH.x0 + 2, -800}, {CH.x1 - 2, -800}}) do
@@ -384,7 +389,7 @@ do
 		pl2.Color, pl2.Range, pl2.Brightness = RGB(255, 80, 40), 28, 1.4
 		pl2.Parent = l
 	end
-	for i = 0, 7 do P(f, V3(5, 5, 5), CF(CH.x0 + 14 + (i % 4) * 6, 2.5 + math.floor(i / 4) * 5, CH.z0 + 30), RGB(150, 110, 70), MAT.WoodPlanks, SOLID) end
+	for i = 0, 7 do P(f, V3(5, 5, 5), CF(CH.x0 + 44 + (i % 4) * 6, 2.5 + math.floor(i / 4) * 5, CH.z0 + 30), RGB(150, 110, 70), MAT.WoodPlanks, SOLID) end
 	for i = 1, 6 do
 		local l = P(f, V3(30, 0.4, 2), CF(cx - 60 + (i - 1) * 24, CH.h - 0.5, -748), RGB(255, 210, 160), MAT.Neon)
 		local pl3 = Instance.new("PointLight")
@@ -399,20 +404,41 @@ do
 	surfaceText(gsign, Enum.NormalId.Back, "🚗 ESCAPE GARAGE", RGB(255, 200, 60))
 	MC.garageCF = CF(cx + 22, 0.5, CH.z1 - 16) * CFrame.Angles(0, math.pi, 0)
 	-- stations: each is a counter with a screen and a prompt (Heists hooks them up)
-	local function station(key, title, pos, color, action)
+	-- (v15) which Heists-app tab a station opens, if the Heists module can't answer (a safety net: the stations
+	-- must always do something)
+	local TAB = {jobs = "jobs", quartermaster = "gear", base = "gear", planning = "jobs", computer = "police", fence = "jobs", garage = "gear"}
+	MC.stationTab = TAB
+	local function station(key, title, pos, color, action, face)
 		local base = P(f, V3(8, 3.4, 3), CF(pos), RGB(50, 50, 56), MAT.Metal, SOLID)
 		local scr = P(f, V3(7, 3.4, 0.3), CF(pos + V3(0, 3.6, -1.2)), RGB(14, 16, 24), MAT.SmoothPlastic)
 		surfaceText(scr, Enum.NormalId.Front, title, color)
-		local pp = C.prompt(base, action, title, 10, 0, function(plr) if MC.onStation then MC.onStation(plr, key) end end)
-		stations[key] = {part = base, prompt = pp, pos = pos}
+		-- v15: the prompt sits on its own spot in FRONT of the counter, at chest height, where you stand, (instead of
+		-- inside the counter, where the crew member behind it stood in the way) and it reaches a little further
+		local spot = P(f, V3(2, 2, 2), CF(pos + face * 3 + V3(0, 1.4, 0)), RGB(255, 255, 255), MAT.SmoothPlastic, {Transparency = 1, Name = "StationSpot_" .. key})
+		spot.CanCollide, spot.CanTouch, spot.CanQuery = false, false, true
+		local pp = C.prompt(spot, action, title, 12, 0, function(plr)
+			if MC.onStation then
+				local ok, err = pcall(MC.onStation, plr, key)
+				if ok then return end
+				warn("[Base] station " .. key .. " failed: " .. tostring(err))
+			end
+			-- (fallback: open the Heists app on the station's tab)
+			R.Menu:FireClient(plr, "heistApp", {tab = TAB[key] or "jobs"})
+		end)
+		pp.Name = "StationPrompt"
+		-- a glowing floor mark where to stand
+		local mark = C.cyl(f, 0.12, 4, CF(pos + face * 3 + V3(0, -1.6, 0)), color, MAT.Neon)
+		mark.Transparency = 0.4
+		stations[key] = {part = base, spot = spot, prompt = pp, pos = pos}
 	end
-	station("jobs", "📋 JOB BOARD", V3(CH.x0 + 12, 1.7, -730), RGB(255, 200, 60), "Check jobs")
-	station("fence", "💰 THE FENCE", V3(CH.x0 + 12, 1.7, -760), RGB(120, 255, 150), "Turn in loot")
-	station("quartermaster", "🎒 QUARTERMASTER", V3(CH.x0 + 12, 1.7, -790), RGB(120, 200, 255), "Bags & gear")
-	station("planning", "🗺️ PLANNING ROOM", V3(CH.x1 - 12, 1.7, -730), RGB(255, 120, 90), "Open intel")
-	station("computer", "💻 SECRET COMPUTER", V3(CH.x1 - 12, 1.7, -760), RGB(120, 230, 255), "Use computer")
-	station("base", "⛰️ BASE UPGRADES", V3(CH.x1 - 12, 1.7, -790), RGB(255, 150, 60), "Upgrade base")
-	station("garage", "🚗 GARAGE TERMINAL", V3(cx - 44, 1.7, CH.z1 - 8), RGB(255, 200, 60), "Get a car")
+	local EAST, WEST, SOUTH = V3(1, 0, 0), V3(-1, 0, 0), V3(0, 0, 1)
+	station("jobs", "📋 JOB BOARD", V3(CH.x0 + 12, 1.7, -730), RGB(255, 200, 60), "Check jobs", SOUTH)
+	station("fence", "💰 THE FENCE", V3(CH.x0 + 12, 1.7, -760), RGB(120, 255, 150), "Turn in loot", SOUTH)
+	station("quartermaster", "🎒 QUARTERMASTER", V3(CH.x0 + 12, 1.7, -790), RGB(120, 200, 255), "Bags & gear", SOUTH)
+	station("planning", "🗺️ PLANNING ROOM", V3(CH.x1 - 12, 1.7, -730), RGB(255, 120, 90), "Open intel", SOUTH)
+	station("computer", "💻 SECRET COMPUTER", V3(CH.x1 - 12, 1.7, -760), RGB(120, 230, 255), "Use computer", SOUTH)
+	station("base", "⛰️ BASE UPGRADES", V3(CH.x1 - 12, 1.7, -790), RGB(255, 150, 60), "Upgrade base", SOUTH)
+	station("garage", "🚗 GARAGE TERMINAL", V3(cx - 44, 1.7, CH.z1 - 8), RGB(255, 200, 60), "Get a car", V3(0, 0, -1))
 	-- crew area: couches and a table near the core
 	for _, sx in ipairs({-1, 1}) do
 		P(f, V3(12, 1.4, 3.4), CF(cx + sx * 46, 1, -805), RGB(90, 30, 30), MAT.Fabric, SOLID)
@@ -429,10 +455,10 @@ C.SYNDICATE = {
 	{"driver", "Wheels", 322, -700, "lift", {"Tunnel's wide enough for anything with four wheels.", "Keep the engine warm."}},
 	{"lookout", "Hawk", 230, -706, "look", {"Police scanners are lighting up.", "Keep your head down out there."}},
 	{"mechanic", "Sparks", 278, -700, "wipe", {"Who scratched the paint again?", "She'll run. Probably."}},
-	{"fence", "Velvet", 222, -760, "show", {"Bring the bag here. I make it look legit.", "Clean money, minus my cut."}},
-	{"hacker", "Glitch", 378, -760, "type", {"Bank firewall? Cute.", "Cameras loop in three... two..."}},
-	{"quartermaster", "Crates", 222, -790, "lift", {"Bigger bag, bigger payday.", "Don't lose my gear."}},
-	{"dispatcher", "Static", 378, -730, "type", {"New job just came in.", "Bring the package back here."}},
+	{"fence", "Velvet", 213, -760, "show", {"Bring the bag here. I make it look legit.", "Clean money, minus my cut."}},
+	{"hacker", "Glitch", 387, -760, "type", {"Bank firewall? Cute.", "Cameras loop in three... two..."}},
+	{"quartermaster", "Crates", 213, -790, "lift", {"Bigger bag, bigger payday.", "Don't lose my gear."}},
+	{"dispatcher", "Static", 387, -730, "type", {"New job just came in.", "Bring the package back here."}},
 }
 do
 	local parts = {}

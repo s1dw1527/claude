@@ -30,13 +30,16 @@ local CFG = {
 	carNear = 50, carFar = 190, carDrop = 240, carNew = 120,  -- respawned at least pedNew/carNew away (out of view)
 	jump = 150,                                       -- the camera moved this far at once (a teleport): refill around it
 	lodNear = 110,                                    -- closer than this: updated every frame; further: ~10 times a second
+	stuckFor = 6,                                     -- v15: seconds a car may wait at a dead end before it's recycled
 	cycle = 16, yellow = 2,                           -- traffic lights: 8 s per direction, the last 2 s yellow
 }
 CC.CFG = CFG
 
 local map = catalog.map or {}
 local ROADS = {}
-for i, r in ipairs(map.roads or {}) do
+-- (v15: the traffic network: the plaza's inner stretch of Main St and Central Ave is for walking, so nobody drives
+-- through the Empire Spire)
+for i, r in ipairs(map.traffic or map.roads or {}) do
 	-- cuts: crossings inside the road (sidewalks break there); nodes: every junction, including one at either end
 	local cuts, nodes = {}, {}
 	for _, x in ipairs(r[6] or {}) do
@@ -499,6 +502,7 @@ local function nearRoads(f, hi)
 	end
 	return out
 end
+local carCF   -- (defined below)
 local function spawnCar(c, f, look, initial, cand)
 	cand = cand or nearRoads(f, CFG.carFar)
 	if #cand > 0 then
@@ -522,6 +526,8 @@ local function spawnCar(c, f, look, initial, cand)
 				if c.kind == "bus" then c.vmax *= 0.75 end
 				c.v = c.vmax * 0.6
 				c.blend = nil
+				c.stuck = 0
+				placeCar(c, carCF(c))   -- (v15: moved before it's shown, so it never flashes where it was before)
 				showCar(c, true)
 				c.on = true
 				return true
@@ -540,7 +546,7 @@ local function nextCut(c)
 	end
 	return best
 end
-local function carCF(c)
+function carCF(c)
 	local r = c.r
 	local pos = roadPoint(r, c.s, laneOf(r, c.dir), 0.2)
 	local fwd = r.axis == "x" and V3(c.dir, 0, 0) or V3(0, 0, c.dir)
@@ -569,6 +575,7 @@ local function turnAt(c, x)
 	if #opts == 0 then
 		if (c.dir == 1 and x >= c.r.b - 0.5) or (c.dir == -1 and x <= c.r.a + 0.5) then
 			c.s, c.v = x - c.dir * 0.1, 0   -- the end of the road: wait at the junction for room to turn
+			c.atEnd = true
 		end
 		return
 	end
@@ -645,8 +652,14 @@ local function stepCar(c, dt)
 			c.dir = -c.dir
 		else
 			c.v = 0
+			c.atEnd = true
 		end
 	end
+	-- v15: a car waiting at a dead end or a full junction for more than a few seconds looked parked in the road:
+	-- it's recycled instead (the main loop respawns it somewhere out of view)
+	if c.atEnd and c.v < 0.5 then c.stuck = (c.stuck or 0) + dt else c.stuck = 0 end
+	c.atEnd = nil
+	if c.stuck > CFG.stuckFor then c.recycle = true end
 end
 
 -- ===== small things going on (built once, shown when you are near) =====
@@ -846,7 +859,10 @@ RunService.RenderStepped:Connect(function(dt)
 				if p.on and (walkPos(p.w, p.t) - f).Magnitude > CFG.pedDrop then spawnPed(p, f, look, false, wc) end
 			end
 			for _, c in ipairs(cars) do
-				if c.on and (roadPoint(c.r, c.s, laneOf(c.r, c.dir), 0) - f).Magnitude > CFG.carDrop then spawnCar(c, f, look, false, rc) end
+				if c.on and (c.recycle or (roadPoint(c.r, c.s, laneOf(c.r, c.dir), 0) - f).Magnitude > CFG.carDrop) then
+					c.recycle = nil
+					spawnCar(c, f, look, false, rc)
+				end
 			end
 			if #peds < wantPeds() or #cars < wantCars() then refreshActive(false) end
 		end

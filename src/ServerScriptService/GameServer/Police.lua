@@ -37,7 +37,7 @@ local function getNode(x, z)
 	end
 	return n
 end
-for _, r in ipairs(C.ROADS) do
+for _, r in ipairs(C.trafficRoads and C.trafficRoads() or C.ROADS) do   -- (v15: not through the Spire)
 	local axis, c, a, b = r[1], r[2], r[3], r[4]
 	local coords = {a, b}
 	for _, x in ipairs(r[6] or {}) do if x > a and x < b then table.insert(coords, x) end end
