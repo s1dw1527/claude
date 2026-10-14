@@ -30,6 +30,14 @@ musicB.MouseButton1Click:Connect(function()
 	if U.refreshSettings then U.refreshSettings() end
 end)
 
+-- v16: WELCOME BACK (returning accounts): continue the save you played last, or watch the opening again
+local welcome = new("Frame", {Name = "WelcomeBack", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -64), Size = UDim2.fromOffset(560, 58),
+	BackgroundColor3 = RGB(18, 24, 48), BackgroundTransparency = 0.1, Visible = false}, mg)
+corner(welcome, 12)
+stroke(welcome, GOLD, 2, 0.2)
+local continueB = button({Name = "ContinueEmpire", Position = UDim2.new(0, 8, 0, 7), Size = UDim2.new(0.6, -12, 1, -14), Text = "▶ CONTINUE EMPIRE", TextSize = 18, BackgroundColor3 = RGB(200, 150, 30)}, welcome)
+local replayB = button({Name = "ReplayIntro", Position = UDim2.new(0.6, 0, 0, 7), Size = UDim2.new(0.4, -8, 1, -14), Text = "🎬 Replay intro", TextSize = 15, BackgroundColor3 = GRAY}, welcome)
+
 -- overlay for starter homes + delete confirm
 local overlay = new("Frame", {Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.new(0, 0, 0), BackgroundTransparency = 0.3, Visible = false, ZIndex = 10}, mg)
 local ovPanel = panel({AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.55), Size = UDim2.fromOffset(860, 420), ZIndex = 11}, overlay)
@@ -56,6 +64,7 @@ local function fitMenu(L)
 		row.Size = UDim2.fromOffset((vp.X - 16) / rowScale.Scale, 330)
 		local a = L.win
 		ovPanel.Size = UDim2.fromOffset(math.min(860, a.w), math.min(420, a.h))
+		welcome.Size = UDim2.new(0.94, 0, 0, 58)
 	else
 		subtitle.Size, subtitle.TextScaled = UDim2.fromOffset(700, 30), false
 		status.Size = UDim2.fromOffset(700, 24)
@@ -63,12 +72,14 @@ local function fitMenu(L)
 		rowScale.Scale = 1
 		row.Size = UDim2.fromOffset(880, 330)
 		ovPanel.Size = UDim2.fromOffset(860, 420)
+		welcome.Size = UDim2.fromOffset(560, 58)
 	end
 end
 Lay.onChange(fitMenu)
 
 local payload = nil
 local busy = false
+local menuIntroDone = false
 local function setBusy(text)
 	busy = true
 	status.Text = text
@@ -186,6 +197,37 @@ local function stopCamera()
 	cam.CameraType = Enum.CameraType.Custom
 end
 
+-- v16: the opening movie, before the save slots (once per account; any time from "Replay intro")
+local function playIntro(first)
+	if not C.playIntro then return false end
+	mg.Enabled = false
+	stopCamera()
+	local ok = C.playIntro(not first, function()
+		if first then act("introSeen") end
+		if C.inMainMenu then
+			mg.Enabled = true
+			render()
+			startCamera()
+		end
+	end)
+	if not ok then
+		mg.Enabled = true
+		startCamera()
+	end
+	return ok
+end
+C.menuPlayIntro = playIntro
+continueB.MouseButton1Click:Connect(function()
+	if busy or not (payload and payload.lastSlot) then return end
+	play(SND.buy)
+	setBusy("Loading Save " .. payload.lastSlot .. "... 🏗️")
+	act("menuPlay", payload.lastSlot)
+end)
+replayB.MouseButton1Click:Connect(function()
+	if busy then return end
+	play(SND.click)
+	playIntro(false)
+end)
 R.Menu.OnClientEvent:Connect(function(kind, a)
 	if kind == "mainmenu" then
 		payload = a
@@ -206,7 +248,14 @@ R.Menu.OnClientEvent:Connect(function(kind, a)
 		mg.Enabled = true
 		render()
 		startCamera()
+		-- v16: a first-ever visit gets the opening; a returning one gets "welcome back"
+		welcome.Visible = a.introSeen == true and a.lastSlot ~= nil
+		if a.introSeen == false and not (C.Intro and C.Intro.playing) and not menuIntroDone then
+			menuIntroDone = true
+			playIntro(true)
+		end
 	elseif kind == "play" then
+		if C.Intro and C.Intro.playing then C.Intro.stop("play") end
 		mg.Enabled = false
 		overlay.Visible = false
 		stopCamera()
