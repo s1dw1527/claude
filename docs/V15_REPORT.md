@@ -187,7 +187,15 @@ Migration step 14 → 15 (`DataMigration.steps[14]`, `M.v15Defaults()`) adds thi
 
 ## 4. Tests — SIMULATED (not Roblox Studio)
 
-**Final run: TBD**
+**Final run, on the final code: 42 suites, 1,945 checks, 0 failed** (simulated engine, all suites in parallel, 4 at a
+time, including the 40-minute 4-player soak test `perf_test`). Earlier full runs during development turned up:
+- 2 real problems, both fixed:
+  - the layout test caught new Fun Park props on Main St, which runs through the park;
+  - `city_test`'s crowd part budget was exceeded by the new Fun Park scenes. They are now built only the first time
+    you come near.
+- 3 timing problems in new test checks: a city cinematic taking the camera as a ride ended, random cash events
+  during a purchase check, and a mismatched confirm button. Each was confirmed (e.g. 6 parallel runs with a debug
+  print) and the checks were made tolerant.
 
 New and extended suites:
 
