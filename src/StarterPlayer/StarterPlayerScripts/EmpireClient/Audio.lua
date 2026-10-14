@@ -233,7 +233,7 @@ function C.applySettings()
 	for _, snd in pairs(C.SND or {}) do
 		if typeof(snd) == "Instance" and snd:IsA("Sound") then
 			if snd:GetAttribute("BaseVolume") == nil then snd:SetAttribute("BaseVolume", snd.Volume) end
-			snd.Volume = snd:GetAttribute("BaseVolume") * (tonumber(s.sfxVol) or 7) / 7
+			snd.Volume = (tonumber(snd:GetAttribute("BaseVolume")) or 0.5) * (tonumber(s.sfxVol) or 7) / 7
 		end
 	end
 	music.Volume = s.music and musicVolume() or 0

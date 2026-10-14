@@ -29,6 +29,9 @@ C.VERSION = {
 		"🎢 15: the AMUSEMENT PARK: open it on a city plot, then build your own park at the Funland Grounds: coasters, Ferris wheels, cotton candy",
 		"🎡 15: the Fun Park gets a giant roller coaster you can ride, a drop tower, swings and cotton-candy stands",
 		"🛠️ 15: no more cars, benches or trees in the street; the mountain base stations open again; the Movie Theater can be bought from its menu",
+		"🎁 16: DAILY rewards (a 7-day streak with a shield), 3 daily missions and a weekly challenge in the new 🎁 Daily app",
+		"🗺️ 16: the EMPIRE ROADMAP, three paths (💼 Mogul, 🕶️ Underworld, 👑 Legend) with titles and contracts",
+		"🎪 16: a city event every few hours (Restaurant Rush, Funland Night, Double Delivery...), park visit rewards and a 🪪 showcase card",
 	},
 }
 
