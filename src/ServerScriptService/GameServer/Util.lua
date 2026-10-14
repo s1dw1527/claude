@@ -208,7 +208,9 @@ C.R = {}
 for _, n in ipairs({"State", "Announce", "Splash", "Customer", "Buzz", "BuzzUpdate", "Msg", "WarResults", "Menu", "Action", "Race", "Mega", "Cinematic", "Viral"}) do
 	C.R[n] = remote(n)
 end
-function C.notify(plr, msg) C.R.Announce:FireClient(plr, msg) end
+-- opts (v16, optional): {pri = "critical" | "normal" | "low", cat = "money" | "rep" | "warn" | "info", key = "..."}
+-- critical ones are never dropped and jump the queue; low ones are grouped, and can be muted in Settings
+function C.notify(plr, msg, opts) C.R.Announce:FireClient(plr, msg, type(opts) == "table" and opts or nil) end
 function C.announceAll(msg) C.R.Announce:FireAllClients(msg) end
 
 -- ===== LIGHTING =====

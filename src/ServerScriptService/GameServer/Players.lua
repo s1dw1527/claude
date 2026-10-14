@@ -45,13 +45,16 @@ local SAVE_KEYS = {"cash", "levels", "chains", "staff", "combos", "rep", "ep", "
 	-- v14
 	"theater", "rivals", "xfer", "coop", "loft", "party", "tune", "prestige", "events", "onboard",
 	-- v15
-	"park"}
+	"park",
+	-- v16
+	"path", "roadmap", "grantsGot", "tokens"}
 -- everything this version writes itself; any OTHER field found in a save is kept as-is when saving
 local KNOWN_KEYS = {lots = true, props = true, SchemaVersion = true, saveSeq = true, gameVersion = true, savedAt = true}
 for _, k in ipairs(SAVE_KEYS) do KNOWN_KEYS[k] = true end
 local function metaKey(plr) return "u" .. plr.UserId .. "_meta" end
 local function slotKey(plr, slot) return "u" .. plr.UserId .. "_s" .. slot end
-local DEFAULT_SETTINGS = {music = true, musicVol = 5, sfx = true, crowd = "high", weather = true, units = "MPH", spawnAt = "business", cinematics = "full"}
+local DEFAULT_SETTINGS = {music = true, musicVol = 5, sfx = true, crowd = "high", weather = true, units = "MPH", spawnAt = "business", cinematics = "full",
+	alerts = "all", sfxVol = 7}   -- v16: "important" = only important toasts pop up (the rest go to the 🔔 Activity log)
 -- every setting has a validator, so a client can't store junk (NaN, huge numbers, unknown words) in the save
 local function oneOf(...)
 	local ok = {}
@@ -64,6 +67,7 @@ local SETTING_OK = {
 	musicVol = function(v) return C.int(v, 1, 10) ~= nil end,
 	crowd = oneOf("high", "low", "off"), units = oneOf("MPH", "KMH"), spawnAt = oneOf("business", "home"),
 	cinematics = oneOf("full", "short", "off"),
+	alerts = oneOf("all", "important"), sfxVol = function(v) return C.int(v, 0, 10) ~= nil end,
 }
 local function applySettings(target, incoming)
 	if type(incoming) ~= "table" then return end
@@ -94,25 +98,134 @@ local function loadMeta(plr)
 		applySettings(meta.settings, saved.settings)
 		meta.lastVersion = type(saved.lastVersion) == "string" and saved.lastVersion or nil
 	end
+	-- v16: the account record (intro flag, daily streak, missions, weekly, wardrobe, pending rewards)
+	meta.acct = C.DataMigration.repairAcct(type(saved) == "table" and saved.acct or nil)
+	-- players who already had an empire before v16 have seen the game: no forced intro for them
+	if not meta.acct.introSeen and (next(meta.slots) ~= nil or meta.lastVersion) then meta.acct.introSeen = true end
 	return meta, false
+end
+-- the meta record as stored + this session's changes (a slot list, settings, the account record merged so that
+-- nothing claimed anywhere is lost and no progress goes backwards)
+local function metaTransform(s, old, mutate)
+	local out = type(old) == "table" and old or {}
+	out.slots = type(out.slots) == "table" and out.slots or {}
+	for k, v in pairs(s.meta.slots) do out.slots[k] = v end
+	for k in pairs(out.slots) do
+		if s.meta.deleted and s.meta.deleted[k] then out.slots[k] = nil end
+	end
+	out.settings = s.meta.settings
+	out.lastVersion = s.meta.lastVersion or out.lastVersion
+	local acct = C.DataMigration.mergeAcct(out.acct, s.meta.acct, s.paid)
+	if mutate and not mutate(acct) then return nil, acct end
+	out.acct = acct
+	return out, acct
 end
 local function saveMeta(plr)
 	local s = session[plr]
 	if not store or not s or s.metaFail then return end
 	-- UpdateAsync: merge with what's stored, so slots another server wrote meanwhile aren't lost
-	pcall(function()
+	local merged
+	local ok = pcall(function()
 		store:UpdateAsync(metaKey(plr), function(old)
-			local out = type(old) == "table" and old or {}
-			out.slots = type(out.slots) == "table" and out.slots or {}
-			for k, v in pairs(s.meta.slots) do out.slots[k] = v end
-			for k in pairs(out.slots) do
-				if s.meta.deleted and s.meta.deleted[k] then out.slots[k] = nil end
-			end
-			out.settings = s.meta.settings
-			out.lastVersion = s.meta.lastVersion or out.lastVersion
+			local out, acct = metaTransform(s, old)
+			merged = acct
 			return out
 		end)
 	end)
+	if ok and merged and session[plr] == s then
+		s.meta.acct = merged
+		s.paid = {}
+	end
+end
+
+-- =====================================================================
+-- v16: ACCOUNT REWARDS, written ahead. A claim (daily reward, mission, event...) is decided INSIDE the meta
+-- key's UpdateAsync against what's really stored (so two claims, two servers or a retry can't both win), and
+-- it records a "grant" there. Only once that write has succeeded is the grant paid into the save slot being
+-- played (and its id noted in the slot, d.grantsGot). A grant that couldn't be paid yet (a crash, the slot
+-- couldn't save) is paid the next time that slot loads; a paid grant is dropped from the account record on the
+-- next meta write.
+-- =====================================================================
+function F.acct(plr)
+	local s = session[plr]
+	return s and s.meta.acct or nil
+end
+-- mutate(acct) → true to commit (it may add grants with F.addGrant). Returns true when it's stored.
+function F.acctCommit(plr, mutate)
+	local s = session[plr]
+	if not s or s.metaFail then return false, "saving is unavailable" end
+	if s.committing then return false, "busy" end
+	s.committing = true
+	local okAll, why = true, nil
+	if not store then
+		-- (no DataStore, e.g. Studio without API access: the claim lives in memory for this session only)
+		local acct = C.DataMigration.mergeAcct(s.meta.acct, s.meta.acct, s.paid)
+		if mutate(acct) then s.meta.acct = acct else okAll, why = false, "refused" end
+	else
+		local merged, refused
+		local ok, err = pcall(function()
+			store:UpdateAsync(metaKey(plr), function(old)
+				local out, acct = metaTransform(s, old, mutate)
+				refused = out == nil
+				merged = acct
+				return out
+			end)
+		end)
+		if not ok then okAll, why = false, "error: " .. tostring(err)
+		elseif refused then okAll, why = false, "refused"
+		elseif session[plr] == s then
+			s.meta.acct = merged
+			s.paid = {}
+		end
+	end
+	s.committing = false
+	return okAll, why
+end
+function F.addGrant(plr, acct, g)
+	local s = session[plr]
+	acct.seq += 1
+	g.id = "g" .. acct.seq
+	g.slot = s and s.slot or 1
+	g.t = os.time()
+	g.cash, g.rep = math.max(0, math.floor(g.cash or 0)), math.max(0, math.floor(g.rep or 0))
+	table.insert(acct.grants, g)
+	return g.id
+end
+C.GRANT_ITEMS = C.GRANT_ITEMS or {}   -- item key -> function(plr, d) (tokens, furniture, titles...), filled in by Daily / Paths
+-- pay every grant for the slot being played that this slot hasn't had yet; returns how many were paid
+function F.payGrants(plr)
+	local d, s = data[plr], session[plr]
+	if not (d and s and s.slot) or d.noSave then return 0 end
+	d.grantsGot = type(d.grantsGot) == "table" and d.grantsGot or {}
+	s.paid = s.paid or {}
+	local n = 0
+	s.pendingPaid = s.pendingPaid or {}
+	for _, g in ipairs(s.meta.acct.grants) do
+		if d.grantsGot[g.id] then
+			-- (paid before; once a slot save has it, the account record can drop it)
+			if not s.pendingPaid[g.id] then s.paid[g.id] = true end
+		elseif g.slot == s.slot then
+			d.grantsGot[g.id] = os.time()
+			s.pendingPaid[g.id] = true   -- dropped from the account record only after the slot has saved it (F.save)
+			if g.cash > 0 then
+				d.cash += g.cash
+				F.earn(d, g.cash)
+			end
+			if g.rep > 0 then F.addRep(plr, g.rep) end
+			if g.item and C.GRANT_ITEMS[g.item] then pcall(C.GRANT_ITEMS[g.item], plr, d) end
+			n += 1
+			notify(plr, "🎁 " .. (g.what ~= "" and g.what or "Reward") .. (g.cash > 0 and ("  +$" .. fmt(g.cash)) or "") .. (g.rep > 0 and ("  +" .. g.rep .. " ⭐") or ""), {pri = "critical", cat = "money"})
+		end
+	end
+	-- keep only the 40 newest ids in the slot
+	local ids = {}
+	for id, t in pairs(d.grantsGot) do table.insert(ids, {id, tonumber(t) or 0}) end
+	if #ids > 40 then
+		table.sort(ids, function(x, y) return x[2] > y[2] end)
+		for i = 41, #ids do d.grantsGot[ids[i][1]] = nil end
+	end
+	if n > 0 then F.save(plr) end
+	return n
 end
 local function serializeProps(d)
 	local out = {}
@@ -181,6 +294,11 @@ function F.save(plr)
 		warn("[CornerEmpire] not saving " .. plr.Name .. ": " .. why)
 		notify(plr, "⚠️ Your save was updated somewhere else (" .. why .. "). To protect it, this server won't save. Please rejoin.")
 		return false
+	end
+	-- v16: grants this save now holds can leave the account record
+	if s.pendingPaid then
+		for id in pairs(s.pendingPaid) do s.paid[id] = true end
+		s.pendingPaid = nil
 	end
 	local hood = F.homeHood(d)
 	if s.meta.deleted then s.meta.deleted["s" .. s.slot] = nil end
@@ -648,8 +766,14 @@ local function sendMenu(plr)
 		local h = HOOD[st.hood]
 		starters[i] = {name = st.name, desc = st.desc, hood = h.name, icon = h.icon, color = h.color}
 	end
+	-- (v16: the intro plays once per account; "Continue" picks the slot played last)
+	local last, lastT = nil, -1
+	for k, v in pairs(s.meta.slots) do
+		local i = tonumber(string.match(k, "^s(%d)$"))
+		if i and type(v) == "table" and (tonumber(v.played) or 0) > lastT then last, lastT = i, tonumber(v.played) or 0 end
+	end
 	R.Menu:FireClient(plr, "mainmenu", {slots = s.meta.slots, settings = s.meta.settings, saving = store ~= nil and not s.metaFail,
-		starters = starters, count = CFG.SAVE_SLOTS, studio = RunService:IsStudio()})
+		starters = starters, count = CFG.SAVE_SLOTS, studio = RunService:IsStudio(), introSeen = s.meta.acct.introSeen, lastSlot = last})
 end
 
 function F.startGame(plr, slot, starterIdx)
@@ -732,7 +856,9 @@ function F.startGame(plr, slot, starterIdx)
 		ls.Parent = plr
 	end
 	F.pushMsg(plr, {icon = "👋", from = "Corner Empire", text = isNew and "Welcome! Follow the tutorial card at the bottom of your screen to get started." or "Welcome back! Your empire missed you."})
-	R.Menu:FireClient(plr, "play")
+	R.Menu:FireClient(plr, "play", {isNew = isNew})
+	-- v16: account rewards waiting for this slot (written ahead; see F.payGrants)
+	task.defer(function() if data[plr] == d then F.payGrants(plr) end end)
 	-- returning players see what's new once per version (Messages + a splash)
 	if s.meta.lastVersion ~= C.VERSION.VERSION then
 		if s.meta.lastVersion or not isNew then
@@ -946,6 +1072,13 @@ R.Action.OnServerEvent:Connect(function(plr, action, a, b, c)
 		return
 	elseif action == "settings" then
 		applySettings(s.meta.settings, a)
+		return
+	elseif action == "introSeen" then
+		-- v16: the opening was shown (or skipped): it won't play by itself again on this account
+		if not s.meta.acct.introSeen then
+			s.meta.acct.introSeen = true
+			task.spawn(saveMeta, plr)
+		end
 		return
 	end
 	local d = data[plr]
@@ -1216,7 +1349,7 @@ local function onPlayerAdded(plr)
 		return
 	end
 	local meta, fail = loadMeta(plr)
-	session[plr] = {meta = meta, metaFail = fail, slot = nil}
+	session[plr] = {meta = meta, metaFail = fail, slot = nil, paid = {}}
 	plr.CharacterAdded:Connect(function(char)
 		local d = data[plr]
 		if not d then return end
@@ -1366,6 +1499,7 @@ task.spawn(function()
 					local inc = F.income(d, now)
 					d.cash += inc
 					F.earn(d, inc)
+					if inc > 0 and F.track then F.track(plr, "earnLegit", inc) end   -- v16: daily missions (business income only)
 					d.war.earned += inc
 				end
 				d.custAcc = math.min(5, d.custAcc + F.customerRate(d, now))

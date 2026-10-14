@@ -155,6 +155,17 @@ M.steps = {
 		end
 		return notes
 	end,
+	[15] = function(t)
+		local notes = {}
+		-- v16: paths, the roadmap stage, account rewards already paid into this save, reward tokens. All new.
+		for k, v in pairs(M.v16Defaults()) do
+			if t[k] == nil then
+				t[k] = v
+				table.insert(notes, k)
+			end
+		end
+		return notes
+	end,
 	[14] = function(t)
 		local notes = {}
 		-- v15: the Amusement Park's record (the rides you built, its stats). New; a save that already has one keeps it.
@@ -167,6 +178,125 @@ M.steps = {
 		return notes
 	end,
 }
+-- =====================================================================
+-- v16: THE ACCOUNT RECORD (lives in the account's meta key next to the slot list and the settings, not in a slot):
+-- the intro flag, the daily login streak, today's missions, the weekly challenge, the wardrobe (titles, badges)
+-- and pending rewards ("grants") waiting to be paid into a save slot. The meta key has no schema version of its
+-- own: every field is checked on its own each time it's read, and anything else stored there is kept as it is.
+-- =====================================================================
+function M.acctDefaults()
+	return {
+		introSeen = false,
+		daily = {claimed = 0, cycle = 0, streak = 0, best = 0, shield = 1, shieldWeek = 0},
+		missions = {day = 0, picks = {}, p = {}, done = {}},
+		weekly = {week = 0, key = "", p = 0, claimed = false},
+		wardrobe = {titles = {}, badges = {}, title = "", badge = ""},
+		grants = {},
+		seq = 0,
+		events = {},     -- live-event windows already rewarded (id -> true), only the recent ones are kept
+		coop = {},       -- co-op / visit rewards already given today (key -> day)
+	}
+end
+local function nonNeg(v, def) v = tonumber(v) return (v and v == v and v >= 0 and v < 1e15) and math.floor(v) or def end
+-- a stored account record → a clean one (each field repaired on its own; the result is always usable)
+function M.repairAcct(t)
+	local def = M.acctDefaults()
+	t = type(t) == "table" and t or {}
+	local out = {}
+	out.introSeen = t.introSeen == true
+	local dl = type(t.daily) == "table" and t.daily or {}
+	out.daily = {}
+	for k, v in pairs(def.daily) do out.daily[k] = nonNeg(dl[k], v) end
+	out.daily.cycle = math.clamp(out.daily.cycle, 0, 7)
+	out.daily.shield = math.clamp(out.daily.shield, 0, 1)
+	local ms = type(t.missions) == "table" and t.missions or {}
+	out.missions = {day = nonNeg(ms.day, 0), picks = {}, p = {}, done = {}, t = {}}
+	if type(ms.picks) == "table" then
+		for i = 1, 3 do if type(ms.picks[i]) == "string" and #ms.picks[i] <= 24 then out.missions.picks[i] = ms.picks[i] end end
+	end
+	for i = 1, 3 do
+		out.missions.p[i] = nonNeg(type(ms.p) == "table" and ms.p[i], 0)
+		out.missions.done[i] = type(ms.done) == "table" and ms.done[i] == true or false
+		out.missions.t[i] = type(ms.t) == "table" and nonNeg(ms.t[i], 0) > 0 and nonNeg(ms.t[i], 0) or nil
+	end
+	local wk = type(t.weekly) == "table" and t.weekly or {}
+	out.weekly = {week = nonNeg(wk.week, 0), key = type(wk.key) == "string" and #wk.key <= 24 and wk.key or "", p = nonNeg(wk.p, 0), claimed = wk.claimed == true,
+		t = nonNeg(wk.t, 0) > 0 and nonNeg(wk.t, 0) or nil}
+	local wr = type(t.wardrobe) == "table" and t.wardrobe or {}
+	out.wardrobe = {titles = {}, badges = {}, title = "", badge = ""}
+	for _, k in ipairs({"titles", "badges"}) do
+		if type(wr[k]) == "table" then
+			for key, v in pairs(wr[k]) do if type(key) == "string" and #key <= 24 and v then out.wardrobe[k][key] = true end end
+		end
+	end
+	out.wardrobe.title = type(wr.title) == "string" and out.wardrobe.titles[wr.title] and wr.title or ""
+	out.wardrobe.badge = type(wr.badge) == "string" and out.wardrobe.badges[wr.badge] and wr.badge or ""
+	out.grants = {}
+	if type(t.grants) == "table" then
+		for _, g in ipairs(t.grants) do
+			if type(g) == "table" and type(g.id) == "string" and #g.id <= 24 and C.int(g.slot, 1, 9) and #out.grants < 60 then
+				table.insert(out.grants, {id = g.id, slot = g.slot, cash = nonNeg(g.cash, 0), rep = nonNeg(g.rep, 0), what = type(g.what) == "string" and g.what:sub(1, 80) or "",
+					item = type(g.item) == "string" and g.item:sub(1, 24) or nil, t = nonNeg(g.t, 0)})
+			end
+		end
+	end
+	out.seq = nonNeg(t.seq, 0)
+	out.events = {}
+	if type(t.events) == "table" then for k, v in pairs(t.events) do if type(k) == "string" and #k <= 32 and v then out.events[k] = nonNeg(v, 1) end end end
+	out.coop = {}
+	if type(t.coop) == "table" then for k, v in pairs(t.coop) do if type(k) == "string" and #k <= 40 then out.coop[k] = nonNeg(v, 0) end end end
+	return out
+end
+-- what's stored + what this server has in memory → one record. Nothing claimed anywhere is ever un-claimed,
+-- progress never goes backwards, and a grant this server already paid out (`paid`) is dropped.
+function M.mergeAcct(stored, mem, paid)
+	local a, b = M.repairAcct(stored), M.repairAcct(mem)
+	local out = M.repairAcct(nil)
+	out.introSeen = a.introSeen or b.introSeen
+	out.daily = (a.daily.claimed > b.daily.claimed or (a.daily.claimed == b.daily.claimed and a.daily.streak > b.daily.streak)) and a.daily or b.daily
+	if a.missions.day ~= b.missions.day then
+		out.missions = a.missions.day > b.missions.day and a.missions or b.missions
+	else
+		out.missions = b.missions
+		if #b.missions.picks == 0 then out.missions.picks, out.missions.t = a.missions.picks, a.missions.t end
+		for i = 1, 3 do
+			out.missions.p[i] = math.max(a.missions.p[i], b.missions.p[i])
+			out.missions.done[i] = a.missions.done[i] or b.missions.done[i]
+		end
+	end
+	if a.weekly.week ~= b.weekly.week then
+		out.weekly = a.weekly.week > b.weekly.week and a.weekly or b.weekly
+	else
+		out.weekly = b.weekly
+		if b.weekly.key == "" then out.weekly.key, out.weekly.t = a.weekly.key, a.weekly.t end
+		out.weekly.p = math.max(a.weekly.p, b.weekly.p)
+		out.weekly.claimed = a.weekly.claimed or b.weekly.claimed
+	end
+	out.wardrobe = b.wardrobe
+	for _, k in ipairs({"titles", "badges"}) do for key in pairs(a.wardrobe[k]) do out.wardrobe[k][key] = true end end
+	out.seq = math.max(a.seq, b.seq)
+	local seen = {}
+	for _, src in ipairs({a.grants, b.grants}) do
+		for _, g in ipairs(src) do
+			if not seen[g.id] and not (paid and paid[g.id]) then
+				seen[g.id] = true
+				table.insert(out.grants, g)
+			end
+		end
+	end
+	for _, src in ipairs({a.events, b.events}) do for k, v in pairs(src) do out.events[k] = math.max(out.events[k] or 0, v) end end
+	for _, src in ipairs({a.coop, b.coop}) do for k, v in pairs(src) do out.coop[k] = math.max(out.coop[k] or 0, v) end end
+	return out
+end
+-- every new v16 field and its safe default
+function M.v16Defaults()
+	return {
+		path = {xp = {mogul = 0, under = 0, legend = 0}, contracts = {}, done = 0},   -- the three ways to build an empire (GameServer > Paths)
+		roadmap = {stage = 0},                                                         -- the last Empire Roadmap stage celebrated
+		grantsGot = {},                                                                -- account rewards already paid into this save (id -> time)
+		tokens = {upgrade = 0, carmod = 0},                                            -- reward tokens: -25% on an upgrade, a free car mod
+	}
+end
 -- every new v15 field and its safe default
 function M.v15Defaults()
 	return {
@@ -214,6 +344,7 @@ function M.featureDefaults()
 	for k, v in pairs(M.v13Defaults()) do out[k] = v end
 	for k, v in pairs(M.v14Defaults()) do out[k] = v end
 	for k, v in pairs(M.v15Defaults()) do out[k] = v end
+	for k, v in pairs(M.v16Defaults()) do out[k] = v end
 	return out
 end
 -- the 16 land lots of v5-v9, in the order the world built them (4 per district)
@@ -439,6 +570,12 @@ function M.sampleSaves()
 		v14 = {SchemaVersion = 14, cash = 9.1e9, earned = 3e10, levels = {lemonade = 10, pizza = 10, tech = 9, theater = 4}, rep = 14000, tut = 0, tutPaid = 7,
 			deeds = {{id = "d5", district = "entertainment", plot = 1, paid = 2e6, biz = "theater"}}, theater = {up = {seats = 3}, sessions = 40, tickets = 5000, best = 300, filmShows = 2, premiered = {dino = true}},
 			rivals = {p = {pixel = 0.98}, wins = 3, losses = 1, moves = 9}, loft = {level = 2}, prestige = {stars = {shows100 = 1}}, cars = {coupe = true}, unknownFuture4 = {keep = "me four"}},
+		v15 = {SchemaVersion = 15, cash = 1.2e10, earned = 4e10, levels = {lemonade = 10, pizza = 10, theater = 5, park = 3}, rep = 15000, tut = 0, tutPaid = 7,
+			deeds = {{id = "d6", district = "downtown", plot = 1, paid = 3e6, biz = "park"}}, park = {items = {{id = 1, k = "carousel", x = 2, z = 2, r = 0}}, stats = {}, visitors = 900, rides = 40, guestRides = 7, best = 55, seq = 1},
+			theater = {up = {seats = 2}, sessions = 12, tickets = 900, best = 120, filmShows = 1, premiered = {}}, staff = {pizza = {name = "Sam", stars = 3, trait = "fast", xp = 40}},
+			prestige = {stars = {cinema = 1}}, coop = {biz = {}, of = {}}, xfer = {out = {}, got = {x1 = true}, log = {}, seq = 3}, unknownFuture5 = {keep = "me five"}},
+		brokenV16 = {SchemaVersion = 16, cash = 1357, earned = 9000, levels = {lemonade = 5}, rep = 12, tut = 0, tutPaid = 7,
+			path = {xp = "lots", contracts = {}, done = -1}, roadmap = "stage 9", tokens = {upgrade = -4}},
 		brokenV15 = {SchemaVersion = 15, cash = 2468, earned = 9000, levels = {lemonade = 5, park = 1}, rep = 12, tut = 0, tutPaid = 7,
 			park = {items = "rides!", visitors = -10, rides = 7, stats = {}}},
 		brokenV14 = {SchemaVersion = 14, cash = 4321, earned = 9000, levels = {lemonade = 5, theater = 2}, rep = 11, tut = 0, tutPaid = 7, theater = {up = "big", sessions = -2, premiered = {dino = true}}},
@@ -555,6 +692,41 @@ function M.selfTest()
 		local ok, t, log = M.migrate(samples.brokenV15)
 		add(ok and t.cash == 2468 and t.levels.park == 1 and type(t.park.items) == "table" and t.parkRecovered == nil and t.park.visitors == 0 and t.park.rides == 7,
 			"a damaged v15 park record is repaired field by field; the rest of the save loads (" .. table.concat(log, " | ") .. ")")
+	end
+	do
+		local orig = samples.v15
+		local before = deepCopy(orig)
+		local ok, t, log = M.migrate(orig)
+		add(ok and t.SchemaVersion == V.SCHEMA_VERSION and t.cash == before.cash and t.earned == before.earned and t.levels.park == 3 and t.park.items[1].k == "carousel"
+			and t.park.guestRides == 7 and t.theater.sessions == 12 and t.staff.pizza.xp == 40 and t.prestige.stars.cinema == 1 and t.xfer.got.x1 == true
+			and t.unknownFuture5.keep == "me five" and type(t.path) == "table" and t.path.xp.mogul == 0 and type(t.grantsGot) == "table" and orig.path == nil and orig.SchemaVersion == 15,
+			"v15 save keeps cash, businesses, the park, theater, staff, prestige, ledger and unknown fields, and gets the v16 records (" .. table.concat(log, " | ") .. ")")
+	end
+	do
+		local ok, t, log = M.migrate(samples.brokenV16)
+		add(ok and t.cash == 1357 and type(t.path.xp) == "table" and type(t.roadmap) == "table" and t.path.done == 0 and t.tokens.upgrade == 0,
+			"a damaged v16 record is repaired field by field; the rest of the save loads (" .. table.concat(log, " | ") .. ")")
+	end
+	do
+		local broken = deepCopy(samples.v15)
+		local real = M.steps[15]
+		M.steps[15] = function() error("simulated bug in the v16 step") end
+		local ok, _, _, err = M.migrate(broken)
+		M.steps[15] = real
+		add(not ok and tostring(err):find("15 %-> 16") ~= nil and samples.v15.path == nil, "a crashing v16 step is refused and the stored v15 save is untouched: " .. tostring(err))
+	end
+	do
+		-- the account record: junk is repaired field by field; a merge never un-claims or loses progress
+		local junk = {introSeen = "yes", daily = {claimed = -3, streak = "x", cycle = 99}, missions = "?", weekly = {week = 5, p = 0 / 0}, wardrobe = {titles = {legend = true}, title = "nope"},
+			grants = {{id = "g1", slot = 1, cash = 50}, "junk", {id = 5}}}
+		local r = M.repairAcct(junk)
+		add(r.introSeen == false and r.daily.claimed == 0 and r.daily.cycle == 7 and r.weekly.p == 0 and r.wardrobe.titles.legend and r.wardrobe.title == "" and #r.grants == 1,
+			"a damaged account record is repaired field by field (" .. #r.grants .. " good grant kept)")
+		local stored = {daily = {claimed = 100, streak = 4}, missions = {day = 100, picks = {"serve"}, p = {3}, done = {true}}, grants = {{id = "g1", slot = 1, cash = 5}}, seq = 1}
+		local mem = {daily = {claimed = 99, streak = 3}, missions = {day = 100, picks = {"serve"}, p = {1}, done = {false}}, grants = {{id = "g2", slot = 2, cash = 7}}, seq = 2}
+		local mg = M.mergeAcct(stored, mem, {g1 = true})
+		add(mg.daily.claimed == 100 and mg.missions.p[1] == 3 and mg.missions.done[1] and #mg.grants == 1 and mg.grants[1].id == "g2" and mg.seq == 2,
+			"merging the stored and in-memory account records keeps every claim and the most progress, and drops paid grants")
 	end
 	do
 		local broken = deepCopy(samples.v14)

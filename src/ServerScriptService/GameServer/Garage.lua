@@ -167,6 +167,13 @@ function F.customizeCar(plr, key, kind, value)
 			if not opt then return false end
 			if mods[kind] == value then return false end
 			local cost = F.modCost(spec, opt)
+			-- v16: a 🎨 free-makeover token from the daily rewards pays for one part
+			local token = cost > 0 and type(d.tokens) == "table" and (tonumber(d.tokens.carmod) or 0) > 0
+			if token then
+				cost = 0
+				d.tokens.carmod -= 1
+				notify(plr, "🎨 Free makeover token used.", {pri = "normal", cat = "money"})
+			end
 			if d.cash < cost then notify(plr, "🎨 " .. opt.name .. " costs $" .. fmt(cost) .. ".") return false end
 			d.cash -= cost
 			mods[kind] = value

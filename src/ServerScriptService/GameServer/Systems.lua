@@ -336,6 +336,7 @@ function F.serveCustomer(plr, d, key, t, review)
 	if lvl <= 0 then return end
 	d.served += 1
 	d.war.customers += 1
+	if F.track then F.track(plr, "serve") end   -- v16: daily missions, paths
 	d.bizServed = d.bizServed or {}
 	d.bizServed[key] = (d.bizServed[key] or 0) + 1
 	if F.revisitReviews then F.revisitReviews(plr, d, key) end
@@ -425,8 +426,15 @@ function F.buyUpgrade(plr, d, key)
 		return
 	end
 	local cost = F.upgradeCost(d, key)
+	-- v16: a 🏷️ discount token from the daily rewards takes 25% off (used up only when the upgrade happens)
+	local token = type(d.tokens) == "table" and (tonumber(d.tokens.upgrade) or 0) > 0
+	if token then cost = math.floor(cost * 0.75) end
 	if d.cash < cost then return end
 	d.cash -= cost
+	if token then
+		d.tokens.upgrade -= 1
+		notify(plr, "🏷️ Discount token used: 25% off this upgrade.", {pri = "normal", cat = "money"})
+	end
 	d.levels[key] = lvl + 1
 	local ch = d.chains[key] or 0
 	local oldStage, newStage = stageOf(lvl, ch), stageOf(lvl + 1, ch)

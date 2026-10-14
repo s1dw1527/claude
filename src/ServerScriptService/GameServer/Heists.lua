@@ -675,6 +675,7 @@ function F.heistTurnIn(plr)
 		F.buzz(s.icon, lines[math.random(#lines)], s.color)
 	end
 	if F.addRep then F.addRep(plr, 5) end
+	if F.track then F.track(plr, "heist") end   -- v16: missions + the Underworld path (only a heist that got home counts)
 	return true
 end
 F.heistEnteredBase = function(plr) if robbers[plr] and robbers[plr].bag > 0 then F.heistTurnIn(plr) end end

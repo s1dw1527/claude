@@ -49,6 +49,10 @@ local function rec(d)
 end
 -- the step to show: the first not-done, not-skipped one (skipped ones come back once the rest are done)
 local function current(d, o)
+	-- v16: the starting attitude picked after the intro puts its step first (GameServer > Paths)
+	if type(o.first) == "string" then
+		for i, s in ipairs(STEPS) do if s.key == o.first and not o.done[s.key] and not o.skip[s.key] then return i, s end end
+	end
 	for i, s in ipairs(STEPS) do if not o.done[s.key] and not o.skip[s.key] then return i, s end end
 	for i, s in ipairs(STEPS) do if not o.done[s.key] then return i, s end end
 	return nil
@@ -118,6 +122,15 @@ function F.onboardSkip(plr)
 	local _, s = current(d, o)
 	if not s or o.skip[s.key] then return false end
 	o.skip[s.key] = true
+	push(plr, d, true)
+	return true
+end
+-- v16: put a step first (it pays nothing by itself; the step pays its usual small reward when it's done)
+function F.onboardFirst(plr, key)
+	local d = data[plr]
+	if not d then return false end
+	local o = rec(d)
+	o.first = key
 	push(plr, d, true)
 	return true
 end

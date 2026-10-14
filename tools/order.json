@@ -53,6 +53,9 @@
     "Leaders",
     "Occasions",
     "Onboarding",
+    "Daily",
+    "Paths",
+    "Roadmap",
     "Updates",
     "Players"
   ],
@@ -83,6 +86,8 @@
     "HomeLifeUI",
     "LeadersUI",
     "JourneyUI",
+    "DailyUI",
+    "RoadmapUI",
     "ComputerUI",
     "GarageUI",
     "ArcadeUI",

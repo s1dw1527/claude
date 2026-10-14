@@ -845,6 +845,7 @@ function F.parkRide(plr, owner, id)
 	op.rides += 1
 	if plr ~= owner then
 		op.guestRides += 1
+		if F.track then F.track(plr, "visitPark") end   -- v16: daily missions
 		-- the owner earns a ticket (and a little reputation, a few times an hour)
 		local ticket = math.floor(math.max(BIZ.park.income, (F.incomePerSec and F.incomePerSec(od) or 0) * 0.05) * PK.ticketSecs)
 		od.cash += ticket

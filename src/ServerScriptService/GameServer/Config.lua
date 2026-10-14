@@ -4,9 +4,9 @@ local RGB = Color3.fromRGB
 
 -- ===== VERSION (bump these with every published update; see README "How to update Corner Empire") =====
 C.VERSION = {
-	VERSION = "15.0.0",
-	UPDATE_NAME = "Life & Empire: Funland",
-	SCHEMA_VERSION = 15,         -- the shape of a player's save. Raise it only together with a new step in DataMigration.
+	VERSION = "16.0.0",
+	UPDATE_NAME = "Life & Empire: Rise to Riches",
+	SCHEMA_VERSION = 16,         -- the shape of a player's save. Raise it only together with a new step in DataMigration.
 	MIN_SUPPORTED_SCHEMA = 6,   -- saves older than v6 (no version field, no tutorial-reward tracking) are treated as v6
 	-- shown once to every returning player after an update (Messages app)
 	NOTES = {
