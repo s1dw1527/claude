@@ -30,6 +30,9 @@ function T.startServer()
 	-- (v14: AI rivals make their own moves after a few minutes of play, which puts a challenge card in the
 	-- notification stack in the middle of unrelated tests. Tests start with them quiet; rivals_test makes moves itself.)
 	if T.C.RIVAL_CFG then T.C.RIVAL_CFG.firstMove, T.C.RIVAL_CFG.moveMin, T.C.RIVAL_CFG.moveMax = 1e7, 1e7, 1e7 + 1 end
+	-- (v16: live city events boost things depending on the simulated clock; tests start with them paused so
+	-- payouts are predictable. events_test turns them back on.)
+	T.C.LIVE_PAUSED = true
 	return T.C
 end
 -- the slot DataStore the server really uses (in "Studio" that's the _StudioTest copy of the live store)

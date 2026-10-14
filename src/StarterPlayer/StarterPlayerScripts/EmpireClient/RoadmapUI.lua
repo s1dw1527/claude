@@ -123,7 +123,7 @@ local function render()
 	end
 	local ch = card(m.body, 50, nx(), RGB(26, 28, 40))
 	txt(ch, "Starting attitude: " .. ((p and p.choice) and p.choice or "not chosen"), UDim2.fromOffset(12, 14), UDim2.new(1, -340, 0, 20), 12, SUB)
-	btn(ch, "🪪 My showcase", UDim2.new(1, -328, 0.5, -17), UDim2.fromOffset(150, 34), GOLD, function() if C.openShowcase then C.openShowcase(nil) end end, "MyShowcase")
+	btn(ch, "🪪 My showcase", UDim2.new(1, -328, 0.5, -17), UDim2.fromOffset(150, 34), PURPLE, function() if C.openShowcase then C.openShowcase(nil) end end, "MyShowcase")
 	btn(ch, "🏙️ Change it", UDim2.new(1, -170, 0.5, -17), UDim2.fromOffset(158, 34), BLUE, function() C.openStartChoice() end, "ChangeStart")
 end
 RU.render = render

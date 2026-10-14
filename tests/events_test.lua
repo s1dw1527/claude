@@ -11,6 +11,7 @@ H.main(function()
 	d.tut = 0
 	C.G.nextEvent = H.now() + 1e6
 	C.MEGA_STATE.nextAt = H.now() + 1e6
+	C.LIVE_PAUSED = false
 	local W = C.LIVE_WINDOW
 	local clock = 1750000000
 	C.dailyClock = function() return clock end

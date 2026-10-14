@@ -15,6 +15,7 @@ local P, surfaceText = C.P, C.surfaceText
 local V3, CF, MAT = Vector3.new, CFrame.new, Enum.Material
 
 C.LIVE_WINDOW = 4 * 3600
+C.LIVE_PAUSED = false   -- true: no boosts, no goals, no announcements (e.g. to pause events in a live game)
 C.LIVE_EVENTS = {
 	{key = "rush", icon = "🍽️", name = "Restaurant Rush", color = RGB(255, 140, 60), text = "Hungry crowds: +25% customers at every business.",
 		mult = {customers = 1.25}, goal = {kind = "cook", n = 5, text = "Serve 5 perfect 🍳 Rush Orders"}, reward = {secs = 600, min = 3000}},
@@ -49,6 +50,7 @@ function F.liveAt(t)
 	return ev, win, win * C.LIVE_WINDOW, (win + 1) * C.LIVE_WINDOW
 end
 function F.liveMult(kind)
+	if C.LIVE_PAUSED then return 1 end
 	local ev = F.liveAt()
 	return ev and ev.mult[kind] or 1
 end
@@ -57,6 +59,7 @@ end
 local prog = {}   -- [plr] = {id, p}
 local function evId(ev, win) return ev.key .. win end
 function F.liveTrack(plr, kind, n)
+	if C.LIVE_PAUSED then return end
 	local ev, win = F.liveAt()
 	if not (ev and ev.goal and ev.goal.kind == kind) then return end
 	local id = evId(ev, win)
@@ -146,7 +149,7 @@ task.spawn(function()
 		task.wait(5)
 		refreshBoard()
 		local ev, win = F.liveAt()
-		for _, plr in ipairs(Players:GetPlayers()) do
+		for _, plr in ipairs(C.LIVE_PAUSED and {} or Players:GetPlayers()) do
 			local d = data[plr]
 			if d and (d.tut or 0) == 0 and told[plr] ~= win and not F.playerBusy(plr) then
 				told[plr] = win
