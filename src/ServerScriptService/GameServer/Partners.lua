@@ -312,7 +312,7 @@ function F.coopContribute(plr, ownerUid, key)
 	-- the payer's cash goes in, the owner's business upgrades, the owner's own cash is untouched
 	d.cash -= cost
 	od.cash += cost
-	F.buyUpgrade(owner, od, key)
+	F.buyUpgrade(owner, od, key, true)
 	if (od.levels[key] or 0) <= lvl then
 		od.cash -= cost
 		d.cash += cost
@@ -323,6 +323,7 @@ function F.coopContribute(plr, ownerUid, key)
 	blog(od, key, plr.Name .. " paid for level " .. (lvl + 1) .. " ($" .. fmt(cost) .. ")")
 	notify(owner, "🤝 " .. plr.Name .. " paid for your " .. bizName(od, key) .. "'s level " .. (lvl + 1) .. " upgrade!")
 	notify(plr, "🤝 You paid $" .. fmt(cost) .. " for " .. owner.Name .. "'s " .. bizName(od, key) .. " (level " .. (lvl + 1) .. ").")
+	if F.coopCredit then F.coopCredit(plr, owner, bizName(od, key)) end   -- v16: a co-op bonus for both, once a day
 	return true
 end
 -- revenue shares: out of the business's own income, while the owner plays

@@ -122,7 +122,8 @@ local function render()
 		end
 	end
 	local ch = card(m.body, 50, nx(), RGB(26, 28, 40))
-	txt(ch, "Starting attitude: " .. ((p and p.choice) and p.choice or "not chosen"), UDim2.fromOffset(12, 14), UDim2.new(1, -200, 0, 20), 12, SUB)
+	txt(ch, "Starting attitude: " .. ((p and p.choice) and p.choice or "not chosen"), UDim2.fromOffset(12, 14), UDim2.new(1, -340, 0, 20), 12, SUB)
+	btn(ch, "🪪 My showcase", UDim2.new(1, -328, 0.5, -17), UDim2.fromOffset(150, 34), GOLD, function() if C.openShowcase then C.openShowcase(nil) end end, "MyShowcase")
 	btn(ch, "🏙️ Change it", UDim2.new(1, -170, 0.5, -17), UDim2.fromOffset(158, 34), BLUE, function() C.openStartChoice() end, "ChangeStart")
 end
 RU.render = render
@@ -150,11 +151,22 @@ R.Menu.OnClientEvent:Connect(function(kind, a)
 		if a.app then task.delay(0.6, function() C.openModal(a.app, true) end) end
 	elseif kind == "play" then
 		RU.wantChoice = type(a) == "table" and a.isNew == true
-	elseif kind == "onboard" and RU.wantChoice then
-		-- a new game: once the tutorial is over and the next steps begin, pick how to start
+	elseif kind == "onboard" and RU.wantChoice and type(a) == "table" then
+		-- a new game: once the tutorial is over and the next steps begin, pick how to start (if not chosen yet).
+		-- It waits until no window is open and no cutscene is playing, so it never interrupts anything.
 		RU.wantChoice = false
-		task.delay(1.5, function()
-			if not C.inMainMenu and not (C.cinematicPlaying and C.cinematicPlaying()) then C.openStartChoice() end
+		if a.choice then return end
+		task.spawn(function()
+			for _ = 1, 60 do
+				task.wait(2)
+				if C.inMainMenu then return end
+				local busy = C.cinematicPlaying and C.cinematicPlaying()
+				for _, md in pairs(C.modals) do if md.frame.Visible then busy = true end end
+				if not busy then
+					C.openStartChoice()
+					return
+				end
+			end
 		end)
 	end
 end)

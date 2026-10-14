@@ -378,7 +378,8 @@ local function endJob(plr, st, ok, why)
 	local c = rec(d)
 	if ok then
 		local J = X.jobs[a.kind]
-		local cash = math.floor(reward(d, J.secs, J.min) * (a.bonus or 1) * (F.vehicleBonus and F.vehicleBonus(plr, "jobs") or 1))   -- (v14: 🚚 Hauler)
+		local cash = math.floor(reward(d, J.secs, J.min) * (a.bonus or 1) * (F.vehicleBonus and F.vehicleBonus(plr, "jobs") or 1)   -- (v14: 🚚 Hauler)
+			* (F.liveMult and F.liveMult("jobPay") or 1))   -- (v16: 📦 Double Delivery Day)
 		pay(plr, d, cash, J.rep)
 		c.jobs += 1
 		c.jobPay += cash

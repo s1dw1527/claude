@@ -258,6 +258,7 @@ function F.customerRate(d, now)
 	if mk then r *= 1 + 0.06 * staffStars(mk) end
 	if G.event and G.event.customers then r *= G.event.customers end
 	if G.megaCustomers then r *= G.megaCustomers end
+	if F.liveMult then r *= F.liveMult("customers") end   -- v16: 🍽️ Restaurant Rush
 	r *= F.comboPerk(d, "customers")
 	if F.mysteryPerk then r *= F.mysteryPerk(d, "customers") end
 	if (d.viralUntil or 0) > now then r *= 3 end
@@ -411,7 +412,7 @@ function F.goViral(plr, d, key, quote)
 end
 
 -- ===== BUSINESS UPGRADES + CHAINS =====
-function F.buyUpgrade(plr, d, key)
+function F.buyUpgrade(plr, d, key, noToken)
 	local b = BIZ[key]
 	local lvl = d.levels[key] or 0
 	if lvl >= CFG.MAX_LEVEL then return end
@@ -427,7 +428,8 @@ function F.buyUpgrade(plr, d, key)
 	end
 	local cost = F.upgradeCost(d, key)
 	-- v16: a 🏷️ discount token from the daily rewards takes 25% off (used up only when the upgrade happens)
-	local token = type(d.tokens) == "table" and (tonumber(d.tokens.upgrade) or 0) > 0
+	-- (not when a partner pays for it: GameServer > Partners puts in the full price)
+	local token = not noToken and type(d.tokens) == "table" and (tonumber(d.tokens.upgrade) or 0) > 0
 	if token then cost = math.floor(cost * 0.75) end
 	if d.cash < cost then return end
 	d.cash -= cost

@@ -38,8 +38,26 @@ local function renderClosed(info)
 		.. "Opening costs $" .. fmt(info.cost) .. " + the plot.  " .. (info.unlocked and "You can open one now." or ("🔒 Unlocks at " .. tostring(info.need) .. " reputation.")),
 		UDim2.fromOffset(14, 40), UDim2.new(1, -28, 0, 110), 12, WHITE)
 	btn(c, "🏙️ Choose a plot", UDim2.new(1, -184, 1, -48), UDim2.fromOffset(170, 38), info.unlocked and GREEN or GRAY, function() if C.openLotShop then C.openLotShop("park") end end, "ParkPlots")
+	PU.renderList()   -- (v16: visit other players' parks before you have one)
 end
 
+-- other parks in this server (anyone can visit, with or without a park of their own)
+function PU.renderList()
+	local h = card(m.body, 30, 10, RGB(26, 28, 40))
+	txt(h, "👀 PARKS IN THIS SERVER", UDim2.fromOffset(12, 6), UDim2.new(1, -24, 0, 20), 13, GOLD, true)
+	if #(PU.list or {}) == 0 then
+		local c = card(m.body, 34, 11)
+		txt(c, "No parks open in this server yet.", UDim2.fromOffset(12, 8), UDim2.new(1, -24, 0, 20), 12, SUB)
+	end
+	for i, p in ipairs(PU.list or {}) do
+		local c = card(m.body, 58, 10 + i)
+		txt(c, "🎢 " .. p.park .. "  (" .. p.name .. ")  ⭐ " .. p.rating, UDim2.fromOffset(12, 6), UDim2.new(1, -200, 0, 20), 13, WHITE, true)
+		-- (v16: visitors and the star ride; a visit pays a small reward the first time each day)
+		txt(c, "👥 " .. fmt(p.visitors or 0) .. " visitors" .. (p.featured and ("  •  " .. p.featured) or ""), UDim2.fromOffset(12, 30), UDim2.new(1, -200, 0, 18), 11, SUB)
+		btn(c, "🪪", UDim2.new(1, -186, 0.5, -16), UDim2.fromOffset(52, 32), GRAY, function() if C.openShowcase then C.openShowcase(p.userId) end end, "ParkProfile_" .. p.userId)
+		if not p.mine then btn(c, "Visit", UDim2.new(1, -126, 0.5, -16), UDim2.fromOffset(114, 32), BLUE, function() act("parkGo", p.userId) C.closeModals() end, "ParkVisit_" .. p.userId) end
+	end
+end
 local function renderOverview(info)
 	local top = card(m.body, 116, 2, RGB(50, 30, 40))
 	stroke(top, GOLD, 2, 0.4)
@@ -56,14 +74,7 @@ local function renderOverview(info)
 		local w = card(m.body, 40, 4, RGB(70, 40, 20))
 		txt(w, "📍 Your park has no city plot right now: open it on one of your plots to sell tickets again.", UDim2.fromOffset(12, 6), UDim2.new(1, -24, 1, -10), 12, GOLD)
 	end
-	-- other parks in this server
-	local h = card(m.body, 30, 10, RGB(26, 28, 40))
-	txt(h, "👀 PARKS IN THIS SERVER", UDim2.fromOffset(12, 6), UDim2.new(1, -24, 0, 20), 13, GOLD, true)
-	for i, p in ipairs(PU.list or {}) do
-		local c = card(m.body, 46, 10 + i)
-		txt(c, "🎢 " .. p.park .. "  (" .. p.name .. ")  ⭐ " .. p.rating, UDim2.fromOffset(12, 12), UDim2.new(1, -140, 0, 20), 13, WHITE, true)
-		btn(c, "Visit", UDim2.new(1, -120, 0.5, -16), UDim2.fromOffset(108, 32), BLUE, function() act("parkGo", p.userId) C.closeModals() end, "ParkVisit_" .. p.userId)
-	end
+	PU.renderList()
 	local n = card(m.body, 58, 40, RGB(26, 28, 40))
 	txt(n, "The rating comes from exciting rides (new kinds count most), food stalls to go with them, decorations and paths. "
 		.. "It boosts the park's sales up to ×1.8 and brings more visitors. Every ride has a 🎢 Ride prompt: step up and ride it.",
@@ -207,7 +218,7 @@ R.Menu.OnClientEvent:Connect(function(kind, a)
 		if m.frame.Visible then PU.render() end
 	elseif kind == "parkList" and type(a) == "table" then
 		PU.list = a
-		if m.frame.Visible and PU.tab == "park" and PU.info then PU.render() end
+		if m.frame.Visible and (PU.tab == "park" or not (PU.info and PU.info.open)) and PU.info then PU.render() end
 	end
 end)
 end

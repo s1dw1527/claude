@@ -229,6 +229,13 @@ end)
 
 function C.applySettings()
 	local s = C.settings
+	-- v16: the sound effects volume (each effect keeps its own base volume)
+	for _, snd in pairs(C.SND or {}) do
+		if typeof(snd) == "Instance" and snd:IsA("Sound") then
+			if snd:GetAttribute("BaseVolume") == nil then snd:SetAttribute("BaseVolume", snd.Volume) end
+			snd.Volume = snd:GetAttribute("BaseVolume") * (tonumber(s.sfxVol) or 7) / 7
+		end
+	end
 	music.Volume = s.music and musicVolume() or 0
 	amb.Volume = s.sfx and (amb.IsPlaying and 0.3 or 0) or 0
 	pcall(apply)

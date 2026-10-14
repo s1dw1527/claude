@@ -72,6 +72,9 @@ function T.quietOnboarding(d)
 	local done = {}
 	for _, s in ipairs(T.C.ONBOARD_STEPS) do done[s.key] = 1 end
 	d.onboard = {seeded = true, finished = true, done = done, skip = {}, c = {}}
+	-- (v16: and the starting attitude already picked, so the choice card doesn't pop up mid-test; roadmap_test covers it)
+	d.path = type(d.path) == "table" and d.path or {}
+	d.path.choice = d.path.choice or "smart"
 end
 function T.newGame(plr, slot, starter)
 	T.act(plr, "menuNew", slot or 1, starter or 1)

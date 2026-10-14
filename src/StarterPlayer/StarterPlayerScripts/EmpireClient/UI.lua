@@ -134,7 +134,7 @@ C.SND = {
 	msg = sound("rbxasset://sounds/electronicpingshort.wav", 0.3),
 	tap = sound("rbxasset://sounds/switch.wav", 0.18),
 }
-C.settings = {music = true, musicVol = 5, sfx = true, crowd = "high", weather = true, units = "MPH", spawnAt = "business", cinematics = "full"}
+C.settings = {music = true, musicVol = 5, sfx = true, crowd = "high", weather = true, units = "MPH", spawnAt = "business", cinematics = "full", alerts = "all", sfxVol = 7}
 -- the same sound twice within a moment plays once (a button's tap + its click handler, two toasts at once)
 local lastPlayed = {}
 function C.play(s)

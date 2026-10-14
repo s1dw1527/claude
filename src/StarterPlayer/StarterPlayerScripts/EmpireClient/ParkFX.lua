@@ -184,7 +184,7 @@ end
 local function want(site)
 	local crowd = C.settings and C.settings.crowd or "high"
 	if crowd == "off" then return 0 end
-	local n = math.clamp(3 + math.floor((site:GetAttribute("Rating") or 0) / 7), 3, POOL_MAX)
+	local n = math.clamp(math.floor((3 + (site:GetAttribute("Rating") or 0) / 7) * (site:GetAttribute("Boost") or 1)), 3, POOL_MAX)   -- (v16: busier during city events)
 	return crowd == "low" and math.ceil(n / 2) or n
 end
 local function placeVisitor(v, gcf, cells, list)

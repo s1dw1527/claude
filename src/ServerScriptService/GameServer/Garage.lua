@@ -177,6 +177,7 @@ function F.customizeCar(plr, key, kind, value)
 			if d.cash < cost then notify(plr, "🎨 " .. opt.name .. " costs $" .. fmt(cost) .. ".") return false end
 			d.cash -= cost
 			mods[kind] = value
+			if F.track then F.track(plr, "carmod") end   -- v16: 🏎️ Luxury Showcase
 			notify(plr, "🎨 " .. opt.name .. (cost > 0 and (" (-$" .. fmt(cost) .. ")") or ""))
 		end
 	else

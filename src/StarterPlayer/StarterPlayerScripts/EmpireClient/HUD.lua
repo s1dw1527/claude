@@ -326,20 +326,47 @@ do
 		end)
 	end
 	U.toastQueue = queue
-	function U.toast(msg)
+	-- v16: opts from the server {pri = "critical" | "normal" | "low", cat, key}:
+	--   * critical (purchases, claims, arrests, save problems, mission results) is never dropped: it goes to the
+	--     front of the queue even when the queue is full, and it ignores "Pop-up alerts: important only"
+	--   * low ones with the same key close together are grouped ("×3") instead of queued again
+	--   * with Settings → Pop-up alerts: IMPORTANT ONLY, everything else only goes to the 🔔 Activity log
+	--     (warnings still pop up)
+	local groupKey, groupAt = nil, 0
+	function U.toast(msg, opts)
 		msg = tostring(msg or "")
 		if msg == "" then return end
+		opts = type(opts) == "table" and opts or {}
 		local cat = catOf(msg)
+		local critical = opts.pri == "critical" or cat.key == "warn"
 		logIt(msg, cat)
+		if not critical and C.settings.alerts == "important" then
+			U.unread += 1
+			if U.onActivity then U.onActivity() end
+			return
+		end
 		-- the same message again: count it instead of showing it again
 		if current and msg == lastMsg and os.clock() - shownAt < 4 then
 			repeats += 1
 			toastL.Text = msg .. "  ×" .. repeats
 			return
 		end
+		if opts.pri == "low" and opts.key and current and groupKey == opts.key and os.clock() - groupAt < 6 then
+			repeats += 1
+			toastL.Text = msg .. "  ×" .. repeats
+			return
+		end
+		groupKey, groupAt = opts.key, os.clock()
 		for _, q in ipairs(queue) do if q == msg then return end end
 		if current then
-			if #queue < 3 then
+			if critical then
+				table.insert(queue, 1, msg)
+				while #queue > 4 do
+					table.remove(queue)
+					U.unread += 1
+				end
+				if U.onActivity then U.onActivity() end
+			elseif #queue < 3 then
 				table.insert(queue, msg)
 			else
 				U.unread += 1

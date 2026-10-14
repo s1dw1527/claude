@@ -658,7 +658,7 @@ function F.heistTurnIn(plr)
 	-- clear the bag FIRST: a second call (or a double prompt) finds nothing
 	local value = r.bag
 	r.bag = 0
-	local pay = math.floor(value * r.mult * fenceBonus(d))
+	local pay = math.floor(value * r.mult * fenceBonus(d) * (F.liveMult and F.liveMult("heistPay") or 1))   -- (v16: 🚨 Underworld Alert)
 	d.cash += pay
 	d.earned += pay
 	local h = rec(d)
@@ -678,6 +678,7 @@ function F.heistTurnIn(plr)
 	if F.track then F.track(plr, "heist") end   -- v16: missions + the Underworld path (only a heist that got home counts)
 	return true
 end
+F.heistActive = function(plr) return robbers[plr] ~= nil end   -- (v16: no announcements mid-heist)
 F.heistEnteredBase = function(plr) if robbers[plr] and robbers[plr].bag > 0 then F.heistTurnIn(plr) end end
 
 -- =====================================================================

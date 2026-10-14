@@ -273,6 +273,7 @@ local function refreshSign(site)
 	local d = site.owner and data[site.owner]
 	s.Parent:SetAttribute("Rating", d and (F.parkScore(d)) or 0)
 	s.Parent:SetAttribute("GridCF", site.cf)
+	s.Parent:SetAttribute("Boost", F.liveMult and F.liveMult("parkVisitors") or 1)   -- (v16: Funland Night / Community Weekend crowds)
 end
 for _, site in ipairs(SITES) do
 	buildSiteBase(site)
@@ -799,6 +800,7 @@ end
 
 -- ===== riding =====
 local riding, rodeAt, repHour = {}, {}, {}
+function F.isRiding(plr) return riding[plr] == true end
 -- play a ride for one player: checks they're free and close enough, holds them in place, the client's camera
 -- rides the model's RideSeat for dur seconds. Returns true or false, why.
 function F.playRide(plr, m, spot, dur, show)
@@ -846,8 +848,9 @@ function F.parkRide(plr, owner, id)
 	if plr ~= owner then
 		op.guestRides += 1
 		if F.track then F.track(plr, "visitPark") end   -- v16: daily missions
+		if F.parkVisit then F.parkVisit(plr, owner) end   -- v16: visitor + host rewards (GameServer > Showcase)
 		-- the owner earns a ticket (and a little reputation, a few times an hour)
-		local ticket = math.floor(math.max(BIZ.park.income, (F.incomePerSec and F.incomePerSec(od) or 0) * 0.05) * PK.ticketSecs)
+		local ticket = math.floor(math.max(BIZ.park.income, (F.incomePerSec and F.incomePerSec(od) or 0) * 0.05) * PK.ticketSecs * (F.liveMult and F.liveMult("parkTicket") or 1))
 		od.cash += ticket
 		local h = math.floor(os.time() / 3600)
 		repHour[owner] = (repHour[owner] and repHour[owner].h == h) and repHour[owner] or {h = h, n = 0}
@@ -929,8 +932,15 @@ C.ACTIONS.parkList = function(plr)
 	local out = {}
 	for _, site in ipairs(SITES) do
 		if site.owner and data[site.owner] then
-			table.insert(out, {userId = site.owner.UserId, name = site.owner.Name, park = F.bizName and F.bizName(data[site.owner], "park") or BIZ.park.name,
-				rating = (F.parkScore(data[site.owner])), site = site.i})
+			-- (v16: visitors so far and the most exciting ride, for the visit list)
+			local od = data[site.owner]
+			local best
+			for _, it in ipairs(rec(od).items) do
+				local def = ITEM[it.k]
+				if def.kind == "ride" and (not best or def.excite > best.excite) then best = def end
+			end
+			table.insert(out, {userId = site.owner.UserId, name = site.owner.Name, park = F.bizName and F.bizName(od, "park") or BIZ.park.name,
+				rating = (F.parkScore(od)), site = site.i, visitors = rec(od).visitors, featured = best and (best.icon .. " " .. best.name) or nil, mine = site.owner == plr})
 		end
 	end
 	R.Menu:FireClient(plr, "parkList", out)
@@ -953,7 +963,7 @@ task.spawn(function()
 				if site and t % PK.statEvery == 0 then
 					local p = rec(d)
 					local rating = F.parkScore(d)
-					local v = math.floor(rating * (1 + (d.levels.park or 0) * 0.3) / 4)
+					local v = math.floor(rating * (1 + (d.levels.park or 0) * 0.3) / 4 * (F.liveMult and F.liveMult("parkVisitors") or 1))
 					p.visitors += v
 					p.best = math.max(p.best, rating)
 					refreshSign(site)

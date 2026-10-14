@@ -118,7 +118,8 @@ local function win(plr, d, t)
 	t.p[ch.key] = math.max(0, pressure(t, ch.key) - RV.winDrop)
 	t.wins += 1
 	local _, per = F.income(d, os.clock())
-	local prize = math.max(100, math.floor((per and per[ch.key] or 0) * RV.rewardSecs))
+	local prize = math.max(100, math.floor((per and per[ch.key] or 0) * RV.rewardSecs * (F.liveMult and F.liveMult("rivalPrize") or 1)))   -- (v16: 🥊 Rival Takeover)
+	if F.track then F.track(plr, "rivalWin") end
 	d.cash += prize
 	F.earn(d, prize)
 	if F.addRep then F.addRep(plr, 5) end

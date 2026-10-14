@@ -747,6 +747,13 @@ do
 		C.setSetting("cinematics", ({full = "short", short = "off", off = "full"})[st.cinematics or "full"] or "full")
 	end)
 	row(10, "🎓 Tutorial", function() return "Restart" end, function() act("tut", "restart") end)
+	-- v16
+	row(11, "🔕 Pop-up alerts", function() return st.alerts == "important" and "IMPORTANT ONLY" or "ALL" end, function()
+		C.setSetting("alerts", st.alerts == "important" and "all" or "important")
+	end)
+	row(12, "🔉 Effects volume", function() local v = tonumber(st.sfxVol) or 7 return string.rep("▮", v) .. string.rep("▯", 10 - v) end,
+		function() C.setSetting("sfxVol", ((tonumber(st.sfxVol) or 7) + 1) % 11) end)
+	row(13, "🎬 Opening movie", function() return "▶ Replay" end, function() if C.playIntro then C.closeModals() C.playIntro(true) end end)
 	row(9, "🏢 Panels", function() return "Show all" end, function()
 		if U.collapse_biz then U.collapse_biz(true) end
 		if U.collapse_board then U.collapse_board(true) end

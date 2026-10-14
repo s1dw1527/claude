@@ -60,10 +60,11 @@ end
 local function view(plr, d)
 	local o = rec(d)
 	local i, s = current(d, o)
-	if not s then return {finished = true, done = count(o.done), total = #STEPS} end
+	local choice = type(d.path) == "table" and d.path.choice or nil   -- (v16: the starting attitude, if chosen)
+	if not s then return {finished = true, done = count(o.done), total = #STEPS, choice = choice} end
 	local locked = F.tierIndex(d.rep) < s.tier
 	return {step = i, total = #STEPS, done = count(o.done), key = s.key, icon = s.icon, title = s.title, text = s.text, app = s.app,
-		locked = locked, need = locked and C.REP_TIERS[s.tier].name or nil, reward = math.floor(math.max(OB.rewardMin, F.incomePerSec(d) * OB.rewardSecs))}
+		locked = locked, need = locked and C.REP_TIERS[s.tier].name or nil, reward = math.floor(math.max(OB.rewardMin, F.incomePerSec(d) * OB.rewardSecs)), choice = choice}
 end
 local last = {}
 local function push(plr, d, force)

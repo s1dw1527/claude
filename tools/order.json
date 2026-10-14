@@ -56,6 +56,8 @@
     "Daily",
     "Paths",
     "Roadmap",
+    "LiveEvents",
+    "Showcase",
     "Updates",
     "Players"
   ],
@@ -88,6 +90,7 @@
     "JourneyUI",
     "DailyUI",
     "RoadmapUI",
+    "ShowcaseUI",
     "ComputerUI",
     "GarageUI",
     "ArcadeUI",
