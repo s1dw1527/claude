@@ -435,6 +435,7 @@ function F.sendState(plr, now)
 			chainName = CHAINS[ch + 1] and CHAINS[ch + 1].name or nil,
 			problem = d.problems[b.key] ~= nil, staffStars = s and staffStars(s) or 0,
 			locked = tier < b.unlock, unlockName = REP_TIERS[b.unlock].name,
+			lotOnly = b.lotOnly == true, onPlot = b.lotOnly and F.siteDeed and F.siteDeed(d, b.key) ~= nil or nil,   -- (v15)
 		}
 		-- details for the business management card
 		local e = biz[b.index]

@@ -183,7 +183,7 @@ function F.theaterInfo(plr)
 	local open = (d.levels.theater or 0) > 0
 	local t = rec(d)
 	local deed = F.siteDeed and F.siteDeed(d, "theater")
-	local info = {open = open, level = d.levels.theater or 0, cost = F.upgradeCost(d, "theater"), unlocked = F.bizUnlocked(d, "theater"),
+	local info = {open = open, level = d.levels.theater or 0, cost = F.upgradeCost(d, "theater"), unlocked = F.bizUnlocked(d, "theater"), need = C.REP_TIERS[BIZ.theater.unlock].name,
 		hasPlot = deed ~= nil, placed = F.siteLot and F.siteLot(plr, "theater") ~= nil, film = t.film, sessions = t.sessions, tickets = t.tickets,
 		best = t.best, last = t.last, mult = F.theaterMult(d, "theater"), capacity = capacity(t), cash = d.cash,
 		films = {}, ups = {}, nextShow = nextShow[plr] and math.max(0, math.ceil(nextShow[plr] - os.clock())) or nil}

@@ -141,8 +141,8 @@ function BUI.openChooser(info)
 		txt(c, status, UDim2.fromOffset(58, 28), UDim2.new(1, -200, 0, 20), 11, o.locked and RGB(255, 160, 140) or SUB)
 		btn(c, info.biz == o.key and "✔ Current" or "Choose", UDim2.new(1, -130, 0.5, -19), UDim2.fromOffset(120, 38), o.locked and GRAY or GREEN, function()
 			if o.locked or info.biz == o.key then return end
+			-- (v15: stays open until the server says it worked, so a refusal's reason shows over it)
 			act("plotBiz", info.deed, o.key)
-			chooseM.frame.Visible = false
 		end)
 	end
 end
@@ -152,6 +152,8 @@ R.Menu.OnClientEvent:Connect(function(kind, a)
 		renderPlot(a)
 	elseif kind == "chooseBiz" and type(a) == "table" then
 		BUI.openChooser(a)
+	elseif kind == "plotBizDone" then
+		chooseM.frame.Visible = false
 	end
 end)
 

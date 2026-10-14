@@ -608,6 +608,7 @@ do
 		local b = cur.b
 		if not b then return end
 		if cur.mode == "buy" then act("buy", b.key) elseif cur.mode == "chain" then act("chain", b.key)
+		elseif cur.mode == "plot" then if C.openLotShop then C.openLotShop(b.key) end
 		elseif cur.mode == "locked" then U.toast("🔒 " .. b.name .. " unlocks at " .. b.unlockName .. " reputation. Keep earning good reviews!") end
 	end)
 	probFix.MouseButton1Click:Connect(function()
@@ -633,6 +634,11 @@ do
 			cur.mode = "locked"
 			action.Text = "🔒 Unlocks at " .. b.unlockName
 			action.BackgroundColor3 = GRAY
+		elseif b.lotOnly and b.level == 0 then
+			-- v15: a business that opens on a city plot: the button opens the plot picker (not a BUY that can't work)
+			cur.mode = "plot"
+			action.Text = "🏙️ OPEN ON A CITY PLOT  $" .. fmt(b.cost) .. " + plot"
+			action.BackgroundColor3 = BLUE
 		elseif b.cost >= 0 then
 			cur.mode = "buy"
 			action.Text = (s.crash and "🔥 SALE  " or "") .. (b.level == 0 and "BUY  " or "UPGRADE  ") .. "$" .. fmt(b.cost)
@@ -652,7 +658,8 @@ do
 		stat.staff.Text = b.staffName and ("👤 " .. b.staffName .. " ★" .. b.staffStars) or "👤 No staff yet"
 		stat.served.Text = "🧍 " .. fmt(b.served or 0) .. " customers"
 		stat.rating.Text = b.rating and ("⭐ " .. string.format("%.1f", b.rating) .. " (" .. b.ratingN .. ")") or "⭐ No ratings yet"
-		stat.where.Text = "📍 Spot " .. (b.slot or 1) .. (b.chains > 0 and ("  • " .. (b.chains + 1) .. " places") or "")
+		stat.where.Text = b.lotOnly and (b.onPlot and "📍 On a city plot" or "📍 Needs a city plot")
+			or ("📍 Spot " .. (b.slot or 1) .. (b.chains > 0 and ("  • " .. (b.chains + 1) .. " places") or ""))
 		probRow.Visible = b.problem == true
 		if b.problem then
 			probL.Text = "⚠️ " .. (b.problemText or "Problem") .. " (earning -50%)"
@@ -727,7 +734,7 @@ do
 				chips[i] = c
 			end
 			c.icon.TextTransparency = b.locked and 0.6 or 0
-			c.lvl.Text = b.locked and "🔒" or (b.level > 0 and ("Lv " .. b.level) or "BUY")
+			c.lvl.Text = b.locked and "🔒" or (b.level > 0 and ("Lv " .. b.level) or (b.lotOnly and "🏙️" or "BUY"))
 			c.stroke.Transparency = b.key == selected and 0 or 1
 			c.btn.BackgroundColor3 = b.key == selected and RGB(56, 62, 88) or CARD
 			-- red dot: a problem; green dot: you can afford the next upgrade
@@ -735,7 +742,7 @@ do
 			c.dot.Visible = b.problem or canBuy
 			c.dot.BackgroundColor3 = b.problem and RED or GREEN
 			if b.problem then anyProblem = true elseif canBuy then anyBuy = true end
-			if b.key == selected then bizSub.Text = b.level > 0 and ("Lv " .. b.level) or "BUY" end
+			if b.key == selected then bizSub.Text = b.level > 0 and ("Lv " .. b.level) or (b.lotOnly and "City plot" or "BUY") end
 			if lastLevels[i] and b.level > lastLevels[i] then play(SND.buy) end
 			lastLevels[i] = b.level
 			if b.key == selected then fillCard(s, b) end

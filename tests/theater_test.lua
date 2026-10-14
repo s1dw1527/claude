@@ -58,9 +58,70 @@ H.main(function()
 	H.task.wait(0.6)
 	H.check((d.levels.theater or 0) == 0 and d.cash == 1e9, "buying it from the business list without a plot does nothing (no charge)")
 	H.check(lastMenu("needPlot", mark) == "theater", "...and says why")
-	H.check(cc.modals.theater.frame.Visible and guiText("OPEN A MOVIE THEATER") ~= nil and find(a.PlayerGui, function(x) return x.Name == "GoProperties" end) ~= nil,
-		"the 🍿 Theater app opens with how to get one (and a button to Properties)")
+	H.check(cc.modals.lotShop and cc.modals.lotShop.frame.Visible, "the 🏙️ plot picker opens instead (v15: it used to be a dead end)")
 	cc.closeModals()
+	cc.openModal("theater", true)
+	H.task.wait(1)
+	H.check(guiText("OPEN A MOVIE THEATER") ~= nil and find(a.PlayerGui, function(x) return x.Name == "GoPlots" end) ~= nil,
+		"the 🍿 Theater app says how to get one (and has a 🏙️ Choose a plot button)")
+	cc.closeModals()
+
+	H.section("v15: buying it through the menus")
+	local function click(b) H.signalOf(b, "MouseButton1Click"):Fire() H.task.wait(0.6) end
+	local function named(n) return find(a.PlayerGui, function(x) return x.Name == n end) end
+	d.cash = 1e9
+	cc.selectBusiness("theater")
+	H.task.wait(1.5)
+	local open = find(a.PlayerGui, function(x) return x.ClassName == "TextButton" and x.Text:find("OPEN ON A CITY PLOT", 1, true) ~= nil end)
+	H.check(open ~= nil, "the business card's button says 🏙️ OPEN ON A CITY PLOT (not BUY)")
+	H.check(guiText("Needs a city plot") ~= nil and guiText("Spot 9") == nil, "...and 📍 Needs a city plot instead of a spot number")
+	if open then click(open) end
+	H.task.wait(0.6)
+	H.check(cc.modals.lotShop and cc.modals.lotShop.frame.Visible, "it opens the 🏙️ plot picker")
+	local info = cc.LotShopUI.info
+	H.check(type(info) == "table" and info.key == "theater" and #info.plots == 0 and #info.districts == #C.DISTRICTS, "the picker lists every district (Alice owns no plot yet)")
+	local okD, badD
+	for _, dd in ipairs(info and info.districts or {}) do
+		if not dd.why and not okD then okD = dd end
+		if dd.why and dd.why:find("🔒", 1, true) and not badD then badD = dd end
+	end
+	H.check(okD ~= nil and named("BuyFor_" .. okD.key) ~= nil, "a district she can buy in has a Buy & open button (" .. (okD and okD.name or "?") .. ")")
+	if badD then
+		local n0 = #d.deeds
+		click(named("BuyFor_" .. badD.key))
+		T.act(a, "plotBuyFor", badD.key, "theater")   -- (a forged request for a locked district)
+		H.task.wait(0.6)
+		H.check(#d.deeds == n0 and (d.levels.theater or 0) == 0, "a locked district (" .. badD.name .. ") can't be bought, even by a forged request")
+	end
+	-- not enough cash for both: refused, nothing bought
+	d.cash = 10
+	local nDeeds = #d.deeds
+	T.act(a, "plotBuyFor", okD.key, "theater")
+	H.task.wait(0.6)
+	H.check(#d.deeds == nDeeds and (d.levels.theater or 0) == 0, "without the cash for plot + theater, nothing is bought (no half purchase)")
+	d.cash = 1e9
+	cc.openLotShop("theater")
+	H.task.wait(0.8)
+	local price = 0
+	for _, dd in ipairs(cc.LotShopUI.info.districts) do if dd.key == okD.key then price = dd.total end end
+	local c1, t1 = d.cash, H.now()
+	click(named("BuyFor_" .. okD.key))
+	H.task.wait(1)
+	calm()
+	local site = F.siteDeed(d, "theater")
+	H.check((d.levels.theater or 0) == 1 and site ~= nil and site.district == okD.key, "Buy & open: Alice owns a " .. okD.name .. " plot and her theater opens on it")
+	-- (her businesses keep earning while the opening plays)
+	H.check(c1 - d.cash <= price + 1 and c1 - d.cash >= price - F.incomePerSec(d) * (H.now() - t1 + 5), "she paid the shown total ($" .. C.fmt(price) .. ")")
+	H.check(not cc.modals.lotShop.frame.Visible, "the picker closes when it worked")
+	T.act(a, "plotBuyFor", okD.key, "theater")
+	H.task.wait(0.6)
+	H.check(#d.deeds == nDeeds + 1, "asking again doesn't buy a second plot for it")
+	-- undo, so the rest of the test opens it the old way (from a plot she already owns)
+	F.sellDeed(a, site.id)
+	H.task.wait(0.5)
+	d.levels.theater = 0
+	d.plot.slots.theater = nil
+	d.cash = 1e9
 
 	H.section("Opening on a plot")
 	local lot = lotIn("downtown") or lotIn("midtown")

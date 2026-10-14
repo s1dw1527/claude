@@ -419,7 +419,7 @@ function F.buyUpgrade(plr, d, key)
 	end
 	-- v14: the Movie Theater is too big for the home plot: it opens on a city plot (Properties → a plot → 🎬)
 	if lvl <= 0 and b.lotOnly and not (F.siteDeed and F.siteDeed(d, key)) then
-		notify(plr, b.icon .. " A " .. b.name .. " needs a city plot. Buy one in 🏙️ Properties, then choose " .. b.icon .. " on it.")
+		notify(plr, b.icon .. " A " .. b.name .. " opens on a city plot: pick one of yours or buy one in the window that just opened.")
 		R.Menu:FireClient(plr, "needPlot", key)
 		return
 	end

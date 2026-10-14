@@ -37,9 +37,10 @@ local function render()
 		local c = card(m.body, 190, 1, RGB(50, 24, 34))
 		stroke(c, RGB(220, 40, 60), 2, 0.3)
 		txt(c, "🎬 OPEN A MOVIE THEATER", UDim2.fromOffset(14, 10), UDim2.new(1, -28, 0, 24), 18, GOLD, true)
-		txt(c, "A theater is too big for your home plot: it opens on a city plot.\n\n1. 🏢 Properties: buy a plot in any district\n2. Choose 🎬 Movie Theater on it ($" .. fmt(info.cost) .. ")\n\n"
-			.. (info.unlocked and "You can open one now." or "🔒 Unlocks at a higher reputation."), UDim2.fromOffset(14, 40), UDim2.new(1, -28, 0, 110), 13, WHITE)
-		btn(c, "🏢 Open Properties", UDim2.new(1, -184, 1, -48), UDim2.fromOffset(170, 38), GREEN, function() C.openModal("properties", true) end, "GoProperties")
+		txt(c, "A theater is too big for your home plot: it opens on a city plot.\n\nPick one of your plots, or buy a plot in a district and open it there in one step ($" .. fmt(info.cost) .. " + the plot).\n\n"
+			.. (info.unlocked and "You can open one now." or "🔒 Unlocks at " .. tostring(info.need or "HOTSPOT") .. " reputation."), UDim2.fromOffset(14, 40), UDim2.new(1, -28, 0, 110), 13, WHITE)
+		-- (v15: this used to open the Rental Row window, which can't buy plots)
+		btn(c, "🏙️ Choose a plot", UDim2.new(1, -184, 1, -48), UDim2.fromOffset(170, 38), GREEN, function() if C.openLotShop then C.openLotShop("theater") end end, "GoPlots")
 		return
 	end
 	-- now showing
@@ -117,8 +118,7 @@ R.Menu.OnClientEvent:Connect(function(kind, a)
 		asked = false
 		C.openModal("theater", true)
 	elseif kind == "needPlot" then
-		asked = false
-		C.openModal("theater", true)
+		if C.openLotShop then C.openLotShop(type(a) == "string" and a or "theater") end
 	elseif kind == "theaterShow" and type(a) == "table" then
 		if m.frame.Visible then act("theaterInfo") end
 		if a.premiere and C.jingle then C.jingle("milestone", 0.4) end

@@ -234,7 +234,7 @@ end
 -- =====================================================================
 -- BUY / CHOOSE BUSINESS / SELL
 -- =====================================================================
-function F.buyPlot(plr, lot)
+function F.buyPlot(plr, lot, quiet)
 	local d = data[plr]
 	if not (d and lot) then return nil end
 	local ok, why = F.canBuyPlot(d, lot)
@@ -253,7 +253,7 @@ function F.buyPlot(plr, lot)
 	C.burst(lot.pos + V3(0, 8, 0), dist.color, 100)
 	F.buzz(dist.icon, plr.Name .. " bought a plot in " .. dist.name .. "! (" .. F.propertiesUsed(d) .. " properties)", dist.color)
 	if F.guideTip then F.guideTip(plr, "claimProperty") end
-	R.Menu:FireClient(plr, "chooseBiz", F.plotInfo(plr, lot))
+	if not quiet then R.Menu:FireClient(plr, "chooseBiz", F.plotInfo(plr, lot)) end
 	return deed
 end
 -- choose (or change) what a plot runs. A business you haven't opened yet is opened here (and paid for).
@@ -512,7 +512,81 @@ C.ACTIONS.plotBuy = function(plr, d, a)
 	if lot then F.buyPlot(plr, lot) end
 end
 C.ACTIONS.plotBiz = function(plr, d, a, b)
-	if C.str(a, 12) and C.str(b, 20) then F.setDeedBiz(plr, a, b) end
+	if C.str(a, 12) and C.str(b, 20) then
+		-- (v15: the chooser closes only when it worked; otherwise it stays open and the notice says why)
+		if F.setDeedBiz(plr, a, b) then R.Menu:FireClient(plr, "plotBizDone", {deed = a, key = b}) end
+	end
+end
+
+-- =====================================================================
+-- v15: OPENING A PLOT-ONLY BUSINESS (the Movie Theater, the Amusement Park) from a menu
+-- Before v15 the only way was to walk to a "for sale" sign in a district, and the theater's own window pointed at the
+-- wrong menu. Now the business's window lists your plots ("open it here") and the districts you can buy a plot in
+-- ("buy a plot and open it there", one step, both prices checked first).
+-- =====================================================================
+function F.plotShop(plr, key)
+	local d = data[plr]
+	local b = BIZ[key]
+	if not (d and b) then return nil end
+	local tier = F.tierIndex(d.rep)
+	local info = {key = key, name = b.name, icon = b.icon, cost = F.upgradeCost(d, key), open = (d.levels[key] or 0) > 0, unlocked = tier >= b.unlock,
+		need = REP_TIERS[b.unlock].name, used = F.propertiesUsed(d), capacity = F.propertyCapacity(d), cash = d.cash, plots = {}, districts = {}}
+	local site = F.siteDeed and F.siteDeed(d, key)
+	info.siteId = site and site.id or nil
+	for _, deed in ipairs(d.deeds or {}) do
+		local dist = DISTRICT[deed.district]
+		table.insert(info.plots, {id = deed.id, district = dist and dist.name or deed.district, icon = dist and dist.icon or "🏙️", biz = deed.biz,
+			bizName = deed.biz and BIZ[deed.biz] and BIZ[deed.biz].name or nil, placed = lotOfDeed(plr, deed) ~= nil, here = site == deed})
+	end
+	for _, dist in ipairs(C.DISTRICTS) do
+		local free
+		for _, lot in ipairs(LOTS) do if lot.dkey == dist.key and not lot.owner then free = lot break end end
+		local price = F.plotPrice(d, dist.key)
+		local why
+		if tier < dist.tier then why = "🔒 " .. REP_TIERS[dist.tier].name
+		elseif not free then why = "No free plot in this server"
+		elseif deedsIn(d, dist.key) >= dist.cap then why = "You own the most here (" .. dist.cap .. ")"
+		elseif F.propertiesUsed(d) >= F.propertyCapacity(d) then why = "Property limit " .. F.propertiesUsed(d) .. "/" .. F.propertyCapacity(d)
+		end
+		table.insert(info.districts, {key = dist.key, name = dist.name, icon = dist.icon, price = price, total = price + (info.open and 0 or info.cost), why = why, stars = dist.stars})
+	end
+	return info
+end
+function F.plotBuyFor(plr, dkey, key)
+	local d = data[plr]
+	local b, dist = BIZ[key], DISTRICT[dkey]
+	if not (d and b and dist) then return false end
+	if not F.bizUnlocked(d, key) then notify(plr, "🔒 " .. b.name .. " unlocks at " .. REP_TIERS[b.unlock].name .. " reputation.") return false end
+	if b.lotOnly and F.siteDeed(d, key) then notify(plr, b.icon .. " Your " .. b.name .. " already has a plot.") return false end
+	local lot
+	for _, l in ipairs(LOTS) do if l.dkey == dkey and not l.owner then lot = l break end end
+	if not lot then notify(plr, "🏙️ No free plot in " .. dist.name .. " in this server.") return false end
+	local ok, why = F.canBuyPlot(d, lot)
+	if not ok then notify(plr, "🏙️ " .. why) return false end
+	local opening = (d.levels[key] or 0) <= 0
+	local total = F.plotPrice(d, dkey) + (opening and F.upgradeCost(d, key) or 0)
+	if d.cash < total then notify(plr, "🏙️ The plot and the " .. b.name .. " cost $" .. fmt(total) .. " together.") return false end
+	local deed = F.buyPlot(plr, lot, true)
+	if not deed then return false end
+	if not F.setDeedBiz(plr, deed.id, key) then return false end
+	return true
+end
+local function sendShop(plr, key)
+	local info = F.plotShop(plr, key)
+	if info then R.Menu:FireClient(plr, "plotShop", info) end
+end
+C.ACTIONS.plotShop = function(plr, d, a) if C.str(a, 20) and BIZ[a] then sendShop(plr, a) end end
+C.ACTIONS.plotBuyFor = function(plr, d, a, b)
+	if C.str(a, 20) and C.str(b, 20) and BIZ[b] then
+		if F.plotBuyFor(plr, a, b) then R.Menu:FireClient(plr, "plotBizDone", {key = b}) end
+		sendShop(plr, b)
+	end
+end
+C.ACTIONS.plotOpenHere = function(plr, d, a, b)
+	if C.str(a, 12) and C.str(b, 20) and BIZ[b] then
+		if F.setDeedBiz(plr, a, b) then R.Menu:FireClient(plr, "plotBizDone", {deed = a, key = b}) end
+		sendShop(plr, b)
+	end
 end
 C.ACTIONS.plotSell = function(plr, d, a, b)
 	-- selling needs the confirm flag from the client's confirmation dialog
