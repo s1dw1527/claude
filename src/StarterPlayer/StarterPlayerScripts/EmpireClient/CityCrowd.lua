@@ -157,6 +157,8 @@ for _, p in ipairs(map.places or {}) do
 end
 function CC.zoneAt(pos)
 	if pos.Z > 300 and math.abs(pos.X) < 300 then return "beach" end
+	-- v15: the Fun Park and the Funland Grounds
+	if pos.X < -330 and pos.X > -860 and pos.Z > -260 and pos.Z < 130 and (pos.X > -620 or pos.Z < -40) then return "funpark" end
 	local best, bd = nil, 190
 	for _, dd in ipairs(DISTRICT_AT) do
 		local d = math.sqrt((pos.X - dd.x) ^ 2 + (pos.Z - dd.z) ^ 2)
@@ -175,6 +177,9 @@ local LOOKS = {
 	tourist = {shirt = {RGB(255, 170, 60), RGB(120, 220, 120), RGB(80, 170, 255), RGB(240, 90, 200)}, pants = {RGB(220, 200, 160), RGB(60, 70, 110)}, acc = "bag", speed = {4, 5.5}},
 	hiker = {shirt = {RGB(90, 120, 70), RGB(170, 90, 50)}, pants = {RGB(80, 70, 55)}, acc = "backpack", speed = {4.5, 5.5}},
 	casual = {shirt = {RGB(90, 120, 200), RGB(200, 90, 90), RGB(90, 170, 90), RGB(230, 230, 230), RGB(60, 60, 70)}, pants = {RGB(50, 60, 110), RGB(40, 40, 45)}, acc = nil, speed = {4.5, 6.5}},
+	-- v15: park-goers with a cotton candy or a balloon
+	candy = {shirt = {RGB(255, 170, 60), RGB(120, 220, 120), RGB(80, 170, 255), RGB(255, 120, 180), RGB(250, 250, 250)}, pants = {RGB(60, 70, 120), RGB(220, 200, 160)}, acc = "candy", speed = {3.5, 5}},
+	balloon = {shirt = {RGB(255, 220, 80), RGB(90, 200, 230), RGB(240, 90, 120), RGB(160, 120, 240)}, pants = {RGB(60, 70, 120), RGB(40, 40, 45)}, acc = "balloon", speed = {3.5, 5}},
 }
 CC.LOOKS = LOOKS
 local MIX = {
@@ -192,6 +197,7 @@ local MIX = {
 	hood_hills = {hiker = 5, jogger = 2, suit = 1},
 	hood_rich = {suit = 3, dog = 3, jogger = 2},
 	city = {casual = 5, coffee = 1, tourist = 1, jogger = 1},
+	funpark = {candy = 4, balloon = 3, tourist = 2, casual = 1},
 }
 CC.MIX = MIX
 local function pickLook(zone)
@@ -249,7 +255,10 @@ local function dress(n, look)
 	elseif acc == "surf" then n.acc.Size, n.acc.Color = V3(0.3, 5.5, 1.5), Color3.fromHSV(math.random(), 0.6, 1)
 	elseif acc == "bag" then n.acc.Size, n.acc.Color = V3(0.5, 1.2, 1.1), Color3.fromHSV(math.random(), 0.5, 0.95)
 	elseif acc == "backpack" then n.acc.Size, n.acc.Color = V3(1.6, 1.8, 0.8), RGB(60, 90, 140)
+	elseif acc == "candy" then n.acc.Size, n.acc.Color = V3(1.3, 1.5, 1.3), ({RGB(255, 170, 220), RGB(170, 210, 255), RGB(255, 190, 235)})[math.random(3)]
+	elseif acc == "balloon" then n.acc.Size, n.acc.Color = V3(1.5, 1.8, 1.5), Color3.fromHSV(math.random(), 0.7, 1)
 	end
+	n.acc.Shape = (acc == "candy" or acc == "balloon") and Enum.PartType.Ball or Enum.PartType.Block
 	n.acc.Transparency = (acc and acc ~= "dog") and 0 or 1
 	n.dog.Transparency = acc == "dog" and 0 or 1
 	n.dog.Color = ({RGB(150, 110, 70), RGB(240, 230, 210), RGB(40, 35, 30)})[math.random(3)]
@@ -272,7 +281,7 @@ local function pose(n, cf, phase, mode)
 	n.ll.CFrame = cf * CF(-0.5, 2, 0) * CFrame.Angles(sw, 0, 0) * CF(0, -1, 0)
 	n.rl.CFrame = cf * CF(0.5, 2, 0) * CFrame.Angles(-sw, 0, 0) * CF(0, -1, 0)
 	n.la.CFrame = cf * CF(-1.45, 3.9, 0) * CFrame.Angles(-sw, 0, 0) * CF(0, -0.9, 0)
-	local raise = (mode == "phone" or n.accKind == "cup") and -1.9 or (mode == "chat" and (-0.6 + math.sin(phase * 0.7) * 0.5) or sw)
+	local raise = (mode == "phone" or n.accKind == "cup" or n.accKind == "candy" or n.accKind == "balloon") and -1.9 or (mode == "chat" and (-0.6 + math.sin(phase * 0.7) * 0.5) or sw)
 	n.ra.CFrame = cf * CF(1.45, 3.9, 0) * CFrame.Angles(raise, 0, 0) * CF(0, -0.9, 0)
 	local a = n.accKind
 	if a == "briefcase" or a == "bag" then n.acc.CFrame = cf * CF(-1.5, 1.9, 0)
@@ -280,6 +289,8 @@ local function pose(n, cf, phase, mode)
 	elseif a == "hardhat" then n.acc.CFrame = cf * CF(0, 5.45, 0)
 	elseif a == "surf" then n.acc.CFrame = cf * CF(1.6, 3.2, 0.4) * CFrame.Angles(0, 0, 0.12)
 	elseif a == "backpack" then n.acc.CFrame = cf * CF(0, 3.1, 0.9)
+	elseif a == "candy" then n.acc.CFrame = n.ra.CFrame * CF(0, -1.9, -0.2)
+	elseif a == "balloon" then n.acc.CFrame = cf * CF(1.5, 8.4 + math.sin(phase * 0.5) * 0.2, -0.6)
 	elseif a == "dog" then
 		local bob = math.abs(math.sin(phase * 1.6)) * 0.25
 		n.dog.CFrame = cf * CF(-2.4, 0.85 + bob, -2.6)
@@ -665,6 +676,13 @@ end
 -- ===== small things going on (built once, shown when you are near) =====
 local SPOTS = {}
 CC.SPOTS = SPOTS
+-- (kind, x, z, turn) of the Fun Park's food stalls: the same list as GameServer > FunPark's C.FUNPARK_STALLS
+CC.FUNPARK_STALLS = {
+	{"cottoncandy", -415, 26, math.pi}, {"popcorn", -455, -26, 0}, {"cottoncandy", -505, -26, 0}, {"icecream", -545, 26, math.pi},
+	{"balloons", -375, -26, 0}, {"cottoncandy", -585, 26, math.pi},
+}
+-- v15: the person builder for ParkFX (park visitors) and the Fun Park's spots
+CC.buildPerson, CC.dress, CC.pose, CC.hidePerson, CC.showPerson = buildPerson, dress, pose, hidePerson, showPerson
 local function walkNear(zone)
 	-- the sidewalk segment closest to a district's center
 	local best, bd
@@ -736,6 +754,26 @@ local function addSpot(kind, cf)
 			b.accKind = nil
 			table.insert(s.people, {n = b, off = CF(i * 2, 0.6, 2.5) * CFrame.Angles(-math.pi / 2, 0, 0) * CF(0, -3, 0), mode = "lie"})
 		end
+	elseif kind == "stallqueue" then
+		-- v15: the vendor behind a Fun Park stall (built by the server) and a little queue, treats in hand
+		local v = buildPerson()
+		dress(v, "casual")
+		v.torso.Color, v.la.Color, v.ra.Color = RGB(255, 150, 200), RGB(255, 150, 200), RGB(255, 150, 200)
+		v.accKind = nil
+		table.insert(s.people, {n = v, off = CF(0, 0, -2.2), mode = "chat"})
+		for i = 1, 3 do
+			local q = buildPerson()
+			dress(q, i == 3 and "balloon" or "candy")
+			table.insert(s.people, {n = q, off = CF((i % 2) * 0.6, 0, 2 + i * 2.1) * CFrame.Angles(0, math.pi, 0), mode = i == 1 and "chat" or "stand"})
+		end
+	elseif kind == "parkgroup" then
+		-- v15: friends at the Fun Park with cotton candy and balloons, chatting
+		for i = 0, 2 do
+			local q = buildPerson()
+			dress(q, ({"candy", "balloon", "candy"})[i + 1])
+			local a = i / 3 * math.pi * 2
+			table.insert(s.people, {n = q, off = CF(math.cos(a) * 2, 0, math.sin(a) * 2) * CFrame.Angles(0, -a - math.pi / 2, 0), mode = "chat"})
+		end
 	elseif kind == "volley" then
 		add(V3(0.3, 8, 0.3), CF(-8, 4, 0), RGB(240, 240, 240))
 		add(V3(0.3, 8, 0.3), CF(8, 4, 0), RGB(240, 240, 240))
@@ -772,6 +810,10 @@ do
 	for _, x in ipairs({-108, -88, 88, 108}) do addSpot("umbrella", CF(x, 0.2, 372) * CFrame.Angles(0, math.rad(math.random(0, 40) - 20), 0)) end
 	addSpot("volley", CF(-97, 0.2, 405))
 	addSpot("volley", CF(97, 0.2, 405))
+	-- v15: the Fun Park: a queue at every food stall (same places as GameServer > FunPark's C.FUNPARK_STALLS),
+	-- and groups of friends with cotton candy along the walkway
+	for _, st in ipairs(CC.FUNPARK_STALLS) do addSpot("stallqueue", CF(st[2], 0.2, st[3]) * CFrame.Angles(0, st[4], 0)) end
+	for _, at in ipairs({{-440, -34}, {-490, 36}, {-530, -34}, {-420, -48}, {-520, -55}, {-430, 40}}) do addSpot("parkgroup", CF(at[1], 0.2, at[2])) end
 end
 local function spotPose(s, now)
 	for i, pp in ipairs(s.people) do

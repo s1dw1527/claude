@@ -1,6 +1,6 @@
 -- RIVALS (v14): four AI companies compete with your businesses. Each one goes after certain business types:
 --   🥤 Gulp & Co. (lemonade, ice cream, coffee) · 🍔 MegaBite Foods (bakery, pizza)
---   👾 Pixel Palace Group (arcade, movie theater) · 🏭 Novatek Industries (tech, factory)
+--   👾 Pixel Palace Group (arcade, movie theater, amusement park) · 🏭 Novatek Industries (tech, factory)
 -- How it works (all here on the server, all saved):
 --   * PRESSURE (0-100) per business you own: rivals creep in slowly while you play. Your market share is
 --     100% - pressure/2 (75% to start: exactly normal sales), and it nudges that business's sales between ×0.96
@@ -31,7 +31,7 @@ local RIVALS = {
 		moves = {"opened a kiosk right across from", "is handing out free samples next to", "put a giant inflatable cup outside"}},
 	{key = "megabite", name = "MegaBite Foods", icon = "🍔", boss = "Mona Bite", color = RGB(230, 120, 40), biz = {"bakery", "pizza"},
 		moves = {"opened a drive-thru next to", "is running two-for-one coupons near", "parked a food truck in front of"}},
-	{key = "pixel", name = "Pixel Palace Group", icon = "👾", boss = "Rex Pixel", color = RGB(170, 80, 255), biz = {"arcade", "theater"},
+	{key = "pixel", name = "Pixel Palace Group", icon = "👾", boss = "Rex Pixel", color = RGB(170, 80, 255), biz = {"arcade", "theater", "park"},
 		moves = {"opened a mega-screen across from", "launched a loyalty card to steal fans from", "booked a celebrity appearance near"}},
 	{key = "novatek", name = "Novatek Industries", icon = "🏭", boss = "Dr. Nova", color = RGB(120, 130, 150), biz = {"tech", "factory"},
 		moves = {"announced a cheaper copy of", "is poaching customers from", "built a showroom next to"}},

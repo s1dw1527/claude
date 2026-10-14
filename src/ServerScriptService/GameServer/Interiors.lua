@@ -109,6 +109,7 @@ local LAYOUTS = {
 	tech = {w = 48, d = 32, fixtures = {"displays", "computers", "checkout", "storage"}, spots = grid({-16, -6, 6, 16}, {3, 9}, "floor")},
 	factory = {w = 80, d = 52, fixtures = {"conveyor", "storage", "checkout"}, spots = grid({-20, -8, 8, 20}, {4, 11}, "floor")},
 	theater = {w = 64, d = 56, fixtures = {"screen", "seats", "concessions"}, spots = grid({-26, -18, 18, 26}, {14, 22}, "floor")},
+	park = {w = 52, d = 36, fixtures = {"tickets", "gifts", "map"}, spots = grid({-16, -6, 6, 16}, {4, 10}, "floor")},
 	home = {w = 60, d = 44, fixtures = {"homeRooms"}, spots = grid({-22, -12, 10, 22}, {-4, 6, 14}, "floor")},
 }
 for _, L in pairs(LAYOUTS) do
@@ -126,6 +127,7 @@ LAYOUTS.pizza.office = {19, -1, 6}
 LAYOUTS.arcade.office = {22, 14, 8}
 LAYOUTS.tech.office = {-21, 4, 6}
 LAYOUTS.theater.office = {27, 6, 6}
+LAYOUTS.park.office = {21, -2, 6}
 C.INTERIOR_LAYOUTS = LAYOUTS
 
 -- ===== saved data =====
@@ -627,6 +629,50 @@ THEMES.theater = function(m, o, L, lvl, accent)
 	FURN.staff(m, o, hw - 5, hd - 3)
 	wp(m, o, "register", -11, lz - 2) wp(m, o, "order", -11, lz + 3) wp(m, o, "prep", 11, lz - 2) wp(m, o, "prep", 16, lz - 2)
 	wp(m, o, "display", 14, lz + 3) wp(m, o, "machine", 0, -hd + 9 + rows * 3.2 + 1.5) wp(m, o, "trash", 0, hd - 3) wp(m, o, "staffroom", hw - 4, hd - 4)
+end
+-- v15: the Amusement Park's guest services: ticket windows, the gift shop (plushies, balloons, cotton candy), the
+-- big park map, and the ride-photo wall. (The rides themselves are outside, at the owner's Funland site.)
+THEMES.park = function(m, o, L, lvl, accent)
+	local hw, hd = L.w / 2, L.d / 2
+	-- ticket windows along the back wall
+	for i = -1, 1 do
+		box(m, V3(8, 4, 2), o * CF(i * 10, 2.4, -hd + 3), RGB(255, 236, 200), MAT.SmoothPlastic, SOLID)
+		box(m, V3(8.4, 0.6, 2.6), o * CF(i * 10, 7.2, -hd + 3), i == 0 and RGB(255, 80, 120) or RGB(255, 170, 40))
+		local w = box(m, V3(6, 2.6, 0.2), o * CF(i * 10, 5.6, -hd + 2), RGB(200, 230, 255), MAT.Glass, {Transparency = 0.5})
+		w.Name = "TicketWindow"
+	end
+	sign(m, V3(16, 1.6, 0.2), o * CF(0, 9.2, -hd + 1.6), "🎟️ TICKETS  •  DAY PASSES  •  FAST PASS", Enum.NormalId.Front, RGB(255, 245, 210), RGB(200, 40, 90))
+	-- the big park map on the left wall
+	local map = box(m, V3(0.3, 7, 12), o * CF(-hw + 0.7, 6, -4), RGB(120, 200, 120))
+	C.surfaceText(map, Enum.NormalId.Right, "🗺️ PARK MAP\n🎠 🎡 🎢 🏴‍☠️ 🍭\nYou are here ⭐", RGB(30, 60, 30))
+	-- gift shop: shelves of plushies + a balloon bunch + a cotton-candy machine
+	FURN.counter(m, o, 12, hd - 9, 12, accent)
+	FURN.register(m, o, 9, hd - 9)
+	sign(m, V3(10, 1.2, 0.2), o * CF(12, 7.2, hd - 10.3), "🧸 GIFT SHOP", Enum.NormalId.Front, RGB(255, 245, 210), RGB(150, 60, 200))
+	for s = 0, math.min(2, math.floor(lvl / 3)) do
+		local z = -hd + 9 + s * 5
+		box(m, V3(1.6, 6, 4), o * CF(hw - 1.6, 3.4, z), RGB(150, 110, 80), MAT.WoodPlanks, SOLID)
+		for k = 0, 2 do
+			for j = -1, 1 do C.ball(m, V3(1.1, 1.1, 1.1), o * CF(hw - 2, 2.2 + k * 1.8, z + j * 1.2), Color3.fromHSV(((k * 3 + j + s) * 0.13) % 1, 0.45, 1), MAT.Fabric) end
+		end
+	end
+	for i = 0, 5 do
+		local b = C.ball(m, V3(1.6, 1.9, 1.6), o * CF(-hw + 6 + (i % 3) * 1.4, 9 + math.floor(i / 3) * 1.2, hd - 5 + (i % 2) * 0.8), Color3.fromHSV(i / 6, 0.7, 1), MAT.SmoothPlastic)
+		b.Name = "Balloon"
+		box(m, V3(0.05, 7, 0.05), o * CF(-hw + 6 + (i % 3) * 1.4, 4.6, hd - 5 + (i % 2) * 0.8), RGB(240, 240, 240))
+	end
+	local cc = box(m, V3(3, 2.6, 3), o * CF(-hw + 12, 3.2, hd - 5), RGB(255, 170, 220), MAT.SmoothPlastic, SOLID)
+	cc.Name = "CottonCandyMachine"
+	C.ball(m, V3(2.6, 1.6, 2.6), o * CF(-hw + 12, 5, hd - 5), RGB(255, 190, 230), MAT.Fabric)
+	-- ride photos on the right wall
+	for i = 0, 3 do
+		local ph = box(m, V3(0.2, 2.6, 3.4), o * CF(hw - 0.6, 7.5, 4 + i * 0 - 6 + i * 3.8), RGB(30, 30, 40))
+		C.surfaceText(ph, Enum.NormalId.Left, ({"😱 THE DROP", "🎢 LOOP!", "🏴‍☠️ AHOY", "🎡 TOP!"})[i + 1], RGB(255, 230, 140))
+	end
+	FURN.staff(m, o, hw - 5, hd - 3)
+	wp(m, o, "register", 9, hd - 11) wp(m, o, "order", 9, hd - 6) wp(m, o, "prep", 15, hd - 11) wp(m, o, "display", -10, -hd + 6)
+	wp(m, o, "display", 10, -hd + 6) wp(m, o, "machine", -hw + 12, hd - 8) wp(m, o, "trash", 0, hd - 3) wp(m, o, "staffroom", hw - 4, hd - 4)
+	wp(m, o, "seat", -6, 2) wp(m, o, "seat", 6, 2)
 end
 local function buildFixtures(m, o, L, key, accent, lvl, ownerName, title, icon)
 	if key ~= "home" and THEMES[key] then

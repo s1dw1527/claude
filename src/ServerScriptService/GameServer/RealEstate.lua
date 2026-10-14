@@ -451,6 +451,13 @@ function F.buildLot(lot)
 				end)
 				if F.theaterMarquee then F.theaterMarquee(plr, owner) end
 			end
+			if key == "park" then
+				-- v15: the ticket gate: the park itself is the owner's site at the Funland Grounds
+				local gate = P(f, V3(1, 1, 1), o * CF(-3, 3, size / 2 - 3), WHITE, MAT.SmoothPlastic, {Transparency = 1, Name = "ParkGate"})
+				C.prompt(gate, "🎢 Go to the park", BIZ[key].name, 14, 0, function(who)
+					if C.ACTIONS.parkGo then C.ACTIONS.parkGo(who, data[who], who ~= plr and plr.UserId or nil) end
+				end)
+			end
 			if owner.problems and owner.problems[key] and F.problemVisual then task.defer(F.problemVisual, plr, key, true) end
 		end
 	else

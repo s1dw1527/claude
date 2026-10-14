@@ -35,6 +35,7 @@ local RECIPES = {
 	arcade = {steps = {S("🪙", "Tokens"), S("🕹️", "Start game"), S("🏆", "High score"), S("🎟️", "Tickets"), S("🧸", "Prize")}, extra = {S("🔌", "Unplug"), S("💤", "Nap"), S("🧹", "Sweep")}},
 	tech = {steps = {S("💡", "Idea"), S("💻", "Code"), S("🧪", "Test"), S("🐛", "Fix bug"), S("🚀", "Ship")}, extra = {S("☕", "Coffee break"), S("🔥", "Delete it"), S("📠", "Fax")}},
 	theater = {steps = {S("🎟️", "Scan ticket"), S("🍿", "Pop corn"), S("🧈", "Butter"), S("🥤", "Pour soda"), S("💺", "Seat guest")}, extra = {S("📢", "Spoil ending"), S("📱", "Phone on"), S("💤", "Nap")}},
+	park = {steps = {S("🎟️", "Scan pass"), S("🍭", "Spin candy"), S("🎈", "Tie balloon"), S("🔒", "Check bar"), S("🎢", "Send train")}, extra = {S("🛑", "Emergency stop"), S("🌧️", "Rain check"), S("💤", "Nap")}},
 	factory = {steps = {S("📦", "Parts"), S("🔧", "Assemble"), S("🔍", "Inspect"), S("🏷️", "Label"), S("🚚", "Load truck")}, extra = {S("🧁", "Cupcake"), S("🎈", "Balloon"), S("💤", "Nap")}},
 }
 C.RECIPES = RECIPES

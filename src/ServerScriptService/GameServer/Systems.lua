@@ -93,6 +93,7 @@ function F.bizMult(d, key)
 	if G.megaBiz and G.megaBiz[key] then m *= G.megaBiz[key] end
 	if F.rushMult then m *= F.rushMult(d, key) end   -- v14: Rush Orders (Kitchen)
 	if F.theaterMult then m *= F.theaterMult(d, key) end
+	if F.parkMult then m *= F.parkMult(d, key) end   -- v15: the Amusement Park's rating (GameServer > Park)
 	if F.rivalMult then m *= F.rivalMult(d, key) end   -- v14: market share against the AI rivals (Rivals)
 	if F.prestigeMult then m *= F.prestigeMult(d) end   -- v14: +1% per prestige star (Leaders)   -- v14: how full the Movie Theater's shows are (Theater)
 	if d.problems[key] then m *= 0.5 end

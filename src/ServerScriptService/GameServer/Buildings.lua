@@ -130,6 +130,37 @@ PROPS.theater = function(m, o, s)
 	for k = 0, 6 do ball(m, V3(0.9, 0.8, 0.9) * s, o * CF(math.cos(k) * 0.6 * s, (3.2 + (k % 3) * 0.25) * s, math.sin(k) * 0.6 * s), RGB(255, 236, 170)) end
 	return 3.8 * s
 end
+-- v15: a little turning Ferris wheel (the Amusement Park's roof sign). WorldFX turns it on every client.
+local function miniWheel(m, cf, r)
+	local wm = Instance.new("Model")
+	wm.Name = "MiniWheel"
+	wm.Parent = m
+	for _, sx in ipairs({-0.6, 0.6}) do
+		P(m, V3(0.3, r + 0.6, 0.3), cf * CF(sx, -(r + 0.6) / 2, 0), RGB(235, 235, 240), MAT.Metal)
+	end
+	local n = 8
+	for k = 0, n - 1 do
+		local a = k / n * math.pi * 2
+		local spoke = P(wm, V3(0.2, r, 0.2), cf * CFrame.Angles(0, 0, a) * CF(0, r / 2, 0), RGB(255, 255, 255), MAT.Metal)
+		spoke:SetAttribute("Kind", "spin")
+		local g = P(wm, V3(0.7, 0.7, 0.7), cf * CF(math.cos(a) * r, math.sin(a) * r - 0.5, 0), Color3.fromHSV(k / n, 0.7, 1), MAT.SmoothPlastic)
+		g:SetAttribute("Kind", "gondola")
+		g:SetAttribute("Hang", 0.5)
+	end
+	local ring = P(wm, V3(0.25, 0.25, 0.25), cf, RGB(255, 210, 90), MAT.Neon)
+	ring:SetAttribute("Kind", "spin")
+	wm:SetAttribute("Hub", cf.Position)
+	wm:SetAttribute("HubCF", cf)
+	wm:SetAttribute("Axis", "Z")
+	wm:SetAttribute("Speed", 0.35)
+	tag(wm, "Rotator")
+	return wm
+end
+C.miniWheel = miniWheel
+PROPS.park = function(m, o, s)
+	miniWheel(m, o * CF(0, 2.6 * s, 0), 2 * s)
+	return 4.8 * s
+end
 -- the theater's lit marquee with the film that's showing (GameServer > Theater changes the title)
 local function marquee(m, o, w, y, z, title)
 	local box = P(m, V3(w, 2.2, 0.6), o * CF(0, y, z), RGB(30, 20, 26), MAT.SmoothPlastic)
@@ -234,6 +265,35 @@ local function stand(m, o, b, accent)
 		end
 		PROPS.theater(m, o * CF(5.6, 0.3, 4.6), 0.6)
 		return 10
+	elseif b.key == "park" then
+		-- a ticket booth under a striped awning, a little "FUNLAND" arch and a kiddie carousel that turns
+		P(m, V3(4, 3.4, 3.4), o * CF(-4.5, 1.9, 2.5), RGB(255, 236, 200), MAT.SmoothPlastic, SOLID)
+		awning(m, o * CF(-4.5, 0, 0.6), 4.6, 4.2, 0, RGB(255, 80, 120), WHITE, "stripe")
+		local sb = P(m, V3(3.6, 0.8, 0.2), o * CF(-4.5, 4.2, 4.25), RGB(200, 40, 90))
+		surfaceText(sb, Enum.NormalId.Back, "🎟️ TICKETS", RGB(255, 245, 210))
+		for _, sx in ipairs({-1.5, 1.5}) do P(m, V3(0.5, 6, 0.5), o * CF(sx + 2.5, 3, 5), RGB(255, 170, 40), MAT.SmoothPlastic) end
+		local arch = P(m, V3(4, 1.2, 0.4), o * CF(2.5, 6.4, 5), RGB(255, 120, 40), MAT.SmoothPlastic)
+		surfaceText(arch, Enum.NormalId.Back, b.signName and string.upper(b.signName) or "FUNLAND", RGB(255, 255, 255))
+		local car = Instance.new("Model")
+		car.Name = "KiddieCarousel"
+		car.Parent = m
+		local hub = o * CF(2.5, 0, -2)
+		cyl(m, 0.4, 7, hub * CF(0, 0.5, 0), RGB(240, 230, 210))
+		P(m, V3(0.4, 4.4, 0.4), hub * CF(0, 2.6, 0), GOLD, MAT.Foil)
+		local roof = cyl(car, 0.4, 7.4, hub * CF(0, 4.8, 0), RGB(255, 80, 120))
+		roof:SetAttribute("Kind", "spin")
+		for k = 0, 5 do
+			local a = k / 6 * math.pi * 2
+			local horse = P(car, V3(0.6, 1.2, 1.4), hub * CF(math.cos(a) * 2.6, 1.6, math.sin(a) * 2.6), Color3.fromHSV(k / 6, 0.4, 1), MAT.SmoothPlastic)
+			horse:SetAttribute("Kind", "spin")
+			local pole = P(car, V3(0.15, 3.6, 0.15), hub * CF(math.cos(a) * 2.6, 2.8, math.sin(a) * 2.6), GOLD, MAT.Foil)
+			pole:SetAttribute("Kind", "spin")
+		end
+		car:SetAttribute("Hub", hub.Position)
+		car:SetAttribute("Axis", "Y")
+		car:SetAttribute("Speed", 0.6)
+		tag(car, "Rotator")
+		return 7
 	else -- factory workshop
 		P(m, V3(9, 6, 8), o * CF(0, 3.3, -0.5), RGB(150, 84, 64), MAT.Brick, SOLID)
 		P(m, V3(4.5, 4.2, 0.2), o * CF(-1.5, 2.4, 3.55), RGB(120, 125, 135), MAT.DiamondPlate)
@@ -256,6 +316,7 @@ local THEME = {
 	tech     = {mat = MAT.Glass, trim = WHITE, aw = {RGB(40, 42, 52), RGB(40, 42, 52), "solid"}, tech = true},
 	factory  = {mat = MAT.Brick, trim = RGB(90, 94, 102), aw = {RGB(90, 94, 102), RGB(90, 94, 102), "solid"}, factory = true},
 	theater  = {mat = MAT.SmoothPlastic, trim = RGB(255, 210, 90), aw = {RGB(30, 20, 26), RGB(30, 20, 26), "solid"}, theater = true},
+	park     = {mat = MAT.SmoothPlastic, trim = RGB(255, 170, 40), aw = {RGB(255, 80, 120), WHITE, "stripe"}, funland = true, flowers = true},
 }
 local DIMS = {nil, {12, 10, 1, 7.5}, {13, 11, 2, 6.5}, {14, 12, 3, 6}, {14.5, 12.5, 4, 6}, {15, 13, 5, 6}}
 
@@ -400,6 +461,26 @@ local function shop(m, o, b, st, accent)
 			cyl(m, 3, 3.6, base * CF(0, roofY + 5.5, d * 0.2), RGB(150, 110, 80), MAT.WoodPlanks)
 			cyl(m, 0.8, 4, base * CF(0, roofY + 7.4, d * 0.2), RGB(90, 60, 45), MAT.Wood)
 		end
+	end
+	if T.funland then
+		-- v15: the park's entrance gate in front of the building: two towers, a lit arch, balloons
+		for _, sx in ipairs({-1, 1}) do
+			P(m, V3(1.6, 9, 1.6), o * CF(sx * (w * 0.5 + 1.2), 4.8, d * 0.5 + 3), RGB(255, 170, 40), MAT.SmoothPlastic, SOLID)
+			ball(m, V3(2.2, 2.2, 2.2), o * CF(sx * (w * 0.5 + 1.2), 10.4, d * 0.5 + 3), RGB(255, 80, 120), MAT.SmoothPlastic)
+			for k = 0, 2 do
+				ball(m, V3(1.2, 1.4, 1.2), o * CF(sx * (w * 0.5 + 1.2) + (k - 1) * 0.8, 13 + k * 0.5, d * 0.5 + 3.4), Color3.fromHSV((k + (sx > 0 and 3 or 0)) / 6, 0.7, 1))
+				P(m, V3(0.05, 2.6, 0.05), o * CF(sx * (w * 0.5 + 1.2) + (k - 1) * 0.4, 11.6 + k * 0.25, d * 0.5 + 3.2), WHITE)
+			end
+		end
+		local arch = P(m, V3(w + 2.4, 1.8, 0.6), o * CF(0, 8.6, d * 0.5 + 3), RGB(200, 40, 90), MAT.SmoothPlastic)
+		arch.Name = "ParkArch"
+		surfaceText(arch, Enum.NormalId.Back, "🎢 " .. string.upper(b.signName or "FUNLAND"), RGB(255, 245, 210))
+		local bulbs = Instance.new("Model")
+		bulbs.Name = "ArchBulbs"
+		bulbs.Parent = m
+		local n = math.max(8, math.floor((w + 2.4) / 1))
+		for k = 0, n - 1 do ball(bulbs, V3(0.32, 0.32, 0.32), o * CF(-(w + 2.4) / 2 + (k + 0.5) * ((w + 2.4) / n), 9.65, d * 0.5 + 3.35), RGB(255, 230, 120), MAT.Neon) end
+		tag(bulbs, "ChaseLights")
 	end
 	if T.theater then
 		-- the marquee over the doors, a red carpet, velvet ropes, poster cases and searchlights at night

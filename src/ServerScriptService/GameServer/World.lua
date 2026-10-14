@@ -265,6 +265,67 @@ do
 			end
 		end
 	end
+	-- v15: street trees in round planters halfway between the lamps (on the other side of the street), and a bin
+	-- beside every lamp. Only in the city (not in the Fun Park, which Main St runs through), never near a crossing
+	-- or the Main St bus stops; the planters don't block cars cutting across the sidewalk.
+	local STREET = Instance.new("Model")
+	STREET.Name = "StreetTrees"
+	STREET.Parent = WORLD
+	local function nearStop(x, z) for _, bx in ipairs({-230, -470, 230, 470}) do if math.abs(z) < 14 and x > bx - 26 and x < bx + 30 then return true end end return false end
+	local function streetTree(x, z)
+		cyl(STREET, 1.2, 3, CF(x, 0.6, z), RGB(150, 150, 156), MAT.Concrete)
+		cyl(STREET, 0.3, 2.6, CF(x, 1.25, z), RGB(90, 70, 50), MAT.Ground)
+		cyl(STREET, 4, 0.5, CF(x, 3, z), RGB(105, 72, 45), MAT.Wood)
+		local g = Color3.fromHSV(0.28 + (x * 7 + z * 3) % 7 / 100, 0.6, 0.55)
+		ball(STREET, V3(4.2, 3.6, 4.2), CF(x, 6.2, z), g, MAT.Grass)
+		ball(STREET, V3(2.8, 2.6, 2.8), CF(x + 0.7, 7.6, z - 0.4), g:Lerp(RGB(60, 120, 50), 0.3), MAT.Grass)
+	end
+	local function bin(x, z)
+		cyl(STREET, 1.7, 1.1, CF(x, 0.85, z), RGB(40, 90, 60), MAT.Metal, SOLID)
+		cyl(STREET, 0.15, 1.25, CF(x, 1.75, z), RGB(30, 30, 34), MAT.Metal)
+	end
+	C.STREET_PROPS = {trees = 0, bins = 0}
+	local function onPath(x, z)
+		for _, pr in ipairs(C.PATHS) do if x > pr[1] - 3 and x < pr[3] + 3 and z > pr[2] - 3 and z < pr[4] + 3 then return true end end
+		return false
+	end
+	-- (built once every module has reserved its paths: Players calls this next to F.scatterTrees)
+	function F.buildStreetProps()
+	for _, r in ipairs(C.ROADS) do
+		local axis, c, a, b, w = r[1], r[2], r[3], r[4], r[5]
+		if w >= 12 then
+			local k = 0
+			for v = a + 20, b - 20, 46 do
+				k += 1
+				local near = false
+				for _, x in ipairs(r[6]) do if math.abs(v - x) < 16 then near = true end end
+				local side = (k % 2 == 0) and 1 or -1
+				local function at(sv, sd)
+					local off = c + sd * (w / 2 + 3.2)
+					if axis == "x" then return sv, off end
+					return off, sv
+				end
+				-- a bin beside the lamp
+				if not near then
+					local bx, bz = at(v + 2.4, side)
+					if math.abs(bx) <= 340 and math.abs(bz) <= 340 and not nearStop(bx, bz) and not onPath(bx, bz) then
+						bin(bx, bz)
+						C.STREET_PROPS.bins += 1
+					end
+				end
+				-- a tree halfway to the next lamp, across the street
+				local tv = v + 23
+				local tnear = false
+				for _, x in ipairs(r[6]) do if math.abs(tv - x) < 18 then tnear = true end end
+				local tx, tz = at(tv, -side)
+				if not tnear and tv < b - 12 and math.abs(tx) <= 340 and math.abs(tz) <= 340 and not nearStop(tx, tz) and not onPath(tx, tz) then
+					streetTree(tx, tz)
+					C.STREET_PROPS.trees += 1
+				end
+			end
+		end
+	end
+	end
 	-- traffic lights (client cycles the colors)
 	local function trafficLight(x, z, yaw, phase)
 		local cf = CF(x, 0, z) * CFrame.Angles(0, yaw, 0)

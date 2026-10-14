@@ -220,12 +220,17 @@ do
 end
 
 -- ===== rotating rides (ferris wheel, carousel) =====
+-- v15: HubCF (optional) turns the ride in its own frame (a wheel built facing any way); Mode "swing" rocks it
+-- back and forth (pirate ship, swing ride arms) by Amp radians, Mode "drop" lifts it Lift studs and drops it
+-- (drop tower); Phase offsets a ride so two of the same kind don't move in step
 local rotators = {}
 local function addRotator(m)
 	local hub = m:GetAttribute("Hub")
 	if not hub then return end
-	local hubCF = CF(hub)
-	local entry = {model = m, hubCF = hubCF, axis = m:GetAttribute("Axis") or "Y", speed = m:GetAttribute("Speed") or 0.3, parts = {}}
+	local hubCF = m:GetAttribute("HubCF")
+	if typeof(hubCF) ~= "CFrame" then hubCF = CF(hub) end
+	local entry = {model = m, hubCF = hubCF, axis = m:GetAttribute("Axis") or "Y", speed = m:GetAttribute("Speed") or 0.3, parts = {},
+		mode = m:GetAttribute("Mode") or "spin", amp = m:GetAttribute("Amp") or 0.9, lift = m:GetAttribute("Lift") or 20, phase = m:GetAttribute("Phase") or 0}
 	for _, p in ipairs(m:GetDescendants()) do
 		if p:IsA("BasePart") then
 			local kind = p:GetAttribute("Kind")
@@ -242,6 +247,7 @@ end
 for _, m in ipairs(CollectionService:GetTagged("Rotator")) do addRotator(m) end
 CollectionService:GetInstanceAddedSignal("Rotator"):Connect(addRotator)
 
+local chaseAt = setmetatable({}, {__mode = "k"})   -- where each ChaseLights string is (v15)
 -- ===== PER-FRAME ANIMATION =====
 RunService.RenderStepped:Connect(function(dt)
 	local now = os.clock()
@@ -288,9 +294,18 @@ RunService.RenderStepped:Connect(function(dt)
 		if not m.Parent then
 			rotators[m] = nil
 		elseif (r.hubCF.Position - camPos).Magnitude < 700 then
-			local th = serverT * r.speed
-			local rot = r.axis == "Z" and CFrame.Angles(0, 0, th) or CFrame.Angles(0, th, 0)
-			local base = r.hubCF * rot
+			local th = serverT * r.speed + r.phase
+			local base
+			if r.mode == "drop" then
+				-- slow climb, a pause at the top, a fast drop, a pause at the bottom
+				local k = th % 1
+				local h = k < 0.55 and (k / 0.55) or (k < 0.7 and 1 or (k < 0.78 and 1 - ((k - 0.7) / 0.08) ^ 2 or 0))
+				base = r.hubCF * CF(0, h * r.lift, 0)
+			else
+				if r.mode == "swing" then th = math.sin(th) * r.amp end
+				local rot = r.axis == "Z" and CFrame.Angles(0, 0, th) or (r.axis == "X" and CFrame.Angles(th, 0, 0) or CFrame.Angles(0, th, 0))
+				base = r.hubCF * rot
+			end
 			for _, e in ipairs(r.parts) do
 				if e.gondola then
 					e.p.CFrame = CF(base:PointToWorldSpace(e.rel) - V3(0, e.hang, 0)) * e.rot
@@ -315,13 +330,22 @@ RunService.RenderStepped:Connect(function(dt)
 		end
 	end
 	for _, m in ipairs(CollectionService:GetTagged("ChaseLights")) do
+		-- (v15: only the strings near you: the parks added many more)
+		local at = chaseAt[m]
+		if not at then
+			local first = m:FindFirstChildWhichIsA("BasePart")
+			at = first and first.Position or camPos
+			chaseAt[m] = at
+		end
 		local i = 0
-		for _, b in ipairs(m:GetChildren()) do
-			if b:IsA("BasePart") then
-				i += 1
-				local on = (math.floor(now * 8) + i) % 3 == 0
-				b.Color = on and Color3.fromHSV((now * 0.2 + i * 0.07) % 1, 0.7, 1) or RGB(255, 230, 120)
-				b.Transparency = on and 0 or 0.4
+		if (at - camPos).Magnitude <= 320 then
+			for _, b in ipairs(m:GetChildren()) do
+				if b:IsA("BasePart") then
+					i += 1
+					local on = (math.floor(now * 8) + i) % 3 == 0
+					b.Color = on and Color3.fromHSV((now * 0.2 + i * 0.07) % 1, 0.7, 1) or RGB(255, 230, 120)
+					b.Transparency = on and 0 or 0.4
+				end
 			end
 		end
 	end

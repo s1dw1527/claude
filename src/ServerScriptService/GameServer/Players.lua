@@ -43,7 +43,9 @@ local SAVE_KEYS = {"cash", "levels", "chains", "staff", "combos", "rep", "ep", "
 	-- v13
 	"city",
 	-- v14
-	"theater", "rivals", "xfer", "coop", "loft", "party", "tune", "prestige", "events", "onboard"}
+	"theater", "rivals", "xfer", "coop", "loft", "party", "tune", "prestige", "events", "onboard",
+	-- v15
+	"park"}
 -- everything this version writes itself; any OTHER field found in a save is kept as-is when saving
 local KNOWN_KEYS = {lots = true, props = true, SchemaVersion = true, saveSeq = true, gameVersion = true, savedAt = true}
 for _, k in ipairs(SAVE_KEYS) do KNOWN_KEYS[k] = true end
@@ -1253,6 +1255,7 @@ end)
 for _, lot in ipairs(LOTS) do F.buildLot(lot) end
 for _, lot in ipairs(C.HOME_LOTS) do F.buildHome(lot) end
 F.scatterTrees()
+if F.buildStreetProps then F.buildStreetProps() end   -- (v15: street trees and bins, off every reserved path)
 Workspace:SetAttribute("Weather", "none")
 
 game:BindToClose(function()
@@ -1413,6 +1416,7 @@ task.spawn(function()
 		local t = Lighting.ClockTime
 		local night = t < 6.2 or t > 17.8
 		for _, l in ipairs(C.LAMPS) do l.Enabled = night end
+		if C.applyTimeOfDay then C.applyTimeOfDay(t) end   -- v15: sunrise / sunset / night grade
 	end
 end)
 -- autosave

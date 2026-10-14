@@ -33,6 +33,8 @@ local GOALS = {
 		have = function(d) return type(d.heist) == "table" and (tonumber(d.heist.done) or 0) or 0 end},
 	{key = "cinema", icon = "🎬", name = "Movie mogul", text = "Run 100 shows at your Movie Theater", need = 100,
 		have = function(d) return type(d.theater) == "table" and (tonumber(d.theater.sessions) or 0) or 0 end},
+	{key = "thrills", icon = "🎢", name = "Thrill builder", text = "Build an Amusement Park rated 80+", need = 80,
+		have = function(d) return (d.levels.park or 0) > 0 and type(d.park) == "table" and F.parkScore and (F.parkScore(d)) or 0 end},
 	{key = "partner", icon = "🤝", name = "Better together", text = "Run a business with a partner", need = 1,
 		have = function(d)
 			local c = d.coop

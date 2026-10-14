@@ -4,9 +4,9 @@ local RGB = Color3.fromRGB
 
 -- ===== VERSION (bump these with every published update; see README "How to update Corner Empire") =====
 C.VERSION = {
-	VERSION = "14.0.0",
-	UPDATE_NAME = "Life & Empire: Main Street",
-	SCHEMA_VERSION = 14,         -- the shape of a player's save. Raise it only together with a new step in DataMigration.
+	VERSION = "15.0.0",
+	UPDATE_NAME = "Life & Empire: Funland",
+	SCHEMA_VERSION = 15,         -- the shape of a player's save. Raise it only together with a new step in DataMigration.
 	MIN_SUPPORTED_SCHEMA = 6,   -- saves older than v6 (no version field, no tutorial-reward tracking) are treated as v6
 	-- shown once to every returning player after an update (Messages app)
 	NOTES = {
@@ -26,6 +26,9 @@ C.VERSION = {
 		"🎬 14: the MOVIE THEATER opens on a city plot: pick the films, premieres, upgrades. Plus 🥊 AI rivals and staff traits and shifts",
 		"🤝 14: PARTNERS: co-own a business with friends, send gifts safely. 🎉 Home parties and 🏢 City Lofts downtown",
 		"🔧 14: car roles and tuning, 📊 leaderboards and 🌟 prestige, 📅 special events, and a 🧭 Next Step guide",
+		"🎢 15: the AMUSEMENT PARK: open it on a city plot, then build your own park at the Funland Grounds: coasters, Ferris wheels, cotton candy",
+		"🎡 15: the Fun Park gets a giant roller coaster you can ride, a drop tower, swings and cotton-candy stands",
+		"🛠️ 15: no more cars, benches or trees in the street; the mountain base stations open again; the Movie Theater can be bought from its menu",
 	},
 }
 
@@ -117,7 +120,7 @@ C.REP_TIERS = {
 	{name = "UNKNOWN CORNER",     rep = 0,    unlocks = {"Lemonade Stand", "Ice Cream Cart", "Your home", "Phone & CityBuzz"}},
 	{name = "LOCAL FAVORITE",     rep = 100,  unlocks = {"Bakery & Coffee Shop", "Staff", "Cars & Deliveries", "Fun Park", "Downtown & Midtown plots"}},
 	{name = "HOTSPOT",            rep = 400,  unlocks = {"Pizza & Arcade", "Movie Theater (on a city plot)", "Stock Market", "Ads", "Property Management", "Race Track", "Empire Tower", "Industrial & Entertainment plots", "Your HQ"}},
-	{name = "CITY ICON",          rep = 1200, unlocks = {"Tech Startup", "Business chains", "Rebirth", "Waterfront plots", "Oceanfront homes"}},
+	{name = "CITY ICON",          rep = 1200, unlocks = {"Tech Startup", "Amusement Park (on a city plot)", "Business chains", "Rebirth", "Waterfront plots", "Oceanfront homes"}},
 	{name = "EMPIRE",             rep = 3500, unlocks = {"Factory", "Luxury Hills & Expansion plots", "Hillside homes"}},
 	{name = "LEGENDARY DISTRICT", rep = 9000, unlocks = {"Millionaire Row", "Legend status"}},
 }
@@ -148,6 +151,11 @@ C.BUSINESSES = {
 	{key = "theater",  name = "Movie Theater", cost = 8000000, income = 620, unlock = 3, icon = "🎬", color = RGB(220, 40, 60), wall = RGB(60, 20, 30), roof = RGB(220, 40, 60), thing = "tickets",
 		lotOnly = true,
 		tiers = {"Pop-up Screen", "Neighborhood Cinema", "Twin Cinema", "Multiplex", "IMAX Palace", "🎬 GRAND PREMIERE HALL"}},
+	-- v15: the AMUSEMENT PARK. lotOnly like the theater: its ticket gate stands on a city plot, and the park itself
+	-- is your own site at the Funland Grounds where you build the rides (GameServer > Park).
+	{key = "park",     name = "Amusement Park", cost = 60000000, income = 2400, unlock = 4, icon = "🎢", color = RGB(255, 120, 40), wall = RGB(250, 236, 210), roof = RGB(255, 80, 120), thing = "rides",
+		lotOnly = true,
+		tiers = {"Kiddie Corner", "Fun Fair", "Theme Park", "Adventure Park", "Mega Resort", "🎢 THRILL KINGDOM"}},
 }
 C.BIZ = {}
 for i, b in ipairs(C.BUSINESSES) do
@@ -343,11 +351,12 @@ C.STAFF_ROLES = {
 	pizza = {role = "Pizza Chef", icon = "🍕"}, arcade = {role = "Game Host", icon = "🕹️"},
 	tech = {role = "Developer", icon = "🧑‍💻"}, factory = {role = "Warehouse Worker", icon = "📦"},
 	theater = {role = "Projectionist", icon = "🎞️"},
+	park = {role = "Ride Operator", icon = "🎟️"},
 	manager = {role = "Manager", icon = "💰", cost = 500000, desc = "+1.5% ALL income per star"},
 	marketer = {role = "Marketer", icon = "📣", cost = 120000, desc = "+6% customers per star"},
 	engineer = {role = "Engineer", icon = "🔧", cost = 30000, desc = "Fewer problems, cheaper repairs"},
 }
-C.STAFF_ORDER = {"lemonade", "icecream", "bakery", "coffee", "pizza", "arcade", "tech", "factory", "theater", "manager", "marketer", "engineer"}
+C.STAFF_ORDER = {"lemonade", "icecream", "bakery", "coffee", "pizza", "arcade", "tech", "factory", "theater", "park", "manager", "marketer", "engineer"}
 C.NAMES = {"Alex", "Sam", "Jordan", "Riley", "Casey", "Morgan", "Taylor", "Jamie", "Avery", "Quinn", "Maya", "Leo", "Zoe", "Omar", "Priya", "Kai", "Nina", "Luca", "Ivy", "Theo", "Rosa", "Ben", "Aria", "Milo"}
 
 C.PROBLEMS = {
@@ -362,8 +371,8 @@ C.INSPECTION_PROBLEM = 11
 
 C.NPC_TYPES = {
 	{key = "office",     icon = "💼", shirt = RGB(60, 75, 120),   pants = RGB(35, 35, 45),   likes = {coffee = 3, tech = 2, bakery = 1, theater = 1}},
-	{key = "family",     icon = "👪", shirt = RGB(90, 170, 90),   pants = RGB(60, 70, 120),  likes = {bakery = 3, pizza = 2, icecream = 2, theater = 3}, family = true},
-	{key = "student",    icon = "🎓", shirt = RGB(235, 125, 45),  pants = RGB(50, 60, 110),  likes = {arcade = 3, pizza = 2, lemonade = 2, theater = 3}},
+	{key = "family",     icon = "👪", shirt = RGB(90, 170, 90),   pants = RGB(60, 70, 120),  likes = {bakery = 3, pizza = 2, icecream = 2, theater = 3, park = 3}, family = true},
+	{key = "student",    icon = "🎓", shirt = RGB(235, 125, 45),  pants = RGB(50, 60, 110),  likes = {arcade = 3, pizza = 2, lemonade = 2, theater = 3, park = 3}},
 	{key = "gym",        icon = "🏋️", shirt = RGB(220, 50, 60),   pants = RGB(30, 30, 30),   likes = {lemonade = 3, icecream = 1}},
 	{key = "builder",    icon = "🛠️", shirt = RGB(250, 170, 30),  pants = RGB(70, 80, 110),  likes = {factory = 3, bakery = 2, coffee = 1}},
 	{key = "rich",       icon = "💰", shirt = RGB(25, 25, 30),    pants = RGB(25, 25, 30),   likes = {tech = 2, coffee = 2, pizza = 1, theater = 2}, tip = 3, fancy = true},

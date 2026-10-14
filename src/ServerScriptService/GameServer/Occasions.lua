@@ -34,7 +34,7 @@ local LIST = {
 		tasks = {T("upgrade", 10, "Upgrade businesses 10 times"), T("corner", 3, "Find 3 ✨ Golden Corners"), T("race", 1, "Finish a 🏁 race")},
 		reward = {secs = 600, min = 3000, rep = 20, keep = "🌸 Blossom badge"}},
 	{key = "summer", icon = "☀️", name = "Summer Beach Fest", from = {7, 1}, to = {7, 21}, color = RGB(255, 210, 80),
-		tasks = {T("cook", 20, "Serve 20 perfect 🍳 Rush Orders"), T("job", 3, "Finish 3 💼 City Jobs"), T("party", 2, "Throw or join 2 🎉 parties")},
+		tasks = {T("cook", 20, "Serve 20 perfect 🍳 Rush Orders"), T("ride", 5, "Take 5 🎢 rides (any park, or the Fun Park coaster)"), T("party", 2, "Throw or join 2 🎉 parties")},
 		reward = {secs = 900, min = 5000, rep = 25, keep = "☀️ Beach Boss badge"}},
 	{key = "birthday", icon = "🎂", name = "City Birthday", monthly = {1, 3}, color = RGB(255, 205, 80),
 		tasks = {T("upgrade", 3, "Upgrade businesses 3 times"), T("cook", 5, "Serve 5 perfect 🍳 Rush Orders"), T("corner", 1, "Find a ✨ Golden Corner")},

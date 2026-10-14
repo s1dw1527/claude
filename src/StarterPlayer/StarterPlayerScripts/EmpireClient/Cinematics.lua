@@ -418,6 +418,22 @@ local SIGNATURE = {
 			scr.Color = RGB(80, 200, 255)
 		end
 	end,
+	park = function(S, o)
+		-- the ribbon is cut and balloons float up
+		local rib = S:part(V3(10, 0.6, 0.2), RGB(220, 30, 50), Enum.Material.Fabric, o * CF(0, 3.5, -1))
+		S:wait(0.6)
+		rib.Size = V3(4.6, 0.6, 0.2)
+		rib.CFrame = o * CF(-2.7, 3.5, -1)
+		local r2 = S:part(V3(4.6, 0.6, 0.2), RGB(220, 30, 50), Enum.Material.Fabric, o * CF(2.7, 3.5, -1))
+		tween(rib, 0.8, {CFrame = o * CF(-3.4, 2.4, -1) * CFrame.Angles(0, 0, 0.6)})
+		tween(r2, 0.8, {CFrame = o * CF(3.4, 2.4, -1) * CFrame.Angles(0, 0, -0.6)})
+		for i = 1, 5 do
+			local b = S:part(V3(1.2, 1.5, 1.2), Color3.fromHSV(i / 5, 0.7, 1), Enum.Material.SmoothPlastic, o * CF(-4 + i * 1.6, 3, -1.5), Enum.PartType.Ball)
+			tween(b, 2.2, {CFrame = o * CF(-4 + i * 1.6 + math.sin(i) * 2, 16, -1.5)})
+		end
+		play(SND.click)
+		S:wait(1.4)
+	end,
 	theater = function(S, o)
 		-- the curtains part and the screen lights up
 		local scr = S:part(V3(8, 4.5, 0.2), RGB(20, 20, 26), Enum.Material.SmoothPlastic, o * CF(0, 5, -1))

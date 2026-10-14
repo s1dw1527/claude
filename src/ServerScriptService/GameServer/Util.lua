@@ -244,6 +244,58 @@ function C.resetLook()
 	C.setLook(normal)
 	Workspace:SetAttribute("Weather", "none")
 end
+-- v15: a proper sky (sun, moon and stars: the default skybox, no image assets), softer shadows, and a grade that
+-- follows the time of day: warm at sunrise and sunset, cool and blue at night, where a night bloom makes neon
+-- signs, lamps and ride lights glow. (Weather and events use the main grade above; this one is separate.)
+-- Lighting.Technology can't be set by a script: set it to ShadowMap (or Future) in Studio, see the v15 report.
+pcall(function() Lighting.ShadowSoftness = 0.25 end)
+local sky = Lighting:FindFirstChildOfClass("Sky") or Instance.new("Sky")
+pcall(function()
+	sky.SunAngularSize = 14
+	sky.MoonAngularSize = 9
+	sky.StarCount = 3000
+	sky.CelestialBodiesShown = true
+end)
+sky.Parent = Lighting
+local tod = Lighting:FindFirstChild("TimeOfDayGrade") or Instance.new("ColorCorrectionEffect")
+tod.Name = "TimeOfDayGrade"
+tod.Parent = Lighting
+local nightBloom = Lighting:FindFirstChild("NightBloom") or Instance.new("BloomEffect")
+nightBloom.Name = "NightBloom"
+nightBloom.Size, nightBloom.Threshold = 28, 0.95
+nightBloom.Parent = Lighting
+-- (hour → tint, brightness, night bloom, outdoor ambient)
+local KEYS = {
+	{0, RGB(170, 185, 255), -0.04, 0.7, RGB(70, 80, 120)},
+	{5, RGB(190, 195, 255), -0.02, 0.6, RGB(90, 95, 130)},
+	{6.5, RGB(255, 205, 170), 0.02, 0.15, RGB(150, 130, 130)},
+	{8.5, RGB(255, 248, 240), 0, 0, RGB(140, 140, 160)},
+	{16.5, RGB(255, 248, 238), 0, 0, RGB(140, 140, 160)},
+	{18, RGB(255, 190, 150), 0.03, 0.2, RGB(160, 125, 120)},
+	{19.5, RGB(200, 190, 255), -0.01, 0.55, RGB(90, 90, 130)},
+	{24, RGB(170, 185, 255), -0.04, 0.7, RGB(70, 80, 120)},
+}
+function C.timeOfDayLook(h)
+	h = h % 24
+	for i = 1, #KEYS - 1 do
+		local a, b = KEYS[i], KEYS[i + 1]
+		if h >= a[1] and h <= b[1] then
+			local f = (h - a[1]) / math.max(0.001, b[1] - a[1])
+			return a[2]:Lerp(b[2], f), a[3] + (b[3] - a[3]) * f, a[4] + (b[4] - a[4]) * f, a[5]:Lerp(b[5], f)
+		end
+	end
+	return KEYS[1][2], KEYS[1][3], KEYS[1][4], KEYS[1][5]
+end
+local lastH
+function C.applyTimeOfDay(h)
+	-- (only when it has moved a little: every property change is sent to every player)
+	if lastH and math.abs(h - lastH) < 0.05 then return end
+	lastH = h
+	local tint, bright, bloomI, amb = C.timeOfDayLook(h)
+	tod.TintColor, tod.Brightness, nightBloom.Intensity = tint, bright, bloomI
+	Lighting.OutdoorAmbient = amb
+end
+C.applyTimeOfDay(Lighting.ClockTime)
 pcall(function()
 	local clouds = Instance.new("Clouds")
 	clouds.Cover = 0.5

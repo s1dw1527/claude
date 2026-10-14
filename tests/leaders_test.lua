@@ -119,7 +119,7 @@ H.main(function()
 	H.task.wait(0.3)
 	local goals = 0
 	for _, x in ipairs(cc.modals.leaders.body:GetDescendants()) do if x.ClassName == "TextLabel" and (x.Text:find("^☆") or x.Text:find("^⭐")) then goals += 1 end end
-	H.check(goals == 10, "the prestige tab lists the 10 goals (" .. goals .. ")")
+	H.check(goals == #C.PRESTIGE_GOALS, "the prestige tab lists the " .. #C.PRESTIGE_GOALS .. " goals (" .. goals .. ")")
 	cc.closeModals()
 
 	H.section("Prestige")

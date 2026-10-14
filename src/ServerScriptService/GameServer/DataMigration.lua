@@ -155,7 +155,24 @@ M.steps = {
 		end
 		return notes
 	end,
+	[14] = function(t)
+		local notes = {}
+		-- v15: the Amusement Park's record (the rides you built, its stats). New; a save that already has one keeps it.
+		for k, v in pairs(M.v15Defaults()) do
+			if t[k] == nil then
+				t[k] = v
+				table.insert(notes, k)
+			end
+		end
+		return notes
+	end,
 }
+-- every new v15 field and its safe default
+function M.v15Defaults()
+	return {
+		park = {items = {}, stats = {}, visitors = 0, rides = 0, guestRides = 0, best = 0},   -- the 🎢 Amusement Park (GameServer > Park)
+	}
+end
 -- every new v14 field and its safe default
 function M.v14Defaults()
 	return {
@@ -196,6 +213,7 @@ function M.featureDefaults()
 	for k, v in pairs(M.v12Defaults()) do out[k] = v end
 	for k, v in pairs(M.v13Defaults()) do out[k] = v end
 	for k, v in pairs(M.v14Defaults()) do out[k] = v end
+	for k, v in pairs(M.v15Defaults()) do out[k] = v end
 	return out
 end
 -- the 16 land lots of v5-v9, in the order the world built them (4 per district)
@@ -418,6 +436,11 @@ function M.sampleSaves()
 			deeds = {{id = "d4", district = "luxury", plot = 1, paid = 6e6, biz = "tech"}}, brands = {factory = {name = "Gear Giant"}},
 			empire = {ms = {m1 = 1, m10 = 2, m100 = 3, m1000 = 4}, best = 7.7e9, pub = 7e9, pubAt = 1, firstIncome = true, firstUpgrade = true, visits = 0, legacy = false, seeded = true},
 			city = {corners = {gc1 = true, gc7 = true}, places = {spire = 1}, jobs = 12, jobPay = 99000, streak = 2}, cars = {coupe = true, hyper = true}, unknownFuture3 = {keep = "me three"}},
+		v14 = {SchemaVersion = 14, cash = 9.1e9, earned = 3e10, levels = {lemonade = 10, pizza = 10, tech = 9, theater = 4}, rep = 14000, tut = 0, tutPaid = 7,
+			deeds = {{id = "d5", district = "entertainment", plot = 1, paid = 2e6, biz = "theater"}}, theater = {up = {seats = 3}, sessions = 40, tickets = 5000, best = 300, filmShows = 2, premiered = {dino = true}},
+			rivals = {p = {pixel = 0.98}, wins = 3, losses = 1, moves = 9}, loft = {level = 2}, prestige = {stars = {shows100 = 1}}, cars = {coupe = true}, unknownFuture4 = {keep = "me four"}},
+		brokenV15 = {SchemaVersion = 15, cash = 2468, earned = 9000, levels = {lemonade = 5, park = 1}, rep = 12, tut = 0, tutPaid = 7,
+			park = {items = "rides!", visitors = -10, rides = 7, stats = {}}},
 		brokenV14 = {SchemaVersion = 14, cash = 4321, earned = 9000, levels = {lemonade = 5, theater = 2}, rep = 11, tut = 0, tutPaid = 7, theater = {up = "big", sessions = -2, premiered = {dino = true}}},
 		brokenV13 = {SchemaVersion = 13, cash = 999, earned = 7000, levels = {lemonade = 4}, rep = 9, tut = 0, tutPaid = 7, city = {corners = "lots", jobs = -4, places = {spire = 5}}},
 		brokenV12 = {SchemaVersion = 12, cash = 888, earned = 5000, levels = {lemonade = 3}, rep = 7, tut = 0, tutPaid = 7, empire = {ms = "oops", best = -5, firstIncome = "yes"}},
@@ -517,6 +540,29 @@ function M.selfTest()
 		local ok, t, log = M.migrate(samples.brokenV14)
 		add(ok and t.cash == 4321 and t.levels.theater == 2 and type(t.theater.up) == "table" and t.theater.sessions == 0 and t.theater.premiered.dino == true,
 			"a damaged v14 theater record is repaired field by field; the rest of the save loads (" .. table.concat(log, " | ") .. ")")
+	end
+	do
+		local orig = samples.v14
+		local before = deepCopy(orig)
+		local ok, t, log = M.migrate(orig)
+		add(ok and t.SchemaVersion == V.SCHEMA_VERSION and t.cash == before.cash and t.earned == before.earned and t.levels.theater == 4 and t.deeds[1].biz == "theater"
+			and t.theater.sessions == 40 and t.theater.up.seats == 3 and t.rivals.wins == 3 and t.loft.level == 2 and t.prestige.stars.shows100 == 1 and t.cars.coupe == true
+			and t.unknownFuture4.keep == "me four" and type(t.park) == "table" and type(t.park.items) == "table" and #t.park.items == 0 and t.levels.park == nil
+			and orig.park == nil and orig.SchemaVersion == 14,
+			"v14 save keeps cash, businesses, the theater, plots, rivals, loft, prestige, cars and unknown fields, and gets the v15 park record (" .. table.concat(log, " | ") .. ")")
+	end
+	do
+		local ok, t, log = M.migrate(samples.brokenV15)
+		add(ok and t.cash == 2468 and t.levels.park == 1 and type(t.park.items) == "table" and t.parkRecovered == nil and t.park.visitors == 0 and t.park.rides == 7,
+			"a damaged v15 park record is repaired field by field; the rest of the save loads (" .. table.concat(log, " | ") .. ")")
+	end
+	do
+		local broken = deepCopy(samples.v14)
+		local real = M.steps[14]
+		M.steps[14] = function() error("simulated bug in the v15 step") end
+		local ok, _, _, err = M.migrate(broken)
+		M.steps[14] = real
+		add(not ok and tostring(err):find("14 %-> 15") ~= nil and samples.v14.park == nil, "a crashing v15 step is refused and the stored v14 save is untouched: " .. tostring(err))
 	end
 	do
 		local broken = deepCopy(samples.v13)
