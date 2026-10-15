@@ -5,6 +5,27 @@ A 1–4 player Roblox business tycoon. **`CornerEmpire_v16.rbxlx` is the current
 `docs/V11_REPORT.md`; install steps and the real-Studio test list are in `docs/V11_STUDIO_CHECKLIST.md`. The v11.1
 mobile UI overhaul (client only) is in `docs/V11_1_MOBILE_REPORT.md`.
 
+## What's new in v17 — Viral Hooks (server + client)
+
+Built from research into Roblox games that went viral (Grow a Garden, Dead Rails, 99 Nights) and from Roblox's discovery documentation.
+
+- **🛍️ City Bazaar:** a shop that restocks every 5 minutes with 18 Bazaar-only furniture pieces, from Common to 🌈 Mythic.
+  - Every server has the same stock at the same time.
+  - Each player has a limit per restock, which is saved.
+  - Paid in in-game cash only.
+  - There's a stall in the plaza and a new phone app.
+- **✨ Lucky customers:** a glowing ✨ Golden (×10), 💎 Diamond (×50) or 🌈 Rainbow (×250, capped) customer that everyone sees walk in. Diamond and Rainbow are shouted to the server.
+- **⚡ A faster first 90 seconds** for new saves:
+  - The first customer walks straight in: the first sale comes at 1.8 s, down from 14.2 s.
+  - A "FIRST SALE!" moment.
+  - A 90-second grand opening crowd.
+- **📊 Creator Analytics:**
+  - an onboarding funnel (8 steps, new saves only);
+  - economy events (throttled);
+  - custom events (rare sales, intro watched or skipped).
+
+Same DataStore, same save schema (16): the new fields are additive. Install both drop-ins. Research and sources, test results, the owner launch checklist and the Studio checklist: `docs/V17_REPORT.md`. **Not tested in real Studio.**
+
 ## What's new in v16.1 — Bold UI (client; the server only gets the new version number)
 
 - **Chunky cartoon buttons everywhere:** glossy, a thick dark outline, Fredoka One lettering with an outline.
