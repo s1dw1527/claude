@@ -59,6 +59,7 @@
     "LiveEvents",
     "Showcase",
     "Bazaar",
+    "Collection",
     "Analytics",
     "Updates",
     "Players"
@@ -94,6 +95,7 @@
     "RoadmapUI",
     "ShowcaseUI",
     "BazaarUI",
+    "CollectionUI",
     "ComputerUI",
     "GarageUI",
     "ArcadeUI",

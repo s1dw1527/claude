@@ -47,7 +47,11 @@ function C.mapCatalog()
 	for _, r in ipairs(C.ROADS or {}) do table.insert(roads, {r[1], r[2], r[3], r[4], r[5], r[6]}) end
 	local traffic = {}
 	for _, r in ipairs(C.trafficRoads and C.trafficRoads() or {}) do table.insert(traffic, {r[1], r[2], r[3], r[4], r[5], r[6]}) end
-	return {places = places, roads = roads, traffic = traffic, bounds = {-660, -560, 660, 500}, lights = C.TRAFFIC_LIGHTS or {}}
+	-- v18: Empire Heights (drawn, but not part of the traffic network) and a map wide enough to show it (the same
+	-- scale across and down as before: the map frame is 290x250)
+	local extra = {}
+	for _, r in ipairs(C.HEIGHTS_ROADS or {}) do table.insert(extra, {r[1], r[2], r[3], r[4], r[5]}) end
+	return {places = places, roads = roads, extraRoads = extra, traffic = traffic, bounds = {-660, -700, 1310, 1000}, lights = C.TRAFFIC_LIGHTS or {}}
 end
 
 -- live part of the map for one player (in the state packet)

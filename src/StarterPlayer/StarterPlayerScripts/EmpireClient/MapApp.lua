@@ -29,7 +29,10 @@ end
 do
 	local _, sy = px(0, 345)
 	new("Frame", {Position = UDim2.fromOffset(0, sy), Size = UDim2.new(1, 0, 1, -sy), BackgroundColor3 = RGB(60, 130, 200), BorderSizePixel = 0, ZIndex = 22}, canvas)
-	for _, r in ipairs(cat.roads) do
+	local all = {}
+	for _, r in ipairs(cat.roads) do table.insert(all, r) end
+	for _, r in ipairs(cat.extraRoads or {}) do table.insert(all, r) end   -- (v18: Empire Heights)
+	for _, r in ipairs(all) do
 		local axis, c, a, b, w = r[1], r[2], r[3], r[4], r[5]
 		local x1, y1, x2, y2
 		if axis == "x" then

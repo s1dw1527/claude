@@ -79,6 +79,7 @@ do
 	T:FillBlock(CF(0, -24 + off, 640), V3(1700, 6, 420), S)                    -- sea floor
 	T:FillBlock(CF(0, -10.5 + off, 640), V3(1700, 21, 420), W)                 -- the ocean
 	T:FillBlock(CF(0, -1 + off, 440), V3(1700, 2, 22), S)                      -- gentle slope into the water
+	T:FillBlock(CF(1090, -8 + off, 0), V3(520, 16, 380), G)                    -- v18: Empire Heights (east of the Corner Bank)
 	-- Hillside plateau
 	T:FillBlock(CF(-230, 7 + off, -200), V3(168, 14, 108), R)
 	T:FillBlock(CF(-230, 9 + off, -200), V3(160, 18, 100), G)
@@ -221,6 +222,16 @@ C.ROADS = {
 	{"z", 0, -348, -300, 12, {-300}},                            -- Race track entrance
 }
 for _, r in ipairs(C.ROADS) do road(r[1], r[2], r[3], r[4], r[5], r[6]) end
+-- v18 EMPIRE HEIGHTS (12-player servers): a new neighbourhood east of the Corner Bank: Heights Blvd with 8 player
+-- plots, reached from the end of Main St by a short road around the bank. A quiet street: it isn't part of the
+-- traffic network (C.ROADS), so the city's traffic and pedestrian graph is unchanged. layout_test checks its lanes.
+C.HEIGHTS_ROADS = {
+	{"z", 630, 7, 66, 12},        -- off the end of Main St, north
+	{"x", 60, 624, 806, 12},      -- around the bank
+	{"z", 800, 6, 66, 12},        -- down to the boulevard
+	{"x", 0, 794, 1300, 14},      -- Heights Blvd
+}
+for _, r in ipairs(C.HEIGHTS_ROADS) do road(r[1], r[2], r[3], r[4], r[5], {}) end
 -- ramp up to the Hillside plateau (rises toward +Z)
 wedge(WORLD, V3(12, 18, 44), CF(-230, 9, -272), ASPHALT, MAT.Asphalt, SOLID)
 C.reserve(-240, -300, -220, -248)
@@ -388,8 +399,15 @@ end
 -- =====================================================================
 -- CORE: plaza + 4 player plots (90x90)
 -- =====================================================================
-local PLOT_CENTERS = {V3(-62, 0, -62), V3(62, 0, -62), V3(-62, 0, 62), V3(62, 0, 62)}
-local PLOT_COLORS = {RGB(226, 80, 80), RGB(80, 140, 235), RGB(80, 200, 120), RGB(245, 165, 55)}
+-- (v18: 12 plots. 1-4 around the plaza, 5-12 on Heights Blvd: north side facing south, south side facing north,
+-- exactly like the plaza plots face Main St)
+local PLOT_CENTERS = {V3(-62, 0, -62), V3(62, 0, -62), V3(-62, 0, 62), V3(62, 0, 62),
+	V3(870, 0, -62), V3(990, 0, -62), V3(1110, 0, -62), V3(1230, 0, -62),
+	V3(870, 0, 62), V3(990, 0, 62), V3(1110, 0, 62), V3(1230, 0, 62)}
+local PLOT_COLORS = {RGB(226, 80, 80), RGB(80, 140, 235), RGB(80, 200, 120), RGB(245, 165, 55),
+	RGB(170, 90, 230), RGB(40, 190, 200), RGB(235, 100, 170), RGB(150, 190, 60),
+	RGB(230, 130, 90), RGB(90, 110, 220), RGB(210, 180, 60), RGB(120, 160, 170)}
+C.PLOT_CENTERS = PLOT_CENTERS
 do
 	P(WORLD, V3(232, 2, 232), CF(0, -0.85, 0), RGB(200, 200, 205), MAT.Concrete, SOLID)
 	C.reserve(-122, -122, 122, 122)
@@ -402,8 +420,9 @@ do
 			ball(WORLD, V3(0.9, 0.9, 0.9), CF(sx - 0.8, 3.5, sz + 0.7), RGB(255, 220, 90))
 		end
 	end
-	for i = 1, 4 do
+	for i = 1, #PLOT_CENTERS do
 		local c = PLOT_CENTERS[i]
+		if i > 4 then C.reserve(c.X - 46, c.Z - 46, c.X + 46, c.Z + 46) end
 		local fz = c.Z < 0 and 1 or -1
 		local col = PLOT_COLORS[i]
 		local folder = Instance.new("Folder")
@@ -461,6 +480,26 @@ do
 		end
 		plots[i] = {index = i, folder = folder, spawn = sp, center = c, fz = fz, color = col, at = at,
 			nameLabels = names, tierLabels = tiers, slots = {}, kiosks = {}, owner = nil}
+	end
+end
+-- the Empire Heights arch over the boulevard, and lamps along it
+do
+	for _, z in ipairs({-13, 13}) do
+		P(WORLD, V3(3, 16, 3), CF(812, 8, z), RGB(40, 36, 52), MAT.Marble, SOLID)
+		P(WORLD, V3(3.6, 1, 3.6), CF(812, 16.5, z), RGB(255, 205, 60), MAT.Metal)
+	end
+	local beam = P(WORLD, V3(3, 4, 29), CF(812, 18.5, 0), RGB(30, 26, 44), MAT.Marble)
+	beam.Name = "HeightsArch"
+	C.surfaceText(beam, Enum.NormalId.Left, "🏙️ EMPIRE HEIGHTS", RGB(255, 205, 60))
+	C.surfaceText(beam, Enum.NormalId.Right, "🏙️ EMPIRE HEIGHTS", RGB(255, 205, 60))
+	for x = 840, 1290, 60 do
+		for _, z in ipairs({-13.5, 13.5}) do
+			P(WORLD, V3(0.6, 12, 0.6), CF(x, 6, z), RGB(50, 50, 58), MAT.Metal, SOLID)
+			local head = P(WORLD, V3(1.6, 0.8, 1.6), CF(x, 12.3, z), RGB(255, 240, 200), MAT.Neon)
+			local light = Instance.new("PointLight")
+			light.Range, light.Brightness, light.Color = 22, 1.4, RGB(255, 225, 170)
+			light.Parent = head
+		end
 	end
 end
 function F.setPlotSign(plot, name, tier)

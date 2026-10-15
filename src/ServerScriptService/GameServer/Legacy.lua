@@ -206,6 +206,22 @@ local function exhibitsFor(d)
 	return list
 end
 C.museumExhibits = exhibitsFor
+-- (v18: 12 players, 4 halls. A player gets a hall when their museum is refreshed and keeps it while they play;
+-- when all 4 are taken, the hall shown longest goes to the newest visitor)
+local hallOf, hallUser, hallAt = {}, {}, {}
+local function hallFor(plr)
+	if hallOf[plr] then return hallOf[plr] end
+	local pick, oldest
+	for h = 1, #GALLERY_X do
+		if not hallUser[h] then pick = h break end
+		if not oldest or hallAt[h] < hallAt[oldest] then oldest = h end
+	end
+	pick = pick or oldest
+	local prev = hallUser[pick]
+	if prev then hallOf[prev] = nil end
+	hallOf[plr], hallUser[pick], hallAt[pick] = pick, plr, os.clock()
+	return pick
+end
 local function buildGallery(idx, plr)
 	local g = galleries[idx]
 	if g then g:Destroy() end
@@ -215,7 +231,8 @@ local function buildGallery(idx, plr)
 	galleries[idx] = g
 	local x = MUSEUM.X + GALLERY_X[idx]
 	local d = plr and data[plr]
-	local color = C.plots[idx] and C.plots[idx].color or WHITE
+	local d0 = plr and data[plr]
+	local color = d0 and d0.plot and d0.plot.color or WHITE
 	P(g, V3(20, 0.1, 44), CF(x, 1.06, MUSEUM.Z - 8), color:Lerp(WHITE, 0.6), MAT.SmoothPlastic)
 	local banner = P(g, V3(16, 4, 0.3), CF(x, 17, MUSEUM.Z - 31.8), color, MAT.Fabric)
 	surfaceText(banner, Enum.NormalId.Back, d and (plr.Name .. "'s Legacy") or "Gallery closed", WHITE)
@@ -247,11 +264,24 @@ function F.refreshMuseum(plr)
 	task.delay(1, function()
 		pending[plr] = nil
 		local dd = data[plr]
-		if dd then buildGallery(dd.plot.index, plr) end
+		if dd then buildGallery(hallFor(plr), plr) end
 	end)
 end
-function F.closeGallery(plot) buildGallery(plot.index, nil) end
-for i = 1, 4 do buildGallery(i, nil) end
+function F.closeGallery(plot)
+	local owner = plot and plot.owner
+	local h = owner and hallOf[owner]
+	if not h then
+		-- (the owner may already be gone: find the hall by who held it)
+		for hh, u in pairs(hallUser) do if u == owner or (u and not u.Parent) then h = hh end end
+	end
+	if h then
+		if hallUser[h] then hallOf[hallUser[h]] = nil end
+		hallUser[h] = nil
+		buildGallery(h, nil)
+	end
+end
+function F.galleryHall(plr) return hallOf[plr] end
+for i = 1, #GALLERY_X do buildGallery(i, nil) end
 C.DESTS_MUSEUM = {name = "Legacy Museum", icon = "🏛️", pos = MUSEUM + V3(0, 0.2, 52)}
 
 -- =====================================================================

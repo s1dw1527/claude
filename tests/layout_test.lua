@@ -18,6 +18,12 @@ H.main(function()
 		if axis == "x" then table.insert(lanes, {name = "road z=" .. c, x1 = a1, x2 = b1, z1 = c - w / 2 + 0.5, z2 = c + w / 2 - 0.5})
 		else table.insert(lanes, {name = "road x=" .. c, x1 = c - w / 2 + 0.5, x2 = c + w / 2 - 0.5, z1 = a1, z2 = b1}) end
 	end
+	-- (v18: the Empire Heights roads too)
+	for _, r in ipairs(C.HEIGHTS_ROADS or {}) do
+		local axis, c, a1, b1, w = r[1], r[2], r[3], r[4], r[5]
+		if axis == "x" then table.insert(lanes, {name = "heights z=" .. c, x1 = a1, x2 = b1, z1 = c - w / 2 + 0.5, z2 = c + w / 2 - 0.5})
+		else table.insert(lanes, {name = "heights x=" .. c, x1 = c - w / 2 + 0.5, x2 = c + w / 2 - 0.5, z1 = a1, z2 = b1}) end
+	end
 	for _, p in ipairs(C.PATHS) do table.insert(lanes, {name = p.name, x1 = p[1], z1 = p[2], x2 = p[3], z2 = p[4], path = true}) end
 	local function footprint(p)
 		-- (axis-aligned bounds of the part's footprint, good enough for props)

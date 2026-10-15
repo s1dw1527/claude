@@ -787,7 +787,7 @@ section("legacy", function(ctx)
 	H.section("22. Legacy Museum")
 	for _, k in ipairs({"firstBusiness", "million", "trackRecord"}) do F.achieve(a, k) end
 	H.task.wait(1.5)
-	local gallery = H.workspace:FindFirstChild("City"):FindFirstChild("LegacyMuseum"):FindFirstChild("Gallery" .. da.plot.index)
+	local gallery = H.workspace:FindFirstChild("City"):FindFirstChild("LegacyMuseum"):FindFirstChild("Gallery" .. (F.galleryHall(a) or da.plot.index))
 	local function exhibitCount(g)
 		local n = 0
 		for _, x in ipairs(g:GetDescendants()) do
@@ -806,7 +806,7 @@ section("legacy", function(ctx)
 	da.rep, da.cash = 5000, 1e12
 	F.rebirth(a)
 	H.task.wait(1.5)
-	gallery = H.workspace:FindFirstChild("City"):FindFirstChild("LegacyMuseum"):FindFirstChild("Gallery" .. da.plot.index)
+	gallery = H.workspace:FindFirstChild("City"):FindFirstChild("LegacyMuseum"):FindFirstChild("Gallery" .. (F.galleryHall(a) or da.plot.index))
 	H.check(exhibitCount(gallery) >= n1, "the museum keeps everything after a rebirth")
 	T.act(a, "tp", "museum")
 	H.task.wait(0.2)

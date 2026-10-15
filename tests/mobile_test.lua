@@ -329,7 +329,7 @@ H.main(function()
 		-- every notification card, one at a time: in the top-right stack, out of the middle, off the HUD and the right-hand buttons
 		local CARDS = {"TutorialCard", "GuideTip", "ProblemCard", "DeliveryCard", "AchievementCard", "RivalBubble", "HouseTourPanel",
 			"StoryPill", "BeefPill", "MegaBar", "HeistBagHUD", "PoliceAlertBar", "RacePanel", "InteriorBar", "ViralMomentPopup", "CityJobCard",
-			"RivalCard", "PartyCard", "NextStepCard", "BaseMenuCard", "DailyCard"}   -- (v14, v15, v16)
+			"RivalCard", "PartyCard", "NextStepCard", "BaseMenuCard", "DailyCard", "TeaserCard"}   -- (v14, v15, v16, v18)
 		local cbad = {}
 		local rightCol = {x = L.rightX, y = L.rightColTop, w = L.RSIDE, h = L.rightColH}
 		local function stackProblems(o, name)
@@ -622,7 +622,7 @@ H.main(function()
 	fitsScreen(slots, "the main menu's save slots (a swipeable row)")
 	H.check(slots.ScrollingDirection == H.G.Enum.ScrollingDirection.X, "save slots scroll sideways on a phone")
 	for _, ch in ipairs(mm:GetChildren()) do
-		if ch.ClassName == "TextLabel" and ch.Text == "Build a company. Take over the city." then fitsScreen(ch, "the main menu subtitle") end
+		if ch.ClassName == "TextLabel" and ch.Name == "Subtitle" then fitsScreen(ch, "the main menu subtitle") end
 	end
 	local ov
 	for _, ch in ipairs(mm:GetDescendants()) do if ch.ClassName == "Frame" and ch.Size.X.Offset >= 300 and ch.Parent and ch.Parent.ClassName == "Frame" and ch.Parent.Size.X.Scale == 1 then ov = ch end end

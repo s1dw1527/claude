@@ -152,10 +152,15 @@ local function buildGui()
 	corner(titleCard, 18)
 	stroke(titleCard, GOLD, 3, 0)
 	new("UIGradient", {Color = ColorSequence.new(RGB(24, 32, 70), BLACK), Rotation = 90}, titleCard)
-	local t = label({Name = "TitleText", Position = UDim2.fromScale(0.05, 0.06), Size = UDim2.fromScale(0.9, 0.34), Text = "CORNER EMPIRE", TextScaled = true, Font = Enum.Font.GothamBlack, TextColor3 = GOLD}, titleCard)
+	local t = label({Name = "TitleText", Position = UDim2.fromScale(0.05, 0.04), Size = UDim2.fromScale(0.9, 0.27), Text = "CORNER EMPIRE", TextScaled = true, Font = C.STYLE and C.STYLE.font or Enum.Font.GothamBlack, TextColor3 = GOLD}, titleCard)
 	new("UITextSizeConstraint", {MaxTextSize = 80, MinTextSize = 22}, t)
 	new("UIStroke", {Thickness = 3, Color = RGB(60, 40, 0)}, t)
-	local tag = label({Name = "Tagline", Position = UDim2.fromScale(0.05, 0.42), Size = UDim2.fromScale(0.9, 0.14), Text = "Build Your Fortune. Risk Everything. Leave a Legacy.", TextScaled = true,
+	-- (v18: the subtitle that makes the promise)
+	local sub = label({Name = "SubtitleText", Position = UDim2.fromScale(0.05, 0.31), Size = UDim2.fromScale(0.9, 0.12), Text = "RAGS TO BILLIONS", TextScaled = true,
+		Font = C.STYLE and C.STYLE.font or Enum.Font.GothamBlack, TextColor3 = WHITE}, titleCard)
+	new("UITextSizeConstraint", {MaxTextSize = 40, MinTextSize = 14}, sub)
+	new("UIStroke", {Thickness = 2, Color = RGB(60, 40, 0)}, sub)
+	local tag = label({Name = "Tagline", Position = UDim2.fromScale(0.05, 0.45), Size = UDim2.fromScale(0.9, 0.12), Text = "Build Your Fortune. Risk Everything. Leave a Legacy.", TextScaled = true,
 		TextColor3 = WHITE, Font = Enum.Font.GothamBold}, titleCard)
 	new("UITextSizeConstraint", {MaxTextSize = 24, MinTextSize = 11}, tag)
 	startB = button({Name = "IntroStart", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.fromScale(0.5, 0.62), Size = UDim2.fromScale(0.62, 0.18), Text = "START MY EMPIRE",

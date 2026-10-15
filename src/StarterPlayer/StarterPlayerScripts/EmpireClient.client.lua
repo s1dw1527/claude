@@ -1,5 +1,5 @@
 --// CORNER EMPIRE v11.1 — CLIENT. All the code lives in the ModuleScripts inside this LocalScript.
-local modules = {"UI", "Layout", "Audio", "AnimationConfig", "Actors", "HUD", "WorldFX", "CityCrowd", "ParkFX", "PoliceCars", "Workers", "Menus", "BusinessUI", "HQUI", "EmpireUI", "ExploreUI", "ActivityLog", "KitchenUI", "TheaterUI", "LotShopUI", "ParkUI", "RivalsUI", "PartnersUI", "HomeLifeUI", "LeadersUI", "JourneyUI", "DailyUI", "RoadmapUI", "ShowcaseUI", "BazaarUI", "ComputerUI", "GarageUI", "ArcadeUI", "AdminPanel", "GuideUI", "HeistUI", "Phone", "Driving", "MiniGames", "PhotoMode", "Story", "Cinematics",
+local modules = {"UI", "Layout", "Audio", "AnimationConfig", "Actors", "HUD", "WorldFX", "CityCrowd", "ParkFX", "PoliceCars", "Workers", "Menus", "BusinessUI", "HQUI", "EmpireUI", "ExploreUI", "ActivityLog", "KitchenUI", "TheaterUI", "LotShopUI", "ParkUI", "RivalsUI", "PartnersUI", "HomeLifeUI", "LeadersUI", "JourneyUI", "DailyUI", "RoadmapUI", "ShowcaseUI", "BazaarUI", "CollectionUI", "ComputerUI", "GarageUI", "ArcadeUI", "AdminPanel", "GuideUI", "HeistUI", "Phone", "Driving", "MiniGames", "PhotoMode", "Story", "Cinematics",
 	"MapApp", "InteriorUI", "InteriorLife", "BuilderUI", "MountainLife", "CityLife", "ViralApp", "IntroCinematic", "MainMenu"}
 local C = {}
 for _, name in ipairs(modules) do

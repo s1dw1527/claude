@@ -80,6 +80,7 @@ for _, it in ipairs(C.BAZAAR_ITEMS) do
 end
 
 local function now() return C.bazaarClock and C.bazaarClock() or os.time() end
+F.bazaarNow = now
 local function mmss(sec) sec = math.max(0, math.floor(sec)) return string.format("%d:%02d", sec // 60, sec % 60) end
 function F.bazaarWindow(t)
 	local w = math.floor((t or now()) / C.BAZAAR.window)

@@ -4,8 +4,8 @@ local RGB = Color3.fromRGB
 
 -- ===== VERSION (bump these with every published update; see README "How to update Corner Empire") =====
 C.VERSION = {
-	VERSION = "17.0.0",
-	UPDATE_NAME = "Viral Hooks",
+	VERSION = "18.0.0",
+	UPDATE_NAME = "Rags to Billions",
 	SCHEMA_VERSION = 16,         -- the shape of a player's save. Raise it only together with a new step in DataMigration.
 	MIN_SUPPORTED_SCHEMA = 6,   -- saves older than v6 (no version field, no tutorial-reward tracking) are treated as v6
 	-- shown once to every returning player after an update (Messages app)
@@ -34,12 +34,14 @@ C.VERSION = {
 		"🎪 16: a city event every few hours (Restaurant Rush, Funland Night, Double Delivery...), park visit rewards and a 🪪 showcase card",
 		"🎨 16.1: a BOLD new look: chunky outlined buttons, colored window banners, a tabbed 🛒 Store, glossy phone apps and a bigger level bar",
 		"🛍️ 17: the CITY BAZAAR restocks every 5 minutes with rare furniture you can't get anywhere else (same stock in every server: catch the 🌈 Mythic!)",
-		"✨ 17: lucky customers! A glowing GOLDEN, DIAMOND or RAINBOW customer pays up to x250"
+		"✨ 17: lucky customers! A glowing GOLDEN, DIAMOND or RAINBOW customer pays up to x250",
+		"🏙️ 18: servers hold 12 players now, with 8 new plots in EMPIRE HEIGHTS (past the Corner Bank)",
+		"📚 18: the COLLECTION BOOK: find every ❓ ??? treasure and lucky customer, with milestone rewards"
 	},
 }
 
 C.CFG = {
-	MAX_PLAYERS = 4,
+	MAX_PLAYERS = 12,           -- v18: 12 plots (4 round the plaza + 8 in Empire Heights). Also set Server Size = 12 on Roblox.
 	SAVE_SLOTS = 3,
 	MAX_LEVEL = 10,
 	EVENT_INTERVAL = 60,
