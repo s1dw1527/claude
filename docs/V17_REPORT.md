@@ -1,4 +1,4 @@
-# Corner Empire v17 — "Viral Hooks"
+# Corner Empire v17 — "Viral Hooks" (+ graphics pass)
 
 You asked for research into Roblox games that went viral and the advice behind them. This update builds the three hooks you chose from that research:
 - **🛍️ City Bazaar:** a global shop that restocks every 5 minutes.
@@ -123,6 +123,40 @@ Once published, the Creator Hub dashboards show where new players stop.
 - **Custom events** (`LogCustomEvent`): rare sales, Legendary or Mythic Bazaar buys, and the opening movie watched vs. skipped.
 - Every call is wrapped in `pcall`, so analytics can't break the game. To turn it off, set `C.ANALYTICS.enabled = false`.
 
+### 🎨 Graphics pass: compared with popular Roblox games
+You said the graphics look bad, so I compared Corner Empire's setup with what popular Roblox games and Roblox's own guidance use.
+- **What I measured:** the real world the game builds — 18,515 visible parts — counted by material and color, plus every lighting setting.
+- **What I couldn't do:** render the game. I can't take screenshots here, so the final look needs your eyes in Studio (checklist below).
+
+| | Popular Roblox games / Roblox guidance | Corner Empire before | Now |
+|---|---|---|---|
+| **Lighting technology** | **Future** (real-time shadows from every light, light that bounces) | **Not set.** The place file had no Lighting at all, so the game ran on whatever default Studio picked: usually the flat legacy look. This was the biggest reason it looked bad. | **Future**, written into the place file by the build. Roblox scales it down on weak devices by itself. |
+| **Ambient light** | Most light comes from the sun, so shadows give buildings shape | Outdoor ambient 140,140,160: so bright from every side that shadows barely showed, and everything looked flat | 118,120,136, with the sun raised to 3.0. Shadows and shapes read. |
+| **Atmosphere** | Light haze for depth, plus a sun glare | Haze 1.4 (milky, washed out), glare 0.2 | Haze 0.6, glare 0.45, a cooler far color |
+| **Depth of field** | Used in menus and cutscenes, not to blur gameplay | Blurred everything past ~120 studs, so the whole city looked soft, especially on phones | Only the far horizon (600+ studs) softens |
+| **Color grade** | Contrast for punch; colors left natural | +15% saturation on already-strong colors, little contrast | +5% saturation, +14% contrast |
+| **Bloom and sun rays** | Subtle | Bloom 0.5 plus pure-white parts made white surfaces glow | Bloom 0.35, sun rays 0.06 |
+| **Palette** | Off-whites and soft brights, so nothing blows out | 7.8% of parts pure white (blown out under bloom), 0.2% maximum-saturation brights | 0% and 0%. Pure white becomes a soft off-white; extreme brights lose a little saturation. Hue never changes, and Neon and Glass keep their glow. |
+| **Materials** | Textured materials on big surfaces, smooth plastic for stylized props | By area, big surfaces were already textured: concrete 24%, rock 18%, grass 16%, asphalt 15%. Smooth plastic is 44% of parts but only 7% of the area (small props), which suits a stylized game. | Unchanged. This wasn't the problem. |
+
+**Already installed in a place?** The drop-ins replace scripts only, and the place's Lighting isn't one of them. So in Studio, set **Lighting → Technology → Future** once by hand. A fresh `CornerEmpire_v17.rbxlx` already has it.
+
+Sources for the lighting guidance:
+- [Roblox DevForum — Improve Lighting (step by step)](https://devforum.roblox.com/t/improve-lighting-step-by-step/1387033)
+- [creation.dev — How to make realistic lighting in Roblox Studio](https://www.creation.dev/learn/how-to-make-realistic-lighting-roblox-studio)
+- [creation.dev — Lighting plugins / Future lighting](https://www.creation.dev/tools/lighting-plugins)
+- [Roblox Creator Docs — PBR textures / SurfaceAppearance](https://create.roblox.com/docs/en-us/art/modeling/surface-appearance)
+- [Roblox Newsroom — custom material variants](https://about.roblox.com/newsroom/2022/07/introducing-custom-material-variants-new-enhancements-materials)
+
+These are community and third-party guides, not exact numbers. The values above are starting points chosen to fix what was measured, and they are tunable in `GameServer/Util.lua` (the LIGHTING section).
+
+**Bigger visual upgrades that need your Studio work (not done here):**
+- Custom meshes with `SurfaceAppearance`: modelled storefronts, trees and cars instead of blocks.
+- Material variants in MaterialService (brick, tile and wood packs).
+- Uploaded sky textures.
+
+All of these need uploaded assets, which I can't create or upload from here.
+
 ---
 
 ## 3. Tests (simulated)
@@ -155,6 +189,14 @@ Once published, the Creator Hub dashboards show where new players stop.
   - intro skipped is logged.
 
 ### Updated
+- `graphics_test`: 5 new "look" checks:
+  - daylight from the sun, not flat ambient;
+  - a clear atmosphere;
+  - no city blur;
+  - a contrast-not-saturation grade;
+  - no blown-out whites or extreme brights, with Neon and ordinary colors untouched.
+- `city_test`: the district-crowd check now counts the people who belong to that district. Under heavy load it used to also count neighbors inside the 160-stud circle (the Industrial Zone reached into Hillside and the Fun Park). Measured: 21 of the 22 Industrial-district people are workers.
+- `layout_test` (unchanged) caught the first spot for the Bazaar stall, which was on the South Ring road. The stall moved to the sidewalk strip next to the City Event board.
 - `data_test`: version 17.0.0.
 - `social_test`: the showcase allowlist now includes the rare-sale counts, which are public by design.
 - `tests/harness.lua`: the simulated `AnalyticsService` now records the calls, so tests can check them.
@@ -185,6 +227,10 @@ Your pass IDs and admin list stay as you set them.
 ## 6. Studio checklist (please check before publishing)
 1. **The Bazaar stall** in the plaza: it shouldn't overlap anything, the sign should be readable, and the prompt should open the app.
 2. **Place a few Bazaar items at home,** e.g. the Gold Fountain (2×2) and the Aquarium Wall, to check they look right.
-3. **A glowing customer:** use `C.RARE_FORCE = "rainbow"` in the command bar for a minute, then set it back to `nil`. Check the neon, the sparkles, the tag over their head, the pop, and the shout to a second player.
-4. **A new save:** the first customer walks in at once, and the FIRST SALE splash shows.
-5. **After publishing:** Creator Hub → Analytics shows the onboarding funnel steps. This can take a day to appear.
+3. **The new lighting (most important):**
+   - Lighting → Technology should read **Future**. In an existing place, set it by hand.
+   - Walk the city at noon and at sunset: buildings should have clear shadows and no milky haze, and the distance shouldn't be blurry.
+   - On a phone, check the frame rate. If it's too slow, ShadowMap is the lighter option.
+4. **A glowing customer:** use `C.RARE_FORCE = "rainbow"` in the command bar for a minute, then set it back to `nil`. Check the neon, the sparkles, the tag over their head, the pop, and the shout to a second player.
+5. **A new save:** the first customer walks in at once, and the FIRST SALE splash shows.
+6. **After publishing:** Creator Hub → Analytics shows the onboarding funnel steps. This can take a day to appear.

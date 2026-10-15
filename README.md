@@ -19,6 +19,12 @@ Built from research into Roblox games that went viral (Grow a Garden, Dead Rails
   - The first customer walks straight in: the first sale comes at 1.8 s, down from 14.2 s.
   - A "FIRST SALE!" moment.
   - A 90-second grand opening crowd.
+- **🎨 Graphics pass** (compared with popular Roblox games):
+  - **Future lighting** is now set in the place file. It was never set before, which was the main reason the game looked flat. In an existing place, set Lighting → Technology → Future once by hand.
+  - Less flat ambient light, so shadows show.
+  - A clearer atmosphere, and no blur on the city.
+  - The grade adds contrast instead of saturation.
+  - No more blown-out pure-white parts.
 - **📊 Creator Analytics:**
   - an onboarding funnel (8 steps, new saves only);
   - economy events (throttled);
