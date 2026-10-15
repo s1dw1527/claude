@@ -2,7 +2,7 @@
 <Item class="Script" referent="RBX1"><Properties><string name="Name">GameServer</string>
 <ProtectedString name="Source"><![CDATA[--// CORNER EMPIRE v10 — SERVER. All the code lives in the ModuleScripts inside this Script.
 --// Edit "Config" to change prices, names, game pass IDs, cars, neighborhoods and more.
-local modules = {"Config", "DataMigration", "StoryData", "Util", "World", "Buildings", "Housing", "Rentals", "RealEstate", "Brands", "Cars", "Garage", "Race", "Activities", "Social", "Reviews", "Systems", "Mega", "Legacy", "Weekly", "Story", "Messages", "MapData", "Interiors", "HQ", "Computer", "HomeBuilder", "Arcade", "Admin", "Guide", "Mountain", "Heists", "Police", "Cinematics", "ViralMoments", "Influencers", "CityEvents", "Empire", "EmpirePlaza", "Explore", "Kitchen", "Theater", "Park", "FunPark", "Crew", "Rivals", "Ledger", "Partners", "HomeLife", "Vehicles", "Leaders", "Occasions", "Onboarding", "Daily", "Paths", "Roadmap", "LiveEvents", "Showcase", "Updates", "Players"}
+local modules = {"Config", "DataMigration", "StoryData", "Util", "World", "Buildings", "Housing", "Rentals", "RealEstate", "Brands", "Cars", "Garage", "Race", "Activities", "Social", "Reviews", "Systems", "Mega", "Legacy", "Weekly", "Story", "Messages", "MapData", "Interiors", "HQ", "Computer", "HomeBuilder", "Arcade", "Admin", "Guide", "Mountain", "Heists", "Police", "Cinematics", "ViralMoments", "Influencers", "CityEvents", "Empire", "EmpirePlaza", "Explore", "Kitchen", "Theater", "Park", "FunPark", "Crew", "Rivals", "Ledger", "Partners", "HomeLife", "Vehicles", "Leaders", "Occasions", "Onboarding", "Daily", "Paths", "Roadmap", "LiveEvents", "Showcase", "Bazaar", "Analytics", "Updates", "Players"}
 local C = {F = {}, data = {}, plots = {}}
 for _, name in ipairs(modules) do
 	local ok, err = pcall(function() require(script:WaitForChild(name))(C) end)
@@ -17,8 +17,8 @@ local RGB = Color3.fromRGB
 
 -- ===== VERSION (bump these with every published update; see README "How to update Corner Empire") =====
 C.VERSION = {
-	VERSION = "16.1.0",
-	UPDATE_NAME = "Life & Empire: Bold UI",
+	VERSION = "17.0.0",
+	UPDATE_NAME = "Viral Hooks",
 	SCHEMA_VERSION = 16,         -- the shape of a player's save. Raise it only together with a new step in DataMigration.
 	MIN_SUPPORTED_SCHEMA = 6,   -- saves older than v6 (no version field, no tutorial-reward tracking) are treated as v6
 	-- shown once to every returning player after an update (Messages app)
@@ -46,6 +46,8 @@ C.VERSION = {
 		"🗺️ 16: the EMPIRE ROADMAP, three paths (💼 Mogul, 🕶️ Underworld, 👑 Legend) with titles and contracts",
 		"🎪 16: a city event every few hours (Restaurant Rush, Funland Night, Double Delivery...), park visit rewards and a 🪪 showcase card",
 		"🎨 16.1: a BOLD new look: chunky outlined buttons, colored window banners, a tabbed 🛒 Store, glossy phone apps and a bigger level bar",
+		"🛍️ 17: the CITY BAZAAR restocks every 5 minutes with rare furniture you can't get anywhere else (same stock in every server: catch the 🌈 Mythic!)",
+		"✨ 17: lucky customers! A glowing GOLDEN, DIAMOND or RAINBOW customer pays up to x250"
 	},
 }
 
@@ -555,6 +557,24 @@ C.MINIGAME_PROFIT_CAP = E.minigameCapSeconds   -- max mini-game profit per 10 mi
 C.FERRIS = {fee = 10, buff = 0.1, buffTime = 180}
 C.FIREWORKS = {fee = 30, cooldown = 60}
 C.RACE = {fee = 20, par = 42, maxTime = 300}
+
+-- ===== v17: RARE SALES =====
+-- Now and then a customer walks in GLOWING (everyone in the server sees it) and pays far more than usual: the
+-- "lucky mutation" moment. Rolled once per customer, rarest first; the extra pay is capped at capSecs of the
+-- owner's income so a lucky Rainbow is a thrill, not an economy breaker. Diamond and Rainbow are shouted to the
+-- whole server; a Rainbow also makes CityBuzz.
+C.RARE_SALES = {
+	capSecs = 600,
+	list = {
+		{key = "rainbow", name = "RAINBOW", icon = "🌈", chance = 1 / 25000, mult = 250, color = RGB(255, 90, 220), shout = true, buzz = true},
+		{key = "diamond", name = "DIAMOND", icon = "💎", chance = 1 / 2500,  mult = 50,  color = RGB(120, 220, 255), shout = true},
+		{key = "golden",  name = "GOLDEN",  icon = "✨", chance = 1 / 250,   mult = 10,  color = RGB(255, 205, 60)},
+	},
+}
+-- ===== v17: THE FIRST 90 SECONDS (brand-new saves only) =====
+-- The first business a new save opens gets a customer right away (a short walk from the door), and for the
+-- next 90 s customers come faster: a "grand opening crowd", so the first minute is a run of small wins.
+C.FIRST_PLAY = {rushSecs = 90, rushMult = 2.5, firstWalk = 1.2}
 
 -- ===== TUTORIAL =====
 C.TUTORIAL = {
@@ -1719,6 +1739,24 @@ function C.fmt(n)
 	return tostring(n)
 end
 
+-- v17 graphics pass: tame the "toy" colors. About 15% of the city's parts were maximum-saturation, maximum-
+-- brightness plastic and 11% near pure white, which blows out under bloom and is the cheapest-looking thing in a
+-- Roblox scene. Glowing materials (Neon, Glass) keep their color; everything else is pulled back a little: very
+-- saturated + very bright colors lose some saturation and brightness, and pure white becomes a soft off-white.
+-- The hue never changes, so every color still reads as the same color.
+local GLOW = {[MAT.Neon] = true, [MAT.Glass] = true, [MAT.ForceField] = true}
+function C.tameColor(c, mat)
+	if GLOW[mat] or typeof(c) ~= "Color3" then return c end
+	local h, s, v = c:ToHSV()
+	if s > 0.8 and v > 0.88 then
+		s = 0.8 + (s - 0.8) * 0.4
+		v = 0.88 + (v - 0.88) * 0.5
+		return Color3.fromHSV(h, s, v)
+	elseif s < 0.06 and v > 0.96 then
+		return Color3.fromHSV(h, s, 0.94)
+	end
+	return c
+end
 local function finish(p, parent, size, cf, color, mat, props)
 	p.Anchored = true
 	p.CanCollide = false
@@ -1726,8 +1764,8 @@ local function finish(p, parent, size, cf, color, mat, props)
 	p.BottomSurface = Enum.SurfaceType.Smooth
 	p.Size = size
 	p.CFrame = cf
-	p.Color = color
 	p.Material = mat or MAT.SmoothPlastic
+	p.Color = C.tameColor(color, p.Material)
 	if props then
 		for k, v in pairs(props) do p[k] = v end
 	end
@@ -1902,10 +1940,15 @@ function C.notify(plr, msg, opts) C.R.Announce:FireClient(plr, msg, type(opts) =
 function C.announceAll(msg) C.R.Announce:FireAllClients(msg) end
 
 -- ===== LIGHTING =====
-Lighting.Brightness = 2.6
+-- v17 graphics pass (compared with how popular Roblox games set up their lighting): the place file now asks for
+-- FUTURE lighting (tools/build.py), so these values are tuned for it. Less flat ambient light, so shadows and
+-- shapes read (it was so bright from every side that buildings looked flat); a clearer atmosphere (less milky
+-- haze); a gentler bloom and a grade with more contrast and less saturation (the colors were already strong); and
+-- no blur on the city: depth of field only softens the far horizon now (it blurred everything past 120 studs).
+Lighting.Brightness = 3
 Lighting.ClockTime = 14
 Lighting.GlobalShadows = true
-Lighting.OutdoorAmbient = RGB(140, 140, 160)
+Lighting.OutdoorAmbient = RGB(118, 120, 136)
 Lighting.Ambient = RGB(70, 72, 92)
 Lighting.EnvironmentDiffuseScale = 1
 Lighting.EnvironmentSpecularScale = 1
@@ -1918,11 +1961,11 @@ local function getFx(class, props)
 	end
 	return fx
 end
-local atm = getFx("Atmosphere", {Density = 0.28, Offset = 0.25, Color = RGB(199, 215, 240), Decay = RGB(255, 235, 200), Glare = 0.2, Haze = 1.4})
-local bloom = getFx("BloomEffect", {Intensity = 0.5, Size = 24, Threshold = 1.6})
-local grade = getFx("ColorCorrectionEffect", {Saturation = 0.15, Contrast = 0.08})
-getFx("SunRaysEffect", {Intensity = 0.1, Spread = 0.8})
-getFx("DepthOfFieldEffect", {FarIntensity = 0.12, FocusDistance = 120, InFocusRadius = 150, NearIntensity = 0})
+local atm = getFx("Atmosphere", {Density = 0.3, Offset = 0.2, Color = RGB(199, 215, 240), Decay = RGB(150, 160, 185), Glare = 0.45, Haze = 0.6})
+local bloom = getFx("BloomEffect", {Intensity = 0.35, Size = 24, Threshold = 1.6})
+local grade = getFx("ColorCorrectionEffect", {Saturation = 0.05, Contrast = 0.14})
+getFx("SunRaysEffect", {Intensity = 0.06, Spread = 0.8})
+getFx("DepthOfFieldEffect", {FarIntensity = 0.08, FocusDistance = 260, InFocusRadius = 500, NearIntensity = 0})
 local normal = {grade.TintColor, grade.Saturation, atm.Density, atm.Color, bloom.Intensity}
 function C.setLook(look)
 	local info = TweenInfo.new(1.5, Enum.EasingStyle.Sine)
@@ -1938,7 +1981,7 @@ end
 -- follows the time of day: warm at sunrise and sunset, cool and blue at night, where a night bloom makes neon
 -- signs, lamps and ride lights glow. (Weather and events use the main grade above; this one is separate.)
 -- Lighting.Technology can't be set by a script: set it to ShadowMap (or Future) in Studio, see the v15 report.
-pcall(function() Lighting.ShadowSoftness = 0.25 end)
+pcall(function() Lighting.ShadowSoftness = 0.2 end)
 local sky = Lighting:FindFirstChildOfClass("Sky") or Instance.new("Sky")
 pcall(function()
 	sky.SunAngularSize = 14
@@ -1958,10 +2001,10 @@ nightBloom.Parent = Lighting
 local KEYS = {
 	{0, RGB(170, 185, 255), -0.04, 0.7, RGB(70, 80, 120)},
 	{5, RGB(190, 195, 255), -0.02, 0.6, RGB(90, 95, 130)},
-	{6.5, RGB(255, 205, 170), 0.02, 0.15, RGB(150, 130, 130)},
-	{8.5, RGB(255, 248, 240), 0, 0, RGB(140, 140, 160)},
-	{16.5, RGB(255, 248, 238), 0, 0, RGB(140, 140, 160)},
-	{18, RGB(255, 190, 150), 0.03, 0.2, RGB(160, 125, 120)},
+	{6.5, RGB(255, 205, 170), 0.02, 0.15, RGB(135, 118, 120)},
+	{8.5, RGB(255, 248, 240), 0, 0, RGB(118, 120, 136)},
+	{16.5, RGB(255, 248, 238), 0, 0, RGB(118, 120, 136)},
+	{18, RGB(255, 190, 150), 0.03, 0.2, RGB(140, 112, 110)},
 	{19.5, RGB(200, 190, 255), -0.01, 0.55, RGB(90, 90, 130)},
 	{24, RGB(170, 185, 255), -0.04, 0.7, RGB(70, 80, 120)},
 }
@@ -8080,6 +8123,9 @@ function F.customerRate(d, now)
 	r *= F.followerMult(d)
 	if F.homeHood(d) == "suburbs" then r *= 1.1 end
 	if d.rebirths >= 50 then r *= 1.5 end
+	-- v17: a brand-new save's grand opening crowd (the first 90 s after its first business opens)
+	local fp = d.firstPlay
+	if type(fp) == "table" and (tonumber(fp.rushUntil) or 0) > os.time() then r *= C.FIRST_PLAY.rushMult end
 	return math.min(r, CFG.MAX_CUSTOMERS_PER_SEC)
 end
 local function pickBusiness(d, t)
@@ -8109,10 +8155,21 @@ local function pickBusiness(d, t)
 	end
 	return list[#list][1]
 end
-function F.spawnCustomer(plr, d, now)
+-- v17: does this customer glow? (rolled once per customer, rarest first; tests can force one with C.RARE_FORCE)
+function F.rollRare(d)
+	if C.RARE_FORCE then return C.RARE_FORCE end
+	for _, r in ipairs(C.RARE_SALES.list) do
+		if math.random() < r.chance then return r.key end
+	end
+	return nil
+end
+local RARE_BY = {}
+for _, r in ipairs(C.RARE_SALES.list) do RARE_BY[r.key] = r end
+-- opts (v17): {key = business, quick = true}: the first customer of a new save, who walks in from right by the door
+function F.spawnCustomer(plr, d, now, opts)
 	local ti = math.random(#NPC_TYPES)
 	local t = NPC_TYPES[ti]
-	local key = pickBusiness(d, t)
+	local key = opts and opts.key or pickBusiness(d, t)
 	if not key then return end
 	local plot = d.plot
 	local b = BIZ[key]
@@ -8120,6 +8177,12 @@ function F.spawnCustomer(plr, d, now)
 	local entry = plot.at(math.random(-6, 6), 1, 40)
 	local door = (F.slotCF(plot, key) * CF(0, 0, 9)).Position
 	local travel = ((entry - start).Magnitude + (door - entry).Magnitude) / 9
+	if opts and opts.quick then
+		entry = (F.slotCF(plot, key) * CF(0, 0, 12)).Position
+		start = (F.slotCF(plot, key) * CF(2, 0, 16)).Position
+		travel = C.FIRST_PLAY.firstWalk
+	end
+	local rare = F.rollRare(d)
 	local review
 	if math.random() < (t.trendy and 1 or 0.4) then
 		local sat = F.satisfaction(d, key)
@@ -8139,12 +8202,36 @@ function F.spawnCustomer(plr, d, now)
 	local plist = F.productsOf and F.productsOf(d, key) or {}
 	local item = #plist > 0 and plist[math.random(#plist)].name or nil
 	R.Customer:FireAllClients({plot = plot.index, npc = ti, start = start, entry = entry, door = V3(door.X, 1, door.Z), t = travel, review = review, shout = shout, owner = plr.UserId,
-		icon = BIZ[key].icon, item = item})
+		icon = BIZ[key].icon, item = item, rare = rare})
 	task.delay(travel, function()
-		if data[plr] == d then F.serveCustomer(plr, d, key, t, review) end
+		if data[plr] == d then F.serveCustomer(plr, d, key, t, review, rare, item) end
 	end)
 end
-function F.serveCustomer(plr, d, key, t, review)
+-- v17: a rare customer pays mult x the sale (the extra capped at capSecs of income), and the moment is shared
+function F.rareSale(plr, d, key, sale, r, item)
+	local cap = (F.incomePerSec and F.incomePerSec(d) or 0) * C.RARE_SALES.capSecs
+	local extra = math.min(sale * (r.mult - 1), math.max(cap, sale * 2))
+	local total = sale + extra
+	d.rareSales = type(d.rareSales) == "table" and d.rareSales or {}
+	d.rareSales[r.key] = (tonumber(d.rareSales[r.key]) or 0) + 1
+	local what = r.icon .. " " .. r.name .. " " .. (item or BIZ[key].thing or BIZ[key].name)
+	notify(plr, what .. " sold! A lucky customer paid +$" .. fmt(total) .. " (x" .. r.mult .. ")", {pri = "critical", cat = "money"})
+	R.Menu:FireClient(plr, "rareSale", {key = r.key, name = r.name, icon = r.icon, cash = total, biz = key, color = r.color})
+	if F.track then F.track(plr, "rareSale") end
+	if F.analyticsCustom then F.analyticsCustom(plr, "RareSale_" .. r.key, total) end
+	if F.analyticsSource then F.analyticsSource(plr, total, "RareSale", r.key) end
+	if r.shout then
+		for _, p in ipairs(game:GetService("Players"):GetPlayers()) do
+			if p ~= plr then notify(p, r.icon .. " " .. plr.Name .. " just sold a " .. r.name .. " " .. (item or BIZ[key].name) .. "! (x" .. r.mult .. ")", {pri = "low", cat = "info", key = "rareSale"}) end
+		end
+	end
+	if r.buzz then
+		F.buzz(r.icon, plr.Name .. " sold a " .. r.name .. " " .. (item or BIZ[key].name) .. "! The whole city is talking.", r.color)
+		if F.viralMoment then pcall(F.viralMoment, plr, "rareSale", {}) end
+	end
+	return total
+end
+function F.serveCustomer(plr, d, key, t, review, rare, item)
 	local now = os.clock()
 	local lvl = d.levels[key] or 0
 	if lvl <= 0 then return end
@@ -8159,9 +8246,16 @@ function F.serveCustomer(plr, d, key, t, review)
 	if F.productServed then F.productServed(plr, d, key) end
 	if d.frozenUntil <= now then
 		local sale = BIZ[key].income * lvl * E.customerSale * F.bizMult(d, key) * F.globalMult(d, now) * (t.tip or 1)
+		if rare and RARE_BY[rare] then sale = F.rareSale(plr, d, key, sale, RARE_BY[rare], item) end
 		d.cash += sale
 		F.earn(d, sale)
 		d.war.earned += sale
+		-- v17: a brand-new save's very first sale is a moment
+		local fp = d.firstPlay
+		if type(fp) == "table" and not fp.firstSale then
+			fp.firstSale = os.time()
+			R.Splash:FireClient(plr, "🎉 FIRST SALE!", "+$" .. fmt(sale) .. "  •  every customer pays you. Upgrade to earn more!", RGB(120, 230, 150))
+		end
 	end
 	if review then
 		-- good reviews build reputation slowly (E.reviewRep); bad ones still hurt at full strength
@@ -8246,6 +8340,7 @@ function F.buyUpgrade(plr, d, key, noToken)
 	if token then cost = math.floor(cost * 0.75) end
 	if d.cash < cost then return end
 	d.cash -= cost
+	if F.analyticsSink then F.analyticsSink(plr, cost, "Upgrade", key) end
 	if token then
 		d.tokens.upgrade -= 1
 		notify(plr, "🏷️ Discount token used: 25% off this upgrade.", {pri = "normal", cat = "money"})
@@ -8270,6 +8365,12 @@ function F.buyUpgrade(plr, d, key, noToken)
 	if lvl + 1 == CFG.MAX_LEVEL then
 		notify(plr, "⭐ " .. b.tiers[newStage] .. " is MAX level!" .. (F.unlocked(d, "chains") and " Open new locations to build a chain." or ""))
 		F.refreshTower(plr)
+	end
+	-- v17: a brand-new save's first business: a customer right away, then the grand opening crowd
+	local fp = d.firstPlay
+	if lvl == 0 and type(fp) == "table" and not fp.rushUntil then
+		fp.rushUntil = os.time() + C.FIRST_PLAY.rushSecs
+		task.defer(function() if data[plr] == d then F.spawnCustomer(plr, d, os.clock(), {key = key, quick = true}) end end)
 	end
 	if lvl == 0 and F.achieve then
 		F.achieve(plr, "firstBusiness")
@@ -17298,6 +17399,9 @@ C.VIRAL_MOMENTS = {
 		posts = {"Customer gives {name}'s {biz} 1 star for \"too much {thing}\".", "1 star: \"{review}\" — a customer of {name}'s {biz}"}},
 	customerRush = {icon = "🏃", title = "WHO TOLD EVERYONE?", score = 250, cat = "biz", importance = "high", cd = 1800, rare = true,
 		posts = {"WHO TOLD EVERYONE? {name}'s empire just served {n} customers in a minute."}},
+	-- v17: a 🌈 Rainbow customer (GameServer > Systems F.rareSale)
+	rareSale = {icon = "🌈", title = "RAINBOW SALE", score = 200, cat = "biz", importance = "high", cd = 600,
+		posts = {"🌈 A RAINBOW customer just walked into {name}'s shop and paid x250. Nobody believes it. There are clips."}},
 	bizCrowd = {icon = "👥", title = "Line Around The Block", score = 100, cat = "biz", importance = "normal", cd = 1200,
 		posts = {"There's a line around the block at {name}'s {biz}. Bring snacks. (They sell snacks.)"}},
 	houseRating = {icon = "🏠", title = "House Rating: {rating}/100", score = 150, cat = "house", importance = "normal", cd = 604800,
@@ -24326,6 +24430,9 @@ function F.showcase(target)
 	local out = {name = target.Name, stage = stage, stageName = st and (st.icon .. " " .. st.name) or "", businesses = biz, worth = worthTier(F.empireValue and F.empireValue(d) or d.cash),
 		park = (d.levels.park or 0) > 0 and F.parkScore and (F.parkScore(d)) or nil, prestige = F.prestigeStars and F.prestigeStars(d) or 0,
 		title = acct and F.titleName(acct.wardrobe.title) or nil, badge = acct and F.badgeName(acct.wardrobe.badge) or nil, paths = {}}
+	-- v17: lucky sales (counts only)
+	local rs = type(d.rareSales) == "table" and d.rareSales or {}
+	out.rare = {golden = tonumber(rs.golden) or 0, diamond = tonumber(rs.diamond) or 0, rainbow = tonumber(rs.rainbow) or 0}
 	if F.pathRec then
 		local p = F.pathRec(d)
 		for _, def in ipairs(C.PATHS_DEF) do
@@ -24370,7 +24477,381 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX60"><Properties><string name="Name">Updates</string>
+<Item class="ModuleScript" referent="RBX60"><Properties><string name="Name">Bazaar</string>
+<ProtectedString name="Source"><![CDATA[-- CITY BAZAAR (v17): a shop that RESTOCKS EVERY 5 MINUTES with rare, Bazaar-only furniture (the hook behind
+-- Grow a Garden's seed shop: everyone checks back for the rare one). The stock is worked out from the UTC clock
+-- alone (the 5-minute window number seeds the roll), so EVERY SERVER SHOWS THE SAME STOCK at the same time:
+-- "a Mythic is in the Bazaar right now" is true everywhere, and players can tell each other.
+--   * 6 slots per restock, each rolled by rarity (Common .. 🌈 Mythic); each slot has a per-player quantity
+--   * bought with in-game cash only; the price is the rarity's base price or a few minutes of the buyer's income,
+--     whichever is more (so it stays meaningful at every stage). Bazaar items can't be sold back (no farming)
+--   * what you bought this restock is saved in the slot (d.bazaar), so rejoining or hopping servers doesn't
+--     reset your limit
+--   * a restock with an Epic or better item is announced to the server (never to someone mid-ride/heist/cutscene)
+--   * a stall in the plaza shows the countdown and the best item in stock
+-- Definitions are data: C.BAZAAR (rules), C.BAZAAR_RARITY, C.BAZAAR_ITEMS (added to C.FURNITURE, shop = false).
+return function(C)
+local Players = game:GetService("Players")
+local RGB = Color3.fromRGB
+local F, data, R = C.F, C.data, C.R
+local fmt, notify = C.fmt, C.notify
+local P, surfaceText = C.P, C.surfaceText
+local V3, CF, MAT = Vector3.new, CFrame.new, Enum.Material
+
+C.BAZAAR = {window = 300, slots = 6, buyGap = 0.4, announceFrom = 4}   -- announceFrom = rarity index (4 = Epic)
+C.BAZAAR_RARITY = {
+	{key = "common",    name = "Common",    color = RGB(170, 175, 190), chance = 0.55,  qty = 3, base = 5000,      secs = 120},
+	{key = "uncommon",  name = "Uncommon",  color = RGB(90, 200, 120),  chance = 0.25,  qty = 2, base = 25000,     secs = 300},
+	{key = "rare",      name = "Rare",      color = RGB(70, 150, 255),  chance = 0.12,  qty = 1, base = 150000,    secs = 900},
+	{key = "epic",      name = "Epic",      color = RGB(170, 90, 255),  chance = 0.06,  qty = 1, base = 1000000,   secs = 2400},
+	{key = "legendary", name = "Legendary", color = RGB(255, 185, 40),  chance = 0.018, qty = 1, base = 10000000,  secs = 6000},
+	{key = "mythic",    name = "🌈 Mythic", color = RGB(255, 80, 200),  chance = 0.002, qty = 1, base = 100000000, secs = 15000},
+}
+local RAR, RIDX = {}, {}
+for i, r in ipairs(C.BAZAAR_RARITY) do RAR[r.key] = r RIDX[r.key] = i end
+-- the Bazaar-only furniture (placed like any furniture; tier 1 so any home can show it off)
+local A = "accent"
+C.BAZAAR_ITEMS = {
+	{key = "bz_flamingo", name = "Neon Flamingo", icon = "🦩", rarity = "common", score = 3, size = {1, 1}, light = {0, 3, 0},
+		shape = {{0.3, 3, 0.3, 0, 1.5, 0, RGB(255, 90, 180), "Neon"}, {1.6, 1.2, 0.8, 0, 3.4, 0, RGB(255, 90, 180), "Neon"}}},
+	{key = "bz_lavalamp", name = "Lava Lamp Tower", icon = "🧪", rarity = "common", score = 3, size = {1, 1}, light = {0, 3, 0},
+		shape = {{1.4, 0.6, 1.4, 0, 0.3, 0, RGB(40, 40, 46), "Metal"}, {1, 4, 1, 0, 2.6, 0, RGB(255, 120, 40), "Neon"}}},
+	{key = "bz_cactus", name = "Disco Cactus", icon = "🌵", rarity = "common", score = 2, size = {1, 1},
+		shape = {{1.2, 4, 1.2, 0, 2, 0, RGB(60, 180, 90), "Grass"}, {1.6, 0.8, 1.6, 0, 0.4, 0, RGB(200, 120, 60), "Brick"}}},
+	{key = "bz_gnome", name = "Golden Garden Gnome", icon = "🧙", rarity = "common", score = 2, size = {1, 1},
+		shape = {{1.2, 2, 1.2, 0, 1, 0, RGB(255, 205, 60), "Metal"}, {1, 1.2, 1, 0, 2.6, 0, RGB(220, 40, 50)}}},
+	{key = "bz_beanbag", name = "Galaxy Beanbag", icon = "🫘", rarity = "common", score = 2, size = {1, 1},
+		shape = {{3, 1.6, 3, 0, 0.8, 0, RGB(60, 40, 140), "Fabric"}}},
+	{key = "bz_neonsign", name = "\"OPEN 24/7\" Neon Sign", icon = "🔆", rarity = "common", score = 3, size = {1, 1}, light = {0, 3, 0},
+		shape = {{3, 1.4, 0.3, 0, 3, 1.4, RGB(255, 60, 90), "Neon"}}},
+	{key = "bz_popcorn", name = "Popcorn Machine", icon = "🍿", rarity = "uncommon", score = 4, size = {1, 1},
+		shape = {{2.4, 2.4, 2, 0, 1.2, 0, RGB(200, 30, 40)}, {2.4, 2.4, 2, 0, 3.6, 0, RGB(255, 240, 200), "Glass"}}},
+	{key = "bz_hammock", name = "Tropical Hammock", icon = "🌴", rarity = "uncommon", score = 4, size = {2, 1},
+		shape = {{0.4, 4, 0.4, -3, 2, 0, RGB(120, 80, 50), "Wood"}, {0.4, 4, 0.4, 3, 2, 0, RGB(120, 80, 50), "Wood"}, {5.6, 0.3, 2, 0, 1.8, 0, RGB(255, 170, 60), "Fabric"}}},
+	{key = "bz_gumball", name = "Giant Gumball Machine", icon = "🍬", rarity = "uncommon", score = 4, size = {1, 1},
+		shape = {{1.8, 2.4, 1.8, 0, 1.2, 0, RGB(220, 40, 50)}, {2.6, 2.6, 2.6, 0, 3.7, 0, RGB(220, 240, 255), "Glass"}}},
+	{key = "bz_jukebox", name = "Retro Jukebox", icon = "📻", rarity = "uncommon", score = 4, size = {1, 1}, light = {0, 3, -0.6},
+		shape = {{3, 5, 2, 0, 2.5, 0.5, RGB(150, 60, 40), "Wood"}, {2.4, 2, 0.2, 0, 3.4, -0.55, RGB(255, 200, 80), "Neon"}}},
+	{key = "bz_aquarium", name = "Aquarium Wall", icon = "🐠", rarity = "rare", score = 7, size = {2, 1}, light = {0, 3, 0},
+		shape = {{7, 5, 1.6, 0, 3, 0.8, RGB(80, 170, 255), "Glass"}, {7.2, 0.6, 1.8, 0, 0.3, 0.8, RGB(30, 30, 36)}, {1, 0.6, 0.2, 1, 3, 0.2, RGB(255, 140, 40), "Neon"}}},
+	{key = "bz_arcade", name = "Rainbow Arcade Cabinet", icon = "🕹️", rarity = "rare", score = 6, size = {1, 1}, light = {0, 4, -0.5},
+		shape = {{3, 6, 2.4, 0, 3, 0.4, RGB(40, 30, 80)}, {2.4, 1.8, 0.2, 0, 4.4, -0.85, RGB(120, 255, 200), "Neon"}}},
+	{key = "bz_meteor", name = "Meteor Rock", icon = "☄️", rarity = "epic", score = 9, size = {1, 1}, light = {0, 2, 0},
+		shape = {{3, 2.6, 3, 0, 1.3, 0, RGB(60, 50, 60), "Basalt"}, {1.2, 1, 1.2, 0.6, 2.4, 0.3, RGB(255, 110, 40), "Neon"}}},
+	{key = "bz_throne", name = "Velvet Throne", icon = "🪑", rarity = "epic", score = 9, size = {1, 1},
+		shape = {{3, 1.4, 3, 0, 1.2, 0, RGB(150, 20, 50), "Fabric"}, {3, 5, 0.8, 0, 3.5, 1.2, RGB(255, 200, 60), "Metal"}}},
+	{key = "bz_chandelier", name = "Diamond Chandelier", icon = "💠", rarity = "legendary", score = 12, size = {1, 1}, light = {0, 7, 0},
+		shape = {{0.4, 6, 0.4, 0, 3.5, 0, RGB(220, 230, 255), "Metal"}, {3, 2, 3, 0, 7, 0, RGB(200, 240, 255), "Glass"}, {1.4, 1, 1.4, 0, 7, 0, RGB(255, 255, 255), "Neon"}}},
+	{key = "bz_fountain", name = "Gold Fountain", icon = "⛲", rarity = "legendary", score = 13, size = {2, 2},
+		shape = {{7, 1.2, 7, 0, 0.6, 0, RGB(255, 205, 60), "Metal"}, {6, 0.3, 6, 0, 1.2, 0, RGB(90, 190, 255), "Glass"}, {1, 4, 1, 0, 3, 0, RGB(255, 205, 60), "Metal"}}},
+	{key = "bz_unicorn", name = "Rainbow Unicorn Statue", icon = "🦄", rarity = "mythic", score = 18, size = {1, 1}, light = {0, 5, 0},
+		shape = {{2.6, 1, 2.6, 0, 0.5, 0, RGB(250, 250, 255), "Marble"}, {1.4, 4, 2.4, 0, 3, 0, RGB(255, 120, 230), "Neon"}}},
+	{key = "bz_blackhole", name = "Pocket Black Hole", icon = "🌌", rarity = "mythic", score = 18, size = {1, 1}, light = {0, 3, 0},
+		shape = {{3, 3, 3, 0, 2.5, 0, RGB(20, 0, 40), "Glass"}, {1.6, 1.6, 1.6, 0, 2.5, 0, RGB(170, 60, 255), "Neon"}}},
+}
+local POOL = {}
+for _, it in ipairs(C.BAZAAR_ITEMS) do
+	local r = RAR[it.rarity]
+	it.cat, it.tier, it.shop, it.bazaar, it.cost = "Decor", 1, false, it.rarity, r.base
+	table.insert(C.FURNITURE, it)
+	C.FURNITURE_BY[it.key] = it
+	POOL[it.rarity] = POOL[it.rarity] or {}
+	table.insert(POOL[it.rarity], it)
+end
+
+local function now() return C.bazaarClock and C.bazaarClock() or os.time() end
+local function mmss(sec) sec = math.max(0, math.floor(sec)) return string.format("%d:%02d", sec // 60, sec % 60) end
+function F.bazaarWindow(t)
+	local w = math.floor((t or now()) / C.BAZAAR.window)
+	return w, (w + 1) * C.BAZAAR.window
+end
+-- the stock of window w: the same answer on every server (seeded from the window number alone)
+local cache = {}
+function F.bazaarStock(w)
+	if cache[w] then return cache[w] end
+	local rng = Random.new(w * 7919 + 104729)
+	local out, used = {}, {}
+	for i = 1, C.BAZAAR.slots do
+		local roll, rar = rng:NextNumber(), C.BAZAAR_RARITY[1]
+		local acc = 0
+		for _, r in ipairs(C.BAZAAR_RARITY) do
+			acc += r.chance
+			if roll < acc then rar = r break end
+		end
+		local pool = POOL[rar.key] or POOL.common
+		local it = pool[rng:NextInteger(1, #pool)]
+		if used[it.key] then
+			-- (no item twice in one restock: another of the same rarity, else the nearest rarity with one left)
+			it = nil
+			local start = RIDX[rar.key]
+			for dist = 0, #C.BAZAAR_RARITY do
+				for _, ri in ipairs({start - dist, start + dist}) do
+					local r = C.BAZAAR_RARITY[ri]
+					if not it and r then
+						for _, cand in ipairs(POOL[r.key] or {}) do
+							if not used[cand.key] then it, rar = cand, r break end
+						end
+					end
+				end
+				if it then break end
+			end
+		end
+		used[it.key] = true
+		out[i] = {slot = i, key = it.key, rarity = rar.key}
+	end
+	cache[w] = out
+	-- (keep the last few windows only)
+	for k in pairs(cache) do if k < w - 3 then cache[k] = nil end end
+	return out
+end
+function F.bazaarPrice(d, rarity)
+	local r = RAR[rarity]
+	local ips = F.incomePerSec and F.incomePerSec(d) or 0
+	return math.max(r.base, math.floor(ips * r.secs))
+end
+local function rec(d, w)
+	local b = d.bazaar
+	if type(b) ~= "table" or type(b.bought) ~= "table" then b = {win = w, bought = {}} d.bazaar = b end
+	if b.win ~= w then b.win, b.bought = w, {} end
+	return b
+end
+local lastBuy = {}
+function F.bazaarBuy(plr, slot, w)
+	local d = data[plr]
+	if not d then return false end
+	local t = os.clock()
+	if lastBuy[plr] and t - lastBuy[plr] < C.BAZAAR.buyGap then return false end
+	lastBuy[plr] = t
+	slot = math.floor(tonumber(slot) or 0)
+	local cur = F.bazaarWindow()
+	if w ~= nil and tonumber(w) ~= cur then
+		notify(plr, "🛍️ The Bazaar just restocked! Have a look at the new stock.", {pri = "critical", cat = "info"})
+		return false
+	end
+	local s = F.bazaarStock(cur)[slot]
+	if not s then return false end
+	local it, r = C.FURNITURE_BY[s.key], RAR[s.rarity]
+	local b = rec(d, cur)
+	local got = tonumber(b.bought[tostring(slot)]) or 0
+	if got >= r.qty then notify(plr, "🛍️ You've bought all of this restock's " .. it.name .. ". New stock in " .. mmss((cur + 1) * C.BAZAAR.window - now()) .. ".", {pri = "critical", cat = "info"}) return false end
+	local price = F.bazaarPrice(d, s.rarity)
+	if d.cash < price then notify(plr, "🛍️ " .. it.name .. " costs $" .. fmt(price) .. ".", {pri = "critical", cat = "warn"}) return false end
+	d.furniture = type(d.furniture) == "table" and d.furniture or {}
+	local owned = 0
+	for _, n in pairs(d.furniture) do owned += tonumber(n) or 0 end
+	if owned + 1 > 120 then notify(plr, "🛋️ Your storage is full (120 items). Place or sell some first.", {pri = "critical", cat = "warn"}) return false end
+	d.cash -= price
+	d.furniture[it.key] = (tonumber(d.furniture[it.key]) or 0) + 1
+	b.bought[tostring(slot)] = got + 1
+	notify(plr, "🛍️ " .. it.icon .. " " .. r.name .. " " .. it.name .. " is in your furniture storage (-$" .. fmt(price) .. "). Place it with 🔨 Build at home.", {pri = "critical", cat = "money"})
+	if F.track then F.track(plr, "bazaar") end
+	if F.analyticsSink then F.analyticsSink(plr, price, "Bazaar", it.key) end
+	if RIDX[s.rarity] >= RIDX.legendary then
+		if F.analyticsCustom then F.analyticsCustom(plr, "BazaarRareBuy", RIDX[s.rarity]) end
+		for _, p in ipairs(Players:GetPlayers()) do
+			if p ~= plr then notify(p, "🛍️ " .. plr.Name .. " just bought the " .. r.name .. " " .. it.icon .. " " .. it.name .. " from the Bazaar!", {pri = "low", cat = "info", key = "bazaarBuy"}) end
+		end
+	end
+	return true
+end
+function F.bazaarInfo(plr)
+	local d = data[plr]
+	if not d then return nil end
+	local w, ends = F.bazaarWindow()
+	local b = rec(d, w)
+	local slots = {}
+	for i, s in ipairs(F.bazaarStock(w)) do
+		local it, r = C.FURNITURE_BY[s.key], RAR[s.rarity]
+		local got = tonumber(b.bought[tostring(i)]) or 0
+		slots[i] = {slot = i, key = s.key, name = it.name, icon = it.icon, rarity = s.rarity, rname = r.name, color = r.color, rank = RIDX[s.rarity],
+			price = F.bazaarPrice(d, s.rarity), qty = r.qty, left = math.max(0, r.qty - got), score = it.score, w = it.size[1], d = it.size[2]}
+	end
+	return {win = w, endsIn = ends - now(), slots = slots, cash = d.cash}
+end
+local function send(plr)
+	local info = F.bazaarInfo(plr)
+	if info then R.Menu:FireClient(plr, "bazaar", info) end
+end
+C.ACTIONS = C.ACTIONS or {}
+C.ACTIONS.bazaarInfo = function(plr) send(plr) end
+C.ACTIONS.bazaarBuy = function(plr, d, a, b)
+	F.bazaarBuy(plr, a, b)
+	send(plr)
+end
+-- the best item in a window's stock (for the stall and the announcement)
+function F.bazaarBest(w)
+	local best
+	for _, s in ipairs(F.bazaarStock(w)) do
+		if not best or RIDX[s.rarity] > RIDX[best.rarity] then best = s end
+	end
+	return best
+end
+
+-- ===== the stall in the plaza (on the sidewalk strip between plot 4 and the South Ring, next to the City Event board) =====
+local stall
+do
+	local f = C.WORLD
+	local base = P(f, V3(10, 1, 6), CF(50, 0.5, 112), RGB(120, 70, 40), MAT.WoodPlanks)
+	base.Name = "BazaarStall"
+	local counter = P(f, V3(10, 3, 2), CF(50, 2.5, 114), RGB(150, 90, 50), MAT.Wood)
+	counter.Name = "BazaarCounter"
+	local roof = P(f, V3(11, 0.6, 7), CF(50, 7.5, 112), RGB(200, 60, 140), MAT.Fabric)
+	roof.Name = "BazaarRoof"
+	for _, x in ipairs({-4.6, 4.6}) do
+		local pole = P(f, V3(0.5, 6.4, 0.5), CF(50 + x, 4.2, 109.5), RGB(60, 40, 30), MAT.Wood)
+		pole.Name = "BazaarPole"
+	end
+	stall = P(f, V3(9, 3, 0.4), CF(50, 5.4, 115.2), RGB(30, 18, 48), MAT.SmoothPlastic)
+	stall.Name = "BazaarSign"
+	local pp = Instance.new("ProximityPrompt")
+	pp.ActionText = "Browse the Bazaar"
+	pp.ObjectText = "🛍️ City Bazaar"
+	pp.MaxActivationDistance = 12
+	pp.RequiresLineOfSight = false
+	pp.Parent = counter
+	pp.Triggered:Connect(function(plr)
+		send(plr)
+		R.Menu:FireClient(plr, "openBazaar")
+	end)
+end
+local shownWin
+local function refreshStall(w)
+	if shownWin == w then return end
+	shownWin = w
+	for _, x in ipairs(stall:GetChildren()) do if x:IsA("SurfaceGui") then x:Destroy() end end
+	local best = F.bazaarBest(w)
+	local it, r = C.FURNITURE_BY[best.key], RAR[best.rarity]
+	local txt = "🛍️ CITY BAZAAR\nBest now: " .. it.icon .. " " .. string.upper(r.name) .. " " .. it.name .. "\nRestocks every 5 minutes"
+	surfaceText(stall, Enum.NormalId.Front, txt, r.color)
+	surfaceText(stall, Enum.NormalId.Back, txt, r.color)
+end
+
+-- ===== restocks: refresh the stall, tell open apps, announce an Epic or better =====
+local told = {}
+task.spawn(function()
+	while true do
+		local w = F.bazaarWindow()
+		refreshStall(w)
+		local best = F.bazaarBest(w)
+		local rank = RIDX[best.rarity]
+		for _, plr in ipairs(Players:GetPlayers()) do
+			local d = data[plr]
+			if d and told[plr] ~= w then
+				told[plr] = w
+				R.Menu:FireClient(plr, "bazaarPing", {win = w})
+				if rank >= C.BAZAAR.announceFrom and (d.tut or 0) == 0 and not (F.playerBusy and F.playerBusy(plr)) then
+					local it, r = C.FURNITURE_BY[best.key], RAR[best.rarity]
+					notify(plr, "🛍️ RESTOCK! A " .. string.upper(r.name) .. " " .. it.icon .. " " .. it.name .. " is in the City Bazaar for 5 minutes!",
+						{pri = rank >= RIDX.mythic and "normal" or "low", cat = "info", key = "bazaar"})
+				end
+			end
+		end
+		task.wait(2)
+	end
+end)
+Players.PlayerRemoving:Connect(function(plr) told[plr], lastBuy[plr] = nil, nil end)
+end
+]]></ProtectedString></Properties>
+</Item>
+<Item class="ModuleScript" referent="RBX61"><Properties><string name="Name">Analytics</string>
+<ProtectedString name="Source"><![CDATA[-- ANALYTICS (v17): tells Roblox's Creator Analytics what new players do, so the Creator Hub dashboards show
+-- where they stop playing (Roblox ranks games by first-play bounce, playtime and how many days people come back).
+--   * ONBOARDING FUNNEL (AnalyticsService:LogOnboardingFunnelStepEvent): brand-new saves only (d.firstPlay),
+--     each step once per save, in order: 1 new game, 2 first sale, 3 Lemonade Lv 3, 4 second business,
+--     5 phone opened, 6 tutorial done, 7 first car, 8 five minutes played
+--   * ECONOMY (LogEconomyEvent): money spent (upgrades, the Bazaar) and big money in (rewards, rare sales).
+--     Ordinary customer sales are NOT logged one by one (there are far too many); throttled per player
+--   * CUSTOM (LogCustomEvent): rare sales, rare Bazaar buys, the opening movie watched vs skipped
+-- Every call is wrapped in pcall: analytics never breaks the game. Turn it off with C.ANALYTICS.enabled = false.
+return function(C)
+local Players = game:GetService("Players")
+local AS = game:GetService("AnalyticsService")
+local F, data = C.F, C.data
+
+C.ANALYTICS = {enabled = true, economyGap = 1}
+C.FUNNEL = {"newGame", "firstSale", "standLv3", "secondBiz", "phoneOpened", "tutorialDone", "firstCar", "played5min"}
+local STEP = {}
+for i, k in ipairs(C.FUNNEL) do STEP[k] = i end
+
+local function call(fn) if C.ANALYTICS.enabled then pcall(fn) end end
+-- one funnel step, once per new save (kept in the save, so a rejoin doesn't send it twice)
+function F.funnel(plr, name)
+	local d = data[plr]
+	local i = STEP[name]
+	local fp = d and d.firstPlay
+	if not (i and type(fp) == "table") then return false end
+	fp.steps = type(fp.steps) == "table" and fp.steps or {}
+	if fp.steps[name] then return false end
+	fp.steps[name] = os.time()
+	call(function() AS:LogOnboardingFunnelStepEvent(plr, i, name) end)
+	return true
+end
+local lastEco = {}
+local function economy(plr, flow, amount, tx, sku)
+	local d = data[plr]
+	amount = math.floor(tonumber(amount) or 0)
+	if not d or amount <= 0 then return end
+	local key = flow.Name .. tx
+	local t = os.clock()
+	lastEco[plr] = lastEco[plr] or {}
+	if lastEco[plr][key] and t - lastEco[plr][key] < C.ANALYTICS.economyGap then return end
+	lastEco[plr][key] = t
+	call(function() AS:LogEconomyEvent(plr, flow, "Cash", amount, math.floor(d.cash), tx, sku) end)
+end
+function F.analyticsSink(plr, amount, what, sku)
+	economy(plr, Enum.AnalyticsEconomyFlowType.Sink, amount, Enum.AnalyticsEconomyTransactionType.Shop.Name, (what or "") .. ":" .. tostring(sku or ""))
+end
+function F.analyticsSource(plr, amount, what, sku)
+	local tx = what == "Reward" and Enum.AnalyticsEconomyTransactionType.TimedReward.Name or Enum.AnalyticsEconomyTransactionType.Gameplay.Name
+	economy(plr, Enum.AnalyticsEconomyFlowType.Source, amount, tx, (what or "") .. ":" .. tostring(sku or ""))
+end
+function F.analyticsCustom(plr, name, value)
+	call(function() AS:LogCustomEvent(plr, name, tonumber(value) or 1) end)
+end
+
+-- the funnel watches the player's real state once a second (no hooks needed in every system)
+local function bizCount(d)
+	local n = 0
+	for _, lv in pairs(d.levels or {}) do if (tonumber(lv) or 0) > 0 then n += 1 end end
+	return n
+end
+local CHECKS = {
+	{"firstSale", function(d) return (d.served or 0) >= 1 end},
+	{"standLv3", function(d) return (d.levels.lemonade or 0) >= 3 end},
+	{"secondBiz", function(d) return bizCount(d) >= 2 end},
+	{"phoneOpened", function(d) return d.phoneOpenedAt ~= nil end},
+	{"tutorialDone", function(d) return (d.tut or 1) == 0 and (d.tutPaid or 0) >= #C.TUTORIAL end},
+	{"firstCar", function(d) return type(d.cars) == "table" and next(d.cars) ~= nil end},
+	{"played5min", function(d, s) return s and os.clock() - s >= 300 end},
+}
+local started = {}
+task.spawn(function()
+	while true do
+		task.wait(1)
+		for _, plr in ipairs(Players:GetPlayers()) do
+			local d = data[plr]
+			local fp = d and d.firstPlay
+			if type(fp) == "table" and not fp.done then
+				started[plr] = started[plr] or os.clock()
+				F.funnel(plr, "newGame")
+				local all = true
+				for _, c in ipairs(CHECKS) do
+					local ok, yes = pcall(c[2], d, started[plr])
+					if ok and yes then F.funnel(plr, c[1]) end
+					if not (type(fp.steps) == "table" and fp.steps[c[1]]) then all = false end
+				end
+				if all then fp.done = true end
+			elseif not d then
+				started[plr] = nil
+			end
+		end
+	end
+end)
+Players.PlayerRemoving:Connect(function(plr) lastEco[plr], started[plr] = nil, nil end)
+end
+]]></ProtectedString></Properties>
+</Item>
+<Item class="ModuleScript" referent="RBX62"><Properties><string name="Name">Updates</string>
 <ProtectedString name="Source"><![CDATA[-- UPDATES: tells players on an older server that a newer version of the game has been published.
 -- Every server records its place version in a tiny DataStore key and announces it over MessagingService.
 -- When an old server hears about a newer one, it saves everyone and shows a notice; the restart itself is done
@@ -24439,7 +24920,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX61"><Properties><string name="Name">Players</string>
+<Item class="ModuleScript" referent="RBX63"><Properties><string name="Name">Players</string>
 <ProtectedString name="Source"><![CDATA[-- PLAYERS: save slots + main menu, loading/unloading, state sync, button actions, main loops.
 return function(C)
 local Players = game:GetService("Players")
@@ -24489,7 +24970,9 @@ local SAVE_KEYS = {"cash", "levels", "chains", "staff", "combos", "rep", "ep", "
 	-- v15
 	"park",
 	-- v16
-	"path", "roadmap", "grantsGot", "tokens"}
+	"path", "roadmap", "grantsGot", "tokens",
+	-- v17 (no schema step: a missing field just means "nothing yet")
+	"bazaar", "rareSales", "firstPlay"}
 -- everything this version writes itself; any OTHER field found in a save is kept as-is when saving
 local KNOWN_KEYS = {lots = true, props = true, SchemaVersion = true, saveSeq = true, gameVersion = true, savedAt = true}
 for _, k in ipairs(SAVE_KEYS) do KNOWN_KEYS[k] = true end
@@ -24655,6 +25138,7 @@ function F.payGrants(plr)
 			end
 			if g.rep > 0 then F.addRep(plr, g.rep) end
 			if g.item and C.GRANT_ITEMS[g.item] then pcall(C.GRANT_ITEMS[g.item], plr, d) end
+			if g.cash > 0 and F.analyticsSource then F.analyticsSource(plr, g.cash, "Reward", g.item or "cash") end
 			n += 1
 			notify(plr, "🎁 " .. (g.what ~= "" and g.what or "Reward") .. (g.cash > 0 and ("  +$" .. fmt(g.cash)) or "") .. (g.rep > 0 and ("  +" .. g.rep .. " ⭐") or ""), {pri = "critical", cat = "money"})
 		end
@@ -25234,6 +25718,7 @@ function F.startGame(plr, slot, starterIdx)
 	local isNew = starterIdx ~= nil
 	if isNew then
 		s.seq, s.fresh = 0, true   -- a brand-new game may replace whatever was in this slot
+		d.firstPlay = {at = os.time(), steps = {}}   -- v17: first-session boosts and the onboarding funnel (new saves only)
 	else
 		loadSlot(plr, d, slot)
 	end
@@ -25520,6 +26005,8 @@ R.Action.OnServerEvent:Connect(function(plr, action, a, b, c)
 		if not s.meta.acct.introSeen then
 			s.meta.acct.introSeen = true
 			task.spawn(saveMeta, plr)
+			-- v17: watched to the end (START on the title card) or skipped/cut short? (Creator Analytics)
+			if F.analyticsCustom then F.analyticsCustom(plr, a == "start" and "IntroWatched" or "IntroSkipped", 1) end
 		end
 		return
 	end

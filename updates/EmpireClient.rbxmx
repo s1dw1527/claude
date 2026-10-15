@@ -1,7 +1,7 @@
 <roblox version="4">
-<Item class="LocalScript" referent="RBX62"><Properties><string name="Name">EmpireClient</string>
+<Item class="LocalScript" referent="RBX64"><Properties><string name="Name">EmpireClient</string>
 <ProtectedString name="Source"><![CDATA[--// CORNER EMPIRE v11.1 — CLIENT. All the code lives in the ModuleScripts inside this LocalScript.
-local modules = {"UI", "Layout", "Audio", "AnimationConfig", "Actors", "HUD", "WorldFX", "CityCrowd", "ParkFX", "PoliceCars", "Workers", "Menus", "BusinessUI", "HQUI", "EmpireUI", "ExploreUI", "ActivityLog", "KitchenUI", "TheaterUI", "LotShopUI", "ParkUI", "RivalsUI", "PartnersUI", "HomeLifeUI", "LeadersUI", "JourneyUI", "DailyUI", "RoadmapUI", "ShowcaseUI", "ComputerUI", "GarageUI", "ArcadeUI", "AdminPanel", "GuideUI", "HeistUI", "Phone", "Driving", "MiniGames", "PhotoMode", "Story", "Cinematics",
+local modules = {"UI", "Layout", "Audio", "AnimationConfig", "Actors", "HUD", "WorldFX", "CityCrowd", "ParkFX", "PoliceCars", "Workers", "Menus", "BusinessUI", "HQUI", "EmpireUI", "ExploreUI", "ActivityLog", "KitchenUI", "TheaterUI", "LotShopUI", "ParkUI", "RivalsUI", "PartnersUI", "HomeLifeUI", "LeadersUI", "JourneyUI", "DailyUI", "RoadmapUI", "ShowcaseUI", "BazaarUI", "ComputerUI", "GarageUI", "ArcadeUI", "AdminPanel", "GuideUI", "HeistUI", "Phone", "Driving", "MiniGames", "PhotoMode", "Story", "Cinematics",
 	"MapApp", "InteriorUI", "InteriorLife", "BuilderUI", "MountainLife", "CityLife", "ViralApp", "IntroCinematic", "MainMenu"}
 local C = {}
 for _, name in ipairs(modules) do
@@ -32,7 +32,7 @@ C.R.State.OnClientEvent:Connect(function(s)
 	end
 end)
 ]]></ProtectedString></Properties>
-<Item class="ModuleScript" referent="RBX63"><Properties><string name="Name">UI</string>
+<Item class="ModuleScript" referent="RBX65"><Properties><string name="Name">UI</string>
 <ProtectedString name="Source"><![CDATA[-- UI: theme, helper functions, sounds, the main ScreenGui. Everything else builds on this.
 return function(C)
 local Players = game:GetService("Players")
@@ -328,7 +328,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX64"><Properties><string name="Name">Layout</string>
+<Item class="ModuleScript" referent="RBX66"><Properties><string name="Name">Layout</string>
 <ProtectedString name="Source"><![CDATA[-- LAYOUT (v11.1): the responsive layout manager (also C.UIManager).
 -- One place that knows the screen: viewport size and breakpoints, the safe area (notch, Roblox's top bar, the
 -- home indicator), where Roblox's touch controls sit, and which big window is open.
@@ -864,7 +864,7 @@ placeBoxes()
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX65"><Properties><string name="Name">Audio</string>
+<Item class="ModuleScript" referent="RBX67"><Properties><string name="Name">Audio</string>
 <ProtectedString name="Source"><![CDATA[-- AUDIO (v14): music that follows what you're doing, district and interior ambience, and musical feedback.
 --
 -- ================================================================
@@ -1121,7 +1121,7 @@ local _ = RunService
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX66"><Properties><string name="Name">AnimationConfig</string>
+<Item class="ModuleScript" referent="RBX68"><Properties><string name="Name">AnimationConfig</string>
 <ProtectedString name="Source"><![CDATA[-- ANIMATION CONFIG: every animation the game uses, in one place, with a safe fallback for each.
 --
 -- ✏️  TO USE YOUR OWN ANIMATIONS: upload them to Roblox (Animation Editor → Publish), copy the asset id and paste
@@ -1244,7 +1244,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX67"><Properties><string name="Name">Actors</string>
+<Item class="ModuleScript" referent="RBX69"><Properties><string name="Name">Actors</string>
 <ProtectedString name="Source"><![CDATA[-- ACTORS: the shared kit for every scripted character the client draws: the story cast, cinematic actors,
 -- the city's influencers, interior staff and customers, crowds and photographers.
 -- Actors are a handful of anchored, non-colliding parts posed every frame by a small procedural animation
@@ -1625,7 +1625,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX68"><Properties><string name="Name">HUD</string>
+<Item class="ModuleScript" referent="RBX70"><Properties><string name="Name">HUD</string>
 <ProtectedString name="Source"><![CDATA[-- HUD: top bar, events, toasts, splash, war results, collapsible business panel + leaderboard,
 -- problem card, delivery card, tutorial card.
 return function(C)
@@ -2807,10 +2807,29 @@ do
 		end
 	end)
 end
+
+-- v17: a lucky RARE SALE (✨ Golden / 💎 Diamond / 🌈 Rainbow): a big outlined pop in the middle of the screen
+do
+	local Lay = C.Layout
+	R.Menu.OnClientEvent:Connect(function(kind, a)
+		if kind ~= "rareSale" or type(a) ~= "table" then return end
+		local l = C.titleText(label({Name = "RareSalePop", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.38), Size = UDim2.fromOffset(520, 60),
+			Text = (a.icon or "✨") .. " " .. tostring(a.name) .. " SALE!  +$" .. fmt(a.cash or 0), TextColor3 = a.color or GOLD, TextScaled = true, ZIndex = Lay.Z.toast}, gui))
+		new("UITextSizeConstraint", {MaxTextSize = 44, MinTextSize = 18}, l)
+		local sc = new("UIScale", {Scale = 0.4}, l)
+		tween(sc, 0.35, {Scale = 1}, Enum.EasingStyle.Back)
+		play(SND.buy)
+		if a.key ~= "golden" and U.confetti then U.confetti(a.key == "rainbow" and 120 or 60) end
+		task.delay(2.2, function()
+			tween(l, 0.5, {TextTransparency = 1, TextStrokeTransparency = 1})
+			task.delay(0.5, function() l:Destroy() end)
+		end)
+	end)
+end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX69"><Properties><string name="Name">WorldFX</string>
+<Item class="ModuleScript" referent="RBX71"><Properties><string name="Name">WorldFX</string>
 <ProtectedString name="Source"><![CDATA[-- WORLD FX: customers, pedestrians, traffic, rides, traffic lights, marquees, weather, guide beams.
 return function(C)
 local RunService = game:GetService("RunService")
@@ -2895,9 +2914,13 @@ end
 
 -- customers walk from the street to the business door
 local customers = {}
+-- v17: rare customers (the same table as the server's C.RARE_SALES, for the look)
+local RARE = {golden = {icon = "✨", name = "GOLDEN", color = RGB(255, 205, 60), mult = 10}, diamond = {icon = "💎", name = "DIAMOND", color = RGB(120, 220, 255), mult = 50},
+	rainbow = {icon = "🌈", name = "RAINBOW", color = RGB(255, 90, 220), mult = 250}}
 R.Customer.OnClientEvent:Connect(function(c)
 	if c.rent then return end
-	if #customers >= 45 or C.settings.crowd == "off" then return end
+	-- (v17: a rare customer always shows: it's the moment everyone should see)
+	if (#customers >= 45 or C.settings.crowd == "off") and not c.rare then return end
 	local pts = {c.start, c.entry, c.door}
 	local segs, total = {}, 0
 	for i = 1, #pts - 1 do
@@ -2905,7 +2928,22 @@ R.Customer.OnClientEvent:Connect(function(c)
 		segs[i] = len
 		total += len
 	end
-	table.insert(customers, {n = makePerson(c.npc), pts = pts, segs = segs, total = total, t = c.t, age = 0, review = c.review, door = c.door, shout = c.shout, icon = c.icon, item = c.item})
+	local n = makePerson(c.npc)
+	local rare = c.rare and RARE[c.rare]
+	if rare then
+		-- v17: a glowing customer (neon outfit, sparkles, a light) that everyone in the server can see walk in
+		for _, k in ipairs({"torso", "la", "ra", "ll", "rl"}) do
+			n[k].Color = rare.color
+			n[k].Material = Enum.Material.Neon
+		end
+		new("ParticleEmitter", {Texture = "rbxasset://textures/particles/sparkles_main.dds", Rate = 18, Lifetime = NumberRange.new(0.8, 1.4), Speed = NumberRange.new(2, 4),
+			SpreadAngle = Vector2.new(180, 180), Color = ColorSequence.new(rare.color), LightEmission = 1, Size = NumberSequence.new(0.5, 0)}, n.torso)
+		new("PointLight", {Color = rare.color, Range = 14, Brightness = 2}, n.torso)
+		local bb = new("BillboardGui", {Size = UDim2.fromOffset(160, 30), StudsOffset = V3(0, 3.6, 0), AlwaysOnTop = true, MaxDistance = 160}, n.head)
+		new("TextLabel", {Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Text = rare.icon .. " " .. rare.name .. " CUSTOMER", TextColor3 = rare.color, TextScaled = true,
+			Font = Enum.Font.FredokaOne, TextStrokeTransparency = 0.2}, bb)
+	end
+	table.insert(customers, {n = n, pts = pts, segs = segs, total = total, t = c.t, age = 0, review = c.review, door = c.door, shout = c.shout, icon = c.icon, item = c.item, rare = rare})
 end)
 
 -- (v13: the pedestrians and traffic that used to loop around fixed rectangles here are now CityCrowd: a pool that
@@ -3091,6 +3129,7 @@ RunService.RenderStepped:Connect(function(dt)
 			if c.review then lines = {{stars(c.review.stars), GOLD}, {"\"" .. c.review.text .. "\"", WHITE}} end
 			-- fans who recognize the owner (story chapter 3+)
 			if c.shout then table.insert(lines, 1, {"🗣️ " .. c.shout, RGB(255, 140, 200)}) end
+			if c.rare then table.insert(lines, 1, {c.rare.icon .. " " .. c.rare.name .. " SALE! x" .. c.rare.mult, c.rare.color}) end
 			floatBillboard(c.door + V3(0, 6, 0), lines, (c.review or c.shout) and 3.5 or 1.2)
 			-- a soft "ka-ching" when it happens near you (v14)
 			if C.jingle and (c.door - camPos).Magnitude < 70 then C.jingle("sale", 0.16) end
@@ -3252,7 +3291,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX70"><Properties><string name="Name">CityCrowd</string>
+<Item class="ModuleScript" referent="RBX72"><Properties><string name="Name">CityCrowd</string>
 <ProtectedString name="Source"><![CDATA[-- CITY CROWD (v13): the people and traffic that make the city feel alive, drawn by each client for itself.
 --
 -- The old version spread 30 walkers and 16 cars over the whole map on fixed rectangles, so wherever you stood you saw
@@ -4208,7 +4247,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX71"><Properties><string name="Name">ParkFX</string>
+<Item class="ModuleScript" referent="RBX73"><Properties><string name="Name">ParkFX</string>
 <ProtectedString name="Source"><![CDATA[-- PARK FX (v15): what makes the parks move on your screen.
 --   * TRACK MOVERS: roller-coaster trains (tag "TrackMover", built by GameServer > Park and the Fun Park). The
 --     track's points come in the Pts attribute; the train's place is worked out from the server clock, so every
@@ -4517,7 +4556,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX72"><Properties><string name="Name">PoliceCars</string>
+<Item class="ModuleScript" referent="RBX74"><Properties><string name="Name">PoliceCars</string>
 <ProtectedString name="Source"><![CDATA[-- POLICE CARS (v14): draws the city's NPC police units. The server (GameServer > Police) moves one invisible root
 -- part per unit ten times a second; here each one gets a black-and-white patrol car that glides smoothly to it, a
 -- light bar that flashes red/blue while the siren is on, and a siren you hear when you're near.
@@ -4615,7 +4654,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX73"><Properties><string name="Name">Workers</string>
+<Item class="ModuleScript" referent="RBX75"><Properties><string name="Name">Workers</string>
 <ProtectedString name="Source"><![CDATA[-- WORKERS: your hired staff, standing at their businesses in uniform and working.
 -- The server publishes a roster on each plot folder (attribute "Workers"); this module draws it.
 -- Everything here is client-only visuals: no physics, no collisions, capped count, frozen when far away.
@@ -4930,7 +4969,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX74"><Properties><string name="Name">Menus</string>
+<Item class="ModuleScript" referent="RBX76"><Properties><string name="Name">Menus</string>
 <ProtectedString name="Source"><![CDATA[-- MENUS: modal windows opened from the phone (and from world prompts).
 return function(C)
 local RGB = Color3.fromRGB
@@ -4944,7 +4983,7 @@ local modals = C.modals
 C.WINDOW_COLORS = {default = RGB(96, 64, 180), passes = RGB(120, 60, 200), heists = RGB(150, 40, 50), park = RGB(200, 90, 30), daily = RGB(176, 120, 20),
 	roadmap = RGB(40, 100, 180), garage = RGB(40, 100, 180), staff = RGB(40, 130, 90), market = RGB(40, 130, 80), settings = RGB(80, 84, 110),
 	theater = RGB(160, 30, 50), rivals = RGB(150, 40, 50), empireHall = RGB(160, 110, 20), leaders = RGB(160, 110, 20), party = RGB(170, 50, 140),
-	fun = RGB(190, 60, 140), explore = RGB(30, 130, 110), partners = RGB(40, 120, 100), occasions = RGB(190, 90, 30), activity = RGB(170, 60, 70)}
+	fun = RGB(190, 60, 140), explore = RGB(30, 130, 110), partners = RGB(40, 120, 100), occasions = RGB(190, 90, 30), activity = RGB(170, 60, 70), bazaar = RGB(170, 40, 120)}
 local LOCKS = {garage = "cars", staff = "staff", market = "market", marketing = "ads", properties = "properties", fun = "funpark"}
 C.MODAL_LOCKS = LOCKS
 local Lay = C.Layout
@@ -5950,7 +5989,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX75"><Properties><string name="Name">BusinessUI</string>
+<Item class="ModuleScript" referent="RBX77"><Properties><string name="Name">BusinessUI</string>
 <ProtectedString name="Source"><![CDATA[-- BUSINESS UI (v10): property cards, choosing a business for a plot, naming it, the brand editor, products and
 -- supplies. Everything here only ASKS the server; the server checks and applies (GameServer > RealEstate, Brands).
 return function(C)
@@ -6326,7 +6365,7 @@ if C.bizCardFrame and C.bizCardCurrent then C.bizManageButtons(C.bizCardFrame, C
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX76"><Properties><string name="Name">HQUI</string>
+<Item class="ModuleScript" referent="RBX78"><Properties><string name="Name">HQUI</string>
 <ProtectedString name="Source"><![CDATA[-- HQ UI (v10): the HQ card (floors to build), the elevator, and the General Manager's contract panel.
 -- Everything here only ASKS the server (GameServer > HQ); the server checks reputation, cash and where you are.
 return function(C)
@@ -6515,7 +6554,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX77"><Properties><string name="Name">EmpireUI</string>
+<Item class="ModuleScript" referent="RBX79"><Properties><string name="Name">EmpireUI</string>
 <ProtectedString name="Source"><![CDATA[-- EMPIRE UI (v12): the Empire Hall window (your value, the four billionaire milestones, storefront makeovers, the Hall of
 -- Fame with Visit buttons). It only ASKS the server (GameServer > Empire): values, rewards and rankings all come from there.
 return function(C)
@@ -6661,7 +6700,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX78"><Properties><string name="Name">ExploreUI</string>
+<Item class="ModuleScript" referent="RBX80"><Properties><string name="Name">ExploreUI</string>
 <ProtectedString name="Source"><![CDATA[-- EXPLORE UI (v13): the 🧭 EXPLORE phone app (City Jobs, Golden Corners, Places), the active-job card in the
 -- notification stack, the guide beam to the next job stop, and the things only YOU see in the world: the Golden
 -- Corners you haven't collected yet, the parcel, the lost dog (who follows you home) and the litter piles.
@@ -6961,7 +7000,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX79"><Properties><string name="Name">ActivityLog</string>
+<Item class="ModuleScript" referent="RBX81"><Properties><string name="Name">ActivityLog</string>
 <ProtectedString name="Source"><![CDATA[-- ACTIVITY LOG (v14): every notification of the session, newest first, in the 🔔 Activity phone app. Toasts stay
 -- short and never pile up on screen (HUD); anything you might have missed is here. The phone button shows a small
 -- badge with the number of messages that were logged without being shown.
@@ -7033,7 +7072,7 @@ task.defer(updateBadge)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX80"><Properties><string name="Name">KitchenUI</string>
+<Item class="ModuleScript" referent="RBX82"><Properties><string name="Name">KitchenUI</string>
 <ProtectedString name="Source"><![CDATA[-- KITCHEN UI (v14): the RUSH ORDERS panel. A customer (with their type: 🎓 Student, 💼 Office worker...) orders one of
 -- your products; the ticket shows its recipe; tap the ingredient/step buttons in that order before the patience bar
 -- runs out. Every tap answers (a rising note when right, a buzz when wrong), a perfect dish plays a "ka-ching" and
@@ -7169,7 +7208,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX81"><Properties><string name="Name">TheaterUI</string>
+<Item class="ModuleScript" referent="RBX83"><Properties><string name="Name">TheaterUI</string>
 <ProtectedString name="Source"><![CDATA[-- THEATER UI (v14): the 🍿 THEATER phone app. What's showing, the next show, how full it will be (and why), the
 -- films in release to pick from, the upgrades (seats, screen, sound, concessions) and the theater's record.
 -- Before you have one: how to open it (buy a city plot, choose 🎬 on it). The server (GameServer > Theater)
@@ -7299,7 +7338,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX82"><Properties><string name="Name">LotShopUI</string>
+<Item class="ModuleScript" referent="RBX84"><Properties><string name="Name">LotShopUI</string>
 <ProtectedString name="Source"><![CDATA[-- LOT SHOP UI (v15): "open this business on a city plot", for businesses too big for the home plot (the 🎬 Movie
 -- Theater, the 🎢 Amusement Park). Lists your plots ("Open it here") and every district with its price, or why you
 -- can't buy there right now ("Buy a plot & open"). The server (GameServer > RealEstate: plotShop / plotOpenHere /
@@ -7389,7 +7428,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX83"><Properties><string name="Name">ParkUI</string>
+<Item class="ModuleScript" referent="RBX85"><Properties><string name="Name">ParkUI</string>
 <ProtectedString name="Source"><![CDATA[-- PARK UI (v15): the 🎢 PARK phone app. Before you have one: how to open it (a city plot for the ticket gate,
 -- then your own site at the Funland Grounds). After: the park's rating and why, its sales boost, visitors and
 -- rides, "go to my park", other players' parks to visit, and the BUILD tab: a top-down plan of your site (tap a
@@ -7616,7 +7655,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX84"><Properties><string name="Name">RivalsUI</string>
+<Item class="ModuleScript" referent="RBX86"><Properties><string name="Name">RivalsUI</string>
 <ProtectedString name="Source"><![CDATA[-- RIVALS UI (v14): the 🥊 RIVALS phone app (your market share per business against the AI companies, the active
 -- challenge, your record, who the rivals are) and the challenge card in the notification stack while a rival's
 -- challenge is running. The server (GameServer > Rivals) decides everything.
@@ -7727,7 +7766,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX85"><Properties><string name="Name">PartnersUI</string>
+<Item class="ModuleScript" referent="RBX87"><Properties><string name="Name">PartnersUI</string>
 <ProtectedString name="Source"><![CDATA[-- PARTNERS UI (v14): the 🤝 PARTNERS phone app (send a gift, your businesses' partners and managers, the
 -- partnerships you're in, your transfer history) and the yes/no dialogs: a gift offered to you, "they accepted:
 -- send it?", an invitation to someone's business. The server (GameServer > Partners + Ledger) checks and does
@@ -7925,7 +7964,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX86"><Properties><string name="Name">HomeLifeUI</string>
+<Item class="ModuleScript" referent="RBX88"><Properties><string name="Name">HomeLifeUI</string>
 <ProtectedString name="Source"><![CDATA[-- HOME LIFE UI (v14): the 🎉 HOME & PARTY phone app: parties going on now (Join), throwing your own party (at
 -- your house/mansion or your loft), the City Loft (lease / move up / go inside), and the three ways to live side by
 -- side (loft, house, mansion). Plus the "party!" card in the notification stack when someone starts one.
@@ -8078,7 +8117,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX87"><Properties><string name="Name">LeadersUI</string>
+<Item class="ModuleScript" referent="RBX89"><Properties><string name="Name">LeadersUI</string>
 <ProtectedString name="Source"><![CDATA[-- LEADERS UI (v14): the 📊 LEADERS phone app. Eight leaderboards (Net Worth, Revenue, Popularity, Properties,
 -- Fastest Lap, Heists, Explorer, Prestige) in three views (this server, global, friends), your place, and your
 -- PRESTIGE: the ten goals, your stars and title. The server (GameServer > Leaders) computes everything.
@@ -8185,7 +8224,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX88"><Properties><string name="Name">JourneyUI</string>
+<Item class="ModuleScript" referent="RBX90"><Properties><string name="Name">JourneyUI</string>
 <ProtectedString name="Source"><![CDATA[-- JOURNEY UI (v14): the 📅 EVENTS phone app (the special occasions on now, their three tasks, Claim, what's
 -- coming next, the Weekend Rush, your keepsakes) and the 🧭 NEXT STEP card: after the tutorial, one step at a time
 -- out of ten, with "Show me" (opens the right app) and "Later" (skip for now). The server (GameServer >
@@ -8321,7 +8360,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX89"><Properties><string name="Name">DailyUI</string>
+<Item class="ModuleScript" referent="RBX91"><Properties><string name="Name">DailyUI</string>
 <ProtectedString name="Source"><![CDATA[-- DAILY UI (v16): the 🎁 DAILY phone app (the 7-day login rewards with today's highlighted, the streak and its
 -- 🛡️ shield, the countdown to the next UTC day, today's 3 missions, the weekly challenge and the live city
 -- event), plus a small 🎁 card in the notification stack, once a session, when something is waiting to be
@@ -8516,7 +8555,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX90"><Properties><string name="Name">RoadmapUI</string>
+<Item class="ModuleScript" referent="RBX92"><Properties><string name="Name">RoadmapUI</string>
 <ProtectedString name="Source"><![CDATA[-- ROADMAP UI (v16): the 🗺️ ROADMAP phone app. Seven stages from Street Starter to Empire Legend (built by the
 -- server from the game's real rules: GameServer > Roadmap), where you are, what you need for the next one with
 -- progress bars, what each stage opens up; your three paths (💼 Mogul, 🕶️ Underworld, 👑 Legend) with levels
@@ -8700,7 +8739,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX91"><Properties><string name="Name">ShowcaseUI</string>
+<Item class="ModuleScript" referent="RBX93"><Properties><string name="Name">ShowcaseUI</string>
 <ProtectedString name="Source"><![CDATA[-- SHOWCASE UI (v16): the 🪪 profile card. Anyone's (from the park visit list) or your own (from the Roadmap),
 -- with what the server lets everyone see: empire stage, businesses, net-worth tier, park rating, prestige,
 -- paths, and the title + badge being worn. On your own card you choose which title and badge to wear.
@@ -8736,7 +8775,8 @@ local function render()
 	txt(top, string.upper(s.name), UDim2.fromOffset(14, 10), UDim2.new(1, -28, 0, 26), 20, GOLD, true)
 	txt(top, (s.title or "No title worn") .. (s.badge and ("   •   " .. s.badge) or ""), UDim2.fromOffset(14, 38), UDim2.new(1, -28, 0, 20), 13, WHITE, true)
 	local lines = {"🗺️ " .. s.stageName .. " (stage " .. s.stage .. "/7)", "🏪 " .. s.businesses .. " businesses   •   " .. s.worth,
-		"🌟 " .. s.prestige .. " prestige stars" .. (s.park and ("   •   🎢 park ⭐ " .. s.park) or "")}
+		"🌟 " .. s.prestige .. " prestige stars" .. (s.park and ("   •   🎢 park ⭐ " .. s.park) or ""),
+		s.rare and ("✨ " .. s.rare.golden .. " golden   💎 " .. s.rare.diamond .. " diamond   🌈 " .. s.rare.rainbow .. " rainbow sales") or nil}
 	txt(top, table.concat(lines, "\n"), UDim2.fromOffset(14, 64), UDim2.new(1, -28, 0, 80), 12, SUB)
 	local pc = card(m.body, 30 + #s.paths * 22, 2)
 	local pl = {}
@@ -8776,7 +8816,102 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX92"><Properties><string name="Name">ComputerUI</string>
+<Item class="ModuleScript" referent="RBX94"><Properties><string name="Name">BazaarUI</string>
+<ProtectedString name="Source"><![CDATA[-- BAZAAR UI (v17): the 🛍️ CITY BAZAAR phone app (also opened from the stall in the plaza). Six cards, one per
+-- slot in this restock: the item, its rarity (colored), how many you can still buy and a green price pill, plus
+-- a live countdown to the next restock. Everything is decided by the server (GameServer > Bazaar): the client only
+-- shows what it was sent and asks to buy a slot (with the restock it was looking at, so a purchase never lands on
+-- a different item after a restock).
+return function(C)
+local RGB = Color3.fromRGB
+local new, label, card, clear, stroke, corner, gradient = C.new, C.label, C.card, C.clear, C.stroke, C.corner, C.gradient
+local play, SND, act, R, fmt = C.play, C.SND, C.act, C.R, C.fmt
+local SUB = C.SUB
+local modal = C.makeModal
+if not modal then return end
+local BU = {info = nil, at = 0}
+C.BazaarUI = BU
+
+local m = modal("bazaar", "🛍️  CITY BAZAAR", 560, 600)
+local function render()
+	local info = BU.info
+	clear(m.body)
+	if type(info) ~= "table" then return end
+	local head = card(m.body, 56, 0, RGB(70, 30, 70))
+	head.Name = "BazaarHead"
+	BU.timer = C.titleText(label({Position = UDim2.fromOffset(12, 4), Size = UDim2.new(1, -24, 0, 26), TextSize = 19, TextXAlignment = Enum.TextXAlignment.Left, Text = ""}, head))
+	BU.timer.Name = "BazaarTimer"
+	label({Position = UDim2.fromOffset(12, 30), Size = UDim2.new(1, -24, 0, 20), TextSize = 12, TextColor3 = RGB(230, 210, 240), TextXAlignment = Enum.TextXAlignment.Left,
+		Text = "Same stock in every server. Rare finds sell out: limits are per restock."}, head)
+	for i, s in ipairs(info.slots) do
+		local c = card(m.body, 84, i, RGB(48, 40, 78))
+		c.Name = "Slot" .. i
+		if s.rank >= 4 then stroke(c, s.color, 3, 0) end
+		local chip = new("Frame", {Position = UDim2.fromOffset(8, 8), Size = UDim2.fromOffset(68, 68), BackgroundColor3 = C.shade(s.color, 0.7), BorderSizePixel = 0}, c)
+		corner(chip, 14)
+		gradient(chip, C.STYLE.gloss)
+		stroke(chip, C.STYLE.outline, 2.5)
+		label({Size = UDim2.fromScale(1, 1), Text = s.icon, TextSize = 38}, chip)
+		C.titleText(label({Position = UDim2.fromOffset(86, 6), Size = UDim2.new(1, -230, 0, 24), Text = s.name, TextSize = 18, TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd}, c))
+		local tag = new("Frame", {Position = UDim2.fromOffset(86, 32), Size = UDim2.fromOffset(104, 20), BackgroundColor3 = C.shade(s.color, 0.55), BorderSizePixel = 0}, c)
+		tag.Name = "Rarity"
+		corner(tag, 999)
+		stroke(tag, C.STYLE.outline, 1.5)
+		label({Size = UDim2.fromScale(1, 1), Text = string.upper(s.rname), TextSize = 11, Font = C.STYLE.font}, tag)
+		label({Position = UDim2.fromOffset(86, 54), Size = UDim2.new(1, -230, 0, 22), TextSize = 12, TextColor3 = SUB, TextXAlignment = Enum.TextXAlignment.Left,
+			Text = (s.left > 0 and ("🛒 " .. s.left .. " of " .. s.qty .. " left for you") or "✔ You bought them all") .. "   •   ⭐ +" .. s.score .. " home"}, c)
+		local afford = (info.cash or 0) >= s.price
+		local kind = s.left <= 0 and "off" or (afford and "buy" or "off")
+		local b = C.pill({AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -10, 0.5, 0), Size = UDim2.fromOffset(124, 46), TextSize = 15,
+			Text = s.left <= 0 and "SOLD OUT" or ("$" .. fmt(s.price))}, c, kind)
+		b.Name = "Buy" .. i
+		b.MouseButton1Click:Connect(function()
+			play(SND.click)
+			if s.left > 0 then act("bazaarBuy", s.slot, info.win) end
+		end)
+	end
+end
+BU.render = render
+local function tick()
+	if not (BU.timer and BU.info) then return end
+	local left = math.max(0, math.floor(BU.info.endsIn - (os.clock() - BU.at)))
+	BU.timer.Text = "⏳ RESTOCK IN " .. C.clock(left)
+	if left <= 0 and not BU.waiting then
+		BU.waiting = true
+		task.delay(1, function() BU.waiting = false act("bazaarInfo") end)
+	end
+end
+task.spawn(function()
+	while true do
+		task.wait(1)
+		if m.frame.Visible then tick() end
+	end
+end)
+local asked = false
+m.frame:GetPropertyChangedSignal("Visible"):Connect(function() if not m.frame.Visible then asked = false end end)
+m.update = function()
+	if not asked then
+		asked = true
+		act("bazaarInfo")
+	end
+end
+R.Menu.OnClientEvent:Connect(function(kind, a)
+	if kind == "bazaar" and type(a) == "table" then
+		BU.info, BU.at = a, os.clock()
+		if m.frame.Visible then
+			render()
+			tick()
+		end
+	elseif kind == "bazaarPing" then
+		if m.frame.Visible then act("bazaarInfo") end
+	elseif kind == "openBazaar" then
+		C.openModal("bazaar", true)
+	end
+end)
+end
+]]></ProtectedString></Properties>
+</Item>
+<Item class="ModuleScript" referent="RBX95"><Properties><string name="Name">ComputerUI</string>
 <ProtectedString name="Source"><![CDATA[-- COMPUTER UI (v10): the desktop that opens when you use a computer you own (home or HQ office).
 -- The server sends the data (GameServer > Computer) only while you're standing at the computer; locked apps show
 -- which computer tier unlocks them. Actions (remote restock, manager contract) are checked again on the server.
@@ -8977,7 +9112,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX93"><Properties><string name="Name">GarageUI</string>
+<Item class="ModuleScript" referent="RBX96"><Properties><string name="Name">GarageUI</string>
 <ProtectedString name="Source"><![CDATA[-- GARAGE UI (v10): "OWNED: 7 / 16" — every car with its class and stats; drive, equip, favorite, rename,
 -- customize and sell. The server (GameServer > Garage) checks ownership, prices and names.
 return function(C)
@@ -9165,7 +9300,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX94"><Properties><string name="Name">ArcadeUI</string>
+<Item class="ModuleScript" referent="RBX97"><Properties><string name="Name">ArcadeUI</string>
 <ProtectedString name="Source"><![CDATA[-- ARCADE UI (v10): the 2-player duel window (Reaction Duel, Button Battle, Hoop Duel, Kart Sprint), the game picker
 -- for arcade machines, and the prize counter. The server (GameServer > Arcade) runs the games: this window only
 -- sends taps and shots and shows what the server says.
@@ -9541,7 +9676,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX95"><Properties><string name="Name">AdminPanel</string>
+<Item class="ModuleScript" referent="RBX98"><Properties><string name="Name">AdminPanel</string>
 <ProtectedString name="Source"><![CDATA[-- ADMIN PANEL (v10): only built after the server says you're an admin ("adminHello"). Every button just ASKS the
 -- server (GameServer > Admin), which checks your role again on every request. Dangerous tools come back with a
 -- confirmation the server issued; nothing dangerous happens from one tap. Fly / noclip only work while the
@@ -9900,7 +10035,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX96"><Properties><string name="Name">GuideUI</string>
+<Item class="ModuleScript" referent="RBX99"><Properties><string name="Name">GuideUI</string>
 <ProtectedString name="Source"><![CDATA[-- GUIDE UI (v10): contextual tip cards (from GameServer > Guide), the "What's this?" help window every big
 -- window can open (C.showHelp), and a Tips on/off switch in Settings.
 return function(C)
@@ -9986,7 +10121,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX97"><Properties><string name="Name">HeistUI</string>
+<Item class="ModuleScript" referent="RBX100"><Properties><string name="Name">HeistUI</string>
 <ProtectedString name="Source"><![CDATA[-- HEIST UI (v11): the 💰 HEISTS phone app, the bag HUD on a job ("RETURN TO MOUNTAIN HQ"), the security puzzles,
 -- the police scanner and the "police chasing you" banner (v14: the police are NPC officers).
 -- Everything here only ASKS the server (GameServer > Heists); the server decides what happened.
@@ -10326,7 +10461,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX98"><Properties><string name="Name">Phone</string>
+<Item class="ModuleScript" referent="RBX101"><Properties><string name="Name">Phone</string>
 <ProtectedString name="Source"><![CDATA[-- PHONE: app launcher + CityBuzz social media + Messages + Map (press P).
 return function(C)
 local UserInputService = game:GetService("UserInputService")
@@ -10497,7 +10632,7 @@ do
 		{"🏢", "Properties", "modal", "properties", RGB(120, 150, 240), "properties"}, {"📈", "Stocks", "modal", "market", RGB(60, 160, 90), "market"}, {"📣", "Marketing", "modal", "marketing", RGB(235, 130, 40), "ads"},
 		{"🎡", "Fun & Race", "modal", "fun", RGB(255, 110, 190), "funpark"}, {"♻️", "Rebirth", "modal", "rebirth", RGB(200, 80, 220)}, {"🏙️", "City", "modal", "city", RGB(60, 150, 200)},
 		{"📖", "Archive", "modal", "archive", RGB(140, 90, 230)}, {"🛒", "Store", "modal", "passes", RGB(235, 170, 30)}, {"🏆", "Weekly", "modal", "weekly", RGB(230, 150, 40)},
-		{"🎬", "Story", "view", "story", RGB(200, 50, 120)}, {"🔥", "Viral", "view", "viral", RGB(255, 90, 60)}, {"🏛️", "HQ", "modal", "hq", RGB(90, 120, 200)}, {"👑", "Empire", "modal", "empireHall", RGB(210, 160, 30)}, {"🧭", "Explore", "modal", "explore", RGB(40, 170, 140)}, {"🍿", "Theater", "modal", "theater", RGB(200, 40, 60)}, {"🎢", "Park", "modal", "park", RGB(255, 120, 40)}, {"🥊", "Rivals", "modal", "rivals", RGB(170, 50, 60)}, {"🤝", "Partners", "modal", "partners", RGB(50, 150, 120)}, {"🎉", "Party", "modal", "party", RGB(220, 70, 180)}, {"📊", "Leaders", "modal", "leaders", RGB(210, 150, 40)}, {"📅", "Events", "modal", "occasions", RGB(240, 120, 40)}, {"🎁", "Daily", "modal", "daily", RGB(240, 180, 40)}, {"🗺️", "Roadmap", "modal", "roadmap", RGB(60, 140, 220)}, {"🔔", "Activity", "modal", "activity", RGB(230, 90, 100)}, {"🕹️", "Arcade", "modal", "arcadeInfo", RGB(150, 80, 255)}, {"💰", "Heists", "modal", "heists", RGB(40, 40, 46)},
+		{"🎬", "Story", "view", "story", RGB(200, 50, 120)}, {"🔥", "Viral", "view", "viral", RGB(255, 90, 60)}, {"🏛️", "HQ", "modal", "hq", RGB(90, 120, 200)}, {"👑", "Empire", "modal", "empireHall", RGB(210, 160, 30)}, {"🧭", "Explore", "modal", "explore", RGB(40, 170, 140)}, {"🍿", "Theater", "modal", "theater", RGB(200, 40, 60)}, {"🎢", "Park", "modal", "park", RGB(255, 120, 40)}, {"🥊", "Rivals", "modal", "rivals", RGB(170, 50, 60)}, {"🤝", "Partners", "modal", "partners", RGB(50, 150, 120)}, {"🎉", "Party", "modal", "party", RGB(220, 70, 180)}, {"📊", "Leaders", "modal", "leaders", RGB(210, 150, 40)}, {"📅", "Events", "modal", "occasions", RGB(240, 120, 40)}, {"🎁", "Daily", "modal", "daily", RGB(240, 180, 40)}, {"🗺️", "Roadmap", "modal", "roadmap", RGB(60, 140, 220)}, {"🛍️", "Bazaar", "modal", "bazaar", RGB(200, 60, 140)}, {"🔔", "Activity", "modal", "activity", RGB(230, 90, 100)}, {"🕹️", "Arcade", "modal", "arcadeInfo", RGB(150, 80, 255)}, {"💰", "Heists", "modal", "heists", RGB(40, 40, 46)},
 		{"⚙️", "Settings", "modal", "settings", RGB(100, 104, 124)},
 	}
 	local icons = {}
@@ -10916,7 +11051,7 @@ C.phoneView("home")
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX99"><Properties><string name="Name">Driving</string>
+<Item class="ModuleScript" referent="RBX102"><Properties><string name="Name">Driving</string>
 <ProtectedString name="Source"><![CDATA[-- DRIVING: smooth client-side car physics (you own your car's physics), speedometer, race HUD.
 return function(C)
 local RunService = game:GetService("RunService")
@@ -11461,7 +11596,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX100"><Properties><string name="Name">MiniGames</string>
+<Item class="ModuleScript" referent="RBX103"><Properties><string name="Name">MiniGames</string>
 <ProtectedString name="Source"><![CDATA[-- MINI-GAMES: Hoop Shot, Lemonade Rush, Memory Match + the Ferris wheel camera ride.
 return function(C)
 local RunService = game:GetService("RunService")
@@ -11742,7 +11877,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX101"><Properties><string name="Name">PhotoMode</string>
+<Item class="ModuleScript" referent="RBX104"><Properties><string name="Name">PhotoMode</string>
 <ProtectedString name="Source"><![CDATA[-- PHOTO MODE ("Empire Flex"): hide the UI, fly a free camera, cinematic orbits, poses and framing guides.
 -- Open with V, the 📸 button, or D-pad Up on a controller. Everything here is local to this player.
 return function(C)
@@ -12089,7 +12224,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX102"><Properties><string name="Name">Story</string>
+<Item class="ModuleScript" referent="RBX105"><Properties><string name="Name">Story</string>
 <ProtectedString name="Source"><![CDATA[-- STORY: cutscenes with the rival (Lil Clipz), his speech bubbles, the on-screen story tracker and the
 -- phone's Story app. Everything here is local to this player: other players never get pulled into
 -- your cutscene, and all the parts are client-side (cleaned up when the scene ends).
@@ -12750,7 +12885,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX103"><Properties><string name="Name">Cinematics</string>
+<Item class="ModuleScript" referent="RBX106"><Properties><string name="Name">Cinematics</string>
 <ProtectedString name="Source"><![CDATA[-- CINEMATIC CONTROLLER: plays the short interaction cinematics the server sends (GameServer > Cinematics):
 -- evictions, grand openings, hires, inspections, influencer visits...
 --
@@ -13513,7 +13648,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX104"><Properties><string name="Name">MapApp</string>
+<Item class="ModuleScript" referent="RBX107"><Properties><string name="Name">MapApp</string>
 <ProtectedString name="Source"><![CDATA[-- MAP APP: a real city map in the phone. Roads and districts are drawn from the server's world data; markers show
 -- your businesses, home, properties and land, other players' empires, attractions, the Mystery Lot, your delivery
 -- and the tutorial objective. You are the arrow. Tap a marker (or a place in the list) to see what it is, whether
@@ -13742,7 +13877,7 @@ C.openMap = function() if C.togglePhone then C.togglePhone(true) C.phoneView("ma
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX105"><Properties><string name="Name">InteriorUI</string>
+<Item class="ModuleScript" referent="RBX108"><Properties><string name="Name">InteriorUI</string>
 <ProtectedString name="Source"><![CDATA[-- INTERIOR UI: while you're inside a business or a home: a small bar (whose place, interior score, Leave) and,
 -- in your own rooms, the Decorate panel: numbered spots for furniture and decorations, walls, floors and lighting.
 -- Every change is a request; the server checks the price, the spot and the unlocks.
@@ -13964,7 +14099,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX106"><Properties><string name="Name">InteriorLife</string>
+<Item class="ModuleScript" referent="RBX109"><Properties><string name="Name">InteriorLife</string>
 <ProtectedString name="Source"><![CDATA[-- INTERIOR LIFE: staff at work and customers living their lives inside the business you're standing in.
 --
 -- Staff (by business level): a cashier at the register, a cook at the prep area / ovens, a cleaner from level 5,
@@ -14428,7 +14563,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX107"><Properties><string name="Name">BuilderUI</string>
+<Item class="ModuleScript" referent="RBX110"><Properties><string name="Name">BuilderUI</string>
 <ProtectedString name="Source"><![CDATA[-- BUILDER UI (v10): the furniture shop, the home builder (a top-down grid of your home: tap a cell to place,
 -- move or pick up furniture), house styles and who may visit you. The server (GameServer > HomeBuilder)
 -- validates every placement; this only shows the plan and asks.
@@ -14760,7 +14895,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX108"><Properties><string name="Name">MountainLife</string>
+<Item class="ModuleScript" referent="RBX111"><Properties><string name="Name">MountainLife</string>
 <ProtectedString name="Source"><![CDATA[-- MOUNTAIN LIFE (v11): the Blackrock Syndicate crew inside the hideout — The Boss, Wheels, Hawk, Sparks, Velvet,
 -- Glitch, Crates and Static (all fictional). The server lists them on the Mountain folder; this draws them on your
 -- screen only while you're near the base (built once when you arrive, removed when you leave), with idle moves and
@@ -14851,7 +14986,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX109"><Properties><string name="Name">CityLife</string>
+<Item class="ModuleScript" referent="RBX112"><Properties><string name="Name">CityLife</string>
 <ProtectedString name="Source"><![CDATA[-- CITY LIFE: what the whole server sees when something happens in the city.
 --   influencer sightings (the influencer standing there, a 🚨 marker you can find from anywhere)
 --   THE CROWD outside a business, PAPARAZZI following a player, EVERYONE KNOWS YOU passers-by
@@ -15229,7 +15364,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX110"><Properties><string name="Name">ViralApp</string>
+<Item class="ModuleScript" referent="RBX113"><Properties><string name="Name">ViralApp</string>
 <ProtectedString name="Source"><![CDATA[-- VIRAL APP (phone): your Viral Score, your moments, the city's trending moments, influencer sightings,
 -- the funniest recent events, top CityBuzz posts and the weekly Most Viral leaderboards.
 return function(C)
@@ -15346,7 +15481,7 @@ C.viralRender = render
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX111"><Properties><string name="Name">IntroCinematic</string>
+<Item class="ModuleScript" referent="RBX114"><Properties><string name="Name">IntroCinematic</string>
 <ProtectedString name="Source"><![CDATA[-- INTRO CINEMATIC (v16): "GET RICH OR GO BROKE". About 20 seconds over the REAL city (scripted camera, a few
 -- small temporary props), played once per account before the save slots (GameServer > Players keeps the
 -- introSeen flag in the account record), and any time from Settings → Opening movie.
@@ -15681,7 +15816,7 @@ local _ = Players
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX112"><Properties><string name="Name">MainMenu</string>
+<Item class="ModuleScript" referent="RBX115"><Properties><string name="Name">MainMenu</string>
 <ProtectedString name="Source"><![CDATA[-- MAIN MENU: cinematic camera, 3 save slots, new game (pick a starter home), delete.
 return function(C)
 local RunService = game:GetService("RunService")
@@ -15887,7 +16022,7 @@ local function playIntro(first)
 	mg.Enabled = false
 	stopCamera()
 	local ok = C.playIntro(not first, function()
-		if first then act("introSeen") end
+		if first then act("introSeen", C.Intro and C.Intro.ended or nil) end
 		if C.inMainMenu then
 			mg.Enabled = true
 			render()

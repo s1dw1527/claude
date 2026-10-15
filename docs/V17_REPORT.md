@@ -202,12 +202,17 @@ All of these need uploaded assets, which I can't create or upload from here.
 - `tests/harness.lua`: the simulated `AnalyticsService` now records the calls, so tests can check them.
 
 ### Full regression
-RESULTS_PLACEHOLDER
+**51 suites, 2,181 checks, 0 failed** (simulated; the final parallel run, after the graphics pass).
+
+An earlier run, before the graphics pass, had 2 failures. Both are fixed:
+- **`layout_test`:** the first Bazaar stall spot was on the South Ring road. This was a real bug: the stall was moved.
+- **`city_test`:** a crowd-mix check counted neighboring districts' people under heavy load. The test now counts each district's own people.
 
 ### Static and build checks
 - `tools/check.sh`: only the known `WorldFX.lua(59,4)` false positive.
 - `tools/propcheck.py`: 0 problems.
-- Build and round trip: see below.
+- `CornerEmpire_v17.rbxlx` and both drop-ins are built. The round trip (extract, then diff against `src`) is identical.
+- The place file contains the Lighting item with Technology = Future.
 
 ---
 
