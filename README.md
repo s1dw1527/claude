@@ -1,9 +1,18 @@
 # Corner Empire
 
-A 1–4 player Roblox business tycoon. **`CornerEmpire_v16.rbxlx` is the current place file**; open it in Roblox Studio.
+A 1–12 player Roblox business tycoon (Corner Empire: Rags to Billions). **`CornerEmpire_v18.rbxlx` is the current place file**; open it in Roblox Studio.
 `CornerEmpire_v15.rbxlx`, `CornerEmpire_v14.rbxlx`, `CornerEmpire_v13.rbxlx`, `CornerEmpire_v12.rbxlx`, `CornerEmpire_v11_3.rbxlx`, `CornerEmpire_v11_2.rbxlx` … `CornerEmpire_v5.rbxlx` are earlier versions, kept for reference. The full v11 write-up is
 `docs/V11_REPORT.md`; install steps and the real-Studio test list are in `docs/V11_STUDIO_CHECKLIST.md`. The v11.1
 mobile UI overhaul (client only) is in `docs/V11_1_MOBILE_REPORT.md`.
+
+## What's new in v18 — Rags to Billions (server + client)
+
+- **New name: "Corner Empire: Rags to Billions"** on the menu and the opening movie's title card. Ready-to-paste listing title and description are in the report.
+- **12-player servers:** **Empire Heights**, a new neighbourhood past the Corner Bank with 8 more plots on Heights Blvd. **Also set Server Size = 12** on the Creator Dashboard.
+- **📚 Collection Book:** 21 rare things to find, with the unfound ones shown as **❓ ???**, and milestone rewards.
+- **🔮 "Coming up next" card,** once a session: tomorrow's reward, the next city event, the next Bazaar restock.
+
+Same DataStore, same save schema (16). Install both drop-ins. Details, test results and the Studio checklist: `docs/V18_REPORT.md`. **Not tested in real Studio.**
 
 ## What's new in v17 — Viral Hooks (server + client)
 
