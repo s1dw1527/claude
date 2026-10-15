@@ -153,9 +153,16 @@ H.main(function()
 			-- (emoji-only texts draw in their own colors: only text with letters or digits is measured)
 			if (x.ClassName == "TextLabel" or x.ClassName == "TextButton") and tostring(x.Text):find("[%w]") and shown(x) and (x.TextTransparency or 0) < 0.5 then
 				local bg = bgOf(x)
-				-- a dark outline around the letters counts as their own background
-				local stroked = (x.TextStrokeTransparency or 1) < 0.6 or x:FindFirstChildOfClass("UIStroke") ~= nil
-				if bg and not stroked then
+				-- a dark outline around the letters counts as their own background: but only a TEXT outline (TextStroke, or a
+				-- Contextual UIStroke) that really stands out from the letters. (v16.1: a button's Border outline is not one:
+				-- every button has one now, and it would otherwise excuse every button from this check.)
+				local stroked = (x.TextStrokeTransparency or 1) < 0.6 and ratio(x.TextStrokeColor3 or Color3.new(0, 0, 0), x.TextColor3) >= 3
+				for _, s in ipairs(x:GetChildren()) do
+					if s.ClassName == "UIStroke" and (s.ApplyStrokeMode == nil or s.ApplyStrokeMode == Enum.ApplyStrokeMode.Contextual)
+						and (s.Transparency or 0) < 0.6 and ratio(s.Color, x.TextColor3) >= 3 then stroked = true end
+				end
+				-- (buttons are always measured: their color alone must carry the text, the outline is a bonus)
+				if bg and (not stroked or x.ClassName == "TextButton") then
 					checked += 1
 					local r = ratio(x.TextColor3, bg)
 					if r < 3 then table.insert(bad, string.format("%s: \"%s\" %.1f:1", where, tostring(x.Text):sub(1, 30), r)) end

@@ -4,7 +4,7 @@
 -- claimed. Never full-screen. The server (GameServer > Daily / LiveEvents) decides and pays everything.
 return function(C)
 local RGB = Color3.fromRGB
-local new, label, button, card, clear, stroke, panel, corner = C.new, C.label, C.button, C.card, C.clear, C.stroke, C.panel, C.corner
+local new, label, button, card, clear, stroke, panel, corner, gradient = C.new, C.label, C.button, C.card, C.clear, C.stroke, C.panel, C.corner, C.gradient
 local fmt, play, SND, act, R, gui = C.fmt, C.play, C.SND, C.act, C.R, C.gui
 local GOLD, GREEN, GRAY, BLUE, PURPLE, WHITE, SUB = C.GOLD, C.GREEN, C.GRAY, C.BLUE, C.PURPLE, C.WHITE, C.SUB
 local Lay = C.Layout
@@ -19,15 +19,23 @@ local function txt(parent, text, pos, size, px, color, bold)
 		Font = bold and Enum.Font.GothamBlack or Enum.Font.GothamBold, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top}, parent)
 end
 local function btn(parent, text, pos, size, color, fn, name)
-	local b = button({Position = pos, Size = size, Text = text, TextSize = 13, TextWrapped = true, BackgroundColor3 = color or BLUE}, parent)
+	local b = button({Position = pos, Size = size, Text = text, TextSize = 14, TextWrapped = true, BackgroundColor3 = color or BLUE}, parent)
 	if name then b.Name = name end
+	-- (v16.1: claim buttons are green pills)
+	if name and name:find("Claim") then
+		corner(b, 999)
+		b:SetAttribute("Pill", color == GREEN and "buy" or "off")
+	end
 	b.MouseButton1Click:Connect(function() play(SND.click) fn(b) end)
 	return b
 end
 local function bar(parent, pos, size, f, color)
 	local bg = new("Frame", {Position = pos, Size = size, BackgroundColor3 = RGB(50, 54, 70), BorderSizePixel = 0}, parent)
-	corner(bg, 5)
-	corner(new("Frame", {Size = UDim2.fromScale(math.clamp(f, 0, 1), 1), BackgroundColor3 = color or BLUE, BorderSizePixel = 0}, bg), 5)
+	corner(bg, 6)
+	stroke(bg, C.STYLE.outline, 2)
+	local fill = new("Frame", {Size = UDim2.fromScale(math.clamp(f, 0, 1), 1), BackgroundColor3 = color or BLUE, BorderSizePixel = 0}, bg)
+	corner(fill, 6)
+	gradient(fill, C.STYLE.gloss)
 	return bg
 end
 local function hm(s)
@@ -54,11 +62,13 @@ local function render()
 	for _, r in ipairs(info.rewards) do
 		local isToday = r.day == info.today
 		local past = r.day < info.today or (isToday and info.claimedToday)
-		local c = new("Frame", {Size = UDim2.new(1 / 7, -4, 1, 0), BackgroundColor3 = isToday and RGB(90, 70, 20) or RGB(34, 38, 56), BorderSizePixel = 0, LayoutOrder = r.day}, strip)
+		-- (v16.1: glossy day cards: today gold-rimmed, claimed days dimmed with ✅)
+		local c = new("Frame", {Size = UDim2.new(1 / 7, -4, 1, 0), BackgroundColor3 = isToday and RGB(110, 80, 20) or (past and RGB(30, 32, 44) or RGB(52, 46, 90)), BorderSizePixel = 0, LayoutOrder = r.day}, strip)
 		c.Name = "Day" .. r.day
-		corner(c, 6)
-		if isToday then stroke(c, GOLD, 2, 0) end
-		label({Size = UDim2.new(1, 0, 0, 16), Text = "DAY " .. r.day, TextSize = 10, Font = Enum.Font.GothamBlack, TextColor3 = isToday and GOLD or SUB}, c)
+		corner(c, 10)
+		gradient(c, C.STYLE.gloss)
+		stroke(c, isToday and GOLD or C.STYLE.outline, isToday and 3 or 2, 0)
+		C.titleText(label({Size = UDim2.new(1, 0, 0, 16), Text = "DAY " .. r.day, TextSize = 11, TextColor3 = isToday and GOLD or SUB}, c))
 		label({Position = UDim2.fromOffset(0, 16), Size = UDim2.new(1, 0, 0, 30), Text = past and "✅" or r.icon, TextSize = 22}, c)
 		local l = label({Position = UDim2.fromOffset(2, 46), Size = UDim2.new(1, -4, 0, 28), Text = r.name, TextSize = 9, TextWrapped = true, TextColor3 = WHITE}, c)
 		l.TextScaled = true

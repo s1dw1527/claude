@@ -5,6 +5,17 @@ A 1–4 player Roblox business tycoon. **`CornerEmpire_v16.rbxlx` is the current
 `docs/V11_REPORT.md`; install steps and the real-Studio test list are in `docs/V11_STUDIO_CHECKLIST.md`. The v11.1
 mobile UI overhaul (client only) is in `docs/V11_1_MOBILE_REPORT.md`.
 
+## What's new in v16.1 — Bold UI (client; the server only gets the new version number)
+
+- **Chunky cartoon buttons everywhere:** glossy, a thick dark outline, Fredoka One lettering with an outline.
+- **Window title banners** in each window's color, with a **red X**.
+- **A tabbed 🛒 Store:** All / Money / Perks, with a glossy card and a green Robux pill for each pass. It's the same passes and prices.
+- **Phone:** glossy app tiles with a 🔒 glass overlay on locked apps.
+- **HUD:** a glass top bar with a big **level bar** showing your %.
+- **Settings and My Empire:** "Statistics" rows; ON is green and OFF is red.
+
+It's visual only: same DataStore, same save schema (16). Details, test results and the Studio look-and-feel checklist: `docs/V16_1_UI_REPORT.md`. **Not tested in real Studio.**
+
 ## What's new in v16 — Life & Empire: Rise to Riches (server + client)
 
 - **🎬 Opening cinematic.**

@@ -19,15 +19,23 @@ local function txt(parent, text, pos, size, px, color, bold)
 		Font = bold and Enum.Font.GothamBlack or Enum.Font.GothamBold, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top}, parent)
 end
 local function btn(parent, text, pos, size, color, fn, name)
-	local b = button({Position = pos, Size = size, Text = text, TextSize = 13, TextWrapped = true, BackgroundColor3 = color or BLUE}, parent)
+	local b = button({Position = pos, Size = size, Text = text, TextSize = 14, TextWrapped = true, BackgroundColor3 = color or BLUE}, parent)
 	if name then b.Name = name end
+	-- (v16.1: go / collect buttons are green pills)
+	if color == GREEN then
+		C.corner(b, 999)
+		b:SetAttribute("Pill", "buy")
+	end
 	b.MouseButton1Click:Connect(function() play(SND.click) fn(b) end)
 	return b
 end
 local function bar(parent, pos, size, f, color)
 	local bg = new("Frame", {Position = pos, Size = size, BackgroundColor3 = RGB(50, 54, 70), BorderSizePixel = 0}, parent)
-	corner(bg, 5)
-	corner(new("Frame", {Size = UDim2.fromScale(math.clamp(f, 0, 1), 1), BackgroundColor3 = color or BLUE, BorderSizePixel = 0}, bg), 5)
+	corner(bg, 6)
+	C.stroke(bg, C.STYLE.outline, 2)
+	local fill = new("Frame", {Size = UDim2.fromScale(math.clamp(f, 0, 1), 1), BackgroundColor3 = color or BLUE, BorderSizePixel = 0}, bg)
+	corner(fill, 6)
+	C.gradient(fill, C.STYLE.gloss)
 end
 local function money(r, v) return r.money and ("$" .. fmt(v)) or fmt(v) end
 

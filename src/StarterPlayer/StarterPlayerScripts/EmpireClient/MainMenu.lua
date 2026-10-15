@@ -45,7 +45,7 @@ gradient(ovPanel, RGB(40, 44, 64), RGB(20, 22, 32))
 local ovTitle = label({Size = UDim2.new(1, 0, 0, 56), TextSize = 26, Font = Enum.Font.GothamBlack, ZIndex = 12}, ovPanel)
 local ovBody = new("ScrollingFrame", {Position = UDim2.fromOffset(20, 60), Size = UDim2.new(1, -40, 1, -80), BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 12,
 	ScrollBarThickness = 4, AutomaticCanvasSize = Enum.AutomaticSize.X, CanvasSize = UDim2.new(), ScrollingDirection = Enum.ScrollingDirection.X}, ovPanel)
-local ovClose = button({Position = UDim2.new(1, -48, 0, 10), Size = UDim2.fromOffset(38, 38), Text = "X", BackgroundColor3 = RED, ZIndex = 13}, ovPanel)
+local ovClose = C.closeX({Position = UDim2.new(1, -48, 0, 10), Size = UDim2.fromOffset(38, 38), ZIndex = 13}, ovPanel)
 ovClose.MouseButton1Click:Connect(function() overlay.Visible = false end)
 
 -- v11.1 phone layout: everything sized to the screen. Save slots and starter homes become swipeable carousels

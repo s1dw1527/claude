@@ -33,7 +33,7 @@ label({Position = UDim2.new(1, -90, 0, 6), Size = UDim2.fromOffset(74, 18), Text
 new("Frame", {AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 6), Size = UDim2.fromOffset(90, 18), BackgroundColor3 = Color3.new(0, 0, 0), BorderSizePixel = 0, ZIndex = 23}, screen)
 local sc = new("UIScale", {}, phone)
 -- phone layout: a clear ✕ on the phone itself
-local closeX = button({AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -20, 0, 15), Size = UDim2.fromOffset(38, 28), Text = "X", TextSize = 17, BackgroundColor3 = RED, ZIndex = 40, Visible = false}, phone)
+local closeX = C.closeX({AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -20, 0, 15), Size = UDim2.fromOffset(38, 28), TextSize = 17, ZIndex = 40, Visible = false}, phone)
 
 local views = {}
 -- what to run when a view opens. (Kept in a Lua table: Roblox doesn't allow custom fields on Instances, so
@@ -174,10 +174,17 @@ do
 	local icons = {}
 	for i, a in ipairs(APPS) do
 		local cell = new("Frame", {BackgroundTransparency = 1, LayoutOrder = i, ZIndex = 22}, grid)
+		-- v16.1: glossy icon tiles (the app's color, a dark outline and a shine strip across the top)
 		local b = button({Size = UDim2.fromOffset(56, 56), Position = UDim2.fromOffset(3, 0), Text = a[1], TextSize = 28, BackgroundColor3 = a[5], ZIndex = 23}, cell)
-		corner(b, 14)
-		label({Position = UDim2.fromOffset(-6, 58), Size = UDim2.new(1, 12, 0, 16), Text = a[2], TextSize = 11, ZIndex = 23}, cell)
-		local lock = label({Size = UDim2.fromScale(1, 1), Text = "🔒", TextSize = 24, Visible = false, ZIndex = 25}, b)
+		b.Name = "App_" .. a[4]
+		corner(b, 16)
+		local shine = new("Frame", {Name = "Shine", Position = UDim2.new(0, 6, 0, 3), Size = UDim2.new(1, -12, 0.32, 0), BackgroundColor3 = Color3.new(1, 1, 1),
+			BackgroundTransparency = 0.72, BorderSizePixel = 0, ZIndex = 23}, b)
+		corner(shine, 10)
+		C.titleText(label({Position = UDim2.fromOffset(-6, 58), Size = UDim2.new(1, 12, 0, 16), Text = a[2], TextSize = 12, ZIndex = 23}, cell))
+		local lock = new("Frame", {Name = "LockGlass", Size = UDim2.fromScale(1, 1), BackgroundColor3 = RGB(10, 10, 20), BackgroundTransparency = 0.45, BorderSizePixel = 0, Visible = false, ZIndex = 25}, b)
+		corner(lock, 16)
+		label({Size = UDim2.fromScale(1, 1), Text = "🔒", TextSize = 24, ZIndex = 26}, lock)
 		b.MouseButton1Click:Connect(function()
 			play(SND.click)
 			if a[6] and C.locked(a[6]) then

@@ -7,15 +7,25 @@ local fmt, clock, stars, play, SND, act, gui, U, plr, catalog, R = C.fmt, C.cloc
 local BG, CARD, GOLD, GREEN, GRAY, RED, BLUE, PURPLE, WHITE, SUB = C.BG, C.CARD, C.GOLD, C.GREEN, C.GRAY, C.RED, C.BLUE, C.PURPLE, C.WHITE, C.SUB
 local modals = C.modals
 
+-- v16.1: each window's banner color (dark enough for white lettering; the Store is the classic purple shop)
+C.WINDOW_COLORS = {default = RGB(96, 64, 180), passes = RGB(120, 60, 200), heists = RGB(150, 40, 50), park = RGB(200, 90, 30), daily = RGB(176, 120, 20),
+	roadmap = RGB(40, 100, 180), garage = RGB(40, 100, 180), staff = RGB(40, 130, 90), market = RGB(40, 130, 80), settings = RGB(80, 84, 110),
+	theater = RGB(160, 30, 50), rivals = RGB(150, 40, 50), empireHall = RGB(160, 110, 20), leaders = RGB(160, 110, 20), party = RGB(170, 50, 140),
+	fun = RGB(190, 60, 140), explore = RGB(30, 130, 110), partners = RGB(40, 120, 100), occasions = RGB(190, 90, 30), activity = RGB(170, 60, 70)}
 local LOCKS = {garage = "cars", staff = "staff", market = "market", marketing = "ads", properties = "properties", fun = "funpark"}
 C.MODAL_LOCKS = LOCKS
 local Lay = C.Layout
 local function modal(key, title, w, h)
 	local f = panel({AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.53), Size = UDim2.fromOffset(w, h), Visible = false, ZIndex = Lay.Z.modal}, gui)
 	f.Name = "Modal_" .. key
-	gradient(f, RGB(40, 44, 64), RGB(20, 22, 32))
-	local t = label({Size = UDim2.new(1, 0, 0, 50), Text = title, TextSize = 24, Font = Enum.Font.GothamBlack}, f)
-	local x = button({Position = UDim2.new(1, -46, 0, 8), Size = UDim2.fromOffset(36, 36), Text = "X", TextSize = 18, BackgroundColor3 = RED}, f)
+	gradient(f, RGB(46, 48, 74), RGB(24, 24, 38))
+	-- v16.1: a colored title banner (each window's own color) with chunky outlined lettering, and the red X
+	local band = new("Frame", {Name = "TitleBand", Size = UDim2.new(1, 0, 0, 50), BackgroundColor3 = C.WINDOW_COLORS[key] or C.WINDOW_COLORS.default, BorderSizePixel = 0, ZIndex = 0}, f)
+	corner(band, 14)
+	gradient(band, C.STYLE.gloss)
+	stroke(band, C.STYLE.outline, 3)
+	local t = C.titleText(label({Size = UDim2.new(1, 0, 0, 50), Text = title, TextSize = 26}, f))
+	local x = C.closeX({Position = UDim2.new(1, -46, 0, 7), Size = UDim2.fromOffset(38, 36)}, f)
 	local body = new("ScrollingFrame", {Position = UDim2.fromOffset(12, 54), Size = UDim2.new(1, -24, 1, -66), BackgroundTransparency = 1, BorderSizePixel = 0,
 		ScrollBarThickness = 6, AutomaticCanvasSize = Enum.AutomaticSize.Y, CanvasSize = UDim2.new()}, f)
 	vlist(body, 8)
@@ -99,28 +109,37 @@ C.onState(function(s)
 end)
 
 -- ===== PASSES =====
+-- v16.1: a shop window (tabs, one glossy card per pass with its icon, what it does and a Robux price pill).
+-- Same passes, same prices, same purchase action as before: only the look changed.
 do
-	local m = modal("passes", "🛒  GAME PASSES", 620, 500)
-	local grid = autoFrame(m.body, 1)
-	new("UIGridLayout", {CellSize = UDim2.fromOffset(182, 196), CellPadding = UDim2.fromOffset(10, 10), HorizontalAlignment = Enum.HorizontalAlignment.Center}, grid)
+	local m = modal("passes", "🛒  STORE", 620, 520)
+	local GROUP = {x2 = "money", x4 = "money", vip = "money", richstart = "money", goldcar = "perks", nitro = "perks", shield = "perks"}
 	local cards = {}
-	for _, p in ipairs(catalog.passes) do
-		local c = new("Frame", {BackgroundColor3 = CARD, BorderSizePixel = 0}, grid)
-		corner(c, 10)
-		local st = stroke(c, GOLD, 2, 0.6)
-		label({Position = UDim2.fromOffset(0, 8), Size = UDim2.new(1, 0, 0, 46), Text = p.icon, TextSize = 40}, c)
-		label({Position = UDim2.fromOffset(6, 56), Size = UDim2.new(1, -12, 0, 22), Text = p.name, TextSize = 16, Font = Enum.Font.GothamBlack}, c)
-		label({Position = UDim2.fromOffset(8, 78), Size = UDim2.new(1, -16, 0, 50), Text = p.desc, TextSize = 12, TextWrapped = true, TextColor3 = SUB}, c)
-		local btn = button({Position = UDim2.new(0.5, 0, 1, -10), AnchorPoint = Vector2.new(0.5, 1), Size = UDim2.new(1, -20, 0, 42), TextSize = 16, Text = "R$ " .. p.price}, c)
+	local _, setTab = C.tabs(m.body, {{"all", "⭐ All"}, {"money", "💵 Money"}, {"perks", "🏎️ Perks"}}, function(k)
+		for _, c in pairs(cards) do c.frame.Visible = k == "all" or c.group == k end
+	end, {LayoutOrder = 0, color = RGB(120, 60, 200)})
+	for i, p in ipairs(catalog.passes) do
+		local c = card(m.body, 84, i, RGB(58, 44, 96))
+		c.Name = "Pass_" .. p.key
+		local chip = new("Frame", {Position = UDim2.fromOffset(8, 8), Size = UDim2.fromOffset(68, 68), BackgroundColor3 = RGB(120, 60, 200), BorderSizePixel = 0}, c)
+		corner(chip, 14)
+		gradient(chip, C.STYLE.gloss)
+		stroke(chip, C.STYLE.outline, 2.5)
+		label({Size = UDim2.fromScale(1, 1), Text = p.icon, TextSize = 38}, chip)
+		C.titleText(label({Position = UDim2.fromOffset(86, 8), Size = UDim2.new(1, -230, 0, 24), Text = p.name, TextSize = 19, TextXAlignment = Enum.TextXAlignment.Left}, c))
+		label({Position = UDim2.fromOffset(86, 32), Size = UDim2.new(1, -230, 0, 46), Text = p.desc, TextSize = 12, TextWrapped = true, TextColor3 = RGB(205, 200, 230),
+			TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top}, c)
+		local btn = C.pill({AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -10, 0.5, 0), Size = UDim2.fromOffset(124, 46), Text = tostring(p.price)}, c, "robux")
+		btn.Name = "Buy_" .. p.key
 		btn.MouseButton1Click:Connect(function() play(SND.click) act("pass", p.key) end)
-		cards[p.key] = {btn = btn, stroke = st, price = p.price}
+		cards[p.key] = {btn = btn, stroke = c:FindFirstChild("Outline"), price = p.price, frame = c, group = GROUP[p.key] or "perks"}
 	end
+	setTab("all")
 	m.update = function(s)
 		for key, c in pairs(cards) do
 			local owned = s.passes[key]
-			c.btn.Text = owned and "✔ OWNED" or ("R$ " .. c.price)
-			c.btn.BackgroundColor3 = owned and GRAY or GREEN
-			c.stroke.Transparency = owned and 0 or 0.6
+			C.setPill(c.btn, owned and "off" or "robux", owned and "✔ OWNED" or ("R$ " .. c.price))
+			stroke(c.frame, owned and GOLD or C.STYLE.outline, owned and 3 or 2, owned and 0 or 0.15)
 		end
 	end
 end
@@ -190,8 +209,8 @@ do
 	cp.Name = "CandidatesWindow"
 	Lay.window("candidates", cp, {major = false})   -- opens over the staff window, so it isn't a "big window" of its own
 	gradient(cp, RGB(45, 55, 80), RGB(22, 26, 38))
-	local cpT = label({Size = UDim2.new(1, 0, 0, 44), TextSize = 20, Font = Enum.Font.GothamBlack}, cp)
-	local cx = button({Position = UDim2.new(1, -44, 0, 6), Size = UDim2.fromOffset(34, 34), Text = "X", BackgroundColor3 = RED}, cp)
+	local cpT = C.titleText(label({Size = UDim2.new(1, 0, 0, 44), TextSize = 22}, cp))
+	local cx = C.closeX({Position = UDim2.new(1, -44, 0, 6), Size = UDim2.fromOffset(36, 34)}, cp)
 	cx.MouseButton1Click:Connect(function() cp.Visible = false end)
 	local cands = {}
 	local curSlot
@@ -720,17 +739,29 @@ end
 do
 	local m = modal("settings", "⚙️  SETTINGS", 560, 560)
 	local rows = {}
+	-- v16.1: "Statistics"-style rows: an icon chip, the setting's name, and its value on a chunky button
+	-- (ON is green, OFF is red, everything else blue)
+	local function paint(b, t)
+		b.Text = t
+		b.BackgroundColor3 = t == "ON" and GREEN or (t == "OFF" and RED or BLUE)
+	end
 	local function row(order, title, getText, onClick)
-		local c = card(m.body, 52, order)
-		label({Position = UDim2.fromOffset(14, 0), Size = UDim2.new(1, -180, 1, 0), TextSize = 15, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left, Text = title}, c)
-		local b = button({Position = UDim2.new(1, -160, 0.5, 0), AnchorPoint = Vector2.new(0, 0.5), Size = UDim2.fromOffset(150, 38), TextSize = 14, BackgroundColor3 = BLUE}, c)
+		local c = card(m.body, 52, order, RGB(44, 40, 72))
+		local icon, name = title:match("^(%S+)%s+(.+)$")
+		local chip = new("Frame", {Position = UDim2.fromOffset(8, 8), Size = UDim2.fromOffset(36, 36), BackgroundColor3 = PURPLE, BorderSizePixel = 0}, c)
+		corner(chip, 10)
+		gradient(chip, C.STYLE.gloss)
+		stroke(chip, C.STYLE.outline, 2)
+		label({Size = UDim2.fromScale(1, 1), Text = icon or "⚙️", TextSize = 20}, chip)
+		C.titleText(label({Position = UDim2.fromOffset(54, 0), Size = UDim2.new(1, -220, 1, 0), TextSize = 16, TextXAlignment = Enum.TextXAlignment.Left, Text = name or title}, c))
+		local b = button({Position = UDim2.new(1, -160, 0.5, 0), AnchorPoint = Vector2.new(0, 0.5), Size = UDim2.fromOffset(150, 38), TextSize = 15, BackgroundColor3 = BLUE}, c)
 		b.MouseButton1Click:Connect(function()
 			play(SND.click)
 			onClick()
-			for _, r in ipairs(rows) do r.b.Text = r.get() end
+			for _, r in ipairs(rows) do paint(r.b, r.get()) end
 		end)
 		table.insert(rows, {b = b, get = getText})
-		b.Text = getText()
+		paint(b, getText())
 	end
 	local st = C.settings
 	row(1, "🎵 Music", function() return st.music and "ON" or "OFF" end, function() C.setSetting("music", not st.music) end)
@@ -780,7 +811,7 @@ do
 		end)
 	end
 	C.U.refreshSettings = function()
-		for _, r in ipairs(rows) do r.b.Text = r.get() end
+		for _, r in ipairs(rows) do paint(r.b, r.get()) end
 	end
 	local note = label({Size = UDim2.new(1, -8, 0, 36), TextSize = 12, TextColor3 = SUB, TextWrapped = true, LayoutOrder = 20}, m.body)
 	m.update = function()
@@ -941,9 +972,14 @@ do
 	local tierL, tierC = row(4, 86, RGB(56, 44, 20))
 	local repFill = bar(tierC, UDim2.new(0, 12, 1, -14), UDim2.new(1, -24, 0, 8), GOLD)
 	header(m.body, "📊 STATS", 5)
-	local statsL = row(6, 64)
-	header(m.body, "🏙️ THE CITY", 7)
-	local cityL = row(8, 70)
+	-- (v16.1: one "Statistics" row each, the value in a pill)
+	local stat = {}
+	for i, k in ipairs({{"trophies", "🏆", "Trophies"}, {"rebirths", "♻️", "Rebirths"}, {"followers", "👥", "Followers"}, {"stars", "⭐", "Star rating"}, {"city", "🏙️", "City owned"}}) do
+		local _, v = C.statRow(m.body, k[2], k[3], "", 5 + i)
+		stat[k[1]] = v
+	end
+	header(m.body, "🏙️ THE CITY", 20)
+	local cityL = row(21, 70)
 	m.update = function(s)
 		local rent = s.rentRate or 0
 		cashL.Text = "💰 $" .. fmt(s.cash) .. "\n+$" .. fmt(s.income) .. " per second" .. (rent ~= 0 and ("   🏢 rent " .. (rent > 0 and "+" or "-") .. "$" .. fmt(math.abs(rent)) .. "/s") or "")
@@ -966,7 +1002,11 @@ do
 			tierL.Text = "⭐ " .. s.tierName .. "\n" .. fmt(s.rep) .. " reputation  •  MAX TIER"
 			repFill.Size = UDim2.fromScale(1, 1)
 		end
-		statsL.Text = string.format("🏆 %d trophies   ♻️ %d rebirths\n👥 %s followers   ⭐ %.1f stars   🏙️ %d%% of the city", s.trophies, s.rebirth.count, fmt(s.followers), s.stars, math.floor(s.cityPct + 0.5))
+		stat.trophies.Text = tostring(s.trophies)
+		stat.rebirths.Text = tostring(s.rebirth.count)
+		stat.followers.Text = fmt(s.followers)
+		stat.stars.Text = string.format("%.1f ★", s.stars)
+		stat.city.Text = math.floor(s.cityPct + 0.5) .. "%"
 		local ev
 		if s.frozen > 0 then ev = "❄️ YOUR INCOME IS FROZEN (" .. s.frozen .. "s)"
 		elseif s.eventLeft then ev = "⚡ " .. tostring(s.eventText) .. " (" .. s.eventLeft .. "s)"

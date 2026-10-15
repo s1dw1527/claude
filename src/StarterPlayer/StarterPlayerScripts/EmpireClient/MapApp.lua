@@ -53,7 +53,7 @@ local iTitle = label({Position = UDim2.fromOffset(8, 4), Size = UDim2.new(1, -40
 local iKind = label({Position = UDim2.fromOffset(8, 24), Size = UDim2.new(1, -16, 0, 14), TextSize = 11, TextColor3 = SUB, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 27}, info)
 local iDesc = label({Position = UDim2.fromOffset(8, 40), Size = UDim2.new(1, -16, 0, 30), TextSize = 11, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left,
 	TextYAlignment = Enum.TextYAlignment.Top, ZIndex = 27}, info)
-local iClose = button({Position = UDim2.new(1, -30, 0, 4), Size = UDim2.fromOffset(24, 22), Text = "✕", TextSize = 12, BackgroundColor3 = GRAY, ZIndex = 28}, info)
+local iClose = C.closeX({Position = UDim2.new(1, -30, 0, 4), Size = UDim2.fromOffset(24, 22), Text = "✕", TextSize = 12, BackgroundColor3 = GRAY, ZIndex = 28}, info)
 local iMark = button({Position = UDim2.new(0, 8, 1, -32), Size = UDim2.new(0.5, -12, 0, 26), Text = "📍 Mark", TextSize = 12, BackgroundColor3 = RGB(200, 70, 170), ZIndex = 28}, info)
 local iGo = button({Position = UDim2.new(0.5, 4, 1, -32), Size = UDim2.new(0.5, -12, 0, 26), Text = "🚀 Go", TextSize = 12, BackgroundColor3 = RGB(50, 120, 220), ZIndex = 28}, info)
 -- the list of places (also the easiest way to pick one with a controller)

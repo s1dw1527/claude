@@ -16,15 +16,22 @@ new("UIGradient", {Transparency = NumberSequence.new({NumberSequenceKeypoint.new
 
 -- ===== TOP BAR =====
 do
-	local top = panel({Position = UDim2.new(0.5, 0, 0, 56), AnchorPoint = Vector2.new(0.5, 0), Size = UDim2.fromOffset(760, 86)}, gui)
-	gradient(top, RGB(40, 44, 64), RGB(20, 22, 32))
+	-- v16.1: a glass bar (translucent navy, a thin light rim) with outlined numbers and a chunky level bar
+	local top = panel({Position = UDim2.new(0.5, 0, 0, 56), AnchorPoint = Vector2.new(0.5, 0), Size = UDim2.fromOffset(760, 86), BackgroundTransparency = 0.18}, gui)
+	top.Name = "TopBar"
+	gradient(top, RGB(46, 56, 92), RGB(18, 20, 36))
+	stroke(top, RGB(160, 215, 255), 2, 0.35)
 	label({Position = UDim2.fromOffset(10, 8), Size = UDim2.fromOffset(44, 44), Text = "💰", TextSize = 32}, top)
-	local cashL = label({Position = UDim2.fromOffset(58, 6), Size = UDim2.fromOffset(260, 30), TextXAlignment = Enum.TextXAlignment.Left, TextSize = 28, Font = Enum.Font.GothamBlack, TextColor3 = GOLD, Text = "$0"}, top)
+	local cashL = C.titleText(label({Position = UDim2.fromOffset(58, 6), Size = UDim2.fromOffset(260, 30), TextXAlignment = Enum.TextXAlignment.Left, TextSize = 30, TextColor3 = GOLD, Text = "$0"}, top))
 	local incL = label({Position = UDim2.fromOffset(58, 36), Size = UDim2.fromOffset(300, 18), TextXAlignment = Enum.TextXAlignment.Left, TextSize = 15, TextColor3 = GREEN}, top)
 	local multL = label({Position = UDim2.fromOffset(12, 60), Size = UDim2.fromOffset(370, 18), TextXAlignment = Enum.TextXAlignment.Left, TextSize = 13, TextColor3 = SUB, TextTruncate = Enum.TextTruncate.AtEnd}, top)
-	local tierL = label({Position = UDim2.new(1, -382, 0, 6), Size = UDim2.fromOffset(370, 24), TextXAlignment = Enum.TextXAlignment.Right, TextSize = 19, Font = Enum.Font.GothamBlack, TextColor3 = GOLD}, top)
-	local repFill = bar(top, UDim2.new(1, -382, 0, 34), UDim2.fromOffset(370, 9), GOLD)
+	local tierL = C.titleText(label({Position = UDim2.new(1, -382, 0, 4), Size = UDim2.fromOffset(370, 24), TextXAlignment = Enum.TextXAlignment.Right, TextSize = 20, TextColor3 = GOLD}, top))
+	-- the level bar: reputation toward the next tier (the same progress as before, just bigger, with its %)
+	local repFill, repBg = bar(top, UDim2.new(1, -382, 0, 29), UDim2.fromOffset(370, 15), GOLD)
+	repBg.Name = "XPBar"
 	gradient(repFill, RGB(255, 170, 40), RGB(255, 235, 110), 0)
+	local repPct = C.titleText(label({Name = "XPPct", Size = UDim2.fromScale(1, 1), Text = "", TextSize = 12, ZIndex = 2}, repBg))
+	U.xpBar = {fill = repFill, pct = repPct}
 	local repL = label({Position = UDim2.new(1, -382, 0, 44), Size = UDim2.fromOffset(370, 16), TextXAlignment = Enum.TextXAlignment.Right, TextSize = 12, TextColor3 = SUB, TextTruncate = Enum.TextTruncate.AtEnd}, top)
 	local statsL = label({Position = UDim2.new(1, -382, 0, 60), Size = UDim2.fromOffset(370, 18), TextXAlignment = Enum.TextXAlignment.Right, TextSize = 13, TextTruncate = Enum.TextTruncate.AtEnd}, top)
 	-- v11.1 PHONE LAYOUT: one compact row instead of the big bar.
@@ -51,7 +58,7 @@ do
 	tierPill.Name = "TierBadge"
 	local cTier = fitText(label({Position = UDim2.fromOffset(8, 3), Size = UDim2.new(1, -16, 0.55, -3), TextColor3 = GOLD, Font = Enum.Font.GothamBlack, Text = "⭐"}, tierPill), 14, 9)
 	local cRep = fitText(label({Position = UDim2.new(0, 8, 0.55, 0), Size = UDim2.new(1, -16, 0.45, -3), TextColor3 = SUB, Text = ""}, tierPill), 11, 8)
-	local cRepFill = bar(tierPill, UDim2.new(0, 6, 1, -4), UDim2.new(1, -12, 0, 2), GOLD)
+	local cRepFill = bar(tierPill, UDim2.new(0, 6, 1, -6), UDim2.new(1, -12, 0, 4), GOLD)
 	-- the short tier name for the badge ("LEGENDARY DISTRICT" → "LEGENDARY")
 	local SHORT = {["UNKNOWN CORNER"] = "UNKNOWN", ["LOCAL FAVORITE"] = "LOCAL FAV", ["LEGENDARY DISTRICT"] = "LEGENDARY"}
 	C.shortTier = function(name) return SHORT[name] or name end
@@ -134,10 +141,13 @@ do
 		multL.Text = table.concat(m, "   ")
 		tierL.Text = "⭐ " .. s.tierName
 		if s.nextRep then
-			repFill.Size = UDim2.fromScale(math.clamp((s.rep - s.prevRep) / (s.nextRep - s.prevRep), 0, 1), 1)
+			local f = math.clamp((s.rep - s.prevRep) / (s.nextRep - s.prevRep), 0, 1)
+			repFill.Size = UDim2.fromScale(f, 1)
+			repPct.Text = math.floor(f * 100) .. "%"
 			repL.Text = fmt(s.rep) .. "/" .. fmt(s.nextRep) .. " rep → " .. s.nextName .. " unlocks " .. table.concat(s.nextUnlocks or {}, ", ")
 		else
 			repFill.Size = UDim2.fromScale(1, 1)
+			repPct.Text = "MAX"
 			repL.Text = fmt(s.rep) .. " reputation  •  MAX TIER"
 		end
 		statsL.Text = string.format("🏆 %d  ♻️ %d  👥 %s followers  ⭐ %.1f  🏙️ %d%%", s.trophies, s.rebirth.count, fmt(s.followers), s.stars, math.floor(s.cityPct + 0.5))
@@ -474,10 +484,10 @@ end
 
 -- collapsible panel helper (the "—" button minimizes a panel down to its title bar)
 local function collapsible(p, titleText, fullSize, key)
-	label({Position = UDim2.fromOffset(12, 0), Size = UDim2.new(1, -60, 0, 36), Text = titleText, TextSize = 16, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left}, p)
+	C.titleText(label({Position = UDim2.fromOffset(12, 0), Size = UDim2.new(1, -60, 0, 36), Text = titleText, TextSize = 17, TextXAlignment = Enum.TextXAlignment.Left}, p))
 	local btn = button({Position = UDim2.new(1, -40, 0, 5), Size = UDim2.fromOffset(30, 26), Text = "—", TextSize = 16, BackgroundColor3 = GRAY}, p)
 	-- phone: the panel is a window opened from an edge button, so "—" becomes a big ✕
-	local x = button({Position = UDim2.new(1, -46, 0, 2), Size = UDim2.fromOffset(42, 34), Text = "X", TextSize = 18, BackgroundColor3 = RED, Visible = false}, p)
+	local x = C.closeX({Position = UDim2.new(1, -46, 0, 2), Size = UDim2.fromOffset(42, 34), TextSize = 18, Visible = false}, p)
 	local body = new("Frame", {Position = UDim2.fromOffset(0, 38), Size = UDim2.new(1, 0, 1, -38), BackgroundTransparency = 1}, p)
 	local open = true
 	local function set(v)

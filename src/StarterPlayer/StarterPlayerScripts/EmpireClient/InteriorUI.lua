@@ -38,7 +38,7 @@ end})
 local panel = C.panel({AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -16, 0.5, 0), Size = UDim2.fromOffset(330, 470), BackgroundColor3 = RGB(28, 26, 40), Visible = false, ZIndex = 5}, gui)
 new("UISizeConstraint", {MaxSize = Vector2.new(330, 470)}, panel)
 label({Position = UDim2.fromOffset(12, 4), Size = UDim2.new(1, -60, 0, 30), Text = "🛋️ DECORATE", TextSize = 16, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 6}, panel)
-local closeB = button({Position = UDim2.new(1, -40, 0, 6), Size = UDim2.fromOffset(30, 26), Text = "✕", TextSize = 14, BackgroundColor3 = GRAY, ZIndex = 6}, panel)
+local closeB = C.closeX({Position = UDim2.new(1, -40, 0, 6), Size = UDim2.fromOffset(30, 26), Text = "✕", TextSize = 14, BackgroundColor3 = GRAY, ZIndex = 6}, panel)
 -- phone layout: a bottom sheet (the room stays visible above it); one big window at a time
 panel.Name = "DecoratePanel"
 C.Layout.window("decorate", panel, {sheet = true, desktopFit = false, onFit = function(compact)
