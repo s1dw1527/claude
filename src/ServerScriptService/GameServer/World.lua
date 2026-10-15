@@ -528,17 +528,77 @@ end
 -- =====================================================================
 -- DISTRICT DECOR + BUSINESS LOTS
 -- =====================================================================
+-- v19: skyscrapers with a silhouette of their own: a lobby podium, two or three stepped tiers (setbacks), window
+-- bands that light up at night (tagged "NightWindow", lit by each client) and one of four crowns (spire, stepped
+-- pyramid, helipad, antenna mast), picked from the position so the skyline never repeats. Same footprint as before.
+local towerN = 0
 function C.skyscraper(parent, x, z, w, d, h, color, trim)
-	P(parent, V3(w, h, d), CF(x, h / 2, z), color, MAT.Glass, {CanCollide = true, Reflectance = 0.2, Transparency = 0.02})
-	for y = 7, h - 3, 7 do P(parent, V3(w + 0.3, 0.5, d + 0.3), CF(x, y, z), trim, MAT.SmoothPlastic) end
-	for _, sx in ipairs({-1, 1}) do
-		for _, sz in ipairs({-1, 1}) do P(parent, V3(0.8, h, 0.8), CF(x + sx * w / 2, h / 2, z + sz * d / 2), trim, MAT.SmoothPlastic) end
+	towerN += 1
+	local kind = (math.floor(math.abs(x * 3 + z * 7 + h)) + towerN) % 4
+	-- the podium: a darker lobby with a lit glass front and a canopy
+	P(parent, V3(w + 2, 8, d + 2), CF(x, 4, z), color:Lerp(Color3.new(0, 0, 0), 0.35), MAT.Concrete, {CanCollide = true})
+	for _, sz in ipairs({-1, 1}) do
+		local lobby = P(parent, V3(w - 2, 5, 0.3), CF(x, 3, z + sz * (d / 2 + 1.1)), RGB(60, 80, 100), MAT.Glass, {Reflectance = 0.15})
+		lobby.Name = "Window"
+		C.tag(lobby, "NightWindow")
+		P(parent, V3(w * 0.5, 0.6, 4), CF(x, 6.2, z + sz * (d / 2 + 3)), trim, MAT.Metal)
 	end
-	P(parent, V3(w * 0.6, 4, d * 0.6), CF(x, h + 2, z), trim, MAT.Concrete)
-	local blink = ball(parent, V3(1, 1, 1), CF(x, h + 6, z), RGB(255, 60, 60), MAT.Neon)
-	P(parent, V3(0.3, 2, 0.3), CF(x, h + 5, z), RGB(60, 60, 60), MAT.Metal)
+	-- the tiers
+	local tiers = h > 45 and 3 or 2
+	local y0 = 8
+	local tw, td = w, d
+	for t = 1, tiers do
+		local top = (t == tiers) and h or (8 + (h - 8) * (t == 1 and (tiers == 3 and 0.55 or 0.7) or 0.82))
+		local th = top - y0
+		P(parent, V3(tw, th, td), CF(x, y0 + th / 2, z), color, MAT.Glass, {CanCollide = true, Reflectance = 0.2, Transparency = 0.02})
+		-- corner columns and a ledge at the top of the tier
+		for _, sx in ipairs({-1, 1}) do
+			for _, sz in ipairs({-1, 1}) do P(parent, V3(0.8, th, 0.8), CF(x + sx * tw / 2, y0 + th / 2, z + sz * td / 2), trim, MAT.SmoothPlastic) end
+		end
+		P(parent, V3(tw + 0.8, 0.8, td + 0.8), CF(x, top, z), trim, MAT.Concrete)
+		-- window bands on all four sides (at most 8 per tier: very tall towers, like the Mega City horizon, stay cheap)
+		for y = y0 + 3.5, top - 3, math.max(7, (top - y0) / 8) do
+			for _, sz in ipairs({-1, 1}) do
+				local wb = P(parent, V3(tw - 1.6, 2.2, 0.25), CF(x, y, z + sz * (td / 2 + 0.05)), color:Lerp(Color3.new(1, 1, 1), 0.25), MAT.Glass, {CastShadow = false})
+				wb.Name = "Window"
+				C.tag(wb, "NightWindow")
+			end
+			for _, sx in ipairs({-1, 1}) do
+				local wb = P(parent, V3(0.25, 2.2, td - 1.6), CF(x + sx * (tw / 2 + 0.05), y, z), color:Lerp(Color3.new(1, 1, 1), 0.25), MAT.Glass, {CastShadow = false})
+				wb.Name = "Window"
+				C.tag(wb, "NightWindow")
+			end
+		end
+		y0 = top
+		tw, td = math.max(6, tw - 4), math.max(6, td - 4)
+	end
+	-- the crown
+	local cy = h
+	if kind == 0 then
+		-- a spire
+		P(parent, V3(tw * 0.6, 4, td * 0.6), CF(x, cy + 2, z), trim, MAT.Metal)
+		cyl(parent, 18, 1.2, CF(x, cy + 13, z), RGB(220, 225, 235), MAT.Metal)
+		cy += 22
+	elseif kind == 1 then
+		-- a stepped pyramid
+		for k = 1, 3 do P(parent, V3(tw - k * 2.4, 2.2, td - k * 2.4), CF(x, cy + k * 2.2 - 1.1, z), k % 2 == 1 and trim or color, k % 2 == 1 and MAT.Metal or MAT.Glass) end
+		cy += 7
+	elseif kind == 2 then
+		-- a helipad
+		cyl(parent, 1, math.min(tw, td) - 1, CF(x, cy + 1.5, z), RGB(60, 62, 70), MAT.Concrete)
+		P(parent, V3(4, 0.2, 0.8), CF(x, cy + 2.1, z), RGB(255, 210, 60), MAT.Neon)
+		P(parent, V3(0.8, 0.2, 4), CF(x - 1.6, cy + 2.1, z), RGB(255, 210, 60), MAT.Neon)
+		P(parent, V3(0.8, 0.2, 4), CF(x + 1.6, cy + 2.1, z), RGB(255, 210, 60), MAT.Neon)
+		cy += 2
+	else
+		-- an antenna mast
+		P(parent, V3(tw * 0.5, 3, td * 0.5), CF(x, cy + 1.5, z), trim, MAT.Concrete)
+		P(parent, V3(0.5, 14, 0.5), CF(x, cy + 10, z), RGB(200, 200, 205), MAT.Metal)
+		cy += 17
+	end
+	local blink = ball(parent, V3(1, 1, 1), CF(x, cy + 1, z), RGB(255, 60, 60), MAT.Neon)
 	TweenService:Create(blink, TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {Transparency = 0.9}):Play()
-	C.reserve(x - w / 2, z - d / 2, x + w / 2, z + d / 2)
+	C.reserve(x - w / 2 - 1, z - d / 2 - 1, x + w / 2 + 1, z + d / 2 + 1)
 end
 function C.warehouse(parent, x, z, w, d, h, color, stacks)
 	P(parent, V3(w, h, d), CF(x, h / 2, z), color, MAT.Brick, SOLID)
