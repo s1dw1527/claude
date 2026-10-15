@@ -103,6 +103,8 @@ function C.dressGrid(f, gapXs, rows, streets, parkZ, x1, x2, style, names, opts)
 		end
 	end
 end
+C.NEON_NAMES = {"Pixel Palace", "Starlight Lanes", "Laser Blast", "Club Nova", "Retro Rewind", "Karaoke Kingdom", "Galaxy Bowl", "Neon Noodles",
+	"Jackpot Arcade", "Giggle Box Comedy"}
 C.SHOP_NAMES = {"Corner Deli", "Maple Hardware", "Petal & Stem", "Book Nook", "Northside Bakery", "Bike Shed", "Mr. Fix-It", "Pet Palace",
 	"Sunny Laundry", "The Toy Box", "Paint Pot", "Daily Grind", "Shoe Shine", "Fresh Market", "Hair Today", "Snack Shack"}
 -- Midtown: the big south-east business area (20 plots)
@@ -129,6 +131,21 @@ do
 	-- the Fun Zone pavilion stands in the middle (GameServer > FunZone builds it here)
 	C.FUN_ZONE_AT = CF(-455, 0, -215)
 	C.reserve(-480, -290, -430, -140)
+	-- v19: neon-lit streets in front of the plots and the city's own arcades and clubs between them (decoration: the
+	-- plots are still for sale and work exactly as before)
+	if C.archBuild then
+		for _, x in ipairs({-580, -530, -382.5}) do C.archStreet(f, "z", x, -288, -142, 8, {lights = true, asphalt = true, trees = false}) end
+		local n = 0
+		for _, x in ipairs({-605, -555, -505, -405, -360}) do
+			local yaw = x < -455 and -math.pi / 2 or math.pi / 2
+			for _, z in ipairs({-242.5, -187.5}) do
+				n += 1
+				local o = CF(x, 0, z) * CFrame.Angles(0, yaw, 0)
+				C.archBuild(f, o * CF(0, 0, -PLOT / 2 + 1 + 6.5), 14, 13, C.archHeight("neon", 14, n), "neon",
+					{seed = n + 5, sign = C.NEON_NAMES[(n - 1) % #C.NEON_NAMES + 1], signColor = RGB(30, 20, 40)})
+			end
+		end
+	end
 end
 -- Northside Suburbs, outside North Rd to the west (20 plots)
 do

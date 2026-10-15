@@ -20,7 +20,7 @@ C.ARCH_STYLES = {
 		awnings = {RGB(200, 45, 50), RGB(40, 120, 70), RGB(230, 160, 40), RGB(40, 90, 160), RGB(120, 40, 90)}, extras = {"seating", "menu", "lights"}},
 	-- Entertainment District: dark walls, neon trim, marquee-style signs
 	neon = {walls = {RGB(45, 30, 70), RGB(30, 35, 60), RGB(60, 25, 55)}, mat = MAT.SmoothPlastic, trim = RGB(255, 80, 200), glass = RGB(40, 30, 70),
-		floor = 10, roof = "flat", storefront = true, maxExtra = 1, neonTrim = {RGB(255, 70, 200), RGB(80, 220, 255), RGB(255, 210, 60), RGB(140, 255, 120)}, extras = {"neon"}},
+		floor = 10, roof = "flat", roofColor = RGB(38, 32, 50), storefront = true, maxExtra = 1, neonTrim = {RGB(255, 70, 200), RGB(80, 220, 255), RGB(255, 210, 60), RGB(140, 255, 120)}, extras = {"neon"}},
 	-- Northside Suburbs: small painted shops with gable roofs
 	shop = {walls = {RGB(235, 225, 200), RGB(190, 215, 225), RGB(225, 200, 200), RGB(210, 225, 190)}, mat = MAT.WoodPlanks,
 		trim = RGB(250, 250, 245), glass = RGB(70, 90, 110), floor = 8, roof = "gable", maxExtra = 1, roofColors = {RGB(150, 70, 55), RGB(70, 80, 100), RGB(90, 110, 80)},
