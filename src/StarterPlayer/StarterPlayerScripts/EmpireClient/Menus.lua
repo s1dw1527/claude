@@ -11,7 +11,7 @@ local modals = C.modals
 C.WINDOW_COLORS = {default = RGB(96, 64, 180), passes = RGB(120, 60, 200), heists = RGB(150, 40, 50), park = RGB(200, 90, 30), daily = RGB(176, 120, 20),
 	roadmap = RGB(40, 100, 180), garage = RGB(40, 100, 180), staff = RGB(40, 130, 90), market = RGB(40, 130, 80), settings = RGB(80, 84, 110),
 	theater = RGB(160, 30, 50), rivals = RGB(150, 40, 50), empireHall = RGB(160, 110, 20), leaders = RGB(160, 110, 20), party = RGB(170, 50, 140),
-	fun = RGB(190, 60, 140), explore = RGB(30, 130, 110), partners = RGB(40, 120, 100), occasions = RGB(190, 90, 30), activity = RGB(170, 60, 70)}
+	fun = RGB(190, 60, 140), explore = RGB(30, 130, 110), partners = RGB(40, 120, 100), occasions = RGB(190, 90, 30), activity = RGB(170, 60, 70), bazaar = RGB(170, 40, 120)}
 local LOCKS = {garage = "cars", staff = "staff", market = "market", marketing = "ads", properties = "properties", fun = "funpark"}
 C.MODAL_LOCKS = LOCKS
 local Lay = C.Layout

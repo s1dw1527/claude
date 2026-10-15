@@ -1179,4 +1179,23 @@ do
 		end
 	end)
 end
+
+-- v17: a lucky RARE SALE (✨ Golden / 💎 Diamond / 🌈 Rainbow): a big outlined pop in the middle of the screen
+do
+	local Lay = C.Layout
+	R.Menu.OnClientEvent:Connect(function(kind, a)
+		if kind ~= "rareSale" or type(a) ~= "table" then return end
+		local l = C.titleText(label({Name = "RareSalePop", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.38), Size = UDim2.fromOffset(520, 60),
+			Text = (a.icon or "✨") .. " " .. tostring(a.name) .. " SALE!  +$" .. fmt(a.cash or 0), TextColor3 = a.color or GOLD, TextScaled = true, ZIndex = Lay.Z.toast}, gui))
+		new("UITextSizeConstraint", {MaxTextSize = 44, MinTextSize = 18}, l)
+		local sc = new("UIScale", {Scale = 0.4}, l)
+		tween(sc, 0.35, {Scale = 1}, Enum.EasingStyle.Back)
+		play(SND.buy)
+		if a.key ~= "golden" and U.confetti then U.confetti(a.key == "rainbow" and 120 or 60) end
+		task.delay(2.2, function()
+			tween(l, 0.5, {TextTransparency = 1, TextStrokeTransparency = 1})
+			task.delay(0.5, function() l:Destroy() end)
+		end)
+	end)
+end
 end

@@ -82,9 +82,13 @@ end
 
 -- customers walk from the street to the business door
 local customers = {}
+-- v17: rare customers (the same table as the server's C.RARE_SALES, for the look)
+local RARE = {golden = {icon = "✨", name = "GOLDEN", color = RGB(255, 205, 60), mult = 10}, diamond = {icon = "💎", name = "DIAMOND", color = RGB(120, 220, 255), mult = 50},
+	rainbow = {icon = "🌈", name = "RAINBOW", color = RGB(255, 90, 220), mult = 250}}
 R.Customer.OnClientEvent:Connect(function(c)
 	if c.rent then return end
-	if #customers >= 45 or C.settings.crowd == "off" then return end
+	-- (v17: a rare customer always shows: it's the moment everyone should see)
+	if (#customers >= 45 or C.settings.crowd == "off") and not c.rare then return end
 	local pts = {c.start, c.entry, c.door}
 	local segs, total = {}, 0
 	for i = 1, #pts - 1 do
@@ -92,7 +96,22 @@ R.Customer.OnClientEvent:Connect(function(c)
 		segs[i] = len
 		total += len
 	end
-	table.insert(customers, {n = makePerson(c.npc), pts = pts, segs = segs, total = total, t = c.t, age = 0, review = c.review, door = c.door, shout = c.shout, icon = c.icon, item = c.item})
+	local n = makePerson(c.npc)
+	local rare = c.rare and RARE[c.rare]
+	if rare then
+		-- v17: a glowing customer (neon outfit, sparkles, a light) that everyone in the server can see walk in
+		for _, k in ipairs({"torso", "la", "ra", "ll", "rl"}) do
+			n[k].Color = rare.color
+			n[k].Material = Enum.Material.Neon
+		end
+		new("ParticleEmitter", {Texture = "rbxasset://textures/particles/sparkles_main.dds", Rate = 18, Lifetime = NumberRange.new(0.8, 1.4), Speed = NumberRange.new(2, 4),
+			SpreadAngle = Vector2.new(180, 180), Color = ColorSequence.new(rare.color), LightEmission = 1, Size = NumberSequence.new(0.5, 0)}, n.torso)
+		new("PointLight", {Color = rare.color, Range = 14, Brightness = 2}, n.torso)
+		local bb = new("BillboardGui", {Size = UDim2.fromOffset(160, 30), StudsOffset = V3(0, 3.6, 0), AlwaysOnTop = true, MaxDistance = 160}, n.head)
+		new("TextLabel", {Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Text = rare.icon .. " " .. rare.name .. " CUSTOMER", TextColor3 = rare.color, TextScaled = true,
+			Font = Enum.Font.FredokaOne, TextStrokeTransparency = 0.2}, bb)
+	end
+	table.insert(customers, {n = n, pts = pts, segs = segs, total = total, t = c.t, age = 0, review = c.review, door = c.door, shout = c.shout, icon = c.icon, item = c.item, rare = rare})
 end)
 
 -- (v13: the pedestrians and traffic that used to loop around fixed rectangles here are now CityCrowd: a pool that
@@ -278,6 +297,7 @@ RunService.RenderStepped:Connect(function(dt)
 			if c.review then lines = {{stars(c.review.stars), GOLD}, {"\"" .. c.review.text .. "\"", WHITE}} end
 			-- fans who recognize the owner (story chapter 3+)
 			if c.shout then table.insert(lines, 1, {"🗣️ " .. c.shout, RGB(255, 140, 200)}) end
+			if c.rare then table.insert(lines, 1, {c.rare.icon .. " " .. c.rare.name .. " SALE! x" .. c.rare.mult, c.rare.color}) end
 			floatBillboard(c.door + V3(0, 6, 0), lines, (c.review or c.shout) and 3.5 or 1.2)
 			-- a soft "ka-ching" when it happens near you (v14)
 			if C.jingle and (c.door - camPos).Magnitude < 70 then C.jingle("sale", 0.16) end

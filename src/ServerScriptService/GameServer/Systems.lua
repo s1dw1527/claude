@@ -267,6 +267,9 @@ function F.customerRate(d, now)
 	r *= F.followerMult(d)
 	if F.homeHood(d) == "suburbs" then r *= 1.1 end
 	if d.rebirths >= 50 then r *= 1.5 end
+	-- v17: a brand-new save's grand opening crowd (the first 90 s after its first business opens)
+	local fp = d.firstPlay
+	if type(fp) == "table" and (tonumber(fp.rushUntil) or 0) > os.time() then r *= C.FIRST_PLAY.rushMult end
 	return math.min(r, CFG.MAX_CUSTOMERS_PER_SEC)
 end
 local function pickBusiness(d, t)
@@ -296,10 +299,21 @@ local function pickBusiness(d, t)
 	end
 	return list[#list][1]
 end
-function F.spawnCustomer(plr, d, now)
+-- v17: does this customer glow? (rolled once per customer, rarest first; tests can force one with C.RARE_FORCE)
+function F.rollRare(d)
+	if C.RARE_FORCE then return C.RARE_FORCE end
+	for _, r in ipairs(C.RARE_SALES.list) do
+		if math.random() < r.chance then return r.key end
+	end
+	return nil
+end
+local RARE_BY = {}
+for _, r in ipairs(C.RARE_SALES.list) do RARE_BY[r.key] = r end
+-- opts (v17): {key = business, quick = true}: the first customer of a new save, who walks in from right by the door
+function F.spawnCustomer(plr, d, now, opts)
 	local ti = math.random(#NPC_TYPES)
 	local t = NPC_TYPES[ti]
-	local key = pickBusiness(d, t)
+	local key = opts and opts.key or pickBusiness(d, t)
 	if not key then return end
 	local plot = d.plot
 	local b = BIZ[key]
@@ -307,6 +321,12 @@ function F.spawnCustomer(plr, d, now)
 	local entry = plot.at(math.random(-6, 6), 1, 40)
 	local door = (F.slotCF(plot, key) * CF(0, 0, 9)).Position
 	local travel = ((entry - start).Magnitude + (door - entry).Magnitude) / 9
+	if opts and opts.quick then
+		entry = (F.slotCF(plot, key) * CF(0, 0, 12)).Position
+		start = (F.slotCF(plot, key) * CF(2, 0, 16)).Position
+		travel = C.FIRST_PLAY.firstWalk
+	end
+	local rare = F.rollRare(d)
 	local review
 	if math.random() < (t.trendy and 1 or 0.4) then
 		local sat = F.satisfaction(d, key)
@@ -326,12 +346,36 @@ function F.spawnCustomer(plr, d, now)
 	local plist = F.productsOf and F.productsOf(d, key) or {}
 	local item = #plist > 0 and plist[math.random(#plist)].name or nil
 	R.Customer:FireAllClients({plot = plot.index, npc = ti, start = start, entry = entry, door = V3(door.X, 1, door.Z), t = travel, review = review, shout = shout, owner = plr.UserId,
-		icon = BIZ[key].icon, item = item})
+		icon = BIZ[key].icon, item = item, rare = rare})
 	task.delay(travel, function()
-		if data[plr] == d then F.serveCustomer(plr, d, key, t, review) end
+		if data[plr] == d then F.serveCustomer(plr, d, key, t, review, rare, item) end
 	end)
 end
-function F.serveCustomer(plr, d, key, t, review)
+-- v17: a rare customer pays mult x the sale (the extra capped at capSecs of income), and the moment is shared
+function F.rareSale(plr, d, key, sale, r, item)
+	local cap = (F.incomePerSec and F.incomePerSec(d) or 0) * C.RARE_SALES.capSecs
+	local extra = math.min(sale * (r.mult - 1), math.max(cap, sale * 2))
+	local total = sale + extra
+	d.rareSales = type(d.rareSales) == "table" and d.rareSales or {}
+	d.rareSales[r.key] = (tonumber(d.rareSales[r.key]) or 0) + 1
+	local what = r.icon .. " " .. r.name .. " " .. (item or BIZ[key].thing or BIZ[key].name)
+	notify(plr, what .. " sold! A lucky customer paid +$" .. fmt(total) .. " (x" .. r.mult .. ")", {pri = "critical", cat = "money"})
+	R.Menu:FireClient(plr, "rareSale", {key = r.key, name = r.name, icon = r.icon, cash = total, biz = key, color = r.color})
+	if F.track then F.track(plr, "rareSale") end
+	if F.analyticsCustom then F.analyticsCustom(plr, "RareSale_" .. r.key, total) end
+	if F.analyticsSource then F.analyticsSource(plr, total, "RareSale", r.key) end
+	if r.shout then
+		for _, p in ipairs(game:GetService("Players"):GetPlayers()) do
+			if p ~= plr then notify(p, r.icon .. " " .. plr.Name .. " just sold a " .. r.name .. " " .. (item or BIZ[key].name) .. "! (x" .. r.mult .. ")", {pri = "low", cat = "info", key = "rareSale"}) end
+		end
+	end
+	if r.buzz then
+		F.buzz(r.icon, plr.Name .. " sold a " .. r.name .. " " .. (item or BIZ[key].name) .. "! The whole city is talking.", r.color)
+		if F.viralMoment then pcall(F.viralMoment, plr, "rareSale", {}) end
+	end
+	return total
+end
+function F.serveCustomer(plr, d, key, t, review, rare, item)
 	local now = os.clock()
 	local lvl = d.levels[key] or 0
 	if lvl <= 0 then return end
@@ -346,9 +390,16 @@ function F.serveCustomer(plr, d, key, t, review)
 	if F.productServed then F.productServed(plr, d, key) end
 	if d.frozenUntil <= now then
 		local sale = BIZ[key].income * lvl * E.customerSale * F.bizMult(d, key) * F.globalMult(d, now) * (t.tip or 1)
+		if rare and RARE_BY[rare] then sale = F.rareSale(plr, d, key, sale, RARE_BY[rare], item) end
 		d.cash += sale
 		F.earn(d, sale)
 		d.war.earned += sale
+		-- v17: a brand-new save's very first sale is a moment
+		local fp = d.firstPlay
+		if type(fp) == "table" and not fp.firstSale then
+			fp.firstSale = os.time()
+			R.Splash:FireClient(plr, "🎉 FIRST SALE!", "+$" .. fmt(sale) .. "  •  every customer pays you. Upgrade to earn more!", RGB(120, 230, 150))
+		end
 	end
 	if review then
 		-- good reviews build reputation slowly (E.reviewRep); bad ones still hurt at full strength
@@ -433,6 +484,7 @@ function F.buyUpgrade(plr, d, key, noToken)
 	if token then cost = math.floor(cost * 0.75) end
 	if d.cash < cost then return end
 	d.cash -= cost
+	if F.analyticsSink then F.analyticsSink(plr, cost, "Upgrade", key) end
 	if token then
 		d.tokens.upgrade -= 1
 		notify(plr, "🏷️ Discount token used: 25% off this upgrade.", {pri = "normal", cat = "money"})
@@ -457,6 +509,12 @@ function F.buyUpgrade(plr, d, key, noToken)
 	if lvl + 1 == CFG.MAX_LEVEL then
 		notify(plr, "⭐ " .. b.tiers[newStage] .. " is MAX level!" .. (F.unlocked(d, "chains") and " Open new locations to build a chain." or ""))
 		F.refreshTower(plr)
+	end
+	-- v17: a brand-new save's first business: a customer right away, then the grand opening crowd
+	local fp = d.firstPlay
+	if lvl == 0 and type(fp) == "table" and not fp.rushUntil then
+		fp.rushUntil = os.time() + C.FIRST_PLAY.rushSecs
+		task.defer(function() if data[plr] == d then F.spawnCustomer(plr, d, os.clock(), {key = key, quick = true}) end end)
 	end
 	if lvl == 0 and F.achieve then
 		F.achieve(plr, "firstBusiness")

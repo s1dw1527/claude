@@ -543,6 +543,24 @@ C.FERRIS = {fee = 10, buff = 0.1, buffTime = 180}
 C.FIREWORKS = {fee = 30, cooldown = 60}
 C.RACE = {fee = 20, par = 42, maxTime = 300}
 
+-- ===== v17: RARE SALES =====
+-- Now and then a customer walks in GLOWING (everyone in the server sees it) and pays far more than usual: the
+-- "lucky mutation" moment. Rolled once per customer, rarest first; the extra pay is capped at capSecs of the
+-- owner's income so a lucky Rainbow is a thrill, not an economy breaker. Diamond and Rainbow are shouted to the
+-- whole server; a Rainbow also makes CityBuzz.
+C.RARE_SALES = {
+	capSecs = 600,
+	list = {
+		{key = "rainbow", name = "RAINBOW", icon = "🌈", chance = 1 / 25000, mult = 250, color = RGB(255, 90, 220), shout = true, buzz = true},
+		{key = "diamond", name = "DIAMOND", icon = "💎", chance = 1 / 2500,  mult = 50,  color = RGB(120, 220, 255), shout = true},
+		{key = "golden",  name = "GOLDEN",  icon = "✨", chance = 1 / 250,   mult = 10,  color = RGB(255, 205, 60)},
+	},
+}
+-- ===== v17: THE FIRST 90 SECONDS (brand-new saves only) =====
+-- The first business a new save opens gets a customer right away (a short walk from the door), and for the
+-- next 90 s customers come faster: a "grand opening crowd", so the first minute is a run of small wins.
+C.FIRST_PLAY = {rushSecs = 90, rushMult = 2.5, firstWalk = 1.2}
+
 -- ===== TUTORIAL =====
 C.TUTORIAL = {
 	{text = "Welcome! 🍋 Open your first business: tap BUY on the Lemonade Stand, then name it.", target = "plot"},

@@ -1475,9 +1475,12 @@ function Inst.AwardBadge() return true end
 function Inst.UserHasBadgeAsync() return false end
 service("LocalizationService")
 service("AnalyticsService")
-function Inst.LogCustomEvent() end
+-- (v17: analytics calls are recorded so tests can check what a real game would send to Creator Analytics)
+H.analytics = {}
+function Inst.LogCustomEvent(_, plr, name, value) table.insert(H.analytics, {kind = "custom", plr = plr, name = name, value = value}) end
 function Inst.LogProgressionEvent() end
-function Inst.LogEconomyEvent() end
+function Inst.LogEconomyEvent(_, plr, flow, currency, amount, ending, tx, sku) table.insert(H.analytics, {kind = "economy", plr = plr, flow = flow, currency = currency, amount = amount, ending = ending, tx = tx, sku = sku}) end
+function Inst.LogOnboardingFunnelStepEvent(_, plr, step, name) table.insert(H.analytics, {kind = "funnel", plr = plr, step = step, name = name}) end
 
 -- Players
 local Players = service("Players")

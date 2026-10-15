@@ -47,7 +47,9 @@ local SAVE_KEYS = {"cash", "levels", "chains", "staff", "combos", "rep", "ep", "
 	-- v15
 	"park",
 	-- v16
-	"path", "roadmap", "grantsGot", "tokens"}
+	"path", "roadmap", "grantsGot", "tokens",
+	-- v17 (no schema step: a missing field just means "nothing yet")
+	"bazaar", "rareSales", "firstPlay"}
 -- everything this version writes itself; any OTHER field found in a save is kept as-is when saving
 local KNOWN_KEYS = {lots = true, props = true, SchemaVersion = true, saveSeq = true, gameVersion = true, savedAt = true}
 for _, k in ipairs(SAVE_KEYS) do KNOWN_KEYS[k] = true end
@@ -213,6 +215,7 @@ function F.payGrants(plr)
 			end
 			if g.rep > 0 then F.addRep(plr, g.rep) end
 			if g.item and C.GRANT_ITEMS[g.item] then pcall(C.GRANT_ITEMS[g.item], plr, d) end
+			if g.cash > 0 and F.analyticsSource then F.analyticsSource(plr, g.cash, "Reward", g.item or "cash") end
 			n += 1
 			notify(plr, "🎁 " .. (g.what ~= "" and g.what or "Reward") .. (g.cash > 0 and ("  +$" .. fmt(g.cash)) or "") .. (g.rep > 0 and ("  +" .. g.rep .. " ⭐") or ""), {pri = "critical", cat = "money"})
 		end
@@ -792,6 +795,7 @@ function F.startGame(plr, slot, starterIdx)
 	local isNew = starterIdx ~= nil
 	if isNew then
 		s.seq, s.fresh = 0, true   -- a brand-new game may replace whatever was in this slot
+		d.firstPlay = {at = os.time(), steps = {}}   -- v17: first-session boosts and the onboarding funnel (new saves only)
 	else
 		loadSlot(plr, d, slot)
 	end
@@ -1078,6 +1082,8 @@ R.Action.OnServerEvent:Connect(function(plr, action, a, b, c)
 		if not s.meta.acct.introSeen then
 			s.meta.acct.introSeen = true
 			task.spawn(saveMeta, plr)
+			-- v17: watched to the end or skipped? (Creator Analytics)
+			if F.analyticsCustom then F.analyticsCustom(plr, a == "skip" and "IntroSkipped" or "IntroWatched", 1) end
 		end
 		return
 	end

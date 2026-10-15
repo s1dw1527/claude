@@ -33,7 +33,8 @@ local function render()
 	txt(top, string.upper(s.name), UDim2.fromOffset(14, 10), UDim2.new(1, -28, 0, 26), 20, GOLD, true)
 	txt(top, (s.title or "No title worn") .. (s.badge and ("   •   " .. s.badge) or ""), UDim2.fromOffset(14, 38), UDim2.new(1, -28, 0, 20), 13, WHITE, true)
 	local lines = {"🗺️ " .. s.stageName .. " (stage " .. s.stage .. "/7)", "🏪 " .. s.businesses .. " businesses   •   " .. s.worth,
-		"🌟 " .. s.prestige .. " prestige stars" .. (s.park and ("   •   🎢 park ⭐ " .. s.park) or "")}
+		"🌟 " .. s.prestige .. " prestige stars" .. (s.park and ("   •   🎢 park ⭐ " .. s.park) or ""),
+		s.rare and ("✨ " .. s.rare.golden .. " golden   💎 " .. s.rare.diamond .. " diamond   🌈 " .. s.rare.rainbow .. " rainbow sales") or nil}
 	txt(top, table.concat(lines, "\n"), UDim2.fromOffset(14, 64), UDim2.new(1, -28, 0, 80), 12, SUB)
 	local pc = card(m.body, 30 + #s.paths * 22, 2)
 	local pl = {}

@@ -49,6 +49,9 @@ C.VIRAL_MOMENTS = {
 		posts = {"Customer gives {name}'s {biz} 1 star for \"too much {thing}\".", "1 star: \"{review}\" — a customer of {name}'s {biz}"}},
 	customerRush = {icon = "🏃", title = "WHO TOLD EVERYONE?", score = 250, cat = "biz", importance = "high", cd = 1800, rare = true,
 		posts = {"WHO TOLD EVERYONE? {name}'s empire just served {n} customers in a minute."}},
+	-- v17: a 🌈 Rainbow customer (GameServer > Systems F.rareSale)
+	rareSale = {icon = "🌈", title = "RAINBOW SALE", score = 200, cat = "biz", importance = "high", cd = 600,
+		posts = {"🌈 A RAINBOW customer just walked into {name}'s shop and paid x250. Nobody believes it. There are clips."}},
 	bizCrowd = {icon = "👥", title = "Line Around The Block", score = 100, cat = "biz", importance = "normal", cd = 1200,
 		posts = {"There's a line around the block at {name}'s {biz}. Bring snacks. (They sell snacks.)"}},
 	houseRating = {icon = "🏠", title = "House Rating: {rating}/100", score = 150, cat = "house", importance = "normal", cd = 604800,

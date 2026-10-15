@@ -118,6 +118,9 @@ function F.showcase(target)
 	local out = {name = target.Name, stage = stage, stageName = st and (st.icon .. " " .. st.name) or "", businesses = biz, worth = worthTier(F.empireValue and F.empireValue(d) or d.cash),
 		park = (d.levels.park or 0) > 0 and F.parkScore and (F.parkScore(d)) or nil, prestige = F.prestigeStars and F.prestigeStars(d) or 0,
 		title = acct and F.titleName(acct.wardrobe.title) or nil, badge = acct and F.badgeName(acct.wardrobe.badge) or nil, paths = {}}
+	-- v17: lucky sales (counts only)
+	local rs = type(d.rareSales) == "table" and d.rareSales or {}
+	out.rare = {golden = tonumber(rs.golden) or 0, diamond = tonumber(rs.diamond) or 0, rainbow = tonumber(rs.rainbow) or 0}
 	if F.pathRec then
 		local p = F.pathRec(d)
 		for _, def in ipairs(C.PATHS_DEF) do

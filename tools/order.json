@@ -58,6 +58,8 @@
     "Roadmap",
     "LiveEvents",
     "Showcase",
+    "Bazaar",
+    "Analytics",
     "Updates",
     "Players"
   ],
@@ -91,6 +93,7 @@
     "DailyUI",
     "RoadmapUI",
     "ShowcaseUI",
+    "BazaarUI",
     "ComputerUI",
     "GarageUI",
     "ArcadeUI",

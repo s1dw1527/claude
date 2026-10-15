@@ -203,7 +203,7 @@ local function playIntro(first)
 	mg.Enabled = false
 	stopCamera()
 	local ok = C.playIntro(not first, function()
-		if first then act("introSeen") end
+		if first then act("introSeen", C.Intro and C.Intro.ended or nil) end
 		if C.inMainMenu then
 			mg.Enabled = true
 			render()
