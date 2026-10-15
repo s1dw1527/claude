@@ -804,6 +804,120 @@ do
 	addDest("Rental Row", "🏢", V3(415, 0.2, 18))
 end
 
+-- v19 BEACHFRONT: a boardwalk along the sand on both sides of the Empire Plaza (lamps, benches, two snack stands),
+-- umbrellas and loungers between the boardwalk and the water, and a lighthouse on a platform past the end of the
+-- pier (the secret on the pier stays where it is). Nothing goes where something already stands (C.isFree).
+do
+	local bw = Instance.new("Folder")
+	bw.Name = "Boardwalk"
+	bw.Parent = WORLD
+	local WOOD, RAIL = RGB(165, 120, 80), RGB(235, 230, 220)
+	for _, seg in ipairs({{-560, -80}, {80, 560}}) do
+		local a, b = seg[1], seg[2]
+		local x = a
+		while x < b do
+			local x2 = math.min(b, x + 40)
+			if C.isFree((x + x2) / 2, 400, 3) and C.isFree(x + 1, 400, 1) and C.isFree(x2 - 1, 400, 1) then
+				P(bw, V3(x2 - x, 0.6, 7), CF((x + x2) / 2, 0.35, 400), WOOD, MAT.WoodPlanks, SOLID)
+				P(bw, V3(x2 - x, 1.4, 0.3), CF((x + x2) / 2, 1.3, 403.6), RAIL, MAT.Wood)
+				-- a lamp and a bench on every plank section
+				P(bw, V3(0.4, 8, 0.4), CF(x + 4, 4, 396.8), RGB(60, 60, 66), MAT.Metal, SOLID)
+				local head = P(bw, V3(1.4, 0.6, 1.4), CF(x + 4, 8.2, 396.8), RGB(255, 235, 190), MAT.Neon)
+				local l = Instance.new("PointLight")
+				l.Range, l.Brightness, l.Color = 20, 1.2, RGB(255, 225, 170)
+				l.Parent = head
+				P(bw, V3(5, 0.4, 1.6), CF(x + 20, 1.6, 398), RGB(140, 100, 60), MAT.WoodPlanks)
+				-- umbrellas and loungers on the sand toward the water
+				local ux = x + 12
+				if C.isFree(ux, 416, 4) then
+					local col = Color3.fromHSV(((x * 0.013) % 1), 0.7, 0.95)
+					P(bw, V3(0.3, 5, 0.3), CF(ux, 2.5, 416), RGB(240, 240, 240), MAT.Wood)
+					P(bw, V3(6, 0.4, 6), CF(ux, 5, 416), col, MAT.Fabric)
+					for _, dx in ipairs({-2, 2}) do
+						P(bw, V3(1.6, 0.4, 4), CF(ux + dx, 0.6, 420), RGB(250, 250, 245), MAT.SmoothPlastic)
+						P(bw, V3(1.6, 1.4, 0.4), CF(ux + dx, 1.2, 418.2) * CFrame.Angles(math.rad(-25), 0, 0), RGB(250, 250, 245), MAT.SmoothPlastic)
+					end
+				end
+			end
+			x = x2
+		end
+	end
+	C.reserve(-560, 396, -80, 404)
+	C.reserve(80, 396, 560, 404)
+	-- two snack stands on the boardwalk's land side
+	for i, sx in ipairs({-300, 300}) do
+		if C.isFree(sx, 391, 4) then
+			local col = i == 1 and RGB(250, 150, 190) or RGB(110, 200, 230)
+			P(bw, V3(8, 6, 6), CF(sx, 3, 391), RGB(250, 245, 235), MAT.WoodPlanks, SOLID)
+			local aw = wedge(bw, V3(9, 1.6, 3), CF(sx, 6.4, 395) * CFrame.Angles(0, math.pi, 0), col, MAT.Fabric)
+			aw.CanCollide = false
+			local sign = P(bw, V3(8, 1.6, 0.3), CF(sx, 7.6, 394.1), col, MAT.SmoothPlastic)
+			surfaceText(sign, Enum.NormalId.Back, i == 1 and "🍦 SHAKE SHACK" or "🥤 COCO CABANA", RGB(40, 30, 40))
+			C.reserve(sx - 5, 387, sx + 5, 395)
+		end
+	end
+	-- the lighthouse, on a platform past the end of the pier
+	local lh = Instance.new("Folder")
+	lh.Name = "Lighthouse"
+	lh.Parent = WORLD
+	P(lh, V3(16, 1, 16), CF(0, 1.1, 489), RGB(150, 110, 70), MAT.WoodPlanks, SOLID)
+	for _, sx in ipairs({-7, 7}) do
+		for _, sz in ipairs({482, 496}) do cyl(lh, 10, 1, CF(sx, -3.6, sz), RGB(110, 80, 50), MAT.Wood) end
+	end
+	for k = 0, 5 do
+		cyl(lh, 4.6, 7 - k * 0.5, CF(0, 3.9 + k * 4.6, 490), k % 2 == 0 and RGB(245, 245, 245) or RGB(210, 50, 50), MAT.SmoothPlastic, {CanCollide = true})
+	end
+	P(lh, V3(6, 0.6, 6), CF(0, 30, 490), RGB(40, 40, 46), MAT.Metal)
+	local lamp = P(lh, V3(3.4, 3.4, 3.4), CF(0, 32.2, 490), RGB(255, 235, 170), MAT.Glass, {Name = "Window"})
+	C.tag(lamp, "NightWindow")
+	local sl = Instance.new("SpotLight")
+	sl.Range, sl.Angle, sl.Brightness, sl.Color, sl.Face = 60, 30, 2, RGB(255, 240, 200), Enum.NormalId.Front
+	sl.Parent = lamp
+	TweenService:Create(lamp, TweenInfo.new(8, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1), {CFrame = lamp.CFrame * CFrame.Angles(0, math.pi, 0)}):Play()
+	wedge(lh, V3(4.4, 2.6, 2.2), CF(0, 35.2, 491.1), RGB(210, 50, 50), MAT.SmoothPlastic)
+	wedge(lh, V3(4.4, 2.6, 2.2), CF(0, 35.2, 488.9) * CFrame.Angles(0, math.pi, 0), RGB(210, 50, 50), MAT.SmoothPlastic)
+	C.reserve(-8, 481, 8, 497)
+end
+
+-- v19 INDUSTRIAL: pipe racks between the tanks, a loading dock and a parked truck at each warehouse, hazard
+-- stripes, and a gantry crane over the yard. Placed only where the ground is free.
+do
+	local ind = WORLD:FindFirstChild("Industrial")
+	if ind then
+		local PIPE = RGB(170, 175, 180)
+		for _, z in ipairs({-24, 24}) do
+			-- the rack: posts and two pipes from one tank to the other
+			for _, x in ipairs({-262, -230, -198}) do P(ind, V3(0.8, 14, 0.8), CF(x, 7, z + 6), RGB(90, 95, 100), MAT.Metal, SOLID) end
+			P(ind, V3(70, 0.6, 2.6), CF(-230, 14, z + 6), RGB(90, 95, 100), MAT.Metal)
+			for _, dy in ipairs({0.9, 2.1}) do
+				local pp = P(ind, V3(110, 1, 1), CF(-230, 14 + dy, z + 6), dy < 1 and PIPE or RGB(200, 140, 60), MAT.Metal)
+				pp.Shape = Enum.PartType.Cylinder
+			end
+		end
+		for _, w in ipairs({{-230, -44, 16}, {-230, 44, 18}}) do
+			local x, z, d = w[1], w[2], w[3]
+			local front = z < 0 and (z + d / 2) or (z - d / 2)
+			local dir = z < 0 and 1 or -1
+			if C.isFree(x + 6, front + dir * 5, 1) then
+				P(ind, V3(14, 1.4, 4), CF(x, 0.7, front + dir * 2), RGB(150, 150, 155), MAT.Concrete, SOLID)
+				for k = -1, 1, 2 do P(ind, V3(1.4, 0.05, 4), CF(x + k * 6, 1.43, front + dir * 2), RGB(240, 200, 30), MAT.SmoothPlastic) end
+				-- a box truck backed up to the dock
+				local tz = front + dir * 9
+				P(ind, V3(7, 7, 10), CF(x + 8, 4.5, tz), RGB(245, 245, 245), MAT.SmoothPlastic, SOLID)
+				P(ind, V3(6.6, 4.4, 4), CF(x + 8, 3.2, tz + dir * 7), RGB(30, 110, 200), MAT.SmoothPlastic, SOLID)
+				P(ind, V3(6, 1.8, 0.3), CF(x + 8, 4.5, tz + dir * 9.1), RGB(50, 60, 75), MAT.Glass)
+			end
+		end
+		-- a gantry crane over the yard between the warehouses' backs (west edge)
+		if C.isFree(-305, -60, 2) and C.isFree(-305, 60, 2) then
+			for _, z in ipairs({-60, 60}) do P(ind, V3(1.6, 26, 1.6), CF(-305, 13, z), RGB(240, 180, 30), MAT.Metal, SOLID) end
+			P(ind, V3(2.4, 2.4, 122), CF(-305, 26, 0), RGB(240, 180, 30), MAT.Metal)
+			P(ind, V3(4, 3, 4), CF(-305, 23.5, 18), RGB(60, 60, 66), MAT.Metal)
+			P(ind, V3(0.3, 10, 0.3), CF(-305, 17, 18), RGB(40, 40, 40), MAT.Metal)
+		end
+	end
+end
+
 -- ===== BUSINESS LOT visuals (for sale / owned) =====
 function F.buildLot(lot)
 	if lot.folder then lot.folder:Destroy() end
