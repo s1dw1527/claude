@@ -80,6 +80,7 @@ do
 	T:FillBlock(CF(0, -10.5 + off, 640), V3(1700, 21, 420), W)                 -- the ocean
 	T:FillBlock(CF(0, -1 + off, 440), V3(1700, 2, 22), S)                      -- gentle slope into the water
 	T:FillBlock(CF(1090, -8 + off, 0), V3(520, 16, 380), G)                    -- v18: Empire Heights (east of the Corner Bank)
+	T:FillBlock(CF(1390, -8 + off, 0), V3(180, 16, 220), G)                    -- v19: the Heights Mall at the end of the boulevard
 	-- Hillside plateau
 	T:FillBlock(CF(-230, 7 + off, -200), V3(168, 14, 108), R)
 	T:FillBlock(CF(-230, 9 + off, -200), V3(160, 18, 100), G)
@@ -505,6 +506,77 @@ do
 			light.Parent = head
 		end
 	end
+end
+-- v19 THE HEIGHTS MALL: the landmark at the end of Heights Blvd (the city has no free land left inside it). A
+-- parking lot, a glass atrium under a big sign, storefront windows that light up at night, and two counters that
+-- really work: the 🛍️ City Bazaar and the 🛋️ Furniture Store open from here (the same windows as from the phone).
+do
+	C.clearTerrain(1290, -100, 1470, 100)
+	local mall = Instance.new("Folder")
+	mall.Name = "HeightsMall"
+	mall.Parent = WORLD
+	local STONE, TEAL, GLASS = RGB(232, 226, 212), RGB(40, 150, 170), RGB(60, 90, 120)
+	-- the parking lot
+	P(mall, V3(42, 0.3, 96), CF(1321, 0.3, 0), RGB(64, 66, 72), MAT.Asphalt)
+	for z = -40, 40, 8 do P(mall, V3(12, 0.05, 0.4), CF(1316, 0.47, z), RGB(240, 240, 240), MAT.SmoothPlastic) end
+	local CARS = {RGB(200, 40, 50), RGB(40, 90, 180), RGB(240, 240, 240), RGB(30, 30, 35), RGB(230, 180, 40), RGB(90, 160, 90)}
+	for i, z in ipairs({-36, -20, -12, 12, 28, 36}) do
+		local col = CARS[i]
+		P(mall, V3(8, 2, 4), CF(1316, 1.5, z), col, MAT.SmoothPlastic, {CanCollide = true})
+		P(mall, V3(4.4, 1.6, 3.6), CF(1315.5, 3.2, z), RGB(40, 50, 65), MAT.Glass)
+	end
+	for _, z in ipairs({-46, 46}) do
+		P(mall, V3(0.6, 12, 0.6), CF(1326, 6, z), RGB(60, 60, 66), MAT.Metal, {CanCollide = true})
+		local head = P(mall, V3(2.4, 0.6, 1.2), CF(1326, 12.2, z), RGB(255, 240, 200), MAT.Neon)
+		local l = Instance.new("PointLight")
+		l.Range, l.Brightness, l.Color = 30, 1.4, RGB(255, 230, 190)
+		l.Parent = head
+	end
+	-- the building
+	P(mall, V3(60, 24, 110), CF(1372, 12, 0), STONE, MAT.Concrete, {CanCollide = true})
+	P(mall, V3(61, 1.2, 111), CF(1372, 24.6, 0), RGB(200, 195, 185), MAT.Concrete)
+	P(mall, V3(0.8, 3, 111), CF(1341.8, 25.5, 0), TEAL, MAT.SmoothPlastic)
+	P(mall, V3(26, 6, 40), CF(1372, 30, 0), STONE, MAT.Concrete)
+	local dome = P(mall, V3(20, 4, 32), CF(1372, 35, 0), RGB(150, 210, 230), MAT.Glass, {Reflectance = 0.2})
+	dome.Name = "Window"
+	C.tag(dome, "NightWindow")
+	-- the glass atrium and the storefront windows (they light up at night)
+	local atrium = P(mall, V3(1, 18, 36), CF(1341.6, 9, 0), GLASS, MAT.Glass, {Reflectance = 0.2})
+	atrium.Name = "Window"
+	C.tag(atrium, "NightWindow")
+	for _, z in ipairs({-38, 38}) do
+		local w = P(mall, V3(1, 8, 26), CF(1341.6, 5, z), GLASS, MAT.Glass, {Reflectance = 0.15})
+		w.Name = "Window"
+		C.tag(w, "NightWindow")
+		local stripe = P(mall, V3(1.2, 2.4, 26), CF(1341.4, 10.6, z), z < 0 and RGB(230, 90, 120) or RGB(240, 170, 40), MAT.SmoothPlastic)
+		C.surfaceText(stripe, Enum.NormalId.Left, z < 0 and "FASHION • SHOES • GIFTS" or "TOYS • TECH • FOOD COURT", RGB(255, 255, 255))
+	end
+	P(mall, V3(7, 0.8, 34), CF(1337.5, 13, 0), TEAL, MAT.Metal)
+	for _, z in ipairs({-16, 16}) do P(mall, V3(0.8, 12.6, 0.8), CF(1334.5, 6.3, z), RGB(220, 220, 225), MAT.Metal, {CanCollide = true}) end
+	local sign = P(mall, V3(1.2, 7, 40), CF(1341, 21, 0), RGB(30, 90, 200), MAT.SmoothPlastic)
+	sign.Name = "MallSign"
+	C.surfaceText(sign, Enum.NormalId.Left, "🛍️ HEIGHTS MALL", RGB(255, 230, 120))
+	P(mall, V3(0.4, 0.4, 41), CF(1340.3, 17.2, 0), RGB(255, 210, 90), MAT.Neon)
+	-- palms and planters by the doors
+	for _, z in ipairs({-24, 24}) do
+		P(mall, V3(3, 1.4, 3), CF(1336, 0.7, z), RGB(150, 140, 130), MAT.Concrete)
+		C.tree(mall, 1336, z, 0.8, 1.4)
+	end
+	-- the counters (they really work)
+	local function kiosk(z, label, color, fn)
+		local k = P(mall, V3(3, 4, 6), CF(1336, 2, z), color, MAT.SmoothPlastic, {CanCollide = true, Name = "MallCounter"})
+		billboard(k, UDim2.fromOffset(180, 36), V3(0, 4.5, 0), {{text = label}}, 60)
+		C.prompt(k, "Open", label, 12, 0, fn)
+	end
+	kiosk(-8, "🛍️ City Bazaar", RGB(200, 60, 140), function(plr)
+		if data[plr] then C.R.Menu:FireClient(plr, "openBazaar") end
+	end)
+	kiosk(8, "🛋️ Furniture Store", RGB(60, 120, 200), function(plr)
+		if data[plr] then C.R.Menu:FireClient(plr, "open", "furniture", true) end
+	end)
+	C.reserve(1298, -58, 1404, 58)
+	table.insert(C.DESTS, {name = "Heights Mall", icon = "🛍️", pos = V3(1326, 0.3, -2)})
+	C.MALL = mall
 end
 function F.setPlotSign(plot, name, tier)
 	for _, l in ipairs(plot.nameLabels) do l.Text = name end
