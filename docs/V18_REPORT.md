@@ -104,16 +104,20 @@ This builds on what v16 and v17 added for coming back: daily rewards with a stre
 - **`data_test`**: version 18.0.0.
 
 ### Bugs caught and fixed while testing
+- Random terrain hills at the old map edge half-buried the Empire Heights arch and lamps (`terrain_test`). They're now cleared.
 - The "coming up next" card told the time to the next Bazaar restock using a different clock than the Bazaar itself. In the test it said "13888h"; it now uses the Bazaar's own clock.
 - A missing comma in the update notes after adding v18's lines stopped the game config from loading. Every suite caught it at once.
 
 ### Full regression
-RESULTS_PLACEHOLDER
+**53 suites, 2,217 checks, 0 failed** (simulated). How that count was reached:
+- The full parallel run gave 2,216 passed and **1 failed**: `terrain_test` found 6 parts (the Empire Heights arch pillars and the first street lamps) half-buried in the random hills along the old map edge, at x ≈ 850.
+- **Fix:** those hills are now cleared from all of Empire Heights and from the road to it. The first plot's buildings sat in the same hill zone, so this also protects them.
+- After the fix, `terrain_test` (4 of 4) and `servers_test` (18 of 18) were re-run on their own and passed.
 
 ### Static and build checks
 - `tools/check.sh`: only the known `WorldFX.lua(59,4)` false positive.
 - `tools/propcheck.py`: 0 problems.
-- BUILD_PLACEHOLDER
+- `CornerEmpire_v18.rbxlx` and both drop-ins are built. The round trip (extract, then diff against `src`) is identical.
 
 ---
 
