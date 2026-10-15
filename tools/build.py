@@ -73,10 +73,18 @@ def emit(out, kind, nm, cls, full, sub, key):
         emit(out, *e, key + "/" + nm)
     out.append('</Item>\n')
 
+# Lighting.Technology can't be set from a script, but the place file can carry it: Future (4) gives real-time
+# shadows from every light, sharper sun shadows and light that bounces, instead of the flat legacy look. Roblox scales
+# it down by itself on devices that can't take it. (Enum.Technology: Legacy 0, Voxel 1, Compatibility 2,
+# ShadowMap 3, Future 4.) Everything else about the lighting is set by GameServer > Util at runtime.
+LIGHTING = ('<Item class="Lighting" referent="%s"><Properties><string name="Name">Lighting</string>'
+            '<token name="Technology">4</token><bool name="GlobalShadows">true</bool></Properties></Item>\n')
+
 def build(dest):
     out = ['<roblox version="4">\n']
     for folder, cls in SERVICES:
         emit(out, "folder", folder, cls, None, os.path.join(SRC, folder), "")
+    out.append(LIGHTING % newref())
     out.append("</roblox>\n")
     open(dest, "w", encoding="utf-8").write("".join(out))
     print("wrote", dest)

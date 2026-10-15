@@ -73,6 +73,31 @@ H.main(function()
 	H.check(n >= 2, "...and is when you're there")
 	local _ = near
 
+	H.section("v17: the look (compared with popular Roblox games)")
+	Lighting.ClockTime = 13
+	H.task.wait(1)
+	local amb = Lighting.OutdoorAmbient
+	H.check(lum(amb) < 0.5 and Lighting.Brightness >= 2.8, string.format("daylight comes from the sun, not from everywhere: outdoor ambient %.2f (was 0.55), sun %.1f, so shadows and shapes read", lum(amb), Lighting.Brightness))
+	local atm = Lighting:FindFirstChildOfClass("Atmosphere")
+	H.check(atm and atm.Haze <= 1 and atm.Glare >= 0.3, string.format("a clear atmosphere (haze %.1f, was 1.4) with a sun glare (%.2f)", atm and atm.Haze or -1, atm and atm.Glare or -1))
+	local dof = Lighting:FindFirstChildOfClass("DepthOfFieldEffect")
+	H.check(dof == nil or dof.FocusDistance + dof.InFocusRadius >= 600, "no blur on the city: depth of field only softens the far horizon (600+ studs)")
+	local grade = nil
+	for _, x in ipairs(Lighting:GetChildren()) do if x:IsA("ColorCorrectionEffect") and x.Name == "ColorCorrection" then grade = x end end
+	H.check(grade == nil or (grade.Saturation <= 0.08 and grade.Contrast >= 0.1), "the grade adds contrast, not more saturation")
+	local loud, white, n = 0, 0, 0
+	for _, p in ipairs(H.workspace:GetDescendants()) do
+		if p:IsA("BasePart") and p.Transparency < 0.9 and p.Material ~= Enum.Material.Neon and p.Material ~= Enum.Material.Glass and not p:IsDescendantOf(H.workspace.CityCrowd) then
+			n += 1
+			local _, sat, val = p.Color:ToHSV()
+			if sat > 0.85 and val > 0.92 then loud += 1 end
+			if sat < 0.06 and val > 0.97 then white += 1 end
+		end
+	end
+	H.check(loud / n < 0.02 and white / n < 0.02, string.format("no toy colors: %.1f%% max-saturation bright parts (was 0.2%%), %.1f%% pure white that blows out under bloom (was 7.8%%), of %d parts", loud * 100 / n, white * 100 / n, n))
+	H.check(C.tameColor(Color3.fromRGB(255, 0, 200), Enum.Material.Neon) == Color3.fromRGB(255, 0, 200) and C.tameColor(Color3.fromRGB(210, 30, 40), Enum.Material.SmoothPlastic) == Color3.fromRGB(210, 30, 40),
+		"neon keeps its glow color; ordinary colors (a car's red) are untouched")
+
 	T.assertClean("graphics")
 	print("\n" .. H.passed .. " passed, " .. H.failed .. " failed")
 end)

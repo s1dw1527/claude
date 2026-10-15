@@ -31,6 +31,24 @@ function C.fmt(n)
 	return tostring(n)
 end
 
+-- v17 graphics pass: tame the "toy" colors. About 15% of the city's parts were maximum-saturation, maximum-
+-- brightness plastic and 11% near pure white, which blows out under bloom and is the cheapest-looking thing in a
+-- Roblox scene. Glowing materials (Neon, Glass) keep their color; everything else is pulled back a little: very
+-- saturated + very bright colors lose some saturation and brightness, and pure white becomes a soft off-white.
+-- The hue never changes, so every color still reads as the same color.
+local GLOW = {[MAT.Neon] = true, [MAT.Glass] = true, [MAT.ForceField] = true}
+function C.tameColor(c, mat)
+	if GLOW[mat] or typeof(c) ~= "Color3" then return c end
+	local h, s, v = c:ToHSV()
+	if s > 0.8 and v > 0.88 then
+		s = 0.8 + (s - 0.8) * 0.4
+		v = 0.88 + (v - 0.88) * 0.5
+		return Color3.fromHSV(h, s, v)
+	elseif s < 0.06 and v > 0.96 then
+		return Color3.fromHSV(h, s, 0.94)
+	end
+	return c
+end
 local function finish(p, parent, size, cf, color, mat, props)
 	p.Anchored = true
 	p.CanCollide = false
@@ -38,8 +56,8 @@ local function finish(p, parent, size, cf, color, mat, props)
 	p.BottomSurface = Enum.SurfaceType.Smooth
 	p.Size = size
 	p.CFrame = cf
-	p.Color = color
 	p.Material = mat or MAT.SmoothPlastic
+	p.Color = C.tameColor(color, p.Material)
 	if props then
 		for k, v in pairs(props) do p[k] = v end
 	end
@@ -214,10 +232,15 @@ function C.notify(plr, msg, opts) C.R.Announce:FireClient(plr, msg, type(opts) =
 function C.announceAll(msg) C.R.Announce:FireAllClients(msg) end
 
 -- ===== LIGHTING =====
-Lighting.Brightness = 2.6
+-- v17 graphics pass (compared with how popular Roblox games set up their lighting): the place file now asks for
+-- FUTURE lighting (tools/build.py), so these values are tuned for it. Less flat ambient light, so shadows and
+-- shapes read (it was so bright from every side that buildings looked flat); a clearer atmosphere (less milky
+-- haze); a gentler bloom and a grade with more contrast and less saturation (the colors were already strong); and
+-- no blur on the city: depth of field only softens the far horizon now (it blurred everything past 120 studs).
+Lighting.Brightness = 3
 Lighting.ClockTime = 14
 Lighting.GlobalShadows = true
-Lighting.OutdoorAmbient = RGB(140, 140, 160)
+Lighting.OutdoorAmbient = RGB(118, 120, 136)
 Lighting.Ambient = RGB(70, 72, 92)
 Lighting.EnvironmentDiffuseScale = 1
 Lighting.EnvironmentSpecularScale = 1
@@ -230,11 +253,11 @@ local function getFx(class, props)
 	end
 	return fx
 end
-local atm = getFx("Atmosphere", {Density = 0.28, Offset = 0.25, Color = RGB(199, 215, 240), Decay = RGB(255, 235, 200), Glare = 0.2, Haze = 1.4})
-local bloom = getFx("BloomEffect", {Intensity = 0.5, Size = 24, Threshold = 1.6})
-local grade = getFx("ColorCorrectionEffect", {Saturation = 0.15, Contrast = 0.08})
-getFx("SunRaysEffect", {Intensity = 0.1, Spread = 0.8})
-getFx("DepthOfFieldEffect", {FarIntensity = 0.12, FocusDistance = 120, InFocusRadius = 150, NearIntensity = 0})
+local atm = getFx("Atmosphere", {Density = 0.3, Offset = 0.2, Color = RGB(199, 215, 240), Decay = RGB(150, 160, 185), Glare = 0.45, Haze = 0.6})
+local bloom = getFx("BloomEffect", {Intensity = 0.35, Size = 24, Threshold = 1.6})
+local grade = getFx("ColorCorrectionEffect", {Saturation = 0.05, Contrast = 0.14})
+getFx("SunRaysEffect", {Intensity = 0.06, Spread = 0.8})
+getFx("DepthOfFieldEffect", {FarIntensity = 0.08, FocusDistance = 260, InFocusRadius = 500, NearIntensity = 0})
 local normal = {grade.TintColor, grade.Saturation, atm.Density, atm.Color, bloom.Intensity}
 function C.setLook(look)
 	local info = TweenInfo.new(1.5, Enum.EasingStyle.Sine)
@@ -250,7 +273,7 @@ end
 -- follows the time of day: warm at sunrise and sunset, cool and blue at night, where a night bloom makes neon
 -- signs, lamps and ride lights glow. (Weather and events use the main grade above; this one is separate.)
 -- Lighting.Technology can't be set by a script: set it to ShadowMap (or Future) in Studio, see the v15 report.
-pcall(function() Lighting.ShadowSoftness = 0.25 end)
+pcall(function() Lighting.ShadowSoftness = 0.2 end)
 local sky = Lighting:FindFirstChildOfClass("Sky") or Instance.new("Sky")
 pcall(function()
 	sky.SunAngularSize = 14
@@ -270,10 +293,10 @@ nightBloom.Parent = Lighting
 local KEYS = {
 	{0, RGB(170, 185, 255), -0.04, 0.7, RGB(70, 80, 120)},
 	{5, RGB(190, 195, 255), -0.02, 0.6, RGB(90, 95, 130)},
-	{6.5, RGB(255, 205, 170), 0.02, 0.15, RGB(150, 130, 130)},
-	{8.5, RGB(255, 248, 240), 0, 0, RGB(140, 140, 160)},
-	{16.5, RGB(255, 248, 238), 0, 0, RGB(140, 140, 160)},
-	{18, RGB(255, 190, 150), 0.03, 0.2, RGB(160, 125, 120)},
+	{6.5, RGB(255, 205, 170), 0.02, 0.15, RGB(135, 118, 120)},
+	{8.5, RGB(255, 248, 240), 0, 0, RGB(118, 120, 136)},
+	{16.5, RGB(255, 248, 238), 0, 0, RGB(118, 120, 136)},
+	{18, RGB(255, 190, 150), 0.03, 0.2, RGB(140, 112, 110)},
 	{19.5, RGB(200, 190, 255), -0.01, 0.55, RGB(90, 90, 130)},
 	{24, RGB(170, 185, 255), -0.04, 0.7, RGB(70, 80, 120)},
 }
