@@ -95,12 +95,15 @@ All 1,035 measured texts pass at ≥ 3:1. In a stricter trial run that ignored e
 - **My Empire:** the Statistics rows show the real values.
 
 ### Full regression
-RESULTS_PLACEHOLDER
+**48 suites, 2,121 checks, 0 failed** (simulated), after one fix:
+- The first parallel run had **1 failure**, in `viral_test` ("an impossible speed is ignored"). The check compared the player's *total* viral score, which another detector watching real play bumped under the heavy 4-at-a-time load. The test now checks the car-crash moment itself.
+- `viral_test` then passed alone: 86/86.
+- No game code was involved.
 
 ### Static and build checks
 - `tools/check.sh` (luau-lsp): only the known `WorldFX.lua(59,4)` false positive.
 - `tools/propcheck.py`: 0 problems.
-- Build and round trip: see below.
+- `CornerEmpire_v16_1.rbxlx` and both drop-ins built. The round trip (extract → diff against `src`) is identical.
 
 ## Install
 It's the same as v16:

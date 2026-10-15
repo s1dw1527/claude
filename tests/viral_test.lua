@@ -109,8 +109,9 @@ H.main(function()
 	H.check(got > 4 and got < 30, "1-star reviews sometimes go viral (" .. got .. "/40)")
 	-- a crash only counts in your own car next to your own business
 	local vs = v.score
+	-- (checked on the crash moment itself: other detectors watching real play can add score at any time)
 	T.act(a, "viral", "crash", 90)
-	H.check(v.score == vs, "a crash report without a car is ignored")
+	H.check(v.cd.carCrash == nil, "a crash report without a car is ignored")
 	F.spawnCar(a, "moped", F.bizAnchor(d, "pizza") * CFrame.new(0, 2, 2))
 	H.task.wait(0.5)
 	local car = F.activeCar(a)
@@ -119,9 +120,9 @@ H.main(function()
 		car.seat:Sit(hum)
 		H.task.wait(0.3)
 		T.act(a, "viral", "crash", 9999)
-		H.check(v.score == vs, "an impossible speed is ignored")
+		H.check(v.cd.carCrash == nil, "an impossible speed is ignored")
 		T.act(a, "viral", "crash", 80)
-		H.check(v.score > vs, "your own car, next to your own business: \"Local CEO declares war on parking lot.\"")
+		H.check(v.cd.carCrash ~= nil and v.score > vs, "your own car, next to your own business: \"Local CEO declares war on parking lot.\"")
 		car.seat.Occupant = nil
 		rawget(hum, "_p").SeatPart = nil
 		F.despawnCar(a)

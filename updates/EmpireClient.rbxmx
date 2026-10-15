@@ -93,17 +93,66 @@ function C.new(class, props, parent)
 end
 local new, tween = C.new, C.tween
 function C.corner(o, r) new("UICorner", {CornerRadius = UDim.new(0, r or 10)}, o) end
-function C.stroke(o, color, th, tr)
-	return new("UIStroke", {Color = color, Thickness = th or 2, Transparency = tr or 0, ApplyStrokeMode = Enum.ApplyStrokeMode.Border}, o)
+-- v16.1 BOLD UI: chunky cartoon buttons and windows (thick dark outlines, glossy gradients, outlined lettering).
+-- Everything is built from frames, strokes and gradients (no uploaded images), and every screen gets it through
+-- these helpers. A UIStroke on an object is its OUTLINE: C.stroke and C.gradient reuse the one already there
+-- (Roblox draws only one of each), so a screen that recolors an outline (e.g. "selected" in gold) just changes it.
+local kp = ColorSequenceKeypoint.new
+C.STYLE = {
+	outline = RGB(24, 18, 40),          -- the chunky dark edge around buttons, windows and cards
+	font = Enum.Font.FredokaOne,        -- rounded, bold: titles and buttons (body text stays Gotham, easier to read)
+	gloss = ColorSequence.new({kp(0, Color3.new(1, 1, 1)), kp(0.45, RGB(232, 232, 232)), kp(1, RGB(165, 165, 165))}),   -- light top, darker "lip"
+	glass = ColorSequence.new({kp(0, RGB(200, 225, 255)), kp(1, RGB(150, 160, 200))}),
+}
+local STYLE = C.STYLE
+function C.shade(c, k)
+	k = k or 0.55
+	return Color3.new(c.R * k, c.G * k, c.B * k)
 end
-function C.gradient(o, a, b, rot) return new("UIGradient", {Color = ColorSequence.new(a, b), Rotation = rot or 90}, o) end
+local function lum(c)
+	local function ch(v) return v <= 0.03928 and v / 12.92 or ((v + 0.055) / 1.055) ^ 2.4 end
+	return 0.2126 * ch(c.R) + 0.7152 * ch(c.G) + 0.0722 * ch(c.B)
+end
+C.lum = lum
+function C.stroke(o, color, th, tr)
+	local s = o:FindFirstChild("Outline")
+	if s and s:IsA("UIStroke") then
+		s.Color, s.Thickness, s.Transparency = color, th or 2, tr or 0
+		return s
+	end
+	s = new("UIStroke", {Color = color, Thickness = th or 2, Transparency = tr or 0, ApplyStrokeMode = Enum.ApplyStrokeMode.Border}, o)
+	s.Name = "Outline"
+	return s
+end
+function C.gradient(o, a, b, rot)
+	local g = o:FindFirstChildOfClass("UIGradient")
+	local col = a
+	if typeof(a) ~= "ColorSequence" then col = ColorSequence.new(a, b) end
+	if g then
+		g.Color, g.Rotation = col, rot or 90
+		return g
+	end
+	return new("UIGradient", {Color = col, Rotation = rot or 90}, o)
+end
+-- outlined lettering: a dark edge around light text (never around dark text, where it would only blur it)
+function C.outlineText(o)
+	if lum(o.TextColor3) > 0.35 then
+		o.TextStrokeColor3 = STYLE.outline
+		o.TextStrokeTransparency = 0.35
+	end
+	return o
+end
+function C.titleText(o)
+	o.Font = STYLE.font
+	return C.outlineText(o)
+end
 function C.panel(props, parent)
 	props.BackgroundColor3 = props.BackgroundColor3 or C.BG
 	props.BorderSizePixel = 0
 	props.BackgroundTransparency = props.BackgroundTransparency or 0.08
 	local f = new("Frame", props, parent)
-	C.corner(f, 12)
-	C.stroke(f, C.WHITE, 1.5, 0.85)
+	C.corner(f, 14)
+	C.stroke(f, STYLE.outline, 3, 0.05)
 	return f
 end
 function C.label(props, parent)
@@ -113,15 +162,21 @@ function C.label(props, parent)
 	props.TextSize = props.TextSize or 16
 	return new("TextLabel", props, parent)
 end
+-- a chunky button: glossy, a thick dark outline, outlined lettering, and it answers every press.
+-- props.flat = true: no outline (tiny inline buttons, icon tiles that draw their own frame)
 function C.button(props, parent)
-	props.Font = props.Font or Enum.Font.GothamBlack
+	local flat = props.flat
+	props.flat = nil
+	props.Font = props.Font or STYLE.font
 	props.TextColor3 = props.TextColor3 or C.WHITE
 	props.BorderSizePixel = 0
 	props.AutoButtonColor = false
 	props.BackgroundColor3 = props.BackgroundColor3 or C.GREEN
 	local b = new("TextButton", props, parent)
-	C.corner(b, 8)
-	C.gradient(b, C.WHITE, RGB(190, 190, 190))
+	C.corner(b, 10)
+	C.gradient(b, STYLE.gloss)
+	if not flat then C.stroke(b, STYLE.outline, 2.5) end
+	C.outlineText(b)
 	local sc = new("UIScale", {}, b)
 	b.MouseEnter:Connect(function() tween(sc, 0.12, {Scale = 1.05}) end)
 	b.MouseLeave:Connect(function() tween(sc, 0.12, {Scale = 1}) end)
@@ -135,18 +190,93 @@ function C.button(props, parent)
 end
 function C.card(parent, h, order, color)
 	local c = new("Frame", {Size = UDim2.new(1, -8, 0, h), BackgroundColor3 = color or C.CARD, BorderSizePixel = 0, LayoutOrder = order or 0}, parent)
-	C.corner(c, 10)
+	C.corner(c, 12)
+	C.gradient(c, Color3.new(1, 1, 1), RGB(205, 205, 215))
+	C.stroke(c, STYLE.outline, 2, 0.15)
 	return c
 end
 function C.header(parent, text, order)
-	return C.label({Size = UDim2.new(1, -8, 0, 30), Text = text, TextSize = 18, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left, LayoutOrder = order or 0}, parent)
+	return C.titleText(C.label({Size = UDim2.new(1, -8, 0, 30), Text = text, TextSize = 19, TextXAlignment = Enum.TextXAlignment.Left, LayoutOrder = order or 0}, parent))
 end
 function C.bar(parent, pos, size, color)
 	local bg = new("Frame", {Position = pos, Size = size, BackgroundColor3 = RGB(12, 13, 20), BorderSizePixel = 0}, parent)
-	C.corner(bg, 4)
+	C.corner(bg, 6)
+	C.stroke(bg, STYLE.outline, 2)
 	local fill = new("Frame", {Size = UDim2.fromScale(0, 1), BackgroundColor3 = color, BorderSizePixel = 0}, bg)
-	C.corner(fill, 4)
+	C.corner(fill, 6)
+	C.gradient(fill, STYLE.gloss)
 	return fill, bg
+end
+-- the red close button on a window's corner (one look everywhere)
+function C.closeX(props, parent)
+	props.Text = props.Text or "X"
+	props.TextSize = props.TextSize or 20
+	props.BackgroundColor3 = C.RED
+	props.Rotation = props.Rotation or 0
+	local b = C.button(props, parent)
+	b.Name = "CloseX"
+	return b
+end
+-- a price / confirm pill: "buy" (green), "robux" (green, R$), "danger" (red), "off" (grey: owned, can't afford)
+local PILL = {buy = C.GREEN, robux = C.GREEN, danger = C.RED, off = C.GRAY, gold = RGB(190, 130, 20), info = C.BLUE}
+function C.pill(props, parent, kind)
+	kind = kind or "buy"
+	props.BackgroundColor3 = PILL[kind] or C.GREEN
+	if kind == "robux" and props.Text and not tostring(props.Text):find("R%$") then props.Text = "R$ " .. props.Text end
+	props.TextSize = props.TextSize or 16
+	local b = C.button(props, parent)
+	C.corner(b, 999)
+	b:SetAttribute("Pill", kind)
+	return b
+end
+function C.setPill(b, kind, text)
+	b.BackgroundColor3 = PILL[kind] or C.GREEN
+	if text then b.Text = text end
+	b:SetAttribute("Pill", kind)
+end
+-- a chunky tab strip: {{key, label}, ...}; onPick(key). Returns the strip and setTab(key).
+function C.tabs(parent, list, onPick, props)
+	props = props or {}
+	local strip = new("Frame", {Size = props.Size or UDim2.new(1, -8, 0, 40), BackgroundTransparency = 1, LayoutOrder = props.LayoutOrder or 0, Name = "Tabs"}, parent)
+	new("UIListLayout", {FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder, HorizontalAlignment = Enum.HorizontalAlignment.Center}, strip)
+	local btns, current = {}, nil
+	local w = 1 / math.max(1, #list)
+	local function setTab(key)
+		current = key
+		for k, b in pairs(btns) do
+			local on = k == key
+			b.BackgroundColor3 = on and (props.color or C.PURPLE) or C.GRAY
+			b.TextTransparency = on and 0 or 0.15
+			b:SetAttribute("Selected", on)
+			C.stroke(b, on and C.GOLD or STYLE.outline, on and 3 or 2.5)
+		end
+	end
+	for i, t in ipairs(list) do
+		local b = C.button({Size = UDim2.new(w, -6, 1, 0), Text = t[2], TextSize = props.TextSize or 15, LayoutOrder = i, BackgroundColor3 = C.GRAY}, strip)
+		b.Name = "Tab_" .. t[1]
+		btns[t[1]] = b
+		b.MouseButton1Click:Connect(function()
+			C.play(C.SND.click)
+			setTab(t[1])
+			if onPick then onPick(t[1]) end
+		end)
+	end
+	return strip, setTab, function() return current end, btns
+end
+-- a "Statistics" row: an icon chip, a name and the value in a pill on the right
+function C.statRow(parent, icon, name, value, order, color)
+	local r = C.card(parent, 40, order, RGB(44, 40, 72))
+	local chip = new("Frame", {Position = UDim2.fromOffset(5, 5), Size = UDim2.fromOffset(30, 30), BackgroundColor3 = color or C.PURPLE, BorderSizePixel = 0}, r)
+	C.corner(chip, 8)
+	C.stroke(chip, STYLE.outline, 2)
+	C.label({Size = UDim2.fromScale(1, 1), Text = icon, TextSize = 17}, chip)
+	C.label({Position = UDim2.fromOffset(44, 0), Size = UDim2.new(0.55, -44, 1, 0), Text = name, TextSize = 14, TextXAlignment = Enum.TextXAlignment.Left, TextWrapped = true}, r)
+	local vb = new("Frame", {AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -6, 0.5, 0), Size = UDim2.new(0.42, 0, 0, 28), BackgroundColor3 = RGB(20, 18, 34), BorderSizePixel = 0}, r)
+	C.corner(vb, 999)
+	C.stroke(vb, STYLE.outline, 2)
+	local v = C.titleText(C.label({Size = UDim2.new(1, -10, 1, 0), Position = UDim2.fromOffset(5, 0), Text = tostring(value), TextSize = 15, TextColor3 = C.GOLD, TextScaled = true}, vb))
+	new("UITextSizeConstraint", {MaxTextSize = 15, MinTextSize = 9}, v)
+	return r, v
 end
 function C.vlist(parent, pad)
 	return new("UIListLayout", {Padding = UDim.new(0, pad or 8), SortOrder = Enum.SortOrder.LayoutOrder, HorizontalAlignment = Enum.HorizontalAlignment.Center}, parent)
@@ -1514,15 +1644,22 @@ new("UIGradient", {Transparency = NumberSequence.new({NumberSequenceKeypoint.new
 
 -- ===== TOP BAR =====
 do
-	local top = panel({Position = UDim2.new(0.5, 0, 0, 56), AnchorPoint = Vector2.new(0.5, 0), Size = UDim2.fromOffset(760, 86)}, gui)
-	gradient(top, RGB(40, 44, 64), RGB(20, 22, 32))
+	-- v16.1: a glass bar (translucent navy, a thin light rim) with outlined numbers and a chunky level bar
+	local top = panel({Position = UDim2.new(0.5, 0, 0, 56), AnchorPoint = Vector2.new(0.5, 0), Size = UDim2.fromOffset(760, 86), BackgroundTransparency = 0.18}, gui)
+	top.Name = "TopBar"
+	gradient(top, RGB(46, 56, 92), RGB(18, 20, 36))
+	stroke(top, RGB(160, 215, 255), 2, 0.35)
 	label({Position = UDim2.fromOffset(10, 8), Size = UDim2.fromOffset(44, 44), Text = "💰", TextSize = 32}, top)
-	local cashL = label({Position = UDim2.fromOffset(58, 6), Size = UDim2.fromOffset(260, 30), TextXAlignment = Enum.TextXAlignment.Left, TextSize = 28, Font = Enum.Font.GothamBlack, TextColor3 = GOLD, Text = "$0"}, top)
+	local cashL = C.titleText(label({Position = UDim2.fromOffset(58, 6), Size = UDim2.fromOffset(260, 30), TextXAlignment = Enum.TextXAlignment.Left, TextSize = 30, TextColor3 = GOLD, Text = "$0"}, top))
 	local incL = label({Position = UDim2.fromOffset(58, 36), Size = UDim2.fromOffset(300, 18), TextXAlignment = Enum.TextXAlignment.Left, TextSize = 15, TextColor3 = GREEN}, top)
 	local multL = label({Position = UDim2.fromOffset(12, 60), Size = UDim2.fromOffset(370, 18), TextXAlignment = Enum.TextXAlignment.Left, TextSize = 13, TextColor3 = SUB, TextTruncate = Enum.TextTruncate.AtEnd}, top)
-	local tierL = label({Position = UDim2.new(1, -382, 0, 6), Size = UDim2.fromOffset(370, 24), TextXAlignment = Enum.TextXAlignment.Right, TextSize = 19, Font = Enum.Font.GothamBlack, TextColor3 = GOLD}, top)
-	local repFill = bar(top, UDim2.new(1, -382, 0, 34), UDim2.fromOffset(370, 9), GOLD)
+	local tierL = C.titleText(label({Position = UDim2.new(1, -382, 0, 4), Size = UDim2.fromOffset(370, 24), TextXAlignment = Enum.TextXAlignment.Right, TextSize = 20, TextColor3 = GOLD}, top))
+	-- the level bar: reputation toward the next tier (the same progress as before, just bigger, with its %)
+	local repFill, repBg = bar(top, UDim2.new(1, -382, 0, 29), UDim2.fromOffset(370, 15), GOLD)
+	repBg.Name = "XPBar"
 	gradient(repFill, RGB(255, 170, 40), RGB(255, 235, 110), 0)
+	local repPct = C.titleText(label({Name = "XPPct", Size = UDim2.fromScale(1, 1), Text = "", TextSize = 12, ZIndex = 2}, repBg))
+	U.xpBar = {fill = repFill, pct = repPct}
 	local repL = label({Position = UDim2.new(1, -382, 0, 44), Size = UDim2.fromOffset(370, 16), TextXAlignment = Enum.TextXAlignment.Right, TextSize = 12, TextColor3 = SUB, TextTruncate = Enum.TextTruncate.AtEnd}, top)
 	local statsL = label({Position = UDim2.new(1, -382, 0, 60), Size = UDim2.fromOffset(370, 18), TextXAlignment = Enum.TextXAlignment.Right, TextSize = 13, TextTruncate = Enum.TextTruncate.AtEnd}, top)
 	-- v11.1 PHONE LAYOUT: one compact row instead of the big bar.
@@ -1549,7 +1686,7 @@ do
 	tierPill.Name = "TierBadge"
 	local cTier = fitText(label({Position = UDim2.fromOffset(8, 3), Size = UDim2.new(1, -16, 0.55, -3), TextColor3 = GOLD, Font = Enum.Font.GothamBlack, Text = "⭐"}, tierPill), 14, 9)
 	local cRep = fitText(label({Position = UDim2.new(0, 8, 0.55, 0), Size = UDim2.new(1, -16, 0.45, -3), TextColor3 = SUB, Text = ""}, tierPill), 11, 8)
-	local cRepFill = bar(tierPill, UDim2.new(0, 6, 1, -4), UDim2.new(1, -12, 0, 2), GOLD)
+	local cRepFill = bar(tierPill, UDim2.new(0, 6, 1, -6), UDim2.new(1, -12, 0, 4), GOLD)
 	-- the short tier name for the badge ("LEGENDARY DISTRICT" → "LEGENDARY")
 	local SHORT = {["UNKNOWN CORNER"] = "UNKNOWN", ["LOCAL FAVORITE"] = "LOCAL FAV", ["LEGENDARY DISTRICT"] = "LEGENDARY"}
 	C.shortTier = function(name) return SHORT[name] or name end
@@ -1632,10 +1769,13 @@ do
 		multL.Text = table.concat(m, "   ")
 		tierL.Text = "⭐ " .. s.tierName
 		if s.nextRep then
-			repFill.Size = UDim2.fromScale(math.clamp((s.rep - s.prevRep) / (s.nextRep - s.prevRep), 0, 1), 1)
+			local f = math.clamp((s.rep - s.prevRep) / (s.nextRep - s.prevRep), 0, 1)
+			repFill.Size = UDim2.fromScale(f, 1)
+			repPct.Text = math.floor(f * 100) .. "%"
 			repL.Text = fmt(s.rep) .. "/" .. fmt(s.nextRep) .. " rep → " .. s.nextName .. " unlocks " .. table.concat(s.nextUnlocks or {}, ", ")
 		else
 			repFill.Size = UDim2.fromScale(1, 1)
+			repPct.Text = "MAX"
 			repL.Text = fmt(s.rep) .. " reputation  •  MAX TIER"
 		end
 		statsL.Text = string.format("🏆 %d  ♻️ %d  👥 %s followers  ⭐ %.1f  🏙️ %d%%", s.trophies, s.rebirth.count, fmt(s.followers), s.stars, math.floor(s.cityPct + 0.5))
@@ -1972,10 +2112,10 @@ end
 
 -- collapsible panel helper (the "—" button minimizes a panel down to its title bar)
 local function collapsible(p, titleText, fullSize, key)
-	label({Position = UDim2.fromOffset(12, 0), Size = UDim2.new(1, -60, 0, 36), Text = titleText, TextSize = 16, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left}, p)
+	C.titleText(label({Position = UDim2.fromOffset(12, 0), Size = UDim2.new(1, -60, 0, 36), Text = titleText, TextSize = 17, TextXAlignment = Enum.TextXAlignment.Left}, p))
 	local btn = button({Position = UDim2.new(1, -40, 0, 5), Size = UDim2.fromOffset(30, 26), Text = "—", TextSize = 16, BackgroundColor3 = GRAY}, p)
 	-- phone: the panel is a window opened from an edge button, so "—" becomes a big ✕
-	local x = button({Position = UDim2.new(1, -46, 0, 2), Size = UDim2.fromOffset(42, 34), Text = "X", TextSize = 18, BackgroundColor3 = RED, Visible = false}, p)
+	local x = C.closeX({Position = UDim2.new(1, -46, 0, 2), Size = UDim2.fromOffset(42, 34), TextSize = 18, Visible = false}, p)
 	local body = new("Frame", {Position = UDim2.fromOffset(0, 38), Size = UDim2.new(1, 0, 1, -38), BackgroundTransparency = 1}, p)
 	local open = true
 	local function set(v)
@@ -4800,15 +4940,25 @@ local fmt, clock, stars, play, SND, act, gui, U, plr, catalog, R = C.fmt, C.cloc
 local BG, CARD, GOLD, GREEN, GRAY, RED, BLUE, PURPLE, WHITE, SUB = C.BG, C.CARD, C.GOLD, C.GREEN, C.GRAY, C.RED, C.BLUE, C.PURPLE, C.WHITE, C.SUB
 local modals = C.modals
 
+-- v16.1: each window's banner color (dark enough for white lettering; the Store is the classic purple shop)
+C.WINDOW_COLORS = {default = RGB(96, 64, 180), passes = RGB(120, 60, 200), heists = RGB(150, 40, 50), park = RGB(200, 90, 30), daily = RGB(176, 120, 20),
+	roadmap = RGB(40, 100, 180), garage = RGB(40, 100, 180), staff = RGB(40, 130, 90), market = RGB(40, 130, 80), settings = RGB(80, 84, 110),
+	theater = RGB(160, 30, 50), rivals = RGB(150, 40, 50), empireHall = RGB(160, 110, 20), leaders = RGB(160, 110, 20), party = RGB(170, 50, 140),
+	fun = RGB(190, 60, 140), explore = RGB(30, 130, 110), partners = RGB(40, 120, 100), occasions = RGB(190, 90, 30), activity = RGB(170, 60, 70)}
 local LOCKS = {garage = "cars", staff = "staff", market = "market", marketing = "ads", properties = "properties", fun = "funpark"}
 C.MODAL_LOCKS = LOCKS
 local Lay = C.Layout
 local function modal(key, title, w, h)
 	local f = panel({AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.53), Size = UDim2.fromOffset(w, h), Visible = false, ZIndex = Lay.Z.modal}, gui)
 	f.Name = "Modal_" .. key
-	gradient(f, RGB(40, 44, 64), RGB(20, 22, 32))
-	local t = label({Size = UDim2.new(1, 0, 0, 50), Text = title, TextSize = 24, Font = Enum.Font.GothamBlack}, f)
-	local x = button({Position = UDim2.new(1, -46, 0, 8), Size = UDim2.fromOffset(36, 36), Text = "X", TextSize = 18, BackgroundColor3 = RED}, f)
+	gradient(f, RGB(46, 48, 74), RGB(24, 24, 38))
+	-- v16.1: a colored title banner (each window's own color) with chunky outlined lettering, and the red X
+	local band = new("Frame", {Name = "TitleBand", Size = UDim2.new(1, 0, 0, 50), BackgroundColor3 = C.WINDOW_COLORS[key] or C.WINDOW_COLORS.default, BorderSizePixel = 0, ZIndex = 0}, f)
+	corner(band, 14)
+	gradient(band, C.STYLE.gloss)
+	stroke(band, C.STYLE.outline, 3)
+	local t = C.titleText(label({Size = UDim2.new(1, 0, 0, 50), Text = title, TextSize = 26}, f))
+	local x = C.closeX({Position = UDim2.new(1, -46, 0, 7), Size = UDim2.fromOffset(38, 36)}, f)
 	local body = new("ScrollingFrame", {Position = UDim2.fromOffset(12, 54), Size = UDim2.new(1, -24, 1, -66), BackgroundTransparency = 1, BorderSizePixel = 0,
 		ScrollBarThickness = 6, AutomaticCanvasSize = Enum.AutomaticSize.Y, CanvasSize = UDim2.new()}, f)
 	vlist(body, 8)
@@ -4892,28 +5042,37 @@ C.onState(function(s)
 end)
 
 -- ===== PASSES =====
+-- v16.1: a shop window (tabs, one glossy card per pass with its icon, what it does and a Robux price pill).
+-- Same passes, same prices, same purchase action as before: only the look changed.
 do
-	local m = modal("passes", "🛒  GAME PASSES", 620, 500)
-	local grid = autoFrame(m.body, 1)
-	new("UIGridLayout", {CellSize = UDim2.fromOffset(182, 196), CellPadding = UDim2.fromOffset(10, 10), HorizontalAlignment = Enum.HorizontalAlignment.Center}, grid)
+	local m = modal("passes", "🛒  STORE", 620, 520)
+	local GROUP = {x2 = "money", x4 = "money", vip = "money", richstart = "money", goldcar = "perks", nitro = "perks", shield = "perks"}
 	local cards = {}
-	for _, p in ipairs(catalog.passes) do
-		local c = new("Frame", {BackgroundColor3 = CARD, BorderSizePixel = 0}, grid)
-		corner(c, 10)
-		local st = stroke(c, GOLD, 2, 0.6)
-		label({Position = UDim2.fromOffset(0, 8), Size = UDim2.new(1, 0, 0, 46), Text = p.icon, TextSize = 40}, c)
-		label({Position = UDim2.fromOffset(6, 56), Size = UDim2.new(1, -12, 0, 22), Text = p.name, TextSize = 16, Font = Enum.Font.GothamBlack}, c)
-		label({Position = UDim2.fromOffset(8, 78), Size = UDim2.new(1, -16, 0, 50), Text = p.desc, TextSize = 12, TextWrapped = true, TextColor3 = SUB}, c)
-		local btn = button({Position = UDim2.new(0.5, 0, 1, -10), AnchorPoint = Vector2.new(0.5, 1), Size = UDim2.new(1, -20, 0, 42), TextSize = 16, Text = "R$ " .. p.price}, c)
+	local _, setTab = C.tabs(m.body, {{"all", "⭐ All"}, {"money", "💵 Money"}, {"perks", "🏎️ Perks"}}, function(k)
+		for _, c in pairs(cards) do c.frame.Visible = k == "all" or c.group == k end
+	end, {LayoutOrder = 0, color = RGB(120, 60, 200)})
+	for i, p in ipairs(catalog.passes) do
+		local c = card(m.body, 84, i, RGB(58, 44, 96))
+		c.Name = "Pass_" .. p.key
+		local chip = new("Frame", {Position = UDim2.fromOffset(8, 8), Size = UDim2.fromOffset(68, 68), BackgroundColor3 = RGB(120, 60, 200), BorderSizePixel = 0}, c)
+		corner(chip, 14)
+		gradient(chip, C.STYLE.gloss)
+		stroke(chip, C.STYLE.outline, 2.5)
+		label({Size = UDim2.fromScale(1, 1), Text = p.icon, TextSize = 38}, chip)
+		C.titleText(label({Position = UDim2.fromOffset(86, 8), Size = UDim2.new(1, -230, 0, 24), Text = p.name, TextSize = 19, TextXAlignment = Enum.TextXAlignment.Left}, c))
+		label({Position = UDim2.fromOffset(86, 32), Size = UDim2.new(1, -230, 0, 46), Text = p.desc, TextSize = 12, TextWrapped = true, TextColor3 = RGB(205, 200, 230),
+			TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top}, c)
+		local btn = C.pill({AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -10, 0.5, 0), Size = UDim2.fromOffset(124, 46), Text = tostring(p.price)}, c, "robux")
+		btn.Name = "Buy_" .. p.key
 		btn.MouseButton1Click:Connect(function() play(SND.click) act("pass", p.key) end)
-		cards[p.key] = {btn = btn, stroke = st, price = p.price}
+		cards[p.key] = {btn = btn, stroke = c:FindFirstChild("Outline"), price = p.price, frame = c, group = GROUP[p.key] or "perks"}
 	end
+	setTab("all")
 	m.update = function(s)
 		for key, c in pairs(cards) do
 			local owned = s.passes[key]
-			c.btn.Text = owned and "✔ OWNED" or ("R$ " .. c.price)
-			c.btn.BackgroundColor3 = owned and GRAY or GREEN
-			c.stroke.Transparency = owned and 0 or 0.6
+			C.setPill(c.btn, owned and "off" or "robux", owned and "✔ OWNED" or ("R$ " .. c.price))
+			stroke(c.frame, owned and GOLD or C.STYLE.outline, owned and 3 or 2, owned and 0 or 0.15)
 		end
 	end
 end
@@ -4983,8 +5142,8 @@ do
 	cp.Name = "CandidatesWindow"
 	Lay.window("candidates", cp, {major = false})   -- opens over the staff window, so it isn't a "big window" of its own
 	gradient(cp, RGB(45, 55, 80), RGB(22, 26, 38))
-	local cpT = label({Size = UDim2.new(1, 0, 0, 44), TextSize = 20, Font = Enum.Font.GothamBlack}, cp)
-	local cx = button({Position = UDim2.new(1, -44, 0, 6), Size = UDim2.fromOffset(34, 34), Text = "X", BackgroundColor3 = RED}, cp)
+	local cpT = C.titleText(label({Size = UDim2.new(1, 0, 0, 44), TextSize = 22}, cp))
+	local cx = C.closeX({Position = UDim2.new(1, -44, 0, 6), Size = UDim2.fromOffset(36, 34)}, cp)
 	cx.MouseButton1Click:Connect(function() cp.Visible = false end)
 	local cands = {}
 	local curSlot
@@ -5513,17 +5672,29 @@ end
 do
 	local m = modal("settings", "⚙️  SETTINGS", 560, 560)
 	local rows = {}
+	-- v16.1: "Statistics"-style rows: an icon chip, the setting's name, and its value on a chunky button
+	-- (ON is green, OFF is red, everything else blue)
+	local function paint(b, t)
+		b.Text = t
+		b.BackgroundColor3 = t == "ON" and GREEN or (t == "OFF" and RED or BLUE)
+	end
 	local function row(order, title, getText, onClick)
-		local c = card(m.body, 52, order)
-		label({Position = UDim2.fromOffset(14, 0), Size = UDim2.new(1, -180, 1, 0), TextSize = 15, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left, Text = title}, c)
-		local b = button({Position = UDim2.new(1, -160, 0.5, 0), AnchorPoint = Vector2.new(0, 0.5), Size = UDim2.fromOffset(150, 38), TextSize = 14, BackgroundColor3 = BLUE}, c)
+		local c = card(m.body, 52, order, RGB(44, 40, 72))
+		local icon, name = title:match("^(%S+)%s+(.+)$")
+		local chip = new("Frame", {Position = UDim2.fromOffset(8, 8), Size = UDim2.fromOffset(36, 36), BackgroundColor3 = PURPLE, BorderSizePixel = 0}, c)
+		corner(chip, 10)
+		gradient(chip, C.STYLE.gloss)
+		stroke(chip, C.STYLE.outline, 2)
+		label({Size = UDim2.fromScale(1, 1), Text = icon or "⚙️", TextSize = 20}, chip)
+		C.titleText(label({Position = UDim2.fromOffset(54, 0), Size = UDim2.new(1, -220, 1, 0), TextSize = 16, TextXAlignment = Enum.TextXAlignment.Left, Text = name or title}, c))
+		local b = button({Position = UDim2.new(1, -160, 0.5, 0), AnchorPoint = Vector2.new(0, 0.5), Size = UDim2.fromOffset(150, 38), TextSize = 15, BackgroundColor3 = BLUE}, c)
 		b.MouseButton1Click:Connect(function()
 			play(SND.click)
 			onClick()
-			for _, r in ipairs(rows) do r.b.Text = r.get() end
+			for _, r in ipairs(rows) do paint(r.b, r.get()) end
 		end)
 		table.insert(rows, {b = b, get = getText})
-		b.Text = getText()
+		paint(b, getText())
 	end
 	local st = C.settings
 	row(1, "🎵 Music", function() return st.music and "ON" or "OFF" end, function() C.setSetting("music", not st.music) end)
@@ -5573,7 +5744,7 @@ do
 		end)
 	end
 	C.U.refreshSettings = function()
-		for _, r in ipairs(rows) do r.b.Text = r.get() end
+		for _, r in ipairs(rows) do paint(r.b, r.get()) end
 	end
 	local note = label({Size = UDim2.new(1, -8, 0, 36), TextSize = 12, TextColor3 = SUB, TextWrapped = true, LayoutOrder = 20}, m.body)
 	m.update = function()
@@ -5734,9 +5905,14 @@ do
 	local tierL, tierC = row(4, 86, RGB(56, 44, 20))
 	local repFill = bar(tierC, UDim2.new(0, 12, 1, -14), UDim2.new(1, -24, 0, 8), GOLD)
 	header(m.body, "📊 STATS", 5)
-	local statsL = row(6, 64)
-	header(m.body, "🏙️ THE CITY", 7)
-	local cityL = row(8, 70)
+	-- (v16.1: one "Statistics" row each, the value in a pill)
+	local stat = {}
+	for i, k in ipairs({{"trophies", "🏆", "Trophies"}, {"rebirths", "♻️", "Rebirths"}, {"followers", "👥", "Followers"}, {"stars", "⭐", "Star rating"}, {"city", "🏙️", "City owned"}}) do
+		local _, v = C.statRow(m.body, k[2], k[3], "", 5 + i)
+		stat[k[1]] = v
+	end
+	header(m.body, "🏙️ THE CITY", 20)
+	local cityL = row(21, 70)
 	m.update = function(s)
 		local rent = s.rentRate or 0
 		cashL.Text = "💰 $" .. fmt(s.cash) .. "\n+$" .. fmt(s.income) .. " per second" .. (rent ~= 0 and ("   🏢 rent " .. (rent > 0 and "+" or "-") .. "$" .. fmt(math.abs(rent)) .. "/s") or "")
@@ -5759,7 +5935,11 @@ do
 			tierL.Text = "⭐ " .. s.tierName .. "\n" .. fmt(s.rep) .. " reputation  •  MAX TIER"
 			repFill.Size = UDim2.fromScale(1, 1)
 		end
-		statsL.Text = string.format("🏆 %d trophies   ♻️ %d rebirths\n👥 %s followers   ⭐ %.1f stars   🏙️ %d%% of the city", s.trophies, s.rebirth.count, fmt(s.followers), s.stars, math.floor(s.cityPct + 0.5))
+		stat.trophies.Text = tostring(s.trophies)
+		stat.rebirths.Text = tostring(s.rebirth.count)
+		stat.followers.Text = fmt(s.followers)
+		stat.stars.Text = string.format("%.1f ★", s.stars)
+		stat.city.Text = math.floor(s.cityPct + 0.5) .. "%"
 		local ev
 		if s.frozen > 0 then ev = "❄️ YOUR INCOME IS FROZEN (" .. s.frozen .. "s)"
 		elseif s.eventLeft then ev = "⚡ " .. tostring(s.eventText) .. " (" .. s.eventLeft .. "s)"
@@ -8148,7 +8328,7 @@ end
 -- claimed. Never full-screen. The server (GameServer > Daily / LiveEvents) decides and pays everything.
 return function(C)
 local RGB = Color3.fromRGB
-local new, label, button, card, clear, stroke, panel, corner = C.new, C.label, C.button, C.card, C.clear, C.stroke, C.panel, C.corner
+local new, label, button, card, clear, stroke, panel, corner, gradient = C.new, C.label, C.button, C.card, C.clear, C.stroke, C.panel, C.corner, C.gradient
 local fmt, play, SND, act, R, gui = C.fmt, C.play, C.SND, C.act, C.R, C.gui
 local GOLD, GREEN, GRAY, BLUE, PURPLE, WHITE, SUB = C.GOLD, C.GREEN, C.GRAY, C.BLUE, C.PURPLE, C.WHITE, C.SUB
 local Lay = C.Layout
@@ -8163,15 +8343,23 @@ local function txt(parent, text, pos, size, px, color, bold)
 		Font = bold and Enum.Font.GothamBlack or Enum.Font.GothamBold, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top}, parent)
 end
 local function btn(parent, text, pos, size, color, fn, name)
-	local b = button({Position = pos, Size = size, Text = text, TextSize = 13, TextWrapped = true, BackgroundColor3 = color or BLUE}, parent)
+	local b = button({Position = pos, Size = size, Text = text, TextSize = 14, TextWrapped = true, BackgroundColor3 = color or BLUE}, parent)
 	if name then b.Name = name end
+	-- (v16.1: claim buttons are green pills)
+	if name and name:find("Claim") then
+		corner(b, 999)
+		b:SetAttribute("Pill", color == GREEN and "buy" or "off")
+	end
 	b.MouseButton1Click:Connect(function() play(SND.click) fn(b) end)
 	return b
 end
 local function bar(parent, pos, size, f, color)
 	local bg = new("Frame", {Position = pos, Size = size, BackgroundColor3 = RGB(50, 54, 70), BorderSizePixel = 0}, parent)
-	corner(bg, 5)
-	corner(new("Frame", {Size = UDim2.fromScale(math.clamp(f, 0, 1), 1), BackgroundColor3 = color or BLUE, BorderSizePixel = 0}, bg), 5)
+	corner(bg, 6)
+	stroke(bg, C.STYLE.outline, 2)
+	local fill = new("Frame", {Size = UDim2.fromScale(math.clamp(f, 0, 1), 1), BackgroundColor3 = color or BLUE, BorderSizePixel = 0}, bg)
+	corner(fill, 6)
+	gradient(fill, C.STYLE.gloss)
 	return bg
 end
 local function hm(s)
@@ -8198,11 +8386,13 @@ local function render()
 	for _, r in ipairs(info.rewards) do
 		local isToday = r.day == info.today
 		local past = r.day < info.today or (isToday and info.claimedToday)
-		local c = new("Frame", {Size = UDim2.new(1 / 7, -4, 1, 0), BackgroundColor3 = isToday and RGB(90, 70, 20) or RGB(34, 38, 56), BorderSizePixel = 0, LayoutOrder = r.day}, strip)
+		-- (v16.1: glossy day cards: today gold-rimmed, claimed days dimmed with ✅)
+		local c = new("Frame", {Size = UDim2.new(1 / 7, -4, 1, 0), BackgroundColor3 = isToday and RGB(110, 80, 20) or (past and RGB(30, 32, 44) or RGB(52, 46, 90)), BorderSizePixel = 0, LayoutOrder = r.day}, strip)
 		c.Name = "Day" .. r.day
-		corner(c, 6)
-		if isToday then stroke(c, GOLD, 2, 0) end
-		label({Size = UDim2.new(1, 0, 0, 16), Text = "DAY " .. r.day, TextSize = 10, Font = Enum.Font.GothamBlack, TextColor3 = isToday and GOLD or SUB}, c)
+		corner(c, 10)
+		gradient(c, C.STYLE.gloss)
+		stroke(c, isToday and GOLD or C.STYLE.outline, isToday and 3 or 2, 0)
+		C.titleText(label({Size = UDim2.new(1, 0, 0, 16), Text = "DAY " .. r.day, TextSize = 11, TextColor3 = isToday and GOLD or SUB}, c))
 		label({Position = UDim2.fromOffset(0, 16), Size = UDim2.new(1, 0, 0, 30), Text = past and "✅" or r.icon, TextSize = 22}, c)
 		local l = label({Position = UDim2.fromOffset(2, 46), Size = UDim2.new(1, -4, 0, 28), Text = r.name, TextSize = 9, TextWrapped = true, TextColor3 = WHITE}, c)
 		l.TextScaled = true
@@ -8348,15 +8538,23 @@ local function txt(parent, text, pos, size, px, color, bold)
 		Font = bold and Enum.Font.GothamBlack or Enum.Font.GothamBold, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top}, parent)
 end
 local function btn(parent, text, pos, size, color, fn, name)
-	local b = button({Position = pos, Size = size, Text = text, TextSize = 13, TextWrapped = true, BackgroundColor3 = color or BLUE}, parent)
+	local b = button({Position = pos, Size = size, Text = text, TextSize = 14, TextWrapped = true, BackgroundColor3 = color or BLUE}, parent)
 	if name then b.Name = name end
+	-- (v16.1: go / collect buttons are green pills)
+	if color == GREEN then
+		C.corner(b, 999)
+		b:SetAttribute("Pill", "buy")
+	end
 	b.MouseButton1Click:Connect(function() play(SND.click) fn(b) end)
 	return b
 end
 local function bar(parent, pos, size, f, color)
 	local bg = new("Frame", {Position = pos, Size = size, BackgroundColor3 = RGB(50, 54, 70), BorderSizePixel = 0}, parent)
-	corner(bg, 5)
-	corner(new("Frame", {Size = UDim2.fromScale(math.clamp(f, 0, 1), 1), BackgroundColor3 = color or BLUE, BorderSizePixel = 0}, bg), 5)
+	corner(bg, 6)
+	C.stroke(bg, C.STYLE.outline, 2)
+	local fill = new("Frame", {Size = UDim2.fromScale(math.clamp(f, 0, 1), 1), BackgroundColor3 = color or BLUE, BorderSizePixel = 0}, bg)
+	corner(fill, 6)
+	C.gradient(fill, C.STYLE.gloss)
 end
 local function money(r, v) return r.money and ("$" .. fmt(v)) or fmt(v) end
 
@@ -10164,7 +10362,7 @@ label({Position = UDim2.new(1, -90, 0, 6), Size = UDim2.fromOffset(74, 18), Text
 new("Frame", {AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 6), Size = UDim2.fromOffset(90, 18), BackgroundColor3 = Color3.new(0, 0, 0), BorderSizePixel = 0, ZIndex = 23}, screen)
 local sc = new("UIScale", {}, phone)
 -- phone layout: a clear ✕ on the phone itself
-local closeX = button({AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -20, 0, 15), Size = UDim2.fromOffset(38, 28), Text = "X", TextSize = 17, BackgroundColor3 = RED, ZIndex = 40, Visible = false}, phone)
+local closeX = C.closeX({AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -20, 0, 15), Size = UDim2.fromOffset(38, 28), TextSize = 17, ZIndex = 40, Visible = false}, phone)
 
 local views = {}
 -- what to run when a view opens. (Kept in a Lua table: Roblox doesn't allow custom fields on Instances, so
@@ -10305,10 +10503,17 @@ do
 	local icons = {}
 	for i, a in ipairs(APPS) do
 		local cell = new("Frame", {BackgroundTransparency = 1, LayoutOrder = i, ZIndex = 22}, grid)
+		-- v16.1: glossy icon tiles (the app's color, a dark outline and a shine strip across the top)
 		local b = button({Size = UDim2.fromOffset(56, 56), Position = UDim2.fromOffset(3, 0), Text = a[1], TextSize = 28, BackgroundColor3 = a[5], ZIndex = 23}, cell)
-		corner(b, 14)
-		label({Position = UDim2.fromOffset(-6, 58), Size = UDim2.new(1, 12, 0, 16), Text = a[2], TextSize = 11, ZIndex = 23}, cell)
-		local lock = label({Size = UDim2.fromScale(1, 1), Text = "🔒", TextSize = 24, Visible = false, ZIndex = 25}, b)
+		b.Name = "App_" .. a[4]
+		corner(b, 16)
+		local shine = new("Frame", {Name = "Shine", Position = UDim2.new(0, 6, 0, 3), Size = UDim2.new(1, -12, 0.32, 0), BackgroundColor3 = Color3.new(1, 1, 1),
+			BackgroundTransparency = 0.72, BorderSizePixel = 0, ZIndex = 23}, b)
+		corner(shine, 10)
+		C.titleText(label({Position = UDim2.fromOffset(-6, 58), Size = UDim2.new(1, 12, 0, 16), Text = a[2], TextSize = 12, ZIndex = 23}, cell))
+		local lock = new("Frame", {Name = "LockGlass", Size = UDim2.fromScale(1, 1), BackgroundColor3 = RGB(10, 10, 20), BackgroundTransparency = 0.45, BorderSizePixel = 0, Visible = false, ZIndex = 25}, b)
+		corner(lock, 16)
+		label({Size = UDim2.fromScale(1, 1), Text = "🔒", TextSize = 24, ZIndex = 26}, lock)
 		b.MouseButton1Click:Connect(function()
 			play(SND.click)
 			if a[6] and C.locked(a[6]) then
@@ -13364,7 +13569,7 @@ local iTitle = label({Position = UDim2.fromOffset(8, 4), Size = UDim2.new(1, -40
 local iKind = label({Position = UDim2.fromOffset(8, 24), Size = UDim2.new(1, -16, 0, 14), TextSize = 11, TextColor3 = SUB, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 27}, info)
 local iDesc = label({Position = UDim2.fromOffset(8, 40), Size = UDim2.new(1, -16, 0, 30), TextSize = 11, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left,
 	TextYAlignment = Enum.TextYAlignment.Top, ZIndex = 27}, info)
-local iClose = button({Position = UDim2.new(1, -30, 0, 4), Size = UDim2.fromOffset(24, 22), Text = "✕", TextSize = 12, BackgroundColor3 = GRAY, ZIndex = 28}, info)
+local iClose = C.closeX({Position = UDim2.new(1, -30, 0, 4), Size = UDim2.fromOffset(24, 22), Text = "✕", TextSize = 12, BackgroundColor3 = GRAY, ZIndex = 28}, info)
 local iMark = button({Position = UDim2.new(0, 8, 1, -32), Size = UDim2.new(0.5, -12, 0, 26), Text = "📍 Mark", TextSize = 12, BackgroundColor3 = RGB(200, 70, 170), ZIndex = 28}, info)
 local iGo = button({Position = UDim2.new(0.5, 4, 1, -32), Size = UDim2.new(0.5, -12, 0, 26), Text = "🚀 Go", TextSize = 12, BackgroundColor3 = RGB(50, 120, 220), ZIndex = 28}, info)
 -- the list of places (also the easiest way to pick one with a controller)
@@ -13578,7 +13783,7 @@ end})
 local panel = C.panel({AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -16, 0.5, 0), Size = UDim2.fromOffset(330, 470), BackgroundColor3 = RGB(28, 26, 40), Visible = false, ZIndex = 5}, gui)
 new("UISizeConstraint", {MaxSize = Vector2.new(330, 470)}, panel)
 label({Position = UDim2.fromOffset(12, 4), Size = UDim2.new(1, -60, 0, 30), Text = "🛋️ DECORATE", TextSize = 16, Font = Enum.Font.GothamBlack, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 6}, panel)
-local closeB = button({Position = UDim2.new(1, -40, 0, 6), Size = UDim2.fromOffset(30, 26), Text = "✕", TextSize = 14, BackgroundColor3 = GRAY, ZIndex = 6}, panel)
+local closeB = C.closeX({Position = UDim2.new(1, -40, 0, 6), Size = UDim2.fromOffset(30, 26), Text = "✕", TextSize = 14, BackgroundColor3 = GRAY, ZIndex = 6}, panel)
 -- phone layout: a bottom sheet (the room stays visible above it); one big window at a time
 panel.Name = "DecoratePanel"
 C.Layout.window("decorate", panel, {sheet = true, desktopFit = false, onFit = function(compact)
@@ -15524,7 +15729,7 @@ gradient(ovPanel, RGB(40, 44, 64), RGB(20, 22, 32))
 local ovTitle = label({Size = UDim2.new(1, 0, 0, 56), TextSize = 26, Font = Enum.Font.GothamBlack, ZIndex = 12}, ovPanel)
 local ovBody = new("ScrollingFrame", {Position = UDim2.fromOffset(20, 60), Size = UDim2.new(1, -40, 1, -80), BackgroundTransparency = 1, BorderSizePixel = 0, ZIndex = 12,
 	ScrollBarThickness = 4, AutomaticCanvasSize = Enum.AutomaticSize.X, CanvasSize = UDim2.new(), ScrollingDirection = Enum.ScrollingDirection.X}, ovPanel)
-local ovClose = button({Position = UDim2.new(1, -48, 0, 10), Size = UDim2.fromOffset(38, 38), Text = "X", BackgroundColor3 = RED, ZIndex = 13}, ovPanel)
+local ovClose = C.closeX({Position = UDim2.new(1, -48, 0, 10), Size = UDim2.fromOffset(38, 38), ZIndex = 13}, ovPanel)
 ovClose.MouseButton1Click:Connect(function() overlay.Visible = false end)
 
 -- v11.1 phone layout: everything sized to the screen. Save slots and starter homes become swipeable carousels
