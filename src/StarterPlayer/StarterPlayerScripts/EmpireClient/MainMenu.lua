@@ -10,14 +10,18 @@ local CARD, GOLD, GREEN, GRAY, RED, BLUE, WHITE, SUB = C.CARD, C.GOLD, C.GREEN, 
 local mg = new("ScreenGui", {Name = "MainMenu", ResetOnSpawn = false, IgnoreGuiInset = true, DisplayOrder = 20, Enabled = true}, plr:WaitForChild("PlayerGui"))
 local shade = new("Frame", {Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.new(0, 0, 0), BackgroundTransparency = 0.35, BorderSizePixel = 0}, mg)
 new("UIGradient", {Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 0.2), NumberSequenceKeypoint.new(0.5, 0.7), NumberSequenceKeypoint.new(1, 0.1)}), Rotation = 90}, shade)
-local title = label({AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0.06, 0), Size = UDim2.new(0.8, 0, 0, 100), Text = "💰 CORNER EMPIRE", TextScaled = true, Font = C.STYLE.font, TextColor3 = GOLD}, mg)
+-- (v19: the logo: a gold crown over CORNER EMPIRE, then the promise, then BUILD • RUN • EXPLORE • RISE)
+local crown = C.crownLogo({Name = "Crown", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0.06, -6)}, mg, 50)
+local title = label({Name = "Title", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0.06, 44), Size = UDim2.new(0.8, 0, 0, 76), Text = "CORNER EMPIRE", TextScaled = true, Font = C.STYLE.font, TextColor3 = GOLD}, mg)
 new("UIStroke", {Thickness = 5, Color = RGB(60, 30, 0)}, title)
 local tscale = new("UIScale", {}, title)
 -- (v18: the full name, "Corner Empire: Rags to Billions": the subtitle is the promise, big and dramatic)
-local subtitle = C.titleText(label({Name = "Subtitle", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0.06, 102), Size = UDim2.fromOffset(700, 34),
+local subtitle = C.titleText(label({Name = "Subtitle", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0.06, 122), Size = UDim2.fromOffset(700, 34),
 	Text = "⚡ RAGS TO BILLIONS ⚡", TextSize = 32, TextColor3 = WHITE}, mg))
+local motto = C.titleText(label({Name = "Motto", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0.06, 156), Size = UDim2.fromOffset(700, 20),
+	Text = "BUILD • RUN • EXPLORE • RISE", TextSize = 18, TextColor3 = GOLD}, mg))
 local notice = label({AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -18), Size = UDim2.fromOffset(900, 40), TextSize = 14, TextWrapped = true, TextColor3 = RGB(255, 200, 120), TextStrokeTransparency = 0.4}, mg)
-local status = label({AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0.06, 140), Size = UDim2.fromOffset(700, 24), TextSize = 16, TextColor3 = GREEN, Text = ""}, mg)
+local status = label({AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0.06, 178), Size = UDim2.fromOffset(700, 24), TextSize = 16, TextColor3 = GREEN, Text = ""}, mg)
 -- (a scrolling row: on a phone the save cards become a swipeable carousel)
 local row = new("ScrollingFrame", {AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.6), Size = UDim2.fromOffset(880, 330), BackgroundTransparency = 1, BorderSizePixel = 0,
 	ScrollBarThickness = 4, AutomaticCanvasSize = Enum.AutomaticSize.X, CanvasSize = UDim2.new(), ScrollingDirection = Enum.ScrollingDirection.X}, mg)
@@ -60,6 +64,10 @@ local function fitMenu(L)
 		subtitle.Size = UDim2.new(0.94, 0, 0, 30)
 		subtitle.TextScaled = true
 		status.Size = UDim2.new(0.94, 0, 0, 24)
+		motto.Size = UDim2.new(0.94, 0, 0, 18)
+		motto.TextScaled = true
+		-- (a short landscape phone has no room for the crown above the title)
+		crown.Visible = vp.Y >= 560
 		notice.Size = UDim2.new(0.94, 0, 0, 40)
 		notice.TextScaled = true
 		rowScale.Scale = math.min(1, (vp.Y * 0.55) / 330)
@@ -70,6 +78,8 @@ local function fitMenu(L)
 	else
 		subtitle.Size, subtitle.TextScaled = UDim2.fromOffset(700, 30), false
 		status.Size = UDim2.fromOffset(700, 24)
+		motto.Size, motto.TextScaled = UDim2.fromOffset(700, 20), false
+		crown.Visible = true
 		notice.Size, notice.TextScaled = UDim2.fromOffset(900, 40), false
 		rowScale.Scale = 1
 		row.Size = UDim2.fromOffset(880, 330)

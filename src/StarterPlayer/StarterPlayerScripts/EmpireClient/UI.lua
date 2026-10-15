@@ -111,6 +111,36 @@ function C.titleText(o)
 	o.Font = STYLE.font
 	return C.outlineText(o)
 end
+-- v19: the CORNER EMPIRE crown, built from frames (no image asset): three gold points tipped with gems over a
+-- jewelled band. h is its height in pixels; it is twice as wide. Used by the main menu and the intro title card.
+function C.crownLogo(props, parent, h)
+	h = h or 48
+	local z = props.ZIndex or 1
+	props.BackgroundTransparency, props.Size = 1, UDim2.fromOffset(h * 2, h)
+	local f = new("Frame", props, parent)
+	local function circle(x, y, d, col)
+		local g = new("Frame", {AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(x, 0, 0, y), Size = UDim2.fromOffset(d, d), BackgroundColor3 = col, BorderSizePixel = 0, ZIndex = z + 2}, f)
+		new("UICorner", {CornerRadius = UDim.new(0.5, 0)}, g)
+		C.stroke(g, STYLE.outline, 2, 0)
+	end
+	for _, s in ipairs({{0.2, 0.56, 0.5}, {0.5, 0.48, 0.62}, {0.8, 0.56, 0.5}}) do
+		local side = h * s[3]
+		local spike = new("Frame", {Name = "Point", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(s[1], 0, s[2], 0), Size = UDim2.fromOffset(side, side), Rotation = 45,
+			BackgroundColor3 = Color3.new(1, 1, 1), BorderSizePixel = 0, ZIndex = z}, f)
+		C.stroke(spike, STYLE.outline, 2, 0)
+		C.gradient(spike, Color3.fromRGB(255, 236, 140), Color3.fromRGB(220, 150, 20), 0)
+		circle(s[1], s[2] * h - side * 0.707, h * 0.17, Color3.fromRGB(255, 250, 235))
+	end
+	local band = new("Frame", {Name = "Band", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0.6, 0), Size = UDim2.new(0.84, 0, 0.34, 0), BackgroundColor3 = Color3.new(1, 1, 1),
+		BorderSizePixel = 0, ZIndex = z + 1}, f)
+	C.corner(band, math.max(3, math.floor(h * 0.08)))
+	C.stroke(band, STYLE.outline, 2, 0)
+	C.gradient(band, Color3.fromRGB(255, 226, 110), Color3.fromRGB(196, 128, 16))
+	for i, col in ipairs({Color3.fromRGB(230, 50, 70), Color3.fromRGB(60, 200, 110), Color3.fromRGB(70, 140, 255)}) do
+		circle(0.5 + (i - 2) * 0.24, h * 0.77, h * 0.16, col)
+	end
+	return f
+end
 function C.panel(props, parent)
 	props.BackgroundColor3 = props.BackgroundColor3 or C.BG
 	props.BorderSizePixel = 0

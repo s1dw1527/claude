@@ -6,7 +6,7 @@
 --                   in an alley, police lights far away: "BUILD IT LEGIT." "TAKE BIG RISKS." "OR RULE BOTH SIDES."
 --   3 THE RISE      the Fun Park's Big Dipper, the Funland Grounds, the mountain, the Empire Spire, counters climbing:
 --                   "YOUR CITY. YOUR EMPIRE. YOUR RULES."
---   4 THE TITLE     CORNER EMPIRE / Build Your Fortune. Risk Everything. Leave a Legacy. → START MY EMPIRE / SKIP
+--   4 THE TITLE     (crown) CORNER EMPIRE / RAGS TO BILLIONS / BUILD • RUN • EXPLORE • RISE / Build Your Fortune. Risk Everything. Leave a Legacy. → START MY EMPIRE / SKIP
 -- SKIP is on screen from the first frame (and Esc / the gamepad's B or Start). Only one intro can play at a
 -- time. Whatever ends it (finished, skipped, an error, a respawn, the window being closed) runs ONE cleanup that
 -- puts the camera, field of view, HUD and controls back and removes every temporary part, effect, sound and
@@ -152,15 +152,20 @@ local function buildGui()
 	corner(titleCard, 18)
 	stroke(titleCard, GOLD, 3, 0)
 	new("UIGradient", {Color = ColorSequence.new(RGB(24, 32, 70), BLACK), Rotation = 90}, titleCard)
-	local t = label({Name = "TitleText", Position = UDim2.fromScale(0.05, 0.04), Size = UDim2.fromScale(0.9, 0.27), Text = "CORNER EMPIRE", TextScaled = true, Font = C.STYLE and C.STYLE.font or Enum.Font.GothamBlack, TextColor3 = GOLD}, titleCard)
+	-- (v19: the crown logo over the name)
+	C.crownLogo({Name = "Crown", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 10)}, titleCard, 46)
+	local t = label({Name = "TitleText", Position = UDim2.new(0.05, 0, 0, 60), Size = UDim2.new(0.9, 0, 0.31, -60), Text = "CORNER EMPIRE", TextScaled = true, Font = C.STYLE and C.STYLE.font or Enum.Font.GothamBlack, TextColor3 = GOLD}, titleCard)
 	new("UITextSizeConstraint", {MaxTextSize = 80, MinTextSize = 22}, t)
 	new("UIStroke", {Thickness = 3, Color = RGB(60, 40, 0)}, t)
 	-- (v18: the subtitle that makes the promise)
-	local sub = label({Name = "SubtitleText", Position = UDim2.fromScale(0.05, 0.31), Size = UDim2.fromScale(0.9, 0.12), Text = "RAGS TO BILLIONS", TextScaled = true,
+	local sub = label({Name = "SubtitleText", Position = UDim2.fromScale(0.05, 0.31), Size = UDim2.fromScale(0.9, 0.1), Text = "RAGS TO BILLIONS", TextScaled = true,
 		Font = C.STYLE and C.STYLE.font or Enum.Font.GothamBlack, TextColor3 = WHITE}, titleCard)
 	new("UITextSizeConstraint", {MaxTextSize = 40, MinTextSize = 14}, sub)
 	new("UIStroke", {Thickness = 2, Color = RGB(60, 40, 0)}, sub)
-	local tag = label({Name = "Tagline", Position = UDim2.fromScale(0.05, 0.45), Size = UDim2.fromScale(0.9, 0.12), Text = "Build Your Fortune. Risk Everything. Leave a Legacy.", TextScaled = true,
+	local motto = label({Name = "Motto", Position = UDim2.fromScale(0.05, 0.42), Size = UDim2.fromScale(0.9, 0.07), Text = "BUILD • RUN • EXPLORE • RISE", TextScaled = true,
+		Font = C.STYLE and C.STYLE.font or Enum.Font.GothamBlack, TextColor3 = GOLD}, titleCard)
+	new("UITextSizeConstraint", {MaxTextSize = 22, MinTextSize = 10}, motto)
+	local tag = label({Name = "Tagline", Position = UDim2.fromScale(0.05, 0.5), Size = UDim2.fromScale(0.9, 0.09), Text = "Build Your Fortune. Risk Everything. Leave a Legacy.", TextScaled = true,
 		TextColor3 = WHITE, Font = Enum.Font.GothamBold}, titleCard)
 	new("UITextSizeConstraint", {MaxTextSize = 24, MinTextSize = 11}, tag)
 	startB = button({Name = "IntroStart", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.fromScale(0.5, 0.62), Size = UDim2.fromScale(0.62, 0.18), Text = "START MY EMPIRE",
