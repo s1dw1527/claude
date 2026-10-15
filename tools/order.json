@@ -4,6 +4,7 @@
     "DataMigration",
     "StoryData",
     "Util",
+    "Architecture",
     "World",
     "Buildings",
     "Housing",

@@ -456,4 +456,44 @@ do
 		end
 	end)
 end
+
+-- v19: buildings light up at night. The server tags window bands (and the bulb strings on Restaurant Row) with
+-- "NightWindow"; each client switches them to a warm glow after dusk and back at dawn, by itself: no network
+-- traffic, no server work. About a quarter stay dark (nobody home), always the same ones.
+do
+	local Lighting = game:GetService("Lighting")
+	local WARM = {RGB(255, 214, 150), RGB(255, 232, 185), RGB(255, 196, 120)}
+	local night = false
+	local function hash(p)
+		local v = p.Position
+		return math.floor(math.abs(v.X * 7.3 + v.Y * 3.1 + v.Z * 5.7))
+	end
+	local function apply(p)
+		if not p:IsA("BasePart") then return end
+		if p:GetAttribute("DayColor") == nil then
+			p:SetAttribute("DayColor", p.Color)
+			p:SetAttribute("DayMat", p.Material.Name)
+		end
+		local h = hash(p)
+		if night and (h % 4 ~= 0 or p.Name == "BulbString") then
+			p.Material = Enum.Material.Neon
+			p.Color = WARM[h % 3 + 1]
+		else
+			p.Material = Enum.Material[p:GetAttribute("DayMat")] or Enum.Material.Glass
+			p.Color = p:GetAttribute("DayColor")
+		end
+	end
+	local function check(force)
+		local hr = Lighting.ClockTime
+		local n = hr < 6.3 or hr > 18.4
+		if n ~= night or force then
+			night = n
+			for _, p in ipairs(CollectionService:GetTagged("NightWindow")) do apply(p) end
+		end
+	end
+	CollectionService:GetInstanceAddedSignal("NightWindow"):Connect(apply)
+	Lighting:GetPropertyChangedSignal("ClockTime"):Connect(function() check(false) end)
+	check(true)
+	U.nightWindowsOn = function() return night end
+end
 end

@@ -46,6 +46,12 @@ local FOLDER = Instance.new("Folder")
 FOLDER.Name = "RealEstate"
 FOLDER.Parent = C.WORLD or Workspace
 local PLOT = 22
+-- v19: which ARCHITECTURE style an unsold plot shows in each district (GameServer > Architecture), and its size
+-- {width, depth, base height}
+C.VACANT_STYLE = {midtown = "restaurant", entertainment = "neon", suburbs = "shop", expansion = "construction", downtown = "glass",
+	industrial = "shed", beach = "beach"}
+C.VACANT_SIZE = {restaurant = {18, 13, 18}, neon = {18, 13, 20}, shop = {16, 12, 9}, construction = {18, 13, 22}, glass = {16, 13, 40},
+	shed = {18, 13, 11}, beach = {16, 12, 12}}
 local function addLot(dkey, x, z, yaw)
 	local lot = {id = #LOTS + 1, dkey = dkey, pos = V3(x, 0, z), yaw = yaw or 0, size = PLOT}
 	table.insert(LOTS, lot)
@@ -75,14 +81,42 @@ for _, x in ipairs({-175, -285}) do
 	for _, z in ipairs({-105, 105}) do addLot("industrial", x, z, z > 0 and math.pi or 0) end
 end
 addLot("beach", 50, 230, -math.pi / 2)   -- (west of the avenue, z 225 is Maple Ln: no plot there)
+-- v19: dress a grid district (rows of plots facing a street in pairs, like Midtown): sidewalks, trees and lamps
+-- along its streets, a little park in the band between the middle rows, and the city's own buildings in the gaps
+-- between the plots (decoration in the district's style), so every street is a continuous row of storefronts.
+--   gapXs: x of the gaps; rows: z of the plot rows (odd rows face +Z); streets: z of the streets; parkZ: z of the
+--   middle band; x1/x2: where the streets start and end; style: GameServer > Architecture; names: their signs
+function C.dressGrid(f, gapXs, rows, streets, parkZ, x1, x2, style, names, opts)
+	if not C.archBuild then return end
+	opts = opts or {}
+	for _, z in ipairs(streets) do C.archStreet(f, "x", z, x1, x2, 8, {lights = opts.lights, asphalt = opts.asphalt}) end
+	if parkZ then C.archPark(f, (x1 + x2) / 2, parkZ, x2 - x1 - 8, 26, {trees = 3}) end
+	local n = 0
+	for i, z in ipairs(rows) do
+		local yaw = (i % 2 == 1) and 0 or math.pi
+		for _, x in ipairs(gapXs) do
+			n += 1
+			local o = CF(x, 0, z) * CFrame.Angles(0, yaw, 0)
+			local h = C.archHeight(style, opts.baseH or 14, n)
+			C.archBuild(f, o * CF(0, 0, -PLOT / 2 + 1 + 6.5), 14, 13, h, style,
+				{seed = n + 3, sign = names and names[(n - 1) % #names + 1] or nil, banner = opts.banner, bannerColor = opts.bannerColor, signColor = RGB(40, 30, 25)})
+		end
+	end
+end
+C.SHOP_NAMES = {"Corner Deli", "Maple Hardware", "Petal & Stem", "Book Nook", "Northside Bakery", "Bike Shed", "Mr. Fix-It", "Pet Palace",
+	"Sunny Laundry", "The Toy Box", "Paint Pot", "Daily Grind", "Shoe Shine", "Fresh Market", "Hair Today", "Snack Shack"}
 -- Midtown: the big south-east business area (20 plots)
 do
 	local f = slab("Midtown", 510, 205, 270, 250, RGB(170, 168, 160))
 	for _, x in ipairs({400, 455, 510, 565, 620}) do
 		for i, z in ipairs({120, 175, 235, 290}) do addLot("midtown", x, z, (i % 2 == 1) and 0 or math.pi) end
 	end
-	C.gate(f, V3(352, 0, 205), true, "🏬 MIDTOWN", "Business plots • " .. REP_TIERS[DISTRICT.midtown.tier].name, DISTRICT.midtown.color)
+	C.gate(f, V3(352, 0, 205), true, "🏬 MIDTOWN • RESTAURANT ROW", "Business plots • " .. REP_TIERS[DISTRICT.midtown.tier].name, DISTRICT.midtown.color)
 	for _, z in ipairs({147, 262}) do P(f, V3(260, 0.12, 8), CF(510, 0.2, z), RGB(60, 62, 68), MAT.Asphalt) end
+	-- v19 RESTAURANT ROW: sidewalks, trees and strings of lights over both streets, and the city's own restaurants
+	-- in the gaps between the plots, so every street is a continuous row of storefronts (decoration: the plots
+	-- between them are still for sale and work exactly as before)
+	C.dressGrid(f, {427.5, 482.5, 537.5, 592.5}, {120, 175, 235, 290}, {147, 262}, 205, 382, 640, "restaurant", C.ROW_NAMES, {lights = true})
 end
 -- Entertainment District, next to the Fun Park, around the Fun Zone (15 plots)
 do
@@ -103,6 +137,8 @@ do
 		for i, z in ipairs({-560, -505, -450, -395}) do addLot("suburbs", x, z, (i % 2 == 1) and 0 or math.pi) end
 	end
 	C.gate(f, V3(-490, 0, -345), false, "🏘️ NORTHSIDE SUBURBS", "Cheap plots for new businesses", DISTRICT.suburbs.color)
+	-- v19: streets between the rows, little shops in the gaps, a green in the middle
+	C.dressGrid(f, {-572.5, -517.5, -462.5, -407.5}, {-560, -505, -450, -395}, {-532.5, -422.5}, -477.5, -625, -355, "shop", C.SHOP_NAMES, {baseH = 9, asphalt = true})
 end
 -- Expansion District, outside North Rd to the east (20 plots, late game)
 do
@@ -111,6 +147,9 @@ do
 		for i, z in ipairs({-560, -505, -450, -395}) do addLot("expansion", x, z, (i % 2 == 1) and 0 or math.pi) end
 	end
 	C.gate(f, V3(470, 0, -345), false, "🚧 EXPANSION DISTRICT", "Late-game land • " .. REP_TIERS[DISTRICT.expansion.tier].name, DISTRICT.expansion.color)
+	-- v19: the district is going up: streets between the rows and buildings under construction in the gaps
+	C.dressGrid(f, {387.5, 442.5, 497.5, 552.5}, {-560, -505, -450, -395}, {-532.5, -422.5}, -477.5, 335, 605, "construction", nil,
+		{baseH = 16, banner = "UNDER CONSTRUCTION", bannerColor = RGB(240, 170, 40), asphalt = true})
 	for i = 0, 5 do
 		local cone = P(f, V3(1.2, 2, 1.2), CF(340 + i * 50, 1, -350), RGB(255, 140, 30))
 		cone.Shape = Enum.PartType.Cylinder
@@ -399,11 +438,19 @@ function F.buildLot(lot)
 	f.PrimaryPart = base
 	P(f, V3(size + 0.4, 0.3, 0.6), o * CF(0, 0.6, size / 2), dist.color, MAT.SmoothPlastic)
 	if not owner then
-		for _, sx in ipairs({-size / 2 + 0.6, size / 2 - 0.6}) do
-			for _, sz in ipairs({-size / 2 + 0.6, size / 2 - 0.6}) do P(f, V3(0.4, 1.5, 0.4), o * CF(sx, 1.2, sz), WHITE) end
+		-- v19: an unsold plot isn't an empty slab any more: it has a vacant building in its district's style (Midtown's
+		-- restaurants, the Entertainment District's neon, the Suburbs' little shops...), "FOR LEASE" on its sign board.
+		-- The FOR SALE post and its prompt stand at the front corner of the plot, clear of the building and its tables.
+		local style = C.VACANT_STYLE[lot.dkey]
+		if style and C.archBuild then
+			local spec = C.VACANT_SIZE[style] or {18, 13, 18}
+			local h = C.archHeight(style, spec[3], lot.id)
+			C.archBuild(f, o * CF(0, 0, -size / 2 + 1 + spec[2] / 2), spec[1], spec[2], h, style,
+				{seed = lot.id, banner = style == "construction" and "COMING SOON" or "FOR LEASE", bannerColor = dist.color, signColor = WHITE})
 		end
-		P(f, V3(0.4, 5, 0.4), o * CF(0, 2.5, size / 2 - 3), RGB(110, 80, 50), MAT.Wood)
-		local sign = P(f, V3(6, 3.5, 0.3), o * CF(0, 5.5, size / 2 - 3), RGB(245, 245, 245), MAT.SmoothPlastic, {Name = "Sign"})
+		local sx = style and (size / 2 - 3.5) or 0
+		P(f, V3(0.4, 5, 0.4), o * CF(sx, 2.5, size / 2 - 2), RGB(110, 80, 50), MAT.Wood)
+		local sign = P(f, V3(6, 3.5, 0.3), o * CF(sx, 5.5, size / 2 - 2), RGB(245, 245, 245), MAT.SmoothPlastic, {Name = "Sign"})
 		billboard(sign, UDim2.fromOffset(230, 104), V3(0, 4.4, 0), {
 			{text = "PROPERTY FOR SALE", h = 0.24, color = RGB(255, 90, 90)},
 			{text = dist.icon .. " " .. dist.name, h = 0.2, color = dist.color},
