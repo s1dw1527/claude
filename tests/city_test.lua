@@ -69,6 +69,10 @@ H.main(function()
 		local f = V3(pl[2], 0, pl[3])
 		local near, typed, far = 0, 0, 0
 		local looks = {}
+		-- (the district's own people: everyone within 160 studs can include a neighbouring district's crowd, so the
+		-- outfit check counts the people who were spawned IN this place's zone, which is what the feature does)
+		local zone = CC.zoneAt(V3(pl[2], 0, pl[3]))
+		local inZone, inZoneTyped = 0, 0
 		for _, p in ipairs(CC.peds) do
 			if p.on then
 				local pos = CC.WALKS[p.w.i] and Vector3.new(0, 0, 0)
@@ -79,6 +83,10 @@ H.main(function()
 					near += 1
 					looks[p.look] = (looks[p.look] or 0) + 1
 					if pl[4] and pl[4][p.look] then typed += 1 end
+					if p.zone == zone then
+						inZone += 1
+						if pl[4] and pl[4][p.look] then inZoneTyped += 1 end
+					end
 				end
 				if dist > CC.CFG.pedDrop + 20 then far += 1 end
 				local _ = pos
@@ -97,7 +105,7 @@ H.main(function()
 		H.check(near >= 18 and far == 0, string.format("%s: %d people within 160 studs (the old fixed loops: ~2-5), none left far behind", pl[1], near))
 		H.check(carsNear >= 8, string.format("%s: %d cars within 220 studs", pl[1], carsNear))
 		if pl[4] then
-			H.check(typed >= near * 0.5, string.format("%s has its own crowd: %d / %d are %s (%s)", pl[1], typed, near, (function() local t = {} for k in pairs(pl[4]) do table.insert(t, k) end table.sort(t) return table.concat(t, "/") end)(), table.concat(mix, ", ")))
+			H.check(inZone >= 8 and inZoneTyped >= inZone * 0.6, string.format("%s has its own crowd: of the %d people from this district, %d are %s (all %d near: %s)", pl[1], inZone, inZoneTyped, (function() local t = {} for k in pairs(pl[4]) do table.insert(t, k) end table.sort(t) return table.concat(t, "/") end)(), near, table.concat(mix, ", ")))
 		end
 	end
 

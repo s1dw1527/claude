@@ -207,21 +207,21 @@ function F.bazaarBest(w)
 	return best
 end
 
--- ===== the stall in the plaza =====
+-- ===== the stall in the plaza (on the sidewalk strip between plot 4 and the South Ring, next to the City Event board) =====
 local stall
 do
 	local f = C.WORLD
-	local base = P(f, V3(10, 1, 6), CF(30, 0.5, 126), RGB(120, 70, 40), MAT.WoodPlanks)
+	local base = P(f, V3(10, 1, 6), CF(50, 0.5, 112), RGB(120, 70, 40), MAT.WoodPlanks)
 	base.Name = "BazaarStall"
-	local counter = P(f, V3(10, 3, 2), CF(30, 2.5, 128), RGB(150, 90, 50), MAT.Wood)
+	local counter = P(f, V3(10, 3, 2), CF(50, 2.5, 114), RGB(150, 90, 50), MAT.Wood)
 	counter.Name = "BazaarCounter"
-	local roof = P(f, V3(11, 0.6, 7), CF(30, 7.5, 126), RGB(200, 60, 140), MAT.Fabric)
+	local roof = P(f, V3(11, 0.6, 7), CF(50, 7.5, 112), RGB(200, 60, 140), MAT.Fabric)
 	roof.Name = "BazaarRoof"
 	for _, x in ipairs({-4.6, 4.6}) do
-		local pole = P(f, V3(0.5, 6.4, 0.5), CF(30 + x, 4.2, 123.5), RGB(60, 40, 30), MAT.Wood)
+		local pole = P(f, V3(0.5, 6.4, 0.5), CF(50 + x, 4.2, 109.5), RGB(60, 40, 30), MAT.Wood)
 		pole.Name = "BazaarPole"
 	end
-	stall = P(f, V3(9, 3, 0.4), CF(30, 5.4, 129.2), RGB(30, 18, 48), MAT.SmoothPlastic)
+	stall = P(f, V3(9, 3, 0.4), CF(50, 5.4, 115.2), RGB(30, 18, 48), MAT.SmoothPlastic)
 	stall.Name = "BazaarSign"
 	local pp = Instance.new("ProximityPrompt")
 	pp.ActionText = "Browse the Bazaar"
