@@ -231,6 +231,10 @@ C.HEIGHTS_ROADS = {
 	{"z", 800, 6, 66, 12},        -- down to the boulevard
 	{"x", 0, 794, 1300, 14},      -- Heights Blvd
 }
+-- (the old map edge had random hills around x = 850: clear them out of the road and the whole neighbourhood,
+-- or they half-bury the arch, the lamps and the first plots; terrain_test checks)
+C.clearTerrain(615, 0, 815, 80)
+C.clearTerrain(780, -125, 1310, 125)
 for _, r in ipairs(C.HEIGHTS_ROADS) do road(r[1], r[2], r[3], r[4], r[5], {}) end
 -- ramp up to the Hillside plateau (rises toward +Z)
 wedge(WORLD, V3(12, 18, 44), CF(-230, 9, -272), ASPHALT, MAT.Asphalt, SOLID)
