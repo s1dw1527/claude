@@ -2,7 +2,7 @@
 <Item class="Script" referent="RBX1"><Properties><string name="Name">GameServer</string>
 <ProtectedString name="Source"><![CDATA[--// CORNER EMPIRE v10 — SERVER. All the code lives in the ModuleScripts inside this Script.
 --// Edit "Config" to change prices, names, game pass IDs, cars, neighborhoods and more.
-local modules = {"Config", "DataMigration", "StoryData", "Util", "World", "Buildings", "Housing", "Rentals", "RealEstate", "Brands", "Cars", "Garage", "Race", "Activities", "Social", "Reviews", "Systems", "Mega", "Legacy", "Weekly", "Story", "Messages", "MapData", "Interiors", "HQ", "Computer", "HomeBuilder", "Arcade", "Admin", "Guide", "Mountain", "Heists", "Police", "Cinematics", "ViralMoments", "Influencers", "CityEvents", "Empire", "EmpirePlaza", "Explore", "Kitchen", "Theater", "Park", "FunPark", "Crew", "Rivals", "Ledger", "Partners", "HomeLife", "Vehicles", "Leaders", "Occasions", "Onboarding", "Daily", "Paths", "Roadmap", "LiveEvents", "Showcase", "Bazaar", "Collection", "Analytics", "Updates", "Players"}
+local modules = {"Config", "DataMigration", "StoryData", "Util", "Architecture", "World", "Buildings", "Housing", "Rentals", "RealEstate", "Brands", "Cars", "Garage", "Race", "Activities", "Social", "Reviews", "Systems", "Mega", "Legacy", "Weekly", "Story", "Messages", "MapData", "Interiors", "HQ", "Computer", "HomeBuilder", "Arcade", "Admin", "Guide", "Mountain", "Heists", "Police", "Cinematics", "ViralMoments", "Influencers", "CityEvents", "Empire", "EmpirePlaza", "Explore", "Kitchen", "Theater", "Park", "FunPark", "Crew", "Rivals", "Ledger", "Partners", "HomeLife", "Vehicles", "Leaders", "Occasions", "Onboarding", "Daily", "Paths", "Roadmap", "LiveEvents", "Showcase", "Bazaar", "Collection", "Analytics", "Updates", "Players"}
 local C = {F = {}, data = {}, plots = {}}
 for _, name in ipairs(modules) do
 	local ok, err = pcall(function() require(script:WaitForChild(name))(C) end)
@@ -17,8 +17,8 @@ local RGB = Color3.fromRGB
 
 -- ===== VERSION (bump these with every published update; see README "How to update Corner Empire") =====
 C.VERSION = {
-	VERSION = "18.0.0",
-	UPDATE_NAME = "Rags to Billions",
+	VERSION = "19.0.0",
+	UPDATE_NAME = "The City Rises",
 	SCHEMA_VERSION = 16,         -- the shape of a player's save. Raise it only together with a new step in DataMigration.
 	MIN_SUPPORTED_SCHEMA = 6,   -- saves older than v6 (no version field, no tutorial-reward tracking) are treated as v6
 	-- shown once to every returning player after an update (Messages app)
@@ -49,7 +49,9 @@ C.VERSION = {
 		"🛍️ 17: the CITY BAZAAR restocks every 5 minutes with rare furniture you can't get anywhere else (same stock in every server: catch the 🌈 Mythic!)",
 		"✨ 17: lucky customers! A glowing GOLDEN, DIAMOND or RAINBOW customer pays up to x250",
 		"🏙️ 18: servers hold 12 players now, with 8 new plots in EMPIRE HEIGHTS (past the Corner Bank)",
-		"📚 18: the COLLECTION BOOK: find every ❓ ??? treasure and lucky customer, with milestone rewards"
+		"📚 18: the COLLECTION BOOK: find every ❓ ??? treasure and lucky customer, with milestone rewards",
+		"🏙️ 19: THE CITY RISES: every district is built up: Restaurant Row in Midtown, neon streets in the Entertainment District, new skyscrapers downtown",
+		"🛍️ 19: the HEIGHTS MALL at the end of Heights Blvd, a beach boardwalk with a lighthouse, and windows that light up at night"
 	},
 }
 
@@ -2040,7 +2042,247 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX6"><Properties><string name="Name">World</string>
+<Item class="ModuleScript" referent="RBX6"><Properties><string name="Name">Architecture</string>
+<ProtectedString name="Source"><![CDATA[-- ARCHITECTURE (v19): one place that decides what buildings LOOK like, per style. Districts ask for a style
+-- ("restaurant", "neon", "glass"...) and get a building with its own materials, colors, roof, windows, awning,
+-- sign and extras; change a style here and every building of that style changes. Every building is a handful of
+-- parts (a body, window bands, a cornice, a storefront, an awning, a sign, a few extras), so a whole district stays
+-- cheap. Windows are tagged "NightWindow": players' clients light them warm at night (EmpireClient > WorldFX),
+-- so dusk costs no network traffic and no server work.
+--   C.ARCH_STYLES[key] = {walls = {colors}, mat, trim, glass, floor (height of a storey), maxExtra (storeys a building
+--     may add above its base height, for variety), awnings = {colors} or nil,
+--     roof = "parapet" | "flat" | "gable" | "crown", storefront = true/false, extras = {"seating", "neon", ...}}
+--   C.archBuild(parent, o, w, d, h, key, opts) -> top height. o = the CFrame of the footprint's centre on the
+--     ground, FRONT = local +Z. opts = {seed = number, sign = "text", signColor, banner = "text", bannerColor}
+return function(C)
+local RGB, V3, CF, MAT = Color3.fromRGB, Vector3.new, CFrame.new, Enum.Material
+local P, wedge, cyl = C.P, C.wedge, C.cyl
+
+C.ARCH_STYLES = {
+	-- Midtown • Restaurant Row: brick and stucco, striped awnings, tables outside
+	restaurant = {walls = {RGB(170, 80, 60), RGB(205, 150, 95), RGB(130, 60, 55), RGB(225, 200, 160), RGB(95, 110, 85)}, mat = MAT.Brick,
+		trim = RGB(245, 235, 215), glass = RGB(60, 75, 95), floor = 9, roof = "parapet", storefront = true,
+		awnings = {RGB(200, 45, 50), RGB(40, 120, 70), RGB(230, 160, 40), RGB(40, 90, 160), RGB(120, 40, 90)}, extras = {"seating", "menu", "lights"}},
+	-- Entertainment District: dark walls, neon trim, marquee-style signs
+	neon = {walls = {RGB(45, 30, 70), RGB(30, 35, 60), RGB(60, 25, 55)}, mat = MAT.SmoothPlastic, trim = RGB(255, 80, 200), glass = RGB(40, 30, 70),
+		floor = 10, roof = "flat", roofColor = RGB(38, 32, 50), storefront = true, maxExtra = 1, neonTrim = {RGB(255, 70, 200), RGB(80, 220, 255), RGB(255, 210, 60), RGB(140, 255, 120)}, extras = {"neon"}},
+	-- Northside Suburbs: small painted shops with gable roofs
+	shop = {walls = {RGB(235, 225, 200), RGB(190, 215, 225), RGB(225, 200, 200), RGB(210, 225, 190)}, mat = MAT.WoodPlanks,
+		trim = RGB(250, 250, 245), glass = RGB(70, 90, 110), floor = 8, roof = "gable", maxExtra = 1, roofColors = {RGB(150, 70, 55), RGB(70, 80, 100), RGB(90, 110, 80)},
+		storefront = true, awnings = {RGB(70, 130, 190), RGB(200, 90, 80), RGB(90, 160, 100)}, extras = {"planters"}},
+	-- Downtown: glass and steel
+	glass = {walls = {RGB(70, 110, 160), RGB(60, 90, 130), RGB(110, 140, 170), RGB(80, 100, 120)}, mat = MAT.Glass, trim = RGB(220, 225, 235),
+		glass = RGB(40, 60, 90), floor = 7, roof = "crown", storefront = true},
+	-- Expansion District: going up (scaffolding and a crane arm)
+	construction = {walls = {RGB(165, 160, 150), RGB(150, 150, 155)}, mat = MAT.Concrete, trim = RGB(240, 170, 40), glass = RGB(80, 85, 95),
+		floor = 8, roof = "flat", roofColor = RGB(120, 120, 125), storefront = false, maxExtra = 2, extras = {"scaffold"}},
+	-- Industrial: sheds with a roller door and a loading dock
+	shed = {walls = {RGB(150, 115, 90), RGB(120, 125, 130), RGB(140, 100, 80)}, mat = MAT.CorrugatedSteel, trim = RGB(240, 180, 40), glass = RGB(70, 75, 80),
+		floor = 9, roof = "flat", roofColor = RGB(110, 112, 118), storefront = false, maxExtra = 0, extras = {"dock"}},
+	-- Waterfront: beach houses on stilts, pastel and white
+	beach = {walls = {RGB(250, 245, 235), RGB(190, 230, 235), RGB(250, 220, 200), RGB(220, 240, 210)}, mat = MAT.WoodPlanks, trim = RGB(255, 255, 255),
+		glass = RGB(80, 150, 180), floor = 8, roof = "gable", maxExtra = 1, roofColors = {RGB(60, 150, 190), RGB(230, 120, 90)}, storefront = true,
+		awnings = {RGB(60, 170, 200), RGB(250, 150, 90)}, extras = {"umbrella"}},
+}
+C.ARCH_COUNT = 0   -- (parts made by the kit, for the budget check in world_test)
+local function pick(list, seed, salt) return list[((seed or 1) + (salt or 0)) % #list + 1] end
+local function part(parent, size, cf, color, mat, props)
+	C.ARCH_COUNT += 1
+	return P(parent, size, cf, color, mat, props)
+end
+local function window(parent, size, cf, glass)
+	local w = part(parent, size, cf, glass, MAT.Glass, {Reflectance = 0.15, CastShadow = false})
+	w.Name = "Window"
+	C.tag(w, "NightWindow")
+	return w
+end
+
+function C.archBuild(parent, o, w, d, h, key, opts)
+	opts = opts or {}
+	local st = C.ARCH_STYLES[key] or C.ARCH_STYLES.shop
+	local seed = opts.seed or 1
+	local wall = pick(st.walls, seed)
+	local SOLID = {CanCollide = true}
+	-- the body (a little narrower than the footprint, set back from the front)
+	part(parent, V3(w, h, d), o * CF(0, h / 2, 0), wall, st.mat, SOLID)
+	-- window bands on the front and the two sides, one per storey (the ground floor is the storefront)
+	local floors = math.max(1, math.floor(h / st.floor))
+	for f = 1, floors - 1 do
+		local y = f * st.floor + st.floor * 0.5
+		if y < h - 1.5 then
+			window(parent, V3(w - 2, st.floor * 0.45, 0.3), o * CF(0, y, d / 2 + 0.05), st.glass)
+			for _, sx in ipairs({-1, 1}) do window(parent, V3(0.3, st.floor * 0.45, d - 2), o * CF(sx * (w / 2 + 0.05), y, 0), st.glass) end
+			if key == "glass" then part(parent, V3(w + 0.4, 0.4, d + 0.4), o * CF(0, f * st.floor, 0), st.trim, MAT.Metal) end
+		end
+	end
+	-- the roof
+	if st.roof == "parapet" then
+		part(parent, V3(w + 0.8, 1.2, d + 0.8), o * CF(0, h + 0.6, 0), st.trim, MAT.Concrete)
+		part(parent, V3(2.4, 1.6, 2.4), o * CF(w * 0.2, h + 2, -d * 0.2), RGB(180, 185, 190), MAT.Metal)   -- AC unit
+	elseif st.roof == "gable" then
+		local rc = pick(st.roofColors or {RGB(120, 60, 50)}, seed, 1)
+		local rh = math.min(h * 0.3 + 1.5, 5.5)
+		wedge(parent, V3(w + 1, rh, d / 2 + 0.6), o * CF(0, h + rh / 2, d / 4 + 0.15) * CFrame.Angles(0, math.pi, 0), rc, MAT.Slate)
+		wedge(parent, V3(w + 1, rh, d / 2 + 0.6), o * CF(0, h + rh / 2, -d / 4 - 0.15), rc, MAT.Slate)
+		C.ARCH_COUNT += 2
+	elseif st.roof == "crown" then
+		part(parent, V3(w * 0.7, 3, d * 0.7), o * CF(0, h + 1.5, 0), st.trim, MAT.Metal)
+		part(parent, V3(w * 0.4, 4, d * 0.4), o * CF(0, h + 5, 0), wall, MAT.Glass, {Reflectance = 0.2})
+		part(parent, V3(0.6, 8, 0.6), o * CF(0, h + 11, 0), RGB(200, 200, 210), MAT.Metal)
+		local beacon = part(parent, V3(1, 1, 1), o * CF(0, h + 15.3, 0), RGB(255, 60, 60), MAT.Neon)
+		beacon.Shape = Enum.PartType.Ball
+	else
+		part(parent, V3(w + 0.4, 0.8, d + 0.4), o * CF(0, h + 0.4, 0), st.roofColor or st.trim, MAT.Concrete)
+	end
+	-- the storefront: a big window, a door and a sign board above
+	if st.storefront then
+		window(parent, V3(w - 4, st.floor * 0.55, 0.3), o * CF(-1, st.floor * 0.4, d / 2 + 0.06), st.glass)
+		part(parent, V3(2.4, st.floor * 0.7, 0.3), o * CF(w / 2 - 2.2, st.floor * 0.35, d / 2 + 0.1), RGB(70, 50, 40), MAT.Wood)
+		local sign = part(parent, V3(w - 2, 2, 0.4), o * CF(0, st.floor * 0.85 + 0.6, d / 2 + 0.25), opts.bannerColor or st.trim, MAT.SmoothPlastic)
+		sign.Name = "ArchSign"
+		if opts.sign or opts.banner then
+			C.surfaceText(sign, Enum.NormalId.Front, opts.banner or opts.sign, opts.signColor or RGB(30, 30, 40))
+		end
+		if st.awnings then
+			local aw = wedge(parent, V3(w - 1, 1.6, 3.2), o * CF(0, st.floor * 0.85 - 0.6, d / 2 + 1.7) * CFrame.Angles(0, math.pi, 0), pick(st.awnings, seed, 2), MAT.Fabric)
+			aw.CanCollide = false
+			C.ARCH_COUNT += 1
+		end
+		if st.neonTrim then
+			local nc = pick(st.neonTrim, seed, 3)
+			part(parent, V3(w + 0.2, 0.35, 0.35), o * CF(0, st.floor * 0.85 + 1.8, d / 2 + 0.3), nc, MAT.Neon)
+			part(parent, V3(0.35, h, 0.35), o * CF(-w / 2 - 0.1, h / 2, d / 2 + 0.1), nc, MAT.Neon)
+			part(parent, V3(0.35, h, 0.35), o * CF(w / 2 + 0.1, h / 2, d / 2 + 0.1), nc, MAT.Neon)
+		end
+	elseif opts.banner then
+		local sign = part(parent, V3(w - 4, 2.4, 0.4), o * CF(0, h - 2, d / 2 + 0.25), opts.bannerColor or st.trim, MAT.SmoothPlastic)
+		sign.Name = "ArchSign"
+		C.surfaceText(sign, Enum.NormalId.Front, opts.banner, opts.signColor or RGB(30, 30, 40))
+	end
+	-- extras (in front of the building, inside the footprint, clear of the doorway)
+	for _, ex in ipairs(st.extras or {}) do
+		if ex == "seating" then
+			for i, sx in ipairs({-w / 2 + 3, -w / 2 + 8}) do
+				local z = d / 2 + 3.2
+				part(parent, V3(2.4, 0.3, 2.4), o * CF(sx, 2.4, z), RGB(240, 240, 235), MAT.SmoothPlastic)
+				part(parent, V3(0.3, 2.4, 0.3), o * CF(sx, 1.2, z), RGB(60, 60, 60), MAT.Metal)
+				part(parent, V3(0.25, 4.6, 0.25), o * CF(sx, 2.3, z), RGB(80, 80, 80), MAT.Metal)
+				local um = part(parent, V3(4.6, 0.4, 4.6), o * CF(sx, 4.8, z), pick(st.awnings, seed, 2 + i), MAT.Fabric)
+				um.CanCollide = false
+			end
+		elseif ex == "menu" then
+			part(parent, V3(1.6, 2.6, 0.3), o * CF(w / 2 - 5, 1.3, d / 2 + 2.4) * CFrame.Angles(math.rad(-12), 0, 0), RGB(40, 40, 40), MAT.Slate)
+		elseif ex == "lights" then
+			-- a string of warm bulbs along the awning (lit at night with the windows)
+			local s = part(parent, V3(w - 1, 0.25, 0.25), o * CF(0, st.floor * 0.85 - 1.5, d / 2 + 3.1), RGB(255, 225, 160), MAT.SmoothPlastic, {CastShadow = false})
+			s.Name = "BulbString"
+			C.tag(s, "NightWindow")
+		elseif ex == "planters" then
+			for _, sx in ipairs({-w / 2 + 1.5, w / 2 - 4.5}) do
+				part(parent, V3(2, 1.2, 1.2), o * CF(sx, 0.6, d / 2 + 1.2), RGB(120, 85, 60), MAT.Wood)
+				part(parent, V3(1.8, 1, 1), o * CF(sx, 1.6, d / 2 + 1.2), RGB(80, 160, 80), MAT.Grass)
+			end
+		elseif ex == "scaffold" then
+			for _, sx in ipairs({-w / 2 - 0.8, w / 2 + 0.8}) do part(parent, V3(0.4, h + 4, 0.4), o * CF(sx, (h + 4) / 2, d / 2 + 1), RGB(240, 170, 40), MAT.Metal) end
+			for y = 4, h, 6 do part(parent, V3(w + 2, 0.3, 1.6), o * CF(0, y, d / 2 + 1), RGB(150, 110, 70), MAT.WoodPlanks) end
+			if seed % 3 == 0 then   -- (a crane on every third site)
+				part(parent, V3(0.8, h + 14, 0.8), o * CF(-w / 2 + 2, (h + 14) / 2, -d / 2 + 2), RGB(240, 180, 30), MAT.Metal)
+				part(parent, V3(1, 1, w + 6), o * CF(-w / 2 + 2, h + 14, 1), RGB(240, 180, 30), MAT.Metal)
+			end
+		elseif ex == "dock" then
+			part(parent, V3(w * 0.6, h * 0.6, 0.3), o * CF(0, h * 0.3, d / 2 + 0.1), RGB(190, 195, 200), MAT.DiamondPlate)
+			part(parent, V3(w * 0.7, 1.2, 3), o * CF(0, 0.6, d / 2 + 1.6), RGB(140, 140, 145), MAT.Concrete, {CanCollide = true})
+			for _, sx in ipairs({-w * 0.35 - 0.5, w * 0.35 + 0.5}) do part(parent, V3(0.6, 3, 0.6), o * CF(sx, 1.5, d / 2 + 3), RGB(240, 200, 40), MAT.SmoothPlastic) end
+		elseif ex == "umbrella" then
+			part(parent, V3(0.25, 4, 0.25), o * CF(-w / 2 + 3, 2, d / 2 + 3), RGB(240, 240, 240), MAT.Wood)
+			local um = part(parent, V3(4.4, 0.4, 4.4), o * CF(-w / 2 + 3, 4.1, d / 2 + 3), pick(st.awnings, seed, 5), MAT.Fabric)
+			um.CanCollide = false
+		end
+	end
+	local top = h + (st.roof == "crown" and 16 or (st.roof == "gable" and math.min(h * 0.3 + 1.5, 5.5) or 1.5))
+	return top
+end
+
+-- how tall a building of this style is: its base height plus 0..maxExtra storeys, picked from the seed
+function C.archHeight(key, base, seed)
+	local st = C.ARCH_STYLES[key] or C.ARCH_STYLES.shop
+	local extra = st.maxExtra == nil and 2 or st.maxExtra
+	return base + ((seed or 1) * 7 % (extra + 1)) * st.floor
+end
+-- ===== streets inside a district: sidewalks, trees, lamps and (Restaurant Row) strings of lights across =====
+-- axis "x": the street runs along X at z = c, from a to b, w wide. opts = {lights = true, trees = true, walk = color}
+function C.archStreet(parent, axis, c, a, b, w, opts)
+	opts = opts or {}
+	local len, mid = b - a, (a + b) / 2
+	local function at(along, across, y)
+		if axis == "x" then return V3(along, y, c + across) end
+		return V3(c + across, y, along)
+	end
+	local function size(along, across, y)
+		if axis == "x" then return V3(along, y, across) end
+		return V3(across, y, along)
+	end
+	if opts.asphalt then part(parent, size(len, w, 0.12), CF(at(mid, 0, 0.2)), RGB(60, 62, 68), MAT.Asphalt) end
+	for _, side in ipairs({-1, 1}) do
+		part(parent, size(len, 4, 0.4), CF(at(mid, side * (w / 2 + 2), 0.25)), opts.walk or RGB(200, 196, 188), MAT.Concrete)
+		part(parent, size(len, 0.4, 0.5), CF(at(mid, side * (w / 2 + 0.2), 0.3)), RGB(160, 160, 166), MAT.Concrete)
+	end
+	local n = 0
+	for v = a + 10, b - 10, 22 do
+		n += 1
+		local side = (n % 2 == 0) and 1 or -1
+		if opts.trees ~= false then
+			local t = at(v, side * (w / 2 + 3), 0)
+			part(parent, V3(1.6, 0.6, 1.6), CF(t + V3(0, 0.5, 0)), RGB(110, 90, 70), MAT.Wood)
+			part(parent, V3(0.6, 5, 0.6), CF(t + V3(0, 3, 0)), RGB(110, 80, 55), MAT.Wood)
+			local crown = part(parent, V3(4.5, 4, 4.5), CF(t + V3(0, 6.6, 0)), RGB(70, 150, 70), MAT.Grass)
+			crown.Shape = Enum.PartType.Ball
+		end
+		if opts.lights and n % 2 == 1 then
+			-- poles on both sidewalks and a warm string of bulbs across the street
+			for _, sd in ipairs({-1, 1}) do part(parent, V3(0.4, 10, 0.4), CF(at(v, sd * (w / 2 + 3.6), 5)), RGB(50, 50, 55), MAT.Metal) end
+			local bulbs = part(parent, size(0.3, w + 7.2, 0.3), CF(at(v, 0, 9.4)), RGB(255, 225, 160), MAT.SmoothPlastic, {CastShadow = false})
+			bulbs.Name = "BulbString"
+			C.tag(bulbs, "NightWindow")
+		end
+	end
+end
+-- fictional restaurants and cafés the city runs itself (decoration: they make Restaurant Row feel alive)
+C.ROW_NAMES = {"Nonna's Kitchen", "Golden Wok", "Taco Corner", "Bean There", "Sweet Crumbs", "Burger Barn", "Sushi Wave", "The Noodle Bar",
+	"Pancake Palace", "Curry Leaf", "Big Slice Pizza", "Café Soleil", "Smoky's BBQ", "Dumpling House", "Gelato Bros", "Fry Day"}
+
+-- ===== a small park: lawn, crossing paths, trees, benches and a fountain in the middle =====
+function C.archPark(parent, cx, cz, w, d, opts)
+	opts = opts or {}
+	part(parent, V3(w, 0.4, d), CF(cx, 0.22, cz), RGB(96, 170, 96), MAT.Grass)
+	part(parent, V3(w, 0.45, 3), CF(cx, 0.24, cz), RGB(205, 195, 175), MAT.Cobblestone)
+	part(parent, V3(3, 0.45, d), CF(cx, 0.24, cz), RGB(205, 195, 175), MAT.Cobblestone)
+	-- the fountain
+	cyl(parent, 1.4, 9, CF(cx, 0.7, cz), RGB(200, 200, 205), MAT.Marble)
+	C.ARCH_COUNT += 1
+	local water = cyl(parent, 0.3, 7.6, CF(cx, 1.35, cz), RGB(90, 170, 230), MAT.Glass)
+	water.Transparency = 0.25
+	cyl(parent, 3.6, 1.2, CF(cx, 2.4, cz), RGB(200, 200, 205), MAT.Marble)
+	C.ARCH_COUNT += 2
+	part(parent, V3(1, 1, 1), CF(cx, 4.4, cz), RGB(200, 200, 205), MAT.Marble)
+	-- trees in the four quarters, benches by the paths
+	for _, qx in ipairs({-1, 1}) do
+		for _, qz in ipairs({-1, 1}) do
+			for k = 1, opts.trees or 2 do
+				local tx = cx + qx * (w / 2) * (0.25 + 0.4 * (k - 1) / math.max(1, (opts.trees or 2) - 1))
+				local tz = cz + qz * d * 0.25
+				part(parent, V3(0.8, 6, 0.8), CF(tx, 3, tz), RGB(110, 80, 55), MAT.Wood)
+				local crown = part(parent, V3(6, 5.5, 6), CF(tx, 7.4, tz), RGB(60 + k * 10, 145, 70), MAT.Grass)
+				crown.Shape = Enum.PartType.Ball
+			end
+			part(parent, V3(4, 0.4, 1.4), CF(cx + qx * 6, 1.2, cz + qz * 3), RGB(140, 100, 60), MAT.WoodPlanks)
+		end
+	end
+end
+end
+]]></ProtectedString></Properties>
+</Item>
+<Item class="ModuleScript" referent="RBX7"><Properties><string name="Name">World</string>
 <ProtectedString name="Source"><![CDATA[-- WORLD: terrain, road grid, street furniture, player plots, business districts, the Spire.
 return function(C)
 local Workspace = game:GetService("Workspace")
@@ -2123,6 +2365,7 @@ do
 	T:FillBlock(CF(0, -10.5 + off, 640), V3(1700, 21, 420), W)                 -- the ocean
 	T:FillBlock(CF(0, -1 + off, 440), V3(1700, 2, 22), S)                      -- gentle slope into the water
 	T:FillBlock(CF(1090, -8 + off, 0), V3(520, 16, 380), G)                    -- v18: Empire Heights (east of the Corner Bank)
+	T:FillBlock(CF(1390, -8 + off, 0), V3(180, 16, 220), G)                    -- v19: the Heights Mall at the end of the boulevard
 	-- Hillside plateau
 	T:FillBlock(CF(-230, 7 + off, -200), V3(168, 14, 108), R)
 	T:FillBlock(CF(-230, 9 + off, -200), V3(160, 18, 100), G)
@@ -2549,6 +2792,77 @@ do
 		end
 	end
 end
+-- v19 THE HEIGHTS MALL: the landmark at the end of Heights Blvd (the city has no free land left inside it). A
+-- parking lot, a glass atrium under a big sign, storefront windows that light up at night, and two counters that
+-- really work: the 🛍️ City Bazaar and the 🛋️ Furniture Store open from here (the same windows as from the phone).
+do
+	C.clearTerrain(1290, -100, 1470, 100)
+	local mall = Instance.new("Folder")
+	mall.Name = "HeightsMall"
+	mall.Parent = WORLD
+	local STONE, TEAL, GLASS = RGB(232, 226, 212), RGB(40, 150, 170), RGB(60, 90, 120)
+	-- the parking lot
+	P(mall, V3(42, 0.3, 96), CF(1321, 0.3, 0), RGB(64, 66, 72), MAT.Asphalt)
+	for z = -40, 40, 8 do P(mall, V3(12, 0.05, 0.4), CF(1316, 0.47, z), RGB(240, 240, 240), MAT.SmoothPlastic) end
+	local CARS = {RGB(200, 40, 50), RGB(40, 90, 180), RGB(240, 240, 240), RGB(30, 30, 35), RGB(230, 180, 40), RGB(90, 160, 90)}
+	for i, z in ipairs({-36, -20, -12, 12, 28, 36}) do
+		local col = CARS[i]
+		P(mall, V3(8, 2, 4), CF(1316, 1.5, z), col, MAT.SmoothPlastic, {CanCollide = true})
+		P(mall, V3(4.4, 1.6, 3.6), CF(1315.5, 3.2, z), RGB(40, 50, 65), MAT.Glass)
+	end
+	for _, z in ipairs({-46, 46}) do
+		P(mall, V3(0.6, 12, 0.6), CF(1326, 6, z), RGB(60, 60, 66), MAT.Metal, {CanCollide = true})
+		local head = P(mall, V3(2.4, 0.6, 1.2), CF(1326, 12.2, z), RGB(255, 240, 200), MAT.Neon)
+		local l = Instance.new("PointLight")
+		l.Range, l.Brightness, l.Color = 30, 1.4, RGB(255, 230, 190)
+		l.Parent = head
+	end
+	-- the building
+	P(mall, V3(60, 24, 110), CF(1372, 12, 0), STONE, MAT.Concrete, {CanCollide = true})
+	P(mall, V3(61, 1.2, 111), CF(1372, 24.6, 0), RGB(200, 195, 185), MAT.Concrete)
+	P(mall, V3(0.8, 3, 111), CF(1341.8, 25.5, 0), TEAL, MAT.SmoothPlastic)
+	P(mall, V3(26, 6, 40), CF(1372, 30, 0), STONE, MAT.Concrete)
+	local dome = P(mall, V3(20, 4, 32), CF(1372, 35, 0), RGB(150, 210, 230), MAT.Glass, {Reflectance = 0.2})
+	dome.Name = "Window"
+	C.tag(dome, "NightWindow")
+	-- the glass atrium and the storefront windows (they light up at night)
+	local atrium = P(mall, V3(1, 18, 36), CF(1341.6, 9, 0), GLASS, MAT.Glass, {Reflectance = 0.2})
+	atrium.Name = "Window"
+	C.tag(atrium, "NightWindow")
+	for _, z in ipairs({-38, 38}) do
+		local w = P(mall, V3(1, 8, 26), CF(1341.6, 5, z), GLASS, MAT.Glass, {Reflectance = 0.15})
+		w.Name = "Window"
+		C.tag(w, "NightWindow")
+		local stripe = P(mall, V3(1.2, 2.4, 26), CF(1341.4, 10.6, z), z < 0 and RGB(230, 90, 120) or RGB(240, 170, 40), MAT.SmoothPlastic)
+		C.surfaceText(stripe, Enum.NormalId.Left, z < 0 and "FASHION • SHOES • GIFTS" or "TOYS • TECH • FOOD COURT", RGB(255, 255, 255))
+	end
+	P(mall, V3(7, 0.8, 34), CF(1337.5, 13, 0), TEAL, MAT.Metal)
+	for _, z in ipairs({-16, 16}) do P(mall, V3(0.8, 12.6, 0.8), CF(1334.5, 6.3, z), RGB(220, 220, 225), MAT.Metal, {CanCollide = true}) end
+	local sign = P(mall, V3(1.2, 7, 40), CF(1341, 21, 0), RGB(30, 90, 200), MAT.SmoothPlastic)
+	sign.Name = "MallSign"
+	C.surfaceText(sign, Enum.NormalId.Left, "🛍️ HEIGHTS MALL", RGB(255, 230, 120))
+	P(mall, V3(0.4, 0.4, 41), CF(1340.3, 17.2, 0), RGB(255, 210, 90), MAT.Neon)
+	-- palms and planters by the doors
+	for _, z in ipairs({-24, 24}) do
+		P(mall, V3(3, 1.4, 3), CF(1336, 0.7, z), RGB(150, 140, 130), MAT.Concrete)
+		C.tree(mall, 1336, z, 0.8, 1.4)
+	end
+	-- the counters (they really work)
+	local function kiosk(z, label, color, fn)
+		local k = P(mall, V3(3, 4, 6), CF(1336, 2, z), color, MAT.SmoothPlastic, {CanCollide = true, Name = "MallCounter"})
+		billboard(k, UDim2.fromOffset(180, 36), V3(0, 4.5, 0), {{text = label}}, 60)
+		C.prompt(k, "Open", label, 12, 0, fn)
+	end
+	kiosk(-8, "🛍️ City Bazaar", RGB(200, 60, 140), function(plr)
+		if data[plr] then C.R.Menu:FireClient(plr, "openBazaar") end
+	end)
+	kiosk(8, "🛋️ Furniture Store", RGB(60, 120, 200), function(plr)
+		if data[plr] then C.R.Menu:FireClient(plr, "open", "furniture", true) end
+	end)
+	C.reserve(1298, -58, 1404, 58)
+	table.insert(C.DESTS, {name = "Heights Mall", icon = "🛍️", pos = V3(1326, 0.3, -2)})
+	C.MALL = mall
+end
 function F.setPlotSign(plot, name, tier)
 	for _, l in ipairs(plot.nameLabels) do l.Text = name end
 	for _, l in ipairs(plot.tierLabels) do l.Text = tier or "" end
@@ -2571,17 +2885,77 @@ end
 -- =====================================================================
 -- DISTRICT DECOR + BUSINESS LOTS
 -- =====================================================================
+-- v19: skyscrapers with a silhouette of their own: a lobby podium, two or three stepped tiers (setbacks), window
+-- bands that light up at night (tagged "NightWindow", lit by each client) and one of four crowns (spire, stepped
+-- pyramid, helipad, antenna mast), picked from the position so the skyline never repeats. Same footprint as before.
+local towerN = 0
 function C.skyscraper(parent, x, z, w, d, h, color, trim)
-	P(parent, V3(w, h, d), CF(x, h / 2, z), color, MAT.Glass, {CanCollide = true, Reflectance = 0.2, Transparency = 0.02})
-	for y = 7, h - 3, 7 do P(parent, V3(w + 0.3, 0.5, d + 0.3), CF(x, y, z), trim, MAT.SmoothPlastic) end
-	for _, sx in ipairs({-1, 1}) do
-		for _, sz in ipairs({-1, 1}) do P(parent, V3(0.8, h, 0.8), CF(x + sx * w / 2, h / 2, z + sz * d / 2), trim, MAT.SmoothPlastic) end
+	towerN += 1
+	local kind = (math.floor(math.abs(x * 3 + z * 7 + h)) + towerN) % 4
+	-- the podium: a darker lobby with a lit glass front and a canopy
+	P(parent, V3(w + 2, 8, d + 2), CF(x, 4, z), color:Lerp(Color3.new(0, 0, 0), 0.35), MAT.Concrete, {CanCollide = true})
+	for _, sz in ipairs({-1, 1}) do
+		local lobby = P(parent, V3(w - 2, 5, 0.3), CF(x, 3, z + sz * (d / 2 + 1.1)), RGB(60, 80, 100), MAT.Glass, {Reflectance = 0.15})
+		lobby.Name = "Window"
+		C.tag(lobby, "NightWindow")
+		P(parent, V3(w * 0.5, 0.6, 4), CF(x, 6.2, z + sz * (d / 2 + 3)), trim, MAT.Metal)
 	end
-	P(parent, V3(w * 0.6, 4, d * 0.6), CF(x, h + 2, z), trim, MAT.Concrete)
-	local blink = ball(parent, V3(1, 1, 1), CF(x, h + 6, z), RGB(255, 60, 60), MAT.Neon)
-	P(parent, V3(0.3, 2, 0.3), CF(x, h + 5, z), RGB(60, 60, 60), MAT.Metal)
+	-- the tiers
+	local tiers = h > 45 and 3 or 2
+	local y0 = 8
+	local tw, td = w, d
+	for t = 1, tiers do
+		local top = (t == tiers) and h or (8 + (h - 8) * (t == 1 and (tiers == 3 and 0.55 or 0.7) or 0.82))
+		local th = top - y0
+		P(parent, V3(tw, th, td), CF(x, y0 + th / 2, z), color, MAT.Glass, {CanCollide = true, Reflectance = 0.2, Transparency = 0.02})
+		-- corner columns and a ledge at the top of the tier
+		for _, sx in ipairs({-1, 1}) do
+			for _, sz in ipairs({-1, 1}) do P(parent, V3(0.8, th, 0.8), CF(x + sx * tw / 2, y0 + th / 2, z + sz * td / 2), trim, MAT.SmoothPlastic) end
+		end
+		P(parent, V3(tw + 0.8, 0.8, td + 0.8), CF(x, top, z), trim, MAT.Concrete)
+		-- window bands on all four sides (at most 8 per tier: very tall towers, like the Mega City horizon, stay cheap)
+		for y = y0 + 3.5, top - 3, math.max(7, (top - y0) / 8) do
+			for _, sz in ipairs({-1, 1}) do
+				local wb = P(parent, V3(tw - 1.6, 2.2, 0.25), CF(x, y, z + sz * (td / 2 + 0.05)), color:Lerp(Color3.new(1, 1, 1), 0.25), MAT.Glass, {CastShadow = false})
+				wb.Name = "Window"
+				C.tag(wb, "NightWindow")
+			end
+			for _, sx in ipairs({-1, 1}) do
+				local wb = P(parent, V3(0.25, 2.2, td - 1.6), CF(x + sx * (tw / 2 + 0.05), y, z), color:Lerp(Color3.new(1, 1, 1), 0.25), MAT.Glass, {CastShadow = false})
+				wb.Name = "Window"
+				C.tag(wb, "NightWindow")
+			end
+		end
+		y0 = top
+		tw, td = math.max(6, tw - 4), math.max(6, td - 4)
+	end
+	-- the crown
+	local cy = h
+	if kind == 0 then
+		-- a spire
+		P(parent, V3(tw * 0.6, 4, td * 0.6), CF(x, cy + 2, z), trim, MAT.Metal)
+		cyl(parent, 18, 1.2, CF(x, cy + 13, z), RGB(220, 225, 235), MAT.Metal)
+		cy += 22
+	elseif kind == 1 then
+		-- a stepped pyramid
+		for k = 1, 3 do P(parent, V3(tw - k * 2.4, 2.2, td - k * 2.4), CF(x, cy + k * 2.2 - 1.1, z), k % 2 == 1 and trim or color, k % 2 == 1 and MAT.Metal or MAT.Glass) end
+		cy += 7
+	elseif kind == 2 then
+		-- a helipad
+		cyl(parent, 1, math.min(tw, td) - 1, CF(x, cy + 1.5, z), RGB(60, 62, 70), MAT.Concrete)
+		P(parent, V3(4, 0.2, 0.8), CF(x, cy + 2.1, z), RGB(255, 210, 60), MAT.Neon)
+		P(parent, V3(0.8, 0.2, 4), CF(x - 1.6, cy + 2.1, z), RGB(255, 210, 60), MAT.Neon)
+		P(parent, V3(0.8, 0.2, 4), CF(x + 1.6, cy + 2.1, z), RGB(255, 210, 60), MAT.Neon)
+		cy += 2
+	else
+		-- an antenna mast
+		P(parent, V3(tw * 0.5, 3, td * 0.5), CF(x, cy + 1.5, z), trim, MAT.Concrete)
+		P(parent, V3(0.5, 14, 0.5), CF(x, cy + 10, z), RGB(200, 200, 205), MAT.Metal)
+		cy += 17
+	end
+	local blink = ball(parent, V3(1, 1, 1), CF(x, cy + 1, z), RGB(255, 60, 60), MAT.Neon)
 	TweenService:Create(blink, TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {Transparency = 0.9}):Play()
-	C.reserve(x - w / 2, z - d / 2, x + w / 2, z + d / 2)
+	C.reserve(x - w / 2 - 1, z - d / 2 - 1, x + w / 2 + 1, z + d / 2 + 1)
 end
 function C.warehouse(parent, x, z, w, d, h, color, stacks)
 	P(parent, V3(w, h, d), CF(x, h / 2, z), color, MAT.Brick, SOLID)
@@ -2713,6 +3087,120 @@ do
 	addDest("Corner Motors", "🚗", V3(40, 0.2, -143))
 	addDest("Fun Park", "🎡", V3(-470, 0.2, 18))
 	addDest("Rental Row", "🏢", V3(415, 0.2, 18))
+end
+
+-- v19 BEACHFRONT: a boardwalk along the sand on both sides of the Empire Plaza (lamps, benches, two snack stands),
+-- umbrellas and loungers between the boardwalk and the water, and a lighthouse on a platform past the end of the
+-- pier (the secret on the pier stays where it is). Nothing goes where something already stands (C.isFree).
+do
+	local bw = Instance.new("Folder")
+	bw.Name = "Boardwalk"
+	bw.Parent = WORLD
+	local WOOD, RAIL = RGB(165, 120, 80), RGB(235, 230, 220)
+	for _, seg in ipairs({{-560, -80}, {80, 560}}) do
+		local a, b = seg[1], seg[2]
+		local x = a
+		while x < b do
+			local x2 = math.min(b, x + 40)
+			if C.isFree((x + x2) / 2, 400, 3) and C.isFree(x + 1, 400, 1) and C.isFree(x2 - 1, 400, 1) then
+				P(bw, V3(x2 - x, 0.6, 7), CF((x + x2) / 2, 0.35, 400), WOOD, MAT.WoodPlanks, SOLID)
+				P(bw, V3(x2 - x, 1.4, 0.3), CF((x + x2) / 2, 1.3, 403.6), RAIL, MAT.Wood)
+				-- a lamp and a bench on every plank section
+				P(bw, V3(0.4, 8, 0.4), CF(x + 4, 4, 396.8), RGB(60, 60, 66), MAT.Metal, SOLID)
+				local head = P(bw, V3(1.4, 0.6, 1.4), CF(x + 4, 8.2, 396.8), RGB(255, 235, 190), MAT.Neon)
+				local l = Instance.new("PointLight")
+				l.Range, l.Brightness, l.Color = 20, 1.2, RGB(255, 225, 170)
+				l.Parent = head
+				P(bw, V3(5, 0.4, 1.6), CF(x + 20, 1.6, 398), RGB(140, 100, 60), MAT.WoodPlanks)
+				-- umbrellas and loungers on the sand toward the water
+				local ux = x + 12
+				if C.isFree(ux, 416, 4) then
+					local col = Color3.fromHSV(((x * 0.013) % 1), 0.7, 0.95)
+					P(bw, V3(0.3, 5, 0.3), CF(ux, 2.5, 416), RGB(240, 240, 240), MAT.Wood)
+					P(bw, V3(6, 0.4, 6), CF(ux, 5, 416), col, MAT.Fabric)
+					for _, dx in ipairs({-2, 2}) do
+						P(bw, V3(1.6, 0.4, 4), CF(ux + dx, 0.6, 420), RGB(250, 250, 245), MAT.SmoothPlastic)
+						P(bw, V3(1.6, 1.4, 0.4), CF(ux + dx, 1.2, 418.2) * CFrame.Angles(math.rad(-25), 0, 0), RGB(250, 250, 245), MAT.SmoothPlastic)
+					end
+				end
+			end
+			x = x2
+		end
+	end
+	C.reserve(-560, 396, -80, 404)
+	C.reserve(80, 396, 560, 404)
+	-- two snack stands on the boardwalk's land side
+	for i, sx in ipairs({-300, 300}) do
+		if C.isFree(sx, 391, 4) then
+			local col = i == 1 and RGB(250, 150, 190) or RGB(110, 200, 230)
+			P(bw, V3(8, 6, 6), CF(sx, 3, 391), RGB(250, 245, 235), MAT.WoodPlanks, SOLID)
+			local aw = wedge(bw, V3(9, 1.6, 3), CF(sx, 6.4, 395) * CFrame.Angles(0, math.pi, 0), col, MAT.Fabric)
+			aw.CanCollide = false
+			local sign = P(bw, V3(8, 1.6, 0.3), CF(sx, 7.6, 394.1), col, MAT.SmoothPlastic)
+			surfaceText(sign, Enum.NormalId.Back, i == 1 and "🍦 SHAKE SHACK" or "🥤 COCO CABANA", RGB(40, 30, 40))
+			C.reserve(sx - 5, 387, sx + 5, 395)
+		end
+	end
+	-- the lighthouse, on a platform past the end of the pier
+	local lh = Instance.new("Folder")
+	lh.Name = "Lighthouse"
+	lh.Parent = WORLD
+	P(lh, V3(16, 1, 16), CF(0, 1.1, 489), RGB(150, 110, 70), MAT.WoodPlanks, SOLID)
+	for _, sx in ipairs({-7, 7}) do
+		for _, sz in ipairs({482, 496}) do cyl(lh, 10, 1, CF(sx, -3.6, sz), RGB(110, 80, 50), MAT.Wood) end
+	end
+	for k = 0, 5 do
+		cyl(lh, 4.6, 7 - k * 0.5, CF(0, 3.9 + k * 4.6, 490), k % 2 == 0 and RGB(245, 245, 245) or RGB(210, 50, 50), MAT.SmoothPlastic, {CanCollide = true})
+	end
+	P(lh, V3(6, 0.6, 6), CF(0, 30, 490), RGB(40, 40, 46), MAT.Metal)
+	local lamp = P(lh, V3(3.4, 3.4, 3.4), CF(0, 32.2, 490), RGB(255, 235, 170), MAT.Glass, {Name = "Window"})
+	C.tag(lamp, "NightWindow")
+	local sl = Instance.new("SpotLight")
+	sl.Range, sl.Angle, sl.Brightness, sl.Color, sl.Face = 60, 30, 2, RGB(255, 240, 200), Enum.NormalId.Front
+	sl.Parent = lamp
+	TweenService:Create(lamp, TweenInfo.new(8, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1), {CFrame = lamp.CFrame * CFrame.Angles(0, math.pi, 0)}):Play()
+	wedge(lh, V3(4.4, 2.6, 2.2), CF(0, 35.2, 491.1), RGB(210, 50, 50), MAT.SmoothPlastic)
+	wedge(lh, V3(4.4, 2.6, 2.2), CF(0, 35.2, 488.9) * CFrame.Angles(0, math.pi, 0), RGB(210, 50, 50), MAT.SmoothPlastic)
+	C.reserve(-8, 481, 8, 497)
+end
+
+-- v19 INDUSTRIAL: pipe racks between the tanks, a loading dock and a parked truck at each warehouse, hazard
+-- stripes, and a gantry crane over the yard. Placed only where the ground is free.
+do
+	local ind = WORLD:FindFirstChild("Industrial")
+	if ind then
+		local PIPE = RGB(170, 175, 180)
+		for _, z in ipairs({-24, 24}) do
+			-- the rack: posts and two pipes from one tank to the other
+			for _, x in ipairs({-262, -230, -198}) do P(ind, V3(0.8, 14, 0.8), CF(x, 7, z + 6), RGB(90, 95, 100), MAT.Metal, SOLID) end
+			P(ind, V3(70, 0.6, 2.6), CF(-230, 14, z + 6), RGB(90, 95, 100), MAT.Metal)
+			for _, dy in ipairs({0.9, 2.1}) do
+				local pp = P(ind, V3(110, 1, 1), CF(-230, 14 + dy, z + 6), dy < 1 and PIPE or RGB(200, 140, 60), MAT.Metal)
+				pp.Shape = Enum.PartType.Cylinder
+			end
+		end
+		for _, w in ipairs({{-230, -44, 16}, {-230, 44, 18}}) do
+			local x, z, d = w[1], w[2], w[3]
+			local front = z < 0 and (z + d / 2) or (z - d / 2)
+			local dir = z < 0 and 1 or -1
+			if C.isFree(x + 6, front + dir * 5, 1) then
+				P(ind, V3(14, 1.4, 4), CF(x, 0.7, front + dir * 2), RGB(150, 150, 155), MAT.Concrete, SOLID)
+				for k = -1, 1, 2 do P(ind, V3(1.4, 0.05, 4), CF(x + k * 6, 1.43, front + dir * 2), RGB(240, 200, 30), MAT.SmoothPlastic) end
+				-- a box truck backed up to the dock
+				local tz = front + dir * 9
+				P(ind, V3(7, 7, 10), CF(x + 8, 4.5, tz), RGB(245, 245, 245), MAT.SmoothPlastic, SOLID)
+				P(ind, V3(6.6, 4.4, 4), CF(x + 8, 3.2, tz + dir * 7), RGB(30, 110, 200), MAT.SmoothPlastic, SOLID)
+				P(ind, V3(6, 1.8, 0.3), CF(x + 8, 4.5, tz + dir * 9.1), RGB(50, 60, 75), MAT.Glass)
+			end
+		end
+		-- a gantry crane over the yard between the warehouses' backs (west edge)
+		if C.isFree(-305, -60, 2) and C.isFree(-305, 60, 2) then
+			for _, z in ipairs({-60, 60}) do P(ind, V3(1.6, 26, 1.6), CF(-305, 13, z), RGB(240, 180, 30), MAT.Metal, SOLID) end
+			P(ind, V3(2.4, 2.4, 122), CF(-305, 26, 0), RGB(240, 180, 30), MAT.Metal)
+			P(ind, V3(4, 3, 4), CF(-305, 23.5, 18), RGB(60, 60, 66), MAT.Metal)
+			P(ind, V3(0.3, 10, 0.3), CF(-305, 17, 18), RGB(40, 40, 40), MAT.Metal)
+		end
+	end
 end
 
 -- ===== BUSINESS LOT visuals (for sale / owned) =====
@@ -2935,7 +3423,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX7"><Properties><string name="Name">Buildings</string>
+<Item class="ModuleScript" referent="RBX8"><Properties><string name="Name">Buildings</string>
 <ProtectedString name="Source"><![CDATA[-- BUILDINGS: every business has its own themed architecture across 6 stages.
 return function(C)
 local TweenService = game:GetService("TweenService")
@@ -3798,7 +4286,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX8"><Properties><string name="Name">Housing</string>
+<Item class="ModuleScript" referent="RBX9"><Properties><string name="Name">Housing</string>
 <ProtectedString name="Source"><![CDATA[-- HOUSING: buy a home lot in one of 5 neighborhoods and build it up (5 levels).
 return function(C)
 local V3, CF, RGB, MAT = Vector3.new, CFrame.new, Color3.fromRGB, Enum.Material
@@ -4187,7 +4675,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX9"><Properties><string name="Name">Rentals</string>
+<Item class="ModuleScript" referent="RBX10"><Properties><string name="Name">Rentals</string>
 <ProtectedString name="Source"><![CDATA[-- RENTALS: property management company. Buy apartment buildings, upgrade them, pick tenants, deal with the drama.
 return function(C)
 local V3, CF, RGB, MAT = Vector3.new, CFrame.new, Color3.fromRGB, Enum.Material
@@ -4786,7 +5274,7 @@ C.propByLot = propByLot
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX10"><Properties><string name="Name">RealEstate</string>
+<Item class="ModuleScript" referent="RBX11"><Properties><string name="Name">RealEstate</string>
 <ProtectedString name="Source"><![CDATA[-- REAL ESTATE (v10): the city's property market.
 --
 -- The city has 8 districts with a fixed number of plots each (~100 in total). Prime districts (Downtown, Waterfront,
@@ -4835,6 +5323,12 @@ local FOLDER = Instance.new("Folder")
 FOLDER.Name = "RealEstate"
 FOLDER.Parent = C.WORLD or Workspace
 local PLOT = 22
+-- v19: which ARCHITECTURE style an unsold plot shows in each district (GameServer > Architecture), and its size
+-- {width, depth, base height}
+C.VACANT_STYLE = {midtown = "restaurant", entertainment = "neon", suburbs = "shop", expansion = "construction", downtown = "glass",
+	industrial = "shed", beach = "beach"}
+C.VACANT_SIZE = {restaurant = {18, 13, 18}, neon = {18, 13, 20}, shop = {16, 12, 9}, construction = {18, 13, 22}, glass = {16, 13, 40},
+	shed = {18, 13, 11}, beach = {16, 12, 12}}
 local function addLot(dkey, x, z, yaw)
 	local lot = {id = #LOTS + 1, dkey = dkey, pos = V3(x, 0, z), yaw = yaw or 0, size = PLOT}
 	table.insert(LOTS, lot)
@@ -4864,14 +5358,44 @@ for _, x in ipairs({-175, -285}) do
 	for _, z in ipairs({-105, 105}) do addLot("industrial", x, z, z > 0 and math.pi or 0) end
 end
 addLot("beach", 50, 230, -math.pi / 2)   -- (west of the avenue, z 225 is Maple Ln: no plot there)
+-- v19: dress a grid district (rows of plots facing a street in pairs, like Midtown): sidewalks, trees and lamps
+-- along its streets, a little park in the band between the middle rows, and the city's own buildings in the gaps
+-- between the plots (decoration in the district's style), so every street is a continuous row of storefronts.
+--   gapXs: x of the gaps; rows: z of the plot rows (odd rows face +Z); streets: z of the streets; parkZ: z of the
+--   middle band; x1/x2: where the streets start and end; style: GameServer > Architecture; names: their signs
+function C.dressGrid(f, gapXs, rows, streets, parkZ, x1, x2, style, names, opts)
+	if not C.archBuild then return end
+	opts = opts or {}
+	for _, z in ipairs(streets) do C.archStreet(f, "x", z, x1, x2, 8, {lights = opts.lights, asphalt = opts.asphalt}) end
+	if parkZ then C.archPark(f, (x1 + x2) / 2, parkZ, x2 - x1 - 8, 26, {trees = 3}) end
+	local n = 0
+	for i, z in ipairs(rows) do
+		local yaw = (i % 2 == 1) and 0 or math.pi
+		for _, x in ipairs(gapXs) do
+			n += 1
+			local o = CF(x, 0, z) * CFrame.Angles(0, yaw, 0)
+			local h = C.archHeight(style, opts.baseH or 14, n)
+			C.archBuild(f, o * CF(0, 0, -PLOT / 2 + 1 + 6.5), 14, 13, h, style,
+				{seed = n + 3, sign = names and names[(n - 1) % #names + 1] or nil, banner = opts.banner, bannerColor = opts.bannerColor, signColor = RGB(40, 30, 25)})
+		end
+	end
+end
+C.NEON_NAMES = {"Pixel Palace", "Starlight Lanes", "Laser Blast", "Club Nova", "Retro Rewind", "Karaoke Kingdom", "Galaxy Bowl", "Neon Noodles",
+	"Jackpot Arcade", "Giggle Box Comedy"}
+C.SHOP_NAMES = {"Corner Deli", "Maple Hardware", "Petal & Stem", "Book Nook", "Northside Bakery", "Bike Shed", "Mr. Fix-It", "Pet Palace",
+	"Sunny Laundry", "The Toy Box", "Paint Pot", "Daily Grind", "Shoe Shine", "Fresh Market", "Hair Today", "Snack Shack"}
 -- Midtown: the big south-east business area (20 plots)
 do
 	local f = slab("Midtown", 510, 205, 270, 250, RGB(170, 168, 160))
 	for _, x in ipairs({400, 455, 510, 565, 620}) do
 		for i, z in ipairs({120, 175, 235, 290}) do addLot("midtown", x, z, (i % 2 == 1) and 0 or math.pi) end
 	end
-	C.gate(f, V3(352, 0, 205), true, "🏬 MIDTOWN", "Business plots • " .. REP_TIERS[DISTRICT.midtown.tier].name, DISTRICT.midtown.color)
+	C.gate(f, V3(352, 0, 205), true, "🏬 MIDTOWN • RESTAURANT ROW", "Business plots • " .. REP_TIERS[DISTRICT.midtown.tier].name, DISTRICT.midtown.color)
 	for _, z in ipairs({147, 262}) do P(f, V3(260, 0.12, 8), CF(510, 0.2, z), RGB(60, 62, 68), MAT.Asphalt) end
+	-- v19 RESTAURANT ROW: sidewalks, trees and strings of lights over both streets, and the city's own restaurants
+	-- in the gaps between the plots, so every street is a continuous row of storefronts (decoration: the plots
+	-- between them are still for sale and work exactly as before)
+	C.dressGrid(f, {427.5, 482.5, 537.5, 592.5}, {120, 175, 235, 290}, {147, 262}, 205, 382, 640, "restaurant", C.ROW_NAMES, {lights = true})
 end
 -- Entertainment District, next to the Fun Park, around the Fun Zone (15 plots)
 do
@@ -4884,6 +5408,21 @@ do
 	-- the Fun Zone pavilion stands in the middle (GameServer > FunZone builds it here)
 	C.FUN_ZONE_AT = CF(-455, 0, -215)
 	C.reserve(-480, -290, -430, -140)
+	-- v19: neon-lit streets in front of the plots and the city's own arcades and clubs between them (decoration: the
+	-- plots are still for sale and work exactly as before)
+	if C.archBuild then
+		for _, x in ipairs({-580, -530, -382.5}) do C.archStreet(f, "z", x, -288, -142, 8, {lights = true, asphalt = true, trees = false}) end
+		local n = 0
+		for _, x in ipairs({-605, -555, -505, -405, -360}) do
+			local yaw = x < -455 and -math.pi / 2 or math.pi / 2
+			for _, z in ipairs({-242.5, -187.5}) do
+				n += 1
+				local o = CF(x, 0, z) * CFrame.Angles(0, yaw, 0)
+				C.archBuild(f, o * CF(0, 0, -PLOT / 2 + 1 + 6.5), 14, 13, C.archHeight("neon", 14, n), "neon",
+					{seed = n + 5, sign = C.NEON_NAMES[(n - 1) % #C.NEON_NAMES + 1], signColor = RGB(30, 20, 40)})
+			end
+		end
+	end
 end
 -- Northside Suburbs, outside North Rd to the west (20 plots)
 do
@@ -4892,6 +5431,8 @@ do
 		for i, z in ipairs({-560, -505, -450, -395}) do addLot("suburbs", x, z, (i % 2 == 1) and 0 or math.pi) end
 	end
 	C.gate(f, V3(-490, 0, -345), false, "🏘️ NORTHSIDE SUBURBS", "Cheap plots for new businesses", DISTRICT.suburbs.color)
+	-- v19: streets between the rows, little shops in the gaps, a green in the middle
+	C.dressGrid(f, {-572.5, -517.5, -462.5, -407.5}, {-560, -505, -450, -395}, {-532.5, -422.5}, -477.5, -625, -355, "shop", C.SHOP_NAMES, {baseH = 9, asphalt = true})
 end
 -- Expansion District, outside North Rd to the east (20 plots, late game)
 do
@@ -4900,6 +5441,9 @@ do
 		for i, z in ipairs({-560, -505, -450, -395}) do addLot("expansion", x, z, (i % 2 == 1) and 0 or math.pi) end
 	end
 	C.gate(f, V3(470, 0, -345), false, "🚧 EXPANSION DISTRICT", "Late-game land • " .. REP_TIERS[DISTRICT.expansion.tier].name, DISTRICT.expansion.color)
+	-- v19: the district is going up: streets between the rows and buildings under construction in the gaps
+	C.dressGrid(f, {387.5, 442.5, 497.5, 552.5}, {-560, -505, -450, -395}, {-532.5, -422.5}, -477.5, 335, 605, "construction", nil,
+		{baseH = 16, banner = "UNDER CONSTRUCTION", bannerColor = RGB(240, 170, 40), asphalt = true})
 	for i = 0, 5 do
 		local cone = P(f, V3(1.2, 2, 1.2), CF(340 + i * 50, 1, -350), RGB(255, 140, 30))
 		cone.Shape = Enum.PartType.Cylinder
@@ -5188,11 +5732,19 @@ function F.buildLot(lot)
 	f.PrimaryPart = base
 	P(f, V3(size + 0.4, 0.3, 0.6), o * CF(0, 0.6, size / 2), dist.color, MAT.SmoothPlastic)
 	if not owner then
-		for _, sx in ipairs({-size / 2 + 0.6, size / 2 - 0.6}) do
-			for _, sz in ipairs({-size / 2 + 0.6, size / 2 - 0.6}) do P(f, V3(0.4, 1.5, 0.4), o * CF(sx, 1.2, sz), WHITE) end
+		-- v19: an unsold plot isn't an empty slab any more: it has a vacant building in its district's style (Midtown's
+		-- restaurants, the Entertainment District's neon, the Suburbs' little shops...), "FOR LEASE" on its sign board.
+		-- The FOR SALE post and its prompt stand at the front corner of the plot, clear of the building and its tables.
+		local style = C.VACANT_STYLE[lot.dkey]
+		if style and C.archBuild then
+			local spec = C.VACANT_SIZE[style] or {18, 13, 18}
+			local h = C.archHeight(style, spec[3], lot.id)
+			C.archBuild(f, o * CF(0, 0, -size / 2 + 1 + spec[2] / 2), spec[1], spec[2], h, style,
+				{seed = lot.id, banner = style == "construction" and "COMING SOON" or "FOR LEASE", bannerColor = dist.color, signColor = WHITE})
 		end
-		P(f, V3(0.4, 5, 0.4), o * CF(0, 2.5, size / 2 - 3), RGB(110, 80, 50), MAT.Wood)
-		local sign = P(f, V3(6, 3.5, 0.3), o * CF(0, 5.5, size / 2 - 3), RGB(245, 245, 245), MAT.SmoothPlastic, {Name = "Sign"})
+		local sx = style and (size / 2 - 3.5) or 0
+		P(f, V3(0.4, 5, 0.4), o * CF(sx, 2.5, size / 2 - 2), RGB(110, 80, 50), MAT.Wood)
+		local sign = P(f, V3(6, 3.5, 0.3), o * CF(sx, 5.5, size / 2 - 2), RGB(245, 245, 245), MAT.SmoothPlastic, {Name = "Sign"})
 		billboard(sign, UDim2.fromOffset(230, 104), V3(0, 4.4, 0), {
 			{text = "PROPERTY FOR SALE", h = 0.24, color = RGB(255, 90, 90)},
 			{text = dist.icon .. " " .. dist.name, h = 0.2, color = dist.color},
@@ -5414,7 +5966,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX11"><Properties><string name="Name">Brands</string>
+<Item class="ModuleScript" referent="RBX12"><Properties><string name="Name">Brands</string>
 <ProtectedString name="Source"><![CDATA[-- BRANDS + PRODUCTS (v10): you don't own "a lemonade stand", you own Spencer's Lemon Lab and its Blue Raspberry Blast.
 --
 -- NAMES: every business can be named (3-24 characters, run through Roblox's text filter on the server; if the
@@ -5944,7 +6496,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX12"><Properties><string name="Name">Cars</string>
+<Item class="ModuleScript" referent="RBX13"><Properties><string name="Name">Cars</string>
 <ProtectedString name="Source"><![CDATA[-- CARS: realistic part-built cars, the Corner Motors showroom, game passes.
 return function(C)
 local Players = game:GetService("Players")
@@ -6564,7 +7116,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX13"><Properties><string name="Name">Garage</string>
+<Item class="ModuleScript" referent="RBX14"><Properties><string name="Name">Garage</string>
 <ProtectedString name="Source"><![CDATA[-- GARAGE (v10): your cars. Equip (your default ride), favorite, rename (filtered), customize, sell, stats.
 -- Customization is cosmetic (paint, wheels, window tint, interior, plate, decals, spoilers, bumpers, exhaust):
 -- it never changes speed, so nobody pays to win races. Every change is validated and paid for here.
@@ -6804,7 +7356,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX14"><Properties><string name="Name">Race</string>
+<Item class="ModuleScript" referent="RBX15"><Properties><string name="Name">Race</string>
 <ProtectedString name="Source"><![CDATA[-- RACE TRACK: time trials with checkpoints, prizes and a best-times board.
 return function(C)
 local V3, CF, RGB, MAT = Vector3.new, CFrame.new, Color3.fromRGB, Enum.Material
@@ -7083,7 +7635,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX15"><Properties><string name="Name">Activities</string>
+<Item class="ModuleScript" referent="RBX16"><Properties><string name="Name">Activities</string>
 <ProtectedString name="Source"><![CDATA[-- FUN PARK: ferris wheel, carousel, mini-game booths, fireworks. Ways to spend (and win) money.
 return function(C)
 local TweenService = game:GetService("TweenService")
@@ -7349,7 +7901,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX16"><Properties><string name="Name">Social</string>
+<Item class="ModuleScript" referent="RBX17"><Properties><string name="Name">Social</string>
 <ProtectedString name="Source"><![CDATA[-- SOCIAL: CityBuzz (posts, likes, followers) + the phone's Messages inbox.
 return function(C)
 local TextService = game:GetService("TextService")
@@ -7743,7 +8295,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX17"><Properties><string name="Name">Reviews</string>
+<Item class="ModuleScript" referent="RBX18"><Properties><string name="Name">Reviews</string>
 <ProtectedString name="Source"><![CDATA[-- REVIEWS + IMPROVEMENTS: a living reputation.
 -- A bad review names a real reason (slow service, a dirty floor...) tied to one of five improvements every
 -- business has. Improving that area doesn't erase the review: the next time a customer visits that business,
@@ -7898,7 +8450,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX18"><Properties><string name="Name">Systems</string>
+<Item class="ModuleScript" referent="RBX19"><Properties><string name="Name">Systems</string>
 <ProtectedString name="Source"><![CDATA[-- SYSTEMS: economy, reputation & unlocks, customers, staff, problems, stocks, lots, ads,
 -- city events, Corner Wars, deliveries, the Spire, rebirths and the tutorial.
 return function(C)
@@ -9114,7 +9666,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX19"><Properties><string name="Name">Mega</string>
+<Item class="ModuleScript" referent="RBX20"><Properties><string name="Name">Mega</string>
 <ProtectedString name="Source"><![CDATA[-- MEGA: server-wide mega events (UFO invasion, tornado, billionaire, festival, robbery wave...) and City Era visuals.
 -- Everything that pays out is decided here on the server; clients only draw the big announcement.
 return function(C)
@@ -9807,7 +10359,7 @@ F.buildEraDecor(1)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX20"><Properties><string name="Name">Legacy</string>
+<Item class="ModuleScript" referent="RBX21"><Properties><string name="Name">Legacy</string>
 <ProtectedString name="Source"><![CDATA[-- LEGACY: hidden places to explore, relics, and (below) the Legacy Museum and Mystery Lots.
 return function(C)
 local Workspace = game:GetService("Workspace")
@@ -10226,7 +10778,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX21"><Properties><string name="Name">Weekly</string>
+<Item class="ModuleScript" referent="RBX22"><Properties><string name="Name">Weekly</string>
 <ProtectedString name="Source"><![CDATA[-- WEEKLY: rotating weekly leaderboards, the weekly Empire Showcase, and house tours (visit / like / rate / favorite).
 -- Boards live in OrderedDataStores scoped to the week, so every server sees the same rankings.
 -- Without DataStore access (e.g. Studio with API access off) everything still works, but only in memory.
@@ -10664,7 +11216,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX22"><Properties><string name="Name">Story</string>
+<Item class="ModuleScript" referent="RBX23"><Properties><string name="Name">Story</string>
 <ProtectedString name="Source"><![CDATA[-- STORY MODE: six comedic chapters that follow each player's REAL progress (lifetime earnings and business
 -- milestones, never the cash in their pocket, so buying a car never makes the story think you're broke again).
 -- Everything is decided here on the server: objectives are checked against the player's data, rewards are
@@ -11156,7 +11708,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX23"><Properties><string name="Name">Messages</string>
+<Item class="ModuleScript" referent="RBX24"><Properties><string name="Name">Messages</string>
 <ProtectedString name="Source"><![CDATA[-- MESSAGES: the people in your empire text you. Employees, customers, tenants, rivals, story characters,
 -- City Hall, event organizers and investors, each based on what's really going on in YOUR empire.
 -- At most one everyday message every few minutes per player (important ones can come sooner, never in a burst).
@@ -11299,7 +11851,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX24"><Properties><string name="Name">MapData</string>
+<Item class="ModuleScript" referent="RBX25"><Properties><string name="Name">MapData</string>
 <ProtectedString name="Source"><![CDATA[-- MAP DATA: everything the phone's Map app shows, built from the game's own data (plots, district lots,
 -- home lots, rental lots, attractions). Nothing here is a second copy of the world: positions come from
 -- the tables the world was built from.
@@ -11386,7 +11938,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX25"><Properties><string name="Name">Interiors</string>
+<Item class="ModuleScript" referent="RBX26"><Properties><string name="Name">Interiors</string>
 <ProtectedString name="Source"><![CDATA[-- INTERIORS: every business and every home has an inside you can walk into and decorate.
 -- Rooms are built away from the city (high above the far edge of the map) only while someone is inside, and
 -- removed shortly after they're empty. Each business type has its own functional areas (counter, kitchen,
@@ -12498,7 +13050,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX26"><Properties><string name="Name">HQ</string>
+<Item class="ModuleScript" referent="RBX27"><Properties><string name="Name">HQ</string>
 <ProtectedString name="Source"><![CDATA[-- HQ + GENERAL MANAGER (v10)
 --
 -- HQ: your Empire Tower (it appears on your plot at HOTSPOT) becomes a real headquarters you can walk into. Each
@@ -12986,7 +13538,7 @@ C.ACTIONS.mgrInfo = function(plr) R.Menu:FireClient(plr, "manager", F.managerInf
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX27"><Properties><string name="Name">Computer</string>
+<Item class="ModuleScript" referent="RBX28"><Properties><string name="Name">Computer</string>
 <ProtectedString name="Source"><![CDATA[-- COMPUTER (v10): a real object in your home (furniture shop → Tech) and in your HQ's private office.
 -- Walk up → [Use Computer] → the computer opens. The server only sends computer data to a player standing at a
 -- computer they own, and the tier decides which apps work:
@@ -13195,7 +13747,7 @@ Players.PlayerRemoving:Connect(function(plr) session[plr] = nil end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX28"><Properties><string name="Name">HomeBuilder</string>
+<Item class="ModuleScript" referent="RBX29"><Properties><string name="Name">HomeBuilder</string>
 <ProtectedString name="Source"><![CDATA[-- HOME BUILDER (v10): build the inside of your home your way.
 --
 --   * FURNITURE SHOP: 9 categories (Living Room, Bedroom, Kitchen, Bathroom, Office, Gaming, Decor, Lighting,
@@ -13893,7 +14445,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX29"><Properties><string name="Name">Arcade</string>
+<Item class="ModuleScript" referent="RBX30"><Properties><string name="Name">Arcade</string>
 <ProtectedString name="Source"><![CDATA[-- ARCADE + FUN ZONE (v10): 2-player mini-games, played against another real player.
 --
 --   ⚡ Reaction Duel  — wait for GO, tap first (best of 3; tapping early is a false start)
@@ -14471,7 +15023,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX30"><Properties><string name="Name">Admin</string>
+<Item class="ModuleScript" referent="RBX31"><Properties><string name="Name">Admin</string>
 <ProtectedString name="Source"><![CDATA[-- ADMIN (v10): a developer / admin panel that only authorized people can use.
 --
 -- WHO IS AN ADMIN (decided here, on the server — never by the client, never from player save data):
@@ -15133,7 +15685,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX31"><Properties><string name="Name">Guide</string>
+<Item class="ModuleScript" referent="RBX32"><Properties><string name="Name">Guide</string>
 <ProtectedString name="Source"><![CDATA[-- GUIDE (v10): the tutorial keeps up with the game. After the 7 opening steps, 18 contextual tips appear the first
 -- time you reach each new system (never twice, at most one every 20 seconds, and they can be switched off in
 -- Settings). Every big window has a "What's this?" button that shows the help text below, and the computer's
@@ -15332,7 +15884,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX32"><Properties><string name="Name">Mountain</string>
+<Item class="ModuleScript" referent="RBX33"><Properties><string name="Name">Mountain</string>
 <ProtectedString name="Source"><![CDATA[-- MOUNTAIN (v11): the Blackrock Syndicate's secret base, hidden inside the mountain north of the race track.
 --
 -- From outside it's just a rocky mountain with a dirt road, a few vents and faint lights, and a drainage culvert in a
@@ -15844,7 +16396,7 @@ Players.PlayerRemoving:Connect(function(p) inside[p] = nil end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX33"><Properties><string name="Name">Heists</string>
+<Item class="ModuleScript" referent="RBX34"><Properties><string name="Name">Heists</string>
 <ProtectedString name="Source"><![CDATA[-- HEISTS (v11): robberies, the police, and the long drive home.
 --
 -- THE LOOP: a robbery opportunity opens somewhere in the city → a crew (1-4 players who found the mountain HQ)
@@ -16849,7 +17401,7 @@ C.HEIST_ADMIN = {
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX34"><Properties><string name="Name">Police</string>
+<Item class="ModuleScript" referent="RBX35"><Properties><string name="Name">Police</string>
 <ProtectedString name="Source"><![CDATA[-- POLICE (v14): the city's police are NPC officers in patrol cars. Players don't play police any more.
 --
 -- Each unit has a simple state machine, decided on the server twice a second and moved ten times a second:
@@ -17199,7 +17751,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX35"><Properties><string name="Name">Cinematics</string>
+<Item class="ModuleScript" referent="RBX36"><Properties><string name="Name">Cinematics</string>
 <ProtectedString name="Source"><![CDATA[-- CINEMATICS (server): decides WHEN an interaction cinematic plays and WHAT everyone says. The client's
 -- CinematicController (EmpireClient > Cinematics) plays it: camera, actors, props, skip button.
 --
@@ -17426,7 +17978,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX36"><Properties><string name="Name">ViralMoments</string>
+<Item class="ModuleScript" referent="RBX37"><Properties><string name="Name">ViralMoments</string>
 <ProtectedString name="Source"><![CDATA[-- VIRAL MOMENTS: the city notices what players actually do and turns it into a moment.
 --
 --   something happens (an eviction, a grand opening, a crash into your own bakery, a 1-star review...)
@@ -17834,7 +18386,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX37"><Properties><string name="Name">Influencers</string>
+<Item class="ModuleScript" referent="RBX38"><Properties><string name="Name">Influencers</string>
 <ProtectedString name="Source"><![CDATA[-- INFLUENCERS: four original, fictional city celebrities who show up now and then.
 --   Bay Snaps   - chaotic livestreamer, rates businesses live           "CHAT, WE GOTTA SEE THIS."
 --   Jax Cash    - luxury-business influencer, inspects cars             "That's an empire move."
@@ -18138,7 +18690,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX38"><Properties><string name="Name">CityEvents</string>
+<Item class="ModuleScript" referent="RBX39"><Properties><string name="Name">CityEvents</string>
 <ProtectedString name="Source"><![CDATA[-- CITY EVENTS: the unexpected things that happen while you're running your empire.
 --
 -- Funny random events (one player at a time, minutes apart, never during the tutorial):
@@ -18480,7 +19032,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX39"><Properties><string name="Name">Empire</string>
+<Item class="ModuleScript" referent="RBX40"><Properties><string name="Name">Empire</string>
 <ProtectedString name="Source"><![CDATA[-- EMPIRE (v12): CITY TAKEOVER & BILLIONAIRE PROGRESSION.
 --
 --   EMPIRE VALUE   what the player's empire is really worth, worked out HERE from their saved assets (cash, every
@@ -19039,7 +19591,7 @@ C.EMPIRE_ADMIN = {
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX40"><Properties><string name="Name">EmpirePlaza</string>
+<Item class="ModuleScript" referent="RBX41"><Properties><string name="Name">EmpirePlaza</string>
 <ProtectedString name="Source"><![CDATA[-- EMPIRE PLAZA (v12): a monument on the beach where a tiny starter lemonade stand sits next to a giant golden tower,
 -- with two Hall of Fame billboards that show the richest empires. Built once at start; the billboard text is
 -- refreshed by Empire.lua through C.updateHallBoard(list). Anybody can walk up and open the Empire Hall.
@@ -19149,7 +19701,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX41"><Properties><string name="Name">Explore</string>
+<Item class="ModuleScript" referent="RBX42"><Properties><string name="Name">Explore</string>
 <ProtectedString name="Source"><![CDATA[-- EXPLORE (v13): reasons to go out into the city.
 --   GOLDEN CORNERS  30 small golden tokens tucked at street corners in every district and neighborhood. Walk or drive
 --                   up to one to collect it (once per save). Every district's set, and all 30, pay a bonus.
@@ -19680,7 +20232,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX42"><Properties><string name="Name">Kitchen</string>
+<Item class="ModuleScript" referent="RBX43"><Properties><string name="Name">Kitchen</string>
 <ProtectedString name="Source"><![CDATA[-- KITCHEN (v14): RUSH ORDERS. Run your own counter for a while: customers (the city's real customer types: students
 -- love pizza, office workers want coffee...) order one of YOUR products, the ticket shows its recipe, and you tap the
 -- steps in order before they lose patience (dough → sauce → cheese → bake).
@@ -19926,7 +20478,7 @@ C.ACTIONS.cookEnd = function(plr) endShift(plr, "Shift ended.") end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX43"><Properties><string name="Name">Theater</string>
+<Item class="ModuleScript" referent="RBX44"><Properties><string name="Name">Theater</string>
 <ProtectedString name="Source"><![CDATA[-- THEATER (v14): the Movie Theater. It's too big for the home plot, so it opens on a city plot (RealEstate) and
 -- the owner runs its programme:
 --   * FILMS: three original films are "in release" at a time (they rotate every few hours, the same in every
@@ -20220,7 +20772,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX44"><Properties><string name="Name">Park</string>
+<Item class="ModuleScript" referent="RBX45"><Properties><string name="Name">Park</string>
 <ProtectedString name="Source"><![CDATA[-- PARK (v15): the 🎢 AMUSEMENT PARK business. Like the Movie Theater it opens on a city plot (its ticket gate
 -- stands there), and its owner gets their own site at the FUNLAND GROUNDS (far west, past the Fun Park) to build
 -- the park on:
@@ -21202,7 +21754,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX45"><Properties><string name="Name">FunPark</string>
+<Item class="ModuleScript" referent="RBX46"><Properties><string name="Name">FunPark</string>
 <ProtectedString name="Source"><![CDATA[-- FUN PARK (v15 makeover): the public Fun Park (GameServer > Activities: Ferris wheel, carousel, game booths,
 -- fireworks) gets real rides and a crowd:
 --   * 🎢 THE BIG DIPPER: a big roller coaster round the south side of the park: a lift hill, a big drop, camel
@@ -21355,7 +21907,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX46"><Properties><string name="Name">Crew</string>
+<Item class="ModuleScript" referent="RBX47"><Properties><string name="Name">Crew</string>
 <ProtectedString name="Source"><![CDATA[-- CREW (v14): employees get a personality and a schedule.
 --   * TRAITS: most candidates have one (Night Owl, Early Bird, Charmer, Hustler, Fast Learner, Steady Hands), shown
 --     before you hire them. Each changes something real (the shift bonus, customer happiness, training cost, how
@@ -21484,7 +22036,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX47"><Properties><string name="Name">Rivals</string>
+<Item class="ModuleScript" referent="RBX48"><Properties><string name="Name">Rivals</string>
 <ProtectedString name="Source"><![CDATA[-- RIVALS (v14): four AI companies compete with your businesses. Each one goes after certain business types:
 --   🥤 Gulp & Co. (lemonade, ice cream, coffee) · 🍔 MegaBite Foods (bakery, pizza)
 --   👾 Pixel Palace Group (arcade, movie theater, amusement park) · 🏭 Novatek Industries (tech, factory)
@@ -21699,7 +22251,7 @@ Players.PlayerRemoving:Connect(function(plr) nextMove[plr] = nil end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX48"><Properties><string name="Name">Ledger</string>
+<Item class="ModuleScript" referent="RBX49"><Properties><string name="Name">Ledger</string>
 <ProtectedString name="Source"><![CDATA[-- LEDGER (v14): the one safe way money moves from one player to another (gifts, revenue shares). Each player has
 -- an inbox in its own DataStore ("CE_Ledger", key in_<userId>), so a transfer works even if the other player is in
 -- another server or offline, and NOTHING can be duplicated or lost, whatever crashes when:
@@ -21893,7 +22445,7 @@ Players.PlayerRemoving:Connect(function(plr) busy[plr] = nil end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX49"><Properties><string name="Name">Partners</string>
+<Item class="ModuleScript" referent="RBX50"><Properties><string name="Name">Partners</string>
 <ProtectedString name="Source"><![CDATA[-- PARTNERS (v14): doing business together.
 --   GIFTS (secure transfers): A offers B an amount → B accepts → A confirms → the server checks everything again
 --     (both still here, the cash is there, today's limit, nobody mid-transfer) → the Ledger moves it (write-ahead,
@@ -22353,7 +22905,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX50"><Properties><string name="Name">HomeLife</string>
+<Item class="ModuleScript" referent="RBX51"><Properties><string name="Name">HomeLife</string>
 <ProtectedString name="Source"><![CDATA[-- HOME LIFE (v14): three ways to live, and home parties.
 --   🏢 CITY LOFT (an apartment in the Skyline Lofts tower downtown): cheap to start ($15K), three sizes (Studio,
 --     City Loft, Skyline Penthouse), no lot needed, decorated like any home. Perk "Night Life": guests at your
@@ -22643,7 +23195,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX51"><Properties><string name="Name">Vehicles</string>
+<Item class="ModuleScript" referent="RBX52"><Properties><string name="Name">Vehicles</string>
 <ProtectedString name="Source"><![CDATA[-- VEHICLES (v14): every car has a ROLE (from its class) and can be TUNED.
 --   ROLES, each with one real effect, only while you're actually driving that car:
 --     🛵 Commuter (Economy)   tuning costs half
@@ -22772,7 +23324,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX52"><Properties><string name="Name">Leaders</string>
+<Item class="ModuleScript" referent="RBX53"><Properties><string name="Name">Leaders</string>
 <ProtectedString name="Source"><![CDATA[-- LEADERS (v14): leaderboards and PRESTIGE.
 -- LEADERBOARDS: Net Worth, Revenue, Popularity, Properties, Fastest Lap, Heists, Explorer and Prestige.
 --   Three views: this SERVER (live), GLOBAL (every server: OrderedDataStores "CE_LB_<board>", written only by this
@@ -23058,7 +23610,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX53"><Properties><string name="Name">Occasions</string>
+<Item class="ModuleScript" referent="RBX54"><Properties><string name="Name">Occasions</string>
 <ProtectedString name="Source"><![CDATA[-- OCCASIONS (v14): scheduled special events on the real calendar (UTC, the same in every server).
 --   🎃 Spooky Season (Oct 10 - Nov 1)   ❄️ Winter Lights (Dec 10 - Jan 2)   💘 Sweetheart Week (Feb 7 - 15)
 --   🌸 Spring Fair (Apr 1 - 14)         ☀️ Summer Beach Fest (Jul 1 - 21)   🎂 City Birthday (the 1st-3rd of every month)
@@ -23317,7 +23869,7 @@ F.occasionDress = dress
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX54"><Properties><string name="Name">Onboarding</string>
+<Item class="ModuleScript" referent="RBX55"><Properties><string name="Name">Onboarding</string>
 <ProtectedString name="Source"><![CDATA[-- ONBOARDING (v14): after the tutorial, a staged path of 10 next steps, one at a time, that walks a new player
 -- through everything the city has (each with a "Show me" that opens the right app, and a small reward):
 --   1 serve a perfect Rush Order   2 hire an employee   3 open a second business   4 find a Golden Corner
@@ -23471,7 +24023,7 @@ Players.PlayerRemoving:Connect(function(plr) last[plr] = nil end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX55"><Properties><string name="Name">Daily</string>
+<Item class="ModuleScript" referent="RBX56"><Properties><string name="Name">Daily</string>
 <ProtectedString name="Source"><![CDATA[-- DAILY (v16): reasons to come back tomorrow. All of it belongs to the ACCOUNT (the meta key, GameServer >
 -- Players: F.acct / F.acctCommit), so the three save slots share one streak, and every reward is written ahead
 -- as a "grant" before it's paid into the slot being played (no duplicate or lost rewards; see F.payGrants).
@@ -23844,7 +24396,7 @@ Players.PlayerRemoving:Connect(function(plr) lastPos[plr], claimAt[plr] = nil, n
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX56"><Properties><string name="Name">Paths</string>
+<Item class="ModuleScript" referent="RBX57"><Properties><string name="Name">Paths</string>
 <ProtectedString name="Source"><![CDATA[-- PATHS (v16): three ways to build an empire, on the SAME economy (no new currency, nothing locked for good):
 --   💼 BUSINESS MOGUL    serve customers, Rush Orders, upgrades, theater shows, building your park
 --   🕶️ UNDERWORLD OPERATOR  heists that make it home to the mountain base (the existing heist system; fictional)
@@ -24070,7 +24622,7 @@ local _ = Players
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX57"><Properties><string name="Name">Roadmap</string>
+<Item class="ModuleScript" referent="RBX58"><Properties><string name="Name">Roadmap</string>
 <ProtectedString name="Source"><![CDATA[-- ROADMAP (v16): the 🗺️ Empire Roadmap. Seven stages from a street corner to a legend, each built from the
 -- game's REAL rules (reputation tiers from C.REP_TIERS, the businesses you run, your city plots, the empire
 -- value), so it never promises something the game doesn't do. Each stage shows what you need, how far along you
@@ -24191,7 +24743,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX58"><Properties><string name="Name">LiveEvents</string>
+<Item class="ModuleScript" referent="RBX59"><Properties><string name="Name">LiveEvents</string>
 <ProtectedString name="Source"><![CDATA[-- LIVE EVENTS (v16): something always going on in the city. One CITY EVENT at a time on a fixed UTC schedule
 -- (4-hour windows), worked out from the clock alone, so every server runs the same event at the same time:
 --   weekdays rotate through 🍽️ Restaurant Rush, 🎡 Funland Night, 🥊 Rival Takeover, 📦 Double Delivery,
@@ -24388,7 +24940,7 @@ Players.PlayerRemoving:Connect(function(plr) prog[plr], told[plr], rushAt[plr] =
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX59"><Properties><string name="Name">Showcase</string>
+<Item class="ModuleScript" referent="RBX60"><Properties><string name="Name">Showcase</string>
 <ProtectedString name="Source"><![CDATA[-- SHOWCASE (v16): playing together.
 --   * PARK VISITS: riding at another player's 🎢 park pays the visitor a small reward the first time each day at
 --     each park (3 parks a day at most), and the owner a small "a friend dropped by" bonus once per visitor per
@@ -24556,7 +25108,7 @@ end
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX60"><Properties><string name="Name">Bazaar</string>
+<Item class="ModuleScript" referent="RBX61"><Properties><string name="Name">Bazaar</string>
 <ProtectedString name="Source"><![CDATA[-- CITY BAZAAR (v17): a shop that RESTOCKS EVERY 5 MINUTES with rare, Bazaar-only furniture (the hook behind
 -- Grow a Garden's seed shop: everyone checks back for the rare one). The stock is worked out from the UTC clock
 -- alone (the 5-minute window number seeds the roll), so EVERY SERVER SHOWS THE SAME STOCK at the same time:
@@ -24833,7 +25385,7 @@ Players.PlayerRemoving:Connect(function(plr) told[plr], lastBuy[plr] = nil, nil 
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX61"><Properties><string name="Name">Collection</string>
+<Item class="ModuleScript" referent="RBX62"><Properties><string name="Name">Collection</string>
 <ProtectedString name="Source"><![CDATA[-- COLLECTION + "NEXT TIME" (v18): reasons to come back because you're CURIOUS, not only because you're told to.
 --   * 📚 COLLECTION BOOK: everything rare there is to find: every Bazaar-only treasure and every kind of lucky
 --     customer. What you've found shows in full; what you haven't is a "❓ ???" card with only its rarity color and
@@ -25030,7 +25582,7 @@ Players.PlayerRemoving:Connect(function(plr) started[plr], shown[plr], claimAt[p
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX62"><Properties><string name="Name">Analytics</string>
+<Item class="ModuleScript" referent="RBX63"><Properties><string name="Name">Analytics</string>
 <ProtectedString name="Source"><![CDATA[-- ANALYTICS (v17): tells Roblox's Creator Analytics what new players do, so the Creator Hub dashboards show
 -- where they stop playing (Roblox ranks games by first-play bounce, playtime and how many days people come back).
 --   * ONBOARDING FUNNEL (AnalyticsService:LogOnboardingFunnelStepEvent): brand-new saves only (d.firstPlay),
@@ -25128,7 +25680,7 @@ Players.PlayerRemoving:Connect(function(plr) lastEco[plr], started[plr] = nil, n
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX63"><Properties><string name="Name">Updates</string>
+<Item class="ModuleScript" referent="RBX64"><Properties><string name="Name">Updates</string>
 <ProtectedString name="Source"><![CDATA[-- UPDATES: tells players on an older server that a newer version of the game has been published.
 -- Every server records its place version in a tiny DataStore key and announces it over MessagingService.
 -- When an old server hears about a newer one, it saves everyone and shows a notice; the restart itself is done
@@ -25197,7 +25749,7 @@ end)
 end
 ]]></ProtectedString></Properties>
 </Item>
-<Item class="ModuleScript" referent="RBX64"><Properties><string name="Name">Players</string>
+<Item class="ModuleScript" referent="RBX65"><Properties><string name="Name">Players</string>
 <ProtectedString name="Source"><![CDATA[-- PLAYERS: save slots + main menu, loading/unloading, state sync, button actions, main loops.
 return function(C)
 local Players = game:GetService("Players")

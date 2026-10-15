@@ -4,8 +4,8 @@ local RGB = Color3.fromRGB
 
 -- ===== VERSION (bump these with every published update; see README "How to update Corner Empire") =====
 C.VERSION = {
-	VERSION = "18.0.0",
-	UPDATE_NAME = "Rags to Billions",
+	VERSION = "19.0.0",
+	UPDATE_NAME = "The City Rises",
 	SCHEMA_VERSION = 16,         -- the shape of a player's save. Raise it only together with a new step in DataMigration.
 	MIN_SUPPORTED_SCHEMA = 6,   -- saves older than v6 (no version field, no tutorial-reward tracking) are treated as v6
 	-- shown once to every returning player after an update (Messages app)
@@ -36,7 +36,9 @@ C.VERSION = {
 		"🛍️ 17: the CITY BAZAAR restocks every 5 minutes with rare furniture you can't get anywhere else (same stock in every server: catch the 🌈 Mythic!)",
 		"✨ 17: lucky customers! A glowing GOLDEN, DIAMOND or RAINBOW customer pays up to x250",
 		"🏙️ 18: servers hold 12 players now, with 8 new plots in EMPIRE HEIGHTS (past the Corner Bank)",
-		"📚 18: the COLLECTION BOOK: find every ❓ ??? treasure and lucky customer, with milestone rewards"
+		"📚 18: the COLLECTION BOOK: find every ❓ ??? treasure and lucky customer, with milestone rewards",
+		"🏙️ 19: THE CITY RISES: every district is built up: Restaurant Row in Midtown, neon streets in the Entertainment District, new skyscrapers downtown",
+		"🛍️ 19: the HEIGHTS MALL at the end of Heights Blvd, a beach boardwalk with a lighthouse, and windows that light up at night"
 	},
 }
 

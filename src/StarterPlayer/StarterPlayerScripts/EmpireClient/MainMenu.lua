@@ -21,7 +21,7 @@ local subtitle = C.titleText(label({Name = "Subtitle", AnchorPoint = Vector2.new
 local motto = C.titleText(label({Name = "Motto", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0.06, 156), Size = UDim2.fromOffset(700, 20),
 	Text = "BUILD • RUN • EXPLORE • RISE", TextSize = 18, TextColor3 = GOLD}, mg))
 local notice = label({AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 1, -18), Size = UDim2.fromOffset(900, 40), TextSize = 14, TextWrapped = true, TextColor3 = RGB(255, 200, 120), TextStrokeTransparency = 0.4}, mg)
-local status = label({AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0.06, 178), Size = UDim2.fromOffset(700, 24), TextSize = 16, TextColor3 = GREEN, Text = ""}, mg)
+local status = label({Name = "Status", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0.06, 178), Size = UDim2.fromOffset(700, 24), TextSize = 16, TextColor3 = GREEN, Text = ""}, mg)
 -- (a scrolling row: on a phone the save cards become a swipeable carousel)
 local row = new("ScrollingFrame", {AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.6), Size = UDim2.fromOffset(880, 330), BackgroundTransparency = 1, BorderSizePixel = 0,
 	ScrollBarThickness = 4, AutomaticCanvasSize = Enum.AutomaticSize.X, CanvasSize = UDim2.new(), ScrollingDirection = Enum.ScrollingDirection.X}, mg)
@@ -61,13 +61,19 @@ local rowScale = Lay.scaleOf(row)
 local function fitMenu(L)
 	local vp = L.vp
 	if L.compact then
-		subtitle.Size = UDim2.new(0.94, 0, 0, 30)
+		-- (a short landscape phone has no room for the whole logo block above the save cards: the name and the
+		-- promise move up and shrink, the crown and the motto are left out)
+		local short = vp.Y < 560
+		crown.Visible, motto.Visible = not short, not short
+		title.Position = UDim2.new(0.5, 0, 0.06, short and 0 or 44)
+		title.Size = UDim2.new(0.8, 0, 0, short and 44 or 76)
+		subtitle.Position = UDim2.new(0.5, 0, 0.06, short and 46 or 122)
+		subtitle.Size = UDim2.new(0.94, 0, 0, short and 22 or 30)
 		subtitle.TextScaled = true
+		status.Position = UDim2.new(0.5, 0, 0.06, short and 70 or 178)
 		status.Size = UDim2.new(0.94, 0, 0, 24)
 		motto.Size = UDim2.new(0.94, 0, 0, 18)
 		motto.TextScaled = true
-		-- (a short landscape phone has no room for the crown above the title)
-		crown.Visible = vp.Y >= 560
 		notice.Size = UDim2.new(0.94, 0, 0, 40)
 		notice.TextScaled = true
 		rowScale.Scale = math.min(1, (vp.Y * 0.55) / 330)
@@ -77,9 +83,11 @@ local function fitMenu(L)
 		welcome.Size = UDim2.new(0.94, 0, 0, 58)
 	else
 		subtitle.Size, subtitle.TextScaled = UDim2.fromOffset(700, 30), false
-		status.Size = UDim2.fromOffset(700, 24)
+		subtitle.Position = UDim2.new(0.5, 0, 0.06, 122)
+		title.Position, title.Size = UDim2.new(0.5, 0, 0.06, 44), UDim2.new(0.8, 0, 0, 76)
+		status.Position, status.Size = UDim2.new(0.5, 0, 0.06, 178), UDim2.fromOffset(700, 24)
 		motto.Size, motto.TextScaled = UDim2.fromOffset(700, 20), false
-		crown.Visible = true
+		crown.Visible, motto.Visible = true, true
 		notice.Size, notice.TextScaled = UDim2.fromOffset(900, 40), false
 		rowScale.Scale = 1
 		row.Size = UDim2.fromOffset(880, 330)

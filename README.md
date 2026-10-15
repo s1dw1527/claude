@@ -1,9 +1,29 @@
 # Corner Empire
 
-A 1–12 player Roblox business tycoon (Corner Empire: Rags to Billions). **`CornerEmpire_v18.rbxlx` is the current place file**; open it in Roblox Studio.
-`CornerEmpire_v15.rbxlx`, `CornerEmpire_v14.rbxlx`, `CornerEmpire_v13.rbxlx`, `CornerEmpire_v12.rbxlx`, `CornerEmpire_v11_3.rbxlx`, `CornerEmpire_v11_2.rbxlx` … `CornerEmpire_v5.rbxlx` are earlier versions, kept for reference. The full v11 write-up is
+A 1–12 player Roblox business tycoon (Corner Empire: Rags to Billions). **`CornerEmpire_v19.rbxlx` is the current place file**; open it in Roblox Studio.
+`CornerEmpire_v18.rbxlx`, `CornerEmpire_v15.rbxlx`, `CornerEmpire_v14.rbxlx`, `CornerEmpire_v13.rbxlx`, `CornerEmpire_v12.rbxlx`, `CornerEmpire_v11_3.rbxlx`, `CornerEmpire_v11_2.rbxlx` … `CornerEmpire_v5.rbxlx` are earlier versions, kept for reference. The full v11 write-up is
 `docs/V11_REPORT.md`; install steps and the real-Studio test list are in `docs/V11_STUDIO_CHECKLIST.md`. The v11.1
 mobile UI overhaul (client only) is in `docs/V11_1_MOBILE_REPORT.md`.
+
+## What's new in v19 — The City Rises (server + client)
+
+A world visual overhaul. Visual only: same DataStore, same save schema (16), no save changes.
+
+- **No more empty slabs.**
+  - Every unsold plot has a vacant building in its district's style, with "FOR LEASE" on it. Its View Property sign stays at the front corner.
+  - **Midtown is now Restaurant Row,** with string lights, 16 city-run restaurants and a park.
+  - **The Entertainment District** has neon streets with arcades and clubs.
+  - **The Suburbs** have small shops; **Expansion** has buildings under construction.
+- **Downtown's skyline is rebuilt:** stepped towers with lit window bands and 4 kinds of crown.
+- **New landmarks:**
+  - the **Heights Mall**, with a parking lot and working Bazaar and Furniture counters;
+  - a **beach boardwalk** with umbrellas, loungers and snack stands;
+  - a **lighthouse** on the pier;
+  - Industrial pipe racks, docks, trucks and a gantry crane.
+- **Windows light up at night** (switched on each player's device, so no network traffic).
+- **Logo:** a gold crown over CORNER EMPIRE with "BUILD • RUN • EXPLORE • RISE", on the menu and the title card.
+
+Install both drop-ins, or open `CornerEmpire_v19.rbxlx`. Details, the changed files, test results, the Studio checklist and rollback: `docs/V19_REPORT.md`. Previews of each district (simulated parts, not screenshots): `docs/v19_previews/`. **Not tested in real Studio.**
 
 ## What's new in v18 — Rags to Billions (server + client)
 
