@@ -66,7 +66,7 @@ The whole map is built by server scripts at startup; there is no hand-placed map
 
 ## 3. Tests (simulated)
 
-### New: `world_test` (27 checks)
+### New: `world_test` (31 checks)
 - **Districts:** each of Midtown, Entertainment, Suburbs and Expansion has its city buildings, and all 96 unsold plots in styled districts have a vacant building.
 - **Downtown:** the towers have lit window bands.
 - **Signs:** the gate reads RESTAURANT ROW, and all 16 restaurant names and all 10 Entertainment names are up.
@@ -78,7 +78,7 @@ The whole map is built by server scripts at startup; there is no hand-placed map
   - at noon, all of them are dark again, with their daytime color and material back.
 - **Mall:** it stands, and both counters have prompts. Triggering them opens the Bazaar and the Furniture Store, and the mall is a map destination.
 - **Beach and Industrial:** the boardwalk (50 plank sections), the lighthouse with its beam, and the pipe racks.
-- **Logo:** the menu has the frame-built crown and "BUILD • RUN • EXPLORE • RISE".
+- **Logo:** the menu has the frame-built crown and "BUILD • RUN • EXPLORE • RISE", and the whole logo block stays above the save cards at 4 screen sizes (two portrait phones, a landscape phone, desktop).
 - **Part budget:** see below.
 
 ### Part budget (one player, fresh game, simulated)
@@ -100,14 +100,20 @@ Window bands are capped at 8 per tower tier, and the tall era towers have a band
 - `intro_test`: on the same phone, the title card (with the crown) fits, and START and SKIP stay big enough to tap.
 
 ### Full regression
-REGRESSION_RESULT
+**54 suites, 2,248 checks, 0 failed** (simulated, full parallel run). How that count was reached:
+- The full run started before the last change: a fix to the menu layout on landscape phones, plus 4 new layout checks in `world_test`. In that run `world_test` had 27 checks.
+- After the change, `world_test` (31 of 31), `mobile_test` (201 of 201), `intro_test` (32 of 32) and `data_test` (26 of 26) were re-run on their own and passed.
+- With the 4 new checks, the suite total is now **2,252**.
+
+**The landscape-phone fix:** the new layout check found that on a landscape phone (844×390), the menu's name and subtitle reached down into the save cards. The v18 menu already did this. On short screens the name and promise now move up and shrink, and the crown and motto are left out. The check now passes at 390×700, 430×932, 844×390 and 1280×720.
 
 ### Static and build checks
 - `tools/check.sh` reports two lint notes, both known false positives in unchanged code:
   - `WorldFX.lua(59,4)`;
   - `Bazaar.lua(108,15)`, a loop that starts at 0 on purpose: it counts a distance, not an array index.
 - `tools/propcheck.py`: 0 problems.
-- BUILD_RESULT
+- `CornerEmpire_v19.rbxlx` (Lighting → Technology = Future) and both drop-ins in `updates/` are built.
+- The round trip (extract the place, then diff against `src`) is identical.
 
 ### Bugs caught while building v19
 - The mall used a helper before it was defined, which stopped the World script from loading. `smoke_test` caught it.
