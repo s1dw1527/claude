@@ -1082,8 +1082,8 @@ R.Action.OnServerEvent:Connect(function(plr, action, a, b, c)
 		if not s.meta.acct.introSeen then
 			s.meta.acct.introSeen = true
 			task.spawn(saveMeta, plr)
-			-- v17: watched to the end or skipped? (Creator Analytics)
-			if F.analyticsCustom then F.analyticsCustom(plr, a == "skip" and "IntroSkipped" or "IntroWatched", 1) end
+			-- v17: watched to the end (START on the title card) or skipped/cut short? (Creator Analytics)
+			if F.analyticsCustom then F.analyticsCustom(plr, a == "start" and "IntroWatched" or "IntroSkipped", 1) end
 		end
 		return
 	end

@@ -96,7 +96,7 @@ H.main(function()
 	H.section("The 🪪 showcase")
 	local sc = F.showcase(bob)
 	H.check(sc and sc.name == "Bob" and sc.stage >= 1 and sc.businesses >= 1 and type(sc.worth) == "string" and sc.park ~= nil, "Bob's card: stage " .. sc.stage .. ", " .. sc.businesses .. " businesses, " .. sc.worth .. ", park ⭐ " .. tostring(sc.park))
-	local allowed = {name = true, stage = true, stageName = true, businesses = true, worth = true, park = true, prestige = true, title = true, badge = true, paths = true}
+	local allowed = {name = true, stage = true, stageName = true, businesses = true, worth = true, park = true, prestige = true, title = true, badge = true, paths = true, rare = true}   -- (v17: rare = lucky-sale counts)
 	local leak
 	for k in pairs(sc) do if not allowed[k] then leak = k end end
 	H.check(leak == nil and sc.cash == nil and sc.settings == nil and sc.wardrobe == nil, "only public, derived data (no exact cash, settings or private fields)" .. (leak and (": " .. leak) or ""))
